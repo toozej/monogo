@@ -1,0 +1,276 @@
+---
+version: 2
+
+project_name: golang-starter
+
+env:
+  - GO111MODULE=on
+
+env_files:
+  gitlab_token: ~/nope
+  gitea_token: ~/nope
+
+before:
+  hooks:
+    - go mod tidy
+    - ./scripts/completions.sh
+    - ./scripts/manpages.sh
+
+snapshot:
+  version_template: '{{ incpatch .Version }}-next'
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - "386"
+      - amd64
+      - arm
+      - arm64
+    goarm:
+      - "7"
+    ignore:
+      - goos: windows
+        goarch: arm
+    mod_timestamp: '{{ .CommitTimestamp }}'
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{ .CommitDate
+        }} -X main.builtBy=goreleaser
+    main: ./
+    binary: golang-starter
+
+universal_binaries:
+  - replace: false
+
+checksum:
+  name_template: 'checksums.txt'
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - '^test:'
+      - '^chore'
+      - 'merge conflict'
+      - Merge pull request
+      - Merge remote-tracking branch
+      - Merge branch
+      - go mod tidy
+  groups:
+    - title: Dependency updates
+      regexp: "^.*feat\\(deps\\)*:+.*$"
+      order: 300
+    - title: 'New Features'
+      regexp: "^.*feat[(\\w)]*:+.*$"
+      order: 100
+    - title: 'Bug fixes'
+      regexp: "^.*fix[(\\w)]*:+.*$"
+      order: 200
+    - title: 'Documentation updates'
+      regexp: "^.*docs[(\\w)]*:+.*$"
+      order: 400
+    - title: Other work
+      order: 9999
+
+dockers_v2:
+  - id: golang-starter
+    images:
+      - 'toozej/golang-starter'
+      - 'ghcr.io/toozej/golang-starter'
+      - 'quay.io/toozej/golang-starter'
+    tags:
+      - "v{{ .Version }}"
+      - "{{ .Version }}"
+      - "latest"
+    dockerfile: Dockerfile.goreleaser
+    labels:
+      "io.artifacthub.package.readme-url": "https://raw.githubusercontent.com/toozej/golang-starter/main/README.md"
+      "io.artifacthub.package.maintainers": "[{\"name\":\"toozej\"}]"
+      "io.artifacthub.package.license": "GPLv3"
+      "org.opencontainers.image.description": "Golang starter template"
+      "org.opencontainers.image.created": "{{.Date}}"
+      "org.opencontainers.image.name": "{{.ProjectName}}"
+      "org.opencontainers.image.revision": "{{.FullCommit}}"
+      "org.opencontainers.image.version": "{{.Version}}"
+      "org.opencontainers.image.source": "{{.GitURL}}"
+      "org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
+      "org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/golang-starter/main/README.md"
+      "org.opencontainers.image.licenses": "GPL-3.0-only"
+      "org.opencontainers.image.title": "{{.ProjectName}}"
+      "org.opencontainers.image.vendor": "James Tooze"
+    annotations:
+      "index,manifest:org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
+      "index,manifest:org.opencontainers.image.created": "{{.Date}}"
+      "index,manifest:org.opencontainers.image.description": "Golang starter template"
+      "index,manifest:org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/golang-starter/main/README.md"
+      "index,manifest:org.opencontainers.image.licenses": "GPL-3.0-only"
+      "index,manifest:org.opencontainers.image.revision": "{{.FullCommit}}"
+      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/golang-starter"
+      "index,manifest:org.opencontainers.image.title": "{{.ProjectName}}"
+      "index,manifest:org.opencontainers.image.vendor": "James Tooze"
+      "index,manifest:org.opencontainers.image.version": "{{.Version}}"
+    extra_files:
+      - scripts/goreleaser_entrypoint.sh
+  - id: golang-starter-distroless
+    images:
+      - 'toozej/golang-starter'
+      - 'ghcr.io/toozej/golang-starter'
+      - 'quay.io/toozej/golang-starter'
+    tags:
+      - "v{{ .Version }}-distroless"
+      - "{{ .Version }}-distroless"
+      - "distroless"
+    dockerfile: Dockerfile.goreleaser.distroless
+    labels:
+      "io.artifacthub.package.readme-url": "https://raw.githubusercontent.com/toozej/golang-starter/main/README.md"
+      "io.artifacthub.package.maintainers": "[{\"name\":\"toozej\"}]"
+      "io.artifacthub.package.license": "GPLv3"
+      "org.opencontainers.image.description": "Golang starter template"
+      "org.opencontainers.image.created": "{{.Date}}"
+      "org.opencontainers.image.name": "{{.ProjectName}}"
+      "org.opencontainers.image.revision": "{{.FullCommit}}"
+      "org.opencontainers.image.version": "{{.Version}}"
+      "org.opencontainers.image.source": "{{.GitURL}}"
+      "org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
+      "org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/golang-starter/main/README.md"
+      "org.opencontainers.image.licenses": "GPL-3.0-only"
+      "org.opencontainers.image.title": "{{.ProjectName}}"
+      "org.opencontainers.image.vendor": "James Tooze"
+    annotations:
+      "index,manifest:org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
+      "index,manifest:org.opencontainers.image.created": "{{.Date}}"
+      "index,manifest:org.opencontainers.image.description": "Golang starter template"
+      "index,manifest:org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/golang-starter/main/README.md"
+      "index,manifest:org.opencontainers.image.licenses": "GPL-3.0-only"
+      "index,manifest:org.opencontainers.image.revision": "{{.FullCommit}}"
+      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/golang-starter"
+      "index,manifest:org.opencontainers.image.title": "{{.ProjectName}}"
+      "index,manifest:org.opencontainers.image.vendor": "James Tooze"
+      "index,manifest:org.opencontainers.image.version": "{{.Version}}"
+    extra_files:
+      - scripts/goreleaser_entrypoint.sh
+
+archives:
+  - name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+    format_overrides:
+      - goos: windows
+        formats: ['zip']
+    files:
+      - README.md
+      - LICENSE
+      - completions/*
+      - manpages/*
+
+nfpms:
+  - file_name_template: '{{ .ConventionalFileName }}'
+    id: packages
+    homepage: https://github.com/toozej/golang-starter
+    description: |-
+      Golang starter template
+    maintainer: toozej
+    license: GPLv3
+    vendor: golang-starter
+    bindir: /usr/bin
+    section: utils
+    contents:
+      - src: ./completions/golang-starter.bash
+        dst: /usr/share/bash-completion/completions/golang-starter
+        file_info:
+          mode: 0644
+      - src: ./completions/golang-starter.fish
+        dst: /usr/share/fish/completions/golang-starter.fish
+        file_info:
+          mode: 0644
+      - src: ./completions/golang-starter.zsh
+        dst: /usr/share/zsh/vendor-completions/_golang-starter
+        file_info:
+          mode: 0644
+      - src: ./manpages/golang-starter.1.gz
+        dst: /usr/share/man/man1/golang-starter.1.gz
+        file_info:
+          mode: 0644
+      - src: ./LICENSE
+        dst: /usr/share/doc/golang-starter/copyright
+        file_info:
+          mode: 0644
+    formats:
+      - apk
+      - deb
+      - rpm
+    dependencies:
+      - git
+    recommends:
+      - golang
+    deb:
+      lintian_overrides:
+        - statically-linked-binary
+        - changelog-file-missing-in-native-package
+
+homebrew_casks:
+  - name: golang-starter
+    homepage: https://github.com/toozej/golang-starter
+    description: "Golang starter template"
+    license: GPLv3
+    repository:
+      owner: toozej
+      name: homebrew-tap
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
+    manpages:
+      - "man/golang-starter.1.gz"
+    completions:
+      bash: "completions/golang-starter.bash"
+      zsh: "completions/golang-starter.zsh"
+      fish: "completions/golang-starter.fish"
+    url:
+      verified: "github.com/toozej/golang-starter/releases/download"
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/golang-starter"]
+          end
+
+sboms:
+  - artifacts: archive
+
+signs:
+  - cmd: cosign
+    stdin: '{{ .Env.COSIGN_PASSWORD }}'
+    output: true
+    args:
+      - 'sign-blob'
+      - '--key=env://COSIGN_PRIVATE_KEY'
+      - '--yes'
+      - '--output-signature=${signature}'
+      - '${artifact}'
+    artifacts: all
+
+docker_signs:
+  - cmd: cosign
+    artifacts: all
+    stdin: '{{ .Env.COSIGN_PASSWORD }}'
+    output: true
+    args:
+      - 'sign'
+      - '--key=env://COSIGN_PRIVATE_KEY'
+      - '--yes'
+      - '${artifact}'
+
+milestones:
+  - close: true
+
+release:
+  footer: |
+    **Full Changelog**: https://github.com/toozej/golang-starter/compare/{{ .PreviousTag }}...{{ .Tag }}
