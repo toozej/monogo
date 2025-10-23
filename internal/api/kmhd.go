@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"runtime"
 	"strings"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 
 	"github.com/toozej/kmhd2spotify/internal/types"
 	"github.com/toozej/kmhd2spotify/pkg/config"
+	"github.com/toozej/kmhd2spotify/pkg/useragent"
 )
 
 // KMHDAPIClient handles fetching and parsing of KMHD JSON API data.
@@ -85,7 +87,6 @@ func NewKMHDAPIClient(cfg config.KMHDConfig) *KMHDAPIClient {
 
 // FetchPlaylist fetches playlist data from the KMHD JSON API for the specified date.
 func (c *KMHDAPIClient) FetchPlaylist(date time.Time) (*types.SongCollection, error) {
-	startTime := time.Now()
 	c.logger.Info("Fetching playlist from KMHD JSON API")
 
 	// Build the API URL with date parameter
@@ -100,21 +101,62 @@ func (c *KMHDAPIClient) FetchPlaylist(date time.Time) (*types.SongCollection, er
 	}
 
 	// Set headers to mimic a browser request
+	userAgentString := useragent.GetLatestChromeUserAgent()
 	req.Header.Set("Accept", "application/json, text/plain, */*")
 	req.Header.Set("Accept-Language", "en-US,en;q=0.5")
-	req.Header.Set("User-Agent", "kmhd2spotify/1.0")
+	req.Header.Set("User-Agent", userAgentString)
 	req.Header.Set("Referer", c.baseURL)
 
-	// Make the HTTP request
-	resp, err := c.httpClient.Do(req)
-	requestDuration := time.Since(startTime)
+	c.logger.WithFields(log.Fields{
+		"user_agent": userAgentString,
+		"os":         runtime.GOOS,
+		"arch":       runtime.GOARCH,
+	}).Debug("Making API request with platform-appropriate user agent")
+
+	// Make the HTTP request with retry logic for better Docker container reliability
+	var resp *http.Response
+	var requestDuration time.Duration
+	maxRetries := 3
+
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		attemptStart := time.Now()
+		resp, err = c.httpClient.Do(req)
+		requestDuration = time.Since(attemptStart)
+
+		if err == nil && resp.StatusCode != http.StatusBadGateway && resp.StatusCode != http.StatusGatewayTimeout {
+			// Success or non-retryable error
+			break
+		}
+
+		if resp != nil {
+			_ = resp.Body.Close()
+		}
+
+		if attempt < maxRetries {
+			waitTime := time.Duration(attempt) * 2 * time.Second // Exponential backoff: 2s, 4s
+			c.logger.WithFields(log.Fields{
+				"attempt":     attempt,
+				"max_retries": maxRetries,
+				"wait_time":   waitTime,
+				"error":       err,
+				"status_code": func() int {
+					if resp != nil {
+						return resp.StatusCode
+					}
+					return 0
+				}(),
+			}).Warn("API request failed, retrying...")
+			time.Sleep(waitTime)
+		}
+	}
 
 	if err != nil {
 		c.logger.WithFields(log.Fields{
 			"duration_ms": requestDuration.Milliseconds(),
+			"attempts":    maxRetries,
 			"error":       err.Error(),
-		}).Error("API request failed")
-		return nil, fmt.Errorf("failed to make HTTP request: %w", err)
+		}).Error("API request failed after all retries")
+		return nil, fmt.Errorf("failed to make HTTP request after %d attempts: %w", maxRetries, err)
 	}
 	defer resp.Body.Close()
 
@@ -157,14 +199,32 @@ func (c *KMHDAPIClient) FetchPlaylist(date time.Time) (*types.SongCollection, er
 
 // buildAPIURL constructs the API URL with the date parameter.
 func (c *KMHDAPIClient) buildAPIURL(date time.Time) string {
+	// Convert to Pacific Time (KMHD's timezone) for consistent API queries
+	// This ensures the correct date is used regardless of container timezone
+	pacificTZ, err := time.LoadLocation("America/Los_Angeles")
+	if err != nil {
+		c.logger.WithError(err).Warn("Failed to load Pacific timezone, using local time")
+		pacificTZ = time.Local
+	}
+
+	// Convert the date to Pacific Time
+	pacificDate := date.In(pacificTZ)
+
 	// Format the date as ISO 8601 with timezone offset
-	dateStr := date.Format("2006-01-02T15:04:05.000-07:00")
+	dateStr := pacificDate.Format("2006-01-02T15:04:05.000-07:00")
 
 	// Create the query parameter
 	query := fmt.Sprintf(`{"day":"%s"}`, dateStr)
 
 	// Build the full URL (baseURL now contains the full API endpoint)
 	fullURL := fmt.Sprintf("%s?query=%s", c.baseURL, url.QueryEscape(query))
+
+	c.logger.WithFields(log.Fields{
+		"original_date": date.Format(time.RFC3339),
+		"pacific_date":  pacificDate.Format(time.RFC3339),
+		"query_date":    dateStr,
+		"full_url":      fullURL,
+	}).Debug("Built API URL with Pacific timezone")
 
 	return fullURL
 }

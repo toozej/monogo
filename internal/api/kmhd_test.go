@@ -88,7 +88,7 @@ func TestKMHDAPIClient_buildAPIURL(t *testing.T) {
 		{
 			name:     "different timezone",
 			date:     time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC),
-			expected: "https://www.kmhd.org/pf/api/v3/content/fetch/playlist?query=%7B%22day%22%3A%222025-01-01T12%3A00%3A00.000%2B00%3A00%22%7D",
+			expected: "https://www.kmhd.org/pf/api/v3/content/fetch/playlist?query=%7B%22day%22%3A%222025-01-01T04%3A00%3A00.000-08%3A00%22%7D",
 		},
 	}
 
@@ -487,7 +487,10 @@ func TestKMHDAPIClient_FetchPlaylist_Success(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Verify request headers
 		assert.Equal(t, "application/json, text/plain, */*", r.Header.Get("Accept"))
-		assert.Equal(t, "kmhd2spotify/1.0", r.Header.Get("User-Agent"))
+		// Verify that a Chrome user agent is being used (should contain Chrome and be appropriate for the OS)
+		userAgent := r.Header.Get("User-Agent")
+		assert.Contains(t, userAgent, "Chrome")
+		assert.Contains(t, userAgent, "Mozilla/5.0")
 
 		// Verify query parameter
 		query := r.URL.Query().Get("query")

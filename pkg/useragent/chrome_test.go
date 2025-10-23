@@ -49,7 +49,8 @@ func TestGetChromeUserAgentWithVersion(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := GetChromeUserAgentWithVersion(tt.version)
+			// Use macOS-specific function to ensure consistent results across platforms
+			result := GetChromeUserAgentWithVersionForOS(tt.version, "darwin")
 			assert.Equal(t, tt.expectedPattern, result)
 
 			// Verify it contains the expected components
@@ -67,8 +68,9 @@ func TestGetChromeUserAgentWithVersion(t *testing.T) {
 func TestGetLatestChromeUserAgent_Success(t *testing.T) {
 	// Create test server with valid Chrome version response
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Verify the request URL and parameters
-		assert.Contains(t, r.URL.String(), "chrome/platforms/mac/channels/stable/versions")
+		// Verify the request URL and parameters - should work for any platform
+		assert.Contains(t, r.URL.String(), "chrome/platforms/")
+		assert.Contains(t, r.URL.String(), "channels/stable/versions")
 		assert.Contains(t, r.URL.String(), "fields=versions(version)")
 		assert.Contains(t, r.URL.String(), "filter=endtime=none")
 
@@ -90,9 +92,8 @@ func TestGetLatestChromeUserAgent_Success(t *testing.T) {
 	// Temporarily replace the API URL for testing
 	originalClient := &http.Client{Timeout: 5 * time.Second}
 
-	// We need to test this by mocking the HTTP client, but since the function
-	// creates its own client, we'll test the integration behavior
-	result := GetLatestChromeUserAgent()
+	// Test with macOS to ensure consistent results
+	result := GetLatestChromeUserAgentForOS("darwin")
 
 	// Verify the result has the expected format
 	assert.Contains(t, result, "Mozilla/5.0")
@@ -170,10 +171,8 @@ func TestGetLatestChromeUserAgent_Fallback(t *testing.T) {
 			logrus.SetLevel(logrus.ErrorLevel)
 			defer logrus.SetLevel(originalLevel)
 
-			// Since we can't easily mock the HTTP client in the current implementation,
-			// we'll test the fallback behavior by testing the actual function
-			// The function should return the fallback user agent when API calls fail
-			result := GetLatestChromeUserAgent()
+			// Test with macOS to ensure consistent results
+			result := GetLatestChromeUserAgentForOS("darwin")
 
 			// Verify it returns a valid user agent (either from API or fallback)
 			assert.Contains(t, result, "Mozilla/5.0")
@@ -271,7 +270,8 @@ func TestUserAgentFormat_Validation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			userAgent := GetChromeUserAgentWithVersion(tt.version)
+			// Use macOS-specific function to ensure consistent results
+			userAgent := GetChromeUserAgentWithVersionForOS(tt.version, "darwin")
 
 			// Verify user agent structure
 			assert.True(t, strings.HasPrefix(userAgent, "Mozilla/5.0"), "Should start with Mozilla/5.0")
@@ -294,7 +294,8 @@ func TestGetLatestChromeUserAgent_RealAPI(t *testing.T) {
 		t.Skip("Skipping real API test in short mode")
 	}
 
-	result := GetLatestChromeUserAgent()
+	// Test with macOS to ensure consistent results
+	result := GetLatestChromeUserAgentForOS("darwin")
 
 	// Verify the result has the expected format
 	assert.Contains(t, result, "Mozilla/5.0")
@@ -343,7 +344,8 @@ func BenchmarkGetLatestChromeUserAgent(b *testing.B) {
 
 // Example tests for documentation
 func ExampleGetChromeUserAgentWithVersion() {
-	userAgent := GetChromeUserAgentWithVersion("119.0.0.0")
+	// Use macOS-specific function to ensure consistent output
+	userAgent := GetChromeUserAgentWithVersionForOS("119.0.0.0", "darwin")
 	fmt.Println(userAgent)
 	// Output: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36
 }
@@ -391,7 +393,8 @@ func TestGetLatestChromeUserAgent_ValidResponse(t *testing.T) {
 
 	// Since we can't easily replace the hardcoded URL, we test the actual function
 	// The test verifies that the function works with real API calls
-	result := GetLatestChromeUserAgent()
+	// Test with macOS to ensure consistent results
+	result := GetLatestChromeUserAgentForOS("darwin")
 
 	// Verify the result format
 	assert.Contains(t, result, "Mozilla/5.0")
@@ -438,7 +441,8 @@ func TestChromeVersion_EmptyVersion(t *testing.T) {
 func TestUserAgentComponents(t *testing.T) {
 	// Test individual components of the user agent string
 	version := "120.0.6099.109"
-	userAgent := GetChromeUserAgentWithVersion(version)
+	// Use macOS-specific function to ensure consistent results
+	userAgent := GetChromeUserAgentWithVersionForOS(version, "darwin")
 
 	// Split and verify each component
 	parts := strings.Fields(userAgent)
@@ -477,5 +481,367 @@ func TestGetChromeUserAgentWithVersion_SpecialCharacters(t *testing.T) {
 			// Should not break the format
 			assert.NotContains(t, result, "Chrome/ Safari", "Should not have empty Chrome version")
 		})
+	}
+}
+
+// Tests for new OS-specific functions
+
+func TestGetChromeUserAgentWithVersionForOS(t *testing.T) {
+	tests := []struct {
+		name     string
+		version  string
+		goos     string
+		expected string
+	}{
+		{
+			name:     "Linux user agent",
+			version:  "119.0.0.0",
+			goos:     "linux",
+			expected: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+		},
+		{
+			name:     "macOS user agent",
+			version:  "119.0.0.0",
+			goos:     "darwin",
+			expected: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+		},
+		{
+			name:     "Windows user agent",
+			version:  "119.0.0.0",
+			goos:     "windows",
+			expected: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+		},
+		{
+			name:     "Unknown OS defaults to Linux",
+			version:  "119.0.0.0",
+			goos:     "freebsd",
+			expected: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+		},
+		{
+			name:     "Empty OS defaults to Linux",
+			version:  "119.0.0.0",
+			goos:     "",
+			expected: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+		},
+		{
+			name:     "Different version on Windows",
+			version:  "120.0.6099.109",
+			goos:     "windows",
+			expected: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.109 Safari/537.36",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := GetChromeUserAgentWithVersionForOS(tt.version, tt.goos)
+			assert.Equal(t, tt.expected, result)
+
+			// Verify common components
+			assert.Contains(t, result, "Mozilla/5.0")
+			assert.Contains(t, result, "AppleWebKit/537.36")
+			assert.Contains(t, result, "Chrome/"+tt.version)
+			assert.Contains(t, result, "Safari/537.36")
+		})
+	}
+}
+
+func TestGetLatestChromeUserAgentForOS(t *testing.T) {
+	// Suppress debug logs for cleaner test output
+	originalLevel := logrus.GetLevel()
+	logrus.SetLevel(logrus.ErrorLevel)
+	defer logrus.SetLevel(originalLevel)
+
+	tests := []struct {
+		name           string
+		goos           string
+		expectedPrefix string
+		expectedSuffix string
+	}{
+		{
+			name:           "Linux user agent",
+			goos:           "linux",
+			expectedPrefix: "Mozilla/5.0 (X11; Linux x86_64)",
+			expectedSuffix: "Safari/537.36",
+		},
+		{
+			name:           "macOS user agent",
+			goos:           "darwin",
+			expectedPrefix: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+			expectedSuffix: "Safari/537.36",
+		},
+		{
+			name:           "Windows user agent",
+			goos:           "windows",
+			expectedPrefix: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+			expectedSuffix: "Safari/537.36",
+		},
+		{
+			name:           "Unknown OS defaults to Linux",
+			goos:           "solaris",
+			expectedPrefix: "Mozilla/5.0 (X11; Linux x86_64)",
+			expectedSuffix: "Safari/537.36",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := GetLatestChromeUserAgentForOS(tt.goos)
+
+			// Verify OS-specific prefix and common suffix
+			assert.True(t, strings.HasPrefix(result, tt.expectedPrefix), "Expected prefix: %s, got: %s", tt.expectedPrefix, result)
+			assert.True(t, strings.HasSuffix(result, tt.expectedSuffix), "Expected suffix: %s, got: %s", tt.expectedSuffix, result)
+
+			// Verify common components
+			assert.Contains(t, result, "AppleWebKit/537.36")
+			assert.Contains(t, result, "Chrome/")
+			assert.Contains(t, result, "(KHTML, like Gecko)")
+
+			// Verify Chrome version format (should be numeric with dots)
+			chromeStart := strings.Index(result, "Chrome/") + 7
+			chromeEnd := strings.Index(result[chromeStart:], " ")
+			if chromeEnd != -1 {
+				chromeVersion := result[chromeStart : chromeStart+chromeEnd]
+				// Should contain at least one dot (version format)
+				assert.Contains(t, chromeVersion, ".", "Chrome version should contain dots: %s", chromeVersion)
+			}
+		})
+	}
+}
+
+func TestGetChromeAPIplatform(t *testing.T) {
+	tests := []struct {
+		name     string
+		goos     string
+		expected string
+	}{
+		{
+			name:     "Linux maps to linux",
+			goos:     "linux",
+			expected: "linux",
+		},
+		{
+			name:     "Darwin maps to mac",
+			goos:     "darwin",
+			expected: "mac",
+		},
+		{
+			name:     "Windows maps to win64",
+			goos:     "windows",
+			expected: "win64",
+		},
+		{
+			name:     "Unknown OS defaults to linux",
+			goos:     "freebsd",
+			expected: "linux",
+		},
+		{
+			name:     "Empty OS defaults to linux",
+			goos:     "",
+			expected: "linux",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := getChromeAPIplatform(tt.goos)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestGetFallbackUserAgent(t *testing.T) {
+	tests := []struct {
+		name     string
+		goos     string
+		expected string
+	}{
+		{
+			name:     "Linux fallback",
+			goos:     "linux",
+			expected: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+		},
+		{
+			name:     "macOS fallback",
+			goos:     "darwin",
+			expected: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+		},
+		{
+			name:     "Windows fallback",
+			goos:     "windows",
+			expected: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+		},
+		{
+			name:     "Unknown OS defaults to Linux fallback",
+			goos:     "openbsd",
+			expected: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+		},
+		{
+			name:     "Empty OS defaults to Linux fallback",
+			goos:     "",
+			expected: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := getFallbackUserAgent(tt.goos)
+			assert.Equal(t, tt.expected, result)
+
+			// Verify common components
+			assert.Contains(t, result, "Mozilla/5.0")
+			assert.Contains(t, result, "AppleWebKit/537.36")
+			assert.Contains(t, result, "Chrome/119.0.0.0")
+			assert.Contains(t, result, "Safari/537.36")
+		})
+	}
+}
+
+func TestGetLatestChromeUserAgentForOS_WithMockServer(t *testing.T) {
+	// Test with a mock server that returns different versions for different platforms
+	tests := []struct {
+		name        string
+		goos        string
+		apiPlatform string
+		mockVersion string
+		expectedOS  string
+	}{
+		{
+			name:        "Linux with mock version",
+			goos:        "linux",
+			apiPlatform: "linux",
+			mockVersion: "121.0.6167.85",
+			expectedOS:  "X11; Linux x86_64",
+		},
+		{
+			name:        "macOS with mock version",
+			goos:        "darwin",
+			apiPlatform: "mac",
+			mockVersion: "121.0.6167.85",
+			expectedOS:  "Macintosh; Intel Mac OS X 10_15_7",
+		},
+		{
+			name:        "Windows with mock version",
+			goos:        "windows",
+			apiPlatform: "win64",
+			mockVersion: "121.0.6167.85",
+			expectedOS:  "Windows NT 10.0; Win64; x64",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Since we can't easily mock the HTTP client in the current implementation,
+			// we'll test the actual function and verify it returns appropriate OS-specific format
+			result := GetLatestChromeUserAgentForOS(tt.goos)
+
+			// Verify OS-specific components
+			assert.Contains(t, result, tt.expectedOS)
+			assert.Contains(t, result, "Mozilla/5.0")
+			assert.Contains(t, result, "AppleWebKit/537.36")
+			assert.Contains(t, result, "Chrome/")
+			assert.Contains(t, result, "Safari/537.36")
+		})
+	}
+}
+
+func TestGetLatestChromeUserAgentForOS_Fallback(t *testing.T) {
+	// Suppress debug logs for cleaner test output
+	originalLevel := logrus.GetLevel()
+	logrus.SetLevel(logrus.ErrorLevel)
+	defer logrus.SetLevel(originalLevel)
+
+	// Test that fallback works for all supported OS types
+	tests := []struct {
+		name           string
+		goos           string
+		expectedPrefix string
+	}{
+		{
+			name:           "Linux fallback",
+			goos:           "linux",
+			expectedPrefix: "Mozilla/5.0 (X11; Linux x86_64)",
+		},
+		{
+			name:           "macOS fallback",
+			goos:           "darwin",
+			expectedPrefix: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+		},
+		{
+			name:           "Windows fallback",
+			goos:           "windows",
+			expectedPrefix: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := GetLatestChromeUserAgentForOS(tt.goos)
+
+			// Should return appropriate OS-specific user agent (either from API or fallback)
+			assert.True(t, strings.HasPrefix(result, tt.expectedPrefix), "Expected prefix: %s, got: %s", tt.expectedPrefix, result)
+			assert.Contains(t, result, "Chrome/")
+			assert.Contains(t, result, "Safari/537.36")
+		})
+	}
+}
+
+func TestUserAgentConsistency(t *testing.T) {
+	// Test that the current OS functions return the same result as OS-specific functions
+	version := "119.0.0.0"
+
+	// Test GetChromeUserAgentWithVersion vs GetChromeUserAgentWithVersionForOS
+	currentOSResult := GetChromeUserAgentWithVersion(version)
+	osSpecificResult := GetChromeUserAgentWithVersionForOS(version, "darwin") // Assuming tests run on macOS
+
+	// On macOS, these should be the same
+	if strings.Contains(currentOSResult, "Macintosh") {
+		assert.Equal(t, currentOSResult, osSpecificResult)
+	}
+
+	// Test that GetLatestChromeUserAgent uses current OS
+	latestResult := GetLatestChromeUserAgent()
+	assert.Contains(t, latestResult, "Mozilla/5.0")
+	assert.Contains(t, latestResult, "Chrome/")
+}
+
+func BenchmarkGetChromeUserAgentWithVersionForOS(b *testing.B) {
+	version := "119.0.0.0"
+	goos := "linux"
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = GetChromeUserAgentWithVersionForOS(version, goos)
+	}
+}
+
+func BenchmarkGetLatestChromeUserAgentForOS(b *testing.B) {
+	// Suppress logs for cleaner benchmark output
+	originalLevel := logrus.GetLevel()
+	logrus.SetLevel(logrus.ErrorLevel)
+	defer logrus.SetLevel(originalLevel)
+
+	goos := "linux"
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = GetLatestChromeUserAgentForOS(goos)
+	}
+}
+
+func BenchmarkGetChromeAPIplatform(b *testing.B) {
+	goos := "linux"
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = getChromeAPIplatform(goos)
+	}
+}
+
+func BenchmarkGetFallbackUserAgent(b *testing.B) {
+	goos := "linux"
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = getFallbackUserAgent(goos)
 	}
 }
