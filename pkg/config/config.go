@@ -1,4 +1,4 @@
-// Package config provides secure configuration management for the golang-starter application.
+// Package config provides secure configuration management for the kmhd2spotify application.
 //
 // This package handles loading configuration from environment variables and .env files
 // with built-in security measures to prevent path traversal attacks. It uses the
@@ -17,7 +17,7 @@
 //
 // Example usage:
 //
-//	import "github.com/toozej/golang-starter/pkg/config"
+//	import "github.com/toozej/kmhd2spotify/pkg/config"
 //
 //	func main() {
 //		conf := config.GetEnvVars()
@@ -35,25 +35,51 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// Config represents the application configuration structure.
-//
-// This struct defines all configurable parameters for the golang-starter
-// application. Fields are tagged with struct tags that correspond to
-// environment variable names for automatic parsing.
-//
-// Currently supported configuration:
-//   - Username: The username for the application, loaded from USERNAME env var
-//
-// Example:
-//
-//	type Config struct {
-//		Username string `env:"USERNAME"`
-//	}
+// Config represents the main application configuration with nested service configurations.
 type Config struct {
-	// Username specifies the username for application operations.
-	// It is loaded from the USERNAME environment variable.
-	// If not set, defaults to empty string.
-	Username string `env:"USERNAME"`
+	Spotify SpotifyConfig `envPrefix:"SPOTIFY_"`
+	KMHD    KMHDConfig    `envPrefix:"KMHD_"`
+	Server  ServerConfig  `envPrefix:"SERVER_"`
+}
+
+// SpotifyConfig represents the configuration for Spotify API integration.
+//
+// This struct contains all the necessary configuration parameters for
+// authenticating and interacting with the Spotify API.
+type SpotifyConfig struct {
+	// ClientID is the Spotify application client ID.
+	ClientID string `env:"CLIENT_ID"`
+
+	// ClientSecret is the Spotify application client secret.
+	ClientSecret string `env:"CLIENT_SECRET"`
+
+	// RedirectURL is the callback URL for OAuth authentication.
+	RedirectURL string `env:"REDIRECT_URI"`
+
+	// PlaylistNamePrefix is the prefix for monthly Spotify playlists to sync KMHD songs to.
+	// Monthly playlists will be created with format: "{prefix}-YYYY-MM" (e.g., "KMHD-2025-10")
+	PlaylistNamePrefix string `env:"PLAYLIST_NAME_PREFIX"`
+}
+
+// KMHDConfig represents the configuration for KMHD JSON API integration.
+//
+// This struct contains all the necessary configuration parameters for
+// fetching playlist data from the KMHD JSON API.
+type KMHDConfig struct {
+	// BaseURL is the base URL of the KMHD website.
+	BaseURL string `env:"BASE_URL"`
+
+	// APIEndpoint is the JSON API endpoint URL for fetching playlist data.
+	APIEndpoint string `env:"API_ENDPOINT" envDefault:"https://www.kmhd.org/pf/api/v3/content/fetch/playlist"`
+
+	// HTTPTimeout is the timeout for HTTP requests in seconds.
+	HTTPTimeout int `env:"HTTP_TIMEOUT" envDefault:"30"`
+}
+
+// ServerConfig represents the server configuration.
+type ServerConfig struct {
+	Host string `env:"HOST" envDefault:"127.0.0.1"`
+	Port int    `env:"PORT" envDefault:"8080"`
 }
 
 // GetEnvVars loads and returns the application configuration from environment
@@ -64,7 +90,8 @@ type Config struct {
 //  2. Constructs and validates the .env file path to prevent traversal attacks
 //  3. Loads .env file if it exists in the current directory
 //  4. Parses environment variables into the Config struct
-//  5. Returns the populated configuration
+//  5. Validates the configuration
+//  6. Returns the populated configuration
 //
 // Security measures implemented:
 //   - Path traversal detection and prevention using filepath.Rel
@@ -78,6 +105,7 @@ type Config struct {
 //   - Path traversal attempts detected
 //   - .env file parsing errors
 //   - Environment variable parsing failures
+//   - Configuration validation errors
 //
 // Returns:
 //   - Config: A populated configuration struct with values from environment
@@ -89,9 +117,8 @@ type Config struct {
 //	conf := config.GetEnvVars()
 //
 //	// Use configuration
-//	if conf.Username != "" {
-//		fmt.Printf("Hello, %s!\n", conf.Username)
-//	}
+//	fmt.Printf("Spotify Client ID: %s\n", conf.Spotify.ClientID)
+//	fmt.Printf("KMHD Base URL: %s\n", conf.KMHD.BaseURL)
 func GetEnvVars() Config {
 	// Get current working directory for secure file operations
 	cwd, err := os.Getwd()
@@ -131,9 +158,60 @@ func GetEnvVars() Config {
 	// Parse environment variables into config struct
 	var conf Config
 	if err := env.Parse(&conf); err != nil {
-		fmt.Printf("Error parsing environment variables: %s\n", err)
+		fmt.Printf("Error parsing configuration from environment: %s\n", err)
+		os.Exit(1)
+	}
+
+	// Validate configuration
+	if err := validateConfig(&conf); err != nil {
+		fmt.Printf("Configuration validation error: %s\n", err)
+		fmt.Println("Please check your configuration and try again.")
 		os.Exit(1)
 	}
 
 	return conf
+}
+
+// Address returns the server address
+func (s ServerConfig) Address() string {
+	if s.Host == "" {
+		s.Host = "127.0.0.1"
+	}
+	if s.Port == 0 {
+		s.Port = 8080
+	}
+	return fmt.Sprintf("%s:%d", s.Host, s.Port)
+}
+
+// validateConfig validates the configuration
+func validateConfig(conf *Config) error {
+	var errors []string
+
+	// Validate server configuration
+	if conf.Server.Port < 1 || conf.Server.Port > 65535 {
+		errors = append(errors, "server port must be between 1 and 65535")
+	}
+
+	// Validate Spotify configuration (warn but don't fail)
+	if conf.Spotify.ClientID == "" {
+		fmt.Println("Warning: SPOTIFY_CLIENT_ID is not set. The application will not be able to connect to Spotify.")
+		fmt.Println("Please set your Spotify credentials to use the application.")
+	}
+	if conf.Spotify.ClientSecret == "" {
+		fmt.Println("Warning: SPOTIFY_CLIENT_SECRET is not set. The application will not be able to connect to Spotify.")
+	}
+
+	// Validate KMHD configuration
+	if conf.KMHD.APIEndpoint == "" {
+		errors = append(errors, "KMHD API endpoint is required")
+	}
+	if conf.KMHD.HTTPTimeout <= 0 {
+		errors = append(errors, "KMHD HTTP timeout must be greater than 0")
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf("configuration errors:\n- %s", strings.Join(errors, "\n- "))
+	}
+
+	return nil
 }

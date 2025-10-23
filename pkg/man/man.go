@@ -1,6 +1,6 @@
-// Package man provides manual page generation functionality for the golang-starter application.
+// Package man provides manual page generation functionality for the kmhd2spotify application.
 //
-// This package creates Unix manual pages (man pages) for the golang-starter CLI
+// This package creates Unix manual pages (man pages) for the kmhd2spotify CLI
 // application using the mango-cobra library. It generates properly formatted
 // man pages that can be viewed with the standard `man` command on Unix systems.
 //
@@ -16,13 +16,13 @@
 //
 // Example usage:
 //
-//	import "github.com/toozej/golang-starter/pkg/man"
+//	import "github.com/toozej/kmhd2spotify/pkg/man"
 //
 //	// Add man command to root command
 //	rootCmd.AddCommand(man.NewManCmd())
 //
 //	// Generate man pages:
-//	// ./golang-starter man > golang-starter.1
+//	// ./kmhd2spotify man > kmhd2spotify.1
 package man
 
 import (
@@ -37,7 +37,7 @@ import (
 // NewManCmd creates and returns a new cobra command for generating manual pages.
 //
 // This function constructs a hidden cobra command that generates Unix manual pages
-// for the golang-starter application. The command traverses the root command tree
+// for the kmhd2spotify application. The command traverses the root command tree
 // and creates comprehensive documentation in standard roff format.
 //
 // Command characteristics:
@@ -67,12 +67,12 @@ import (
 //	rootCmd.AddCommand(manCmd)
 //
 //	// Usage from command line:
-//	// ./golang-starter man > golang-starter.1
-//	// man ./golang-starter.1
+//	// ./kmhd2spotify man > kmhd2spotify.1
+//	// man ./kmhd2spotify.1
 func NewManCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:                   "man",
-		Short:                 "Generates golang-starter's command line manpages",
+		Short:                 "Generates kmhd2spotify's command line manpages",
 		SilenceUsage:          true,
 		DisableFlagsInUseLine: true,
 		Hidden:                true,

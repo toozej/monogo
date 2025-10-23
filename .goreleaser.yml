@@ -1,7 +1,7 @@
 ---
 version: 2
 
-project_name: golang-starter
+project_name: kmhd2spotify
 
 env:
   - GO111MODULE=on
@@ -43,7 +43,7 @@ builds:
       - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{ .CommitDate
         }} -X main.builtBy=goreleaser
     main: ./
-    binary: golang-starter
+    binary: kmhd2spotify
 
 universal_binaries:
   - replace: false
@@ -80,56 +80,21 @@ changelog:
       order: 9999
 
 dockers_v2:
-  - id: golang-starter
+  - id: kmhd2spotify
     images:
-      - 'toozej/golang-starter'
-      - 'ghcr.io/toozej/golang-starter'
-      - 'quay.io/toozej/golang-starter'
+      - 'toozej/kmhd2spotify'
+      - 'ghcr.io/toozej/kmhd2spotify'
+      - 'quay.io/toozej/kmhd2spotify'
     tags:
       - "v{{ .Version }}"
       - "{{ .Version }}"
       - "latest"
-    dockerfile: Dockerfile.goreleaser
-    labels:
-      "io.artifacthub.package.readme-url": "https://raw.githubusercontent.com/toozej/golang-starter/main/README.md"
-      "io.artifacthub.package.maintainers": "[{\"name\":\"toozej\"}]"
-      "io.artifacthub.package.license": "GPLv3"
-      "org.opencontainers.image.description": "Golang starter template"
-      "org.opencontainers.image.created": "{{.Date}}"
-      "org.opencontainers.image.name": "{{.ProjectName}}"
-      "org.opencontainers.image.revision": "{{.FullCommit}}"
-      "org.opencontainers.image.version": "{{.Version}}"
-      "org.opencontainers.image.source": "{{.GitURL}}"
-      "org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
-      "org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/golang-starter/main/README.md"
-      "org.opencontainers.image.licenses": "GPL-3.0-only"
-      "org.opencontainers.image.title": "{{.ProjectName}}"
-      "org.opencontainers.image.vendor": "James Tooze"
-    annotations:
-      "index,manifest:org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
-      "index,manifest:org.opencontainers.image.created": "{{.Date}}"
-      "index,manifest:org.opencontainers.image.description": "Golang starter template"
-      "index,manifest:org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/golang-starter/main/README.md"
-      "index,manifest:org.opencontainers.image.licenses": "GPL-3.0-only"
-      "index,manifest:org.opencontainers.image.revision": "{{.FullCommit}}"
-      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/golang-starter"
-      "index,manifest:org.opencontainers.image.title": "{{.ProjectName}}"
-      "index,manifest:org.opencontainers.image.vendor": "James Tooze"
-      "index,manifest:org.opencontainers.image.version": "{{.Version}}"
-    extra_files:
-      - scripts/goreleaser_entrypoint.sh
-  - id: golang-starter-distroless
-    images:
-      - 'toozej/golang-starter'
-      - 'ghcr.io/toozej/golang-starter'
-      - 'quay.io/toozej/golang-starter'
-    tags:
       - "v{{ .Version }}-distroless"
       - "{{ .Version }}-distroless"
       - "distroless"
-    dockerfile: Dockerfile.goreleaser.distroless
+    dockerfile: Dockerfile.goreleaser
     labels:
-      "io.artifacthub.package.readme-url": "https://raw.githubusercontent.com/toozej/golang-starter/main/README.md"
+      "io.artifacthub.package.readme-url": "https://raw.githubusercontent.com/toozej/kmhd2spotify/main/README.md"
       "io.artifacthub.package.maintainers": "[{\"name\":\"toozej\"}]"
       "io.artifacthub.package.license": "GPLv3"
       "org.opencontainers.image.description": "Golang starter template"
@@ -139,7 +104,7 @@ dockers_v2:
       "org.opencontainers.image.version": "{{.Version}}"
       "org.opencontainers.image.source": "{{.GitURL}}"
       "org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
-      "org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/golang-starter/main/README.md"
+      "org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/kmhd2spotify/main/README.md"
       "org.opencontainers.image.licenses": "GPL-3.0-only"
       "org.opencontainers.image.title": "{{.ProjectName}}"
       "org.opencontainers.image.vendor": "James Tooze"
@@ -147,10 +112,10 @@ dockers_v2:
       "index,manifest:org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
       "index,manifest:org.opencontainers.image.created": "{{.Date}}"
       "index,manifest:org.opencontainers.image.description": "Golang starter template"
-      "index,manifest:org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/golang-starter/main/README.md"
+      "index,manifest:org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/kmhd2spotify/main/README.md"
       "index,manifest:org.opencontainers.image.licenses": "GPL-3.0-only"
       "index,manifest:org.opencontainers.image.revision": "{{.FullCommit}}"
-      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/golang-starter"
+      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/kmhd2spotify"
       "index,manifest:org.opencontainers.image.title": "{{.ProjectName}}"
       "index,manifest:org.opencontainers.image.vendor": "James Tooze"
       "index,manifest:org.opencontainers.image.version": "{{.Version}}"
@@ -176,33 +141,33 @@ archives:
 nfpms:
   - file_name_template: '{{ .ConventionalFileName }}'
     id: packages
-    homepage: https://github.com/toozej/golang-starter
+    homepage: https://github.com/toozej/kmhd2spotify
     description: |-
       Golang starter template
     maintainer: toozej
     license: GPLv3
-    vendor: golang-starter
+    vendor: kmhd2spotify
     bindir: /usr/bin
     section: utils
     contents:
-      - src: ./completions/golang-starter.bash
-        dst: /usr/share/bash-completion/completions/golang-starter
+      - src: ./completions/kmhd2spotify.bash
+        dst: /usr/share/bash-completion/completions/kmhd2spotify
         file_info:
           mode: 0644
-      - src: ./completions/golang-starter.fish
-        dst: /usr/share/fish/completions/golang-starter.fish
+      - src: ./completions/kmhd2spotify.fish
+        dst: /usr/share/fish/completions/kmhd2spotify.fish
         file_info:
           mode: 0644
-      - src: ./completions/golang-starter.zsh
-        dst: /usr/share/zsh/vendor-completions/_golang-starter
+      - src: ./completions/kmhd2spotify.zsh
+        dst: /usr/share/zsh/vendor-completions/_kmhd2spotify
         file_info:
           mode: 0644
-      - src: ./manpages/golang-starter.1.gz
-        dst: /usr/share/man/man1/golang-starter.1.gz
+      - src: ./manpages/kmhd2spotify.1.gz
+        dst: /usr/share/man/man1/kmhd2spotify.1.gz
         file_info:
           mode: 0644
       - src: ./LICENSE
-        dst: /usr/share/doc/golang-starter/copyright
+        dst: /usr/share/doc/kmhd2spotify/copyright
         file_info:
           mode: 0644
     formats:
@@ -219,8 +184,8 @@ nfpms:
         - changelog-file-missing-in-native-package
 
 homebrew_casks:
-  - name: golang-starter
-    homepage: https://github.com/toozej/golang-starter
+  - name: kmhd2spotify
+    homepage: https://github.com/toozej/kmhd2spotify
     description: "Golang starter template"
     license: GPLv3
     repository:
@@ -228,18 +193,18 @@ homebrew_casks:
       name: homebrew-tap
       token: "{{ .Env.TAP_GITHUB_TOKEN }}"
     manpages:
-      - "man/golang-starter.1.gz"
+      - "man/kmhd2spotify.1.gz"
     completions:
-      bash: "completions/golang-starter.bash"
-      zsh: "completions/golang-starter.zsh"
-      fish: "completions/golang-starter.fish"
+      bash: "completions/kmhd2spotify.bash"
+      zsh: "completions/kmhd2spotify.zsh"
+      fish: "completions/kmhd2spotify.fish"
     url:
-      verified: "github.com/toozej/golang-starter/releases/download"
+      verified: "github.com/toozej/kmhd2spotify/releases/download"
     hooks:
       post:
         install: |
           if OS.mac?
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/golang-starter"]
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/kmhd2spotify"]
           end
 
 sboms:
@@ -273,4 +238,4 @@ milestones:
 
 release:
   footer: |
-    **Full Changelog**: https://github.com/toozej/golang-starter/compare/{{ .PreviousTag }}...{{ .Tag }}
+    **Full Changelog**: https://github.com/toozej/kmhd2spotify/compare/{{ .PreviousTag }}...{{ .Tag }}

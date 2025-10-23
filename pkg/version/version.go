@@ -1,4 +1,4 @@
-// Package version provides build and version information for the golang-starter application.
+// Package version provides build and version information for the kmhd2spotify application.
 //
 // This package manages version metadata that is typically injected during the build process
 // using ldflags. It provides both programmatic access to version information and a cobra
@@ -13,13 +13,13 @@
 //
 // Build-time injection example:
 //
-//	go build -ldflags "-X github.com/toozej/golang-starter/pkg/version.Version=v1.0.0 \
-//	  -X github.com/toozej/golang-starter/pkg/version.Commit=abc123 \
-//	  -X github.com/toozej/golang-starter/pkg/version.Branch=main"
+//	go build -ldflags "-X github.com/toozej/kmhd2spotify/pkg/version.Version=v1.0.0 \
+//	  -X github.com/toozej/kmhd2spotify/pkg/version.Commit=abc123 \
+//	  -X github.com/toozej/kmhd2spotify/pkg/version.Branch=main"
 //
 // Example usage:
 //
-//	import "github.com/toozej/golang-starter/pkg/version"
+//	import "github.com/toozej/kmhd2spotify/pkg/version"
 //
 //	// Get version info programmatically
 //	info, err := version.Get()
@@ -52,7 +52,7 @@ import (
 //
 // Build-time injection example:
 //
-//	go build -ldflags "-X github.com/toozej/golang-starter/pkg/version.Version=v1.2.3"
+//	go build -ldflags "-X github.com/toozej/kmhd2spotify/pkg/version.Version=v1.2.3"
 var (
 	// Version represents the semantic version of the application.
 	// Defaults to "local" for development builds.
@@ -173,7 +173,7 @@ func Get() (Info, error) {
 //	rootCmd.AddCommand(version.Command())
 //
 //	// Command line usage:
-//	// ./golang-starter version
+//	// ./kmhd2spotify version
 //	// Output: {"Commit":"abc123","Version":"v1.0.0","Branch":"main",...}
 func Command() *cobra.Command {
 	return &cobra.Command{

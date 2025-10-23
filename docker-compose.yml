@@ -1,21 +1,28 @@
 ---
 services:
-  golang-starter:
-    container_name: golang-starter
-    image: toozej/golang-starter:latest
+  kmhd2spotify:
+    container_name: kmhd2spotify
+    image: toozej/kmhd2spotify:latest
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
     read_only: true
+    command: ["sync", "--continuous"]
+    volumes:
+      - ./data:/app/data
+    environment:
+      - SPOTIFY_TOKEN_FILE_PATH=/app/data/spotify_token.json
+    env_file:
+      - .env
     labels:
       - "traefik.enable=false"
       # labels below for publishing as web service
       # - "traefik.docker.network=traefik"
-      # - "traefik.http.routers.golang-starter.rule=Host(`golang-starter.test`)"
-      # - "traefik.http.routers.golang-starter.middlewares=http-redirect-https@file,headers@file"
-      # - "traefik.http.routers.golang-starter-secure.entrypoints=https"
-      # - "traefik.http.routers.golang-starter-secure.rule=Host(`golang-starter.test`)"
-      # - "traefik.http.routers.golang-starter-secure.middlewares=headers@file"
-      # - "traefik.http.routers.golang-starter-secure.tls=true"
+      # - "traefik.http.routers.kmhd2spotify.rule=Host(`kmhd2spotify.test`)"
+      # - "traefik.http.routers.kmhd2spotify.middlewares=http-redirect-https@file,headers@file"
+      # - "traefik.http.routers.kmhd2spotify-secure.entrypoints=https"
+      # - "traefik.http.routers.kmhd2spotify-secure.rule=Host(`kmhd2spotify.test`)"
+      # - "traefik.http.routers.kmhd2spotify-secure.middlewares=headers@file"
+      # - "traefik.http.routers.kmhd2spotify-secure.tls=true"
     # networks:
       # - traefik

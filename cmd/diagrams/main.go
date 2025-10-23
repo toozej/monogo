@@ -1,6 +1,6 @@
-// Package main provides diagram generation utilities for the golang-starter project.
+// Package main provides diagram generation utilities for the kmhd2spotify project.
 //
-// This application generates architectural and component diagrams for the golang-starter
+// This application generates architectural and component diagrams for the kmhd2spotify
 // template using the go-diagrams library. It creates visual representations of the
 // project structure and component relationships to aid in documentation and understanding.
 //
@@ -57,7 +57,7 @@ func main() {
 }
 
 // generateArchitectureDiagram creates a high-level architecture diagram showing
-// the interaction flow between users and the golang-starter application components.
+// the interaction flow between users and the kmhd2spotify application components.
 //
 // The diagram illustrates:
 //   - User interaction with the CLI application
@@ -93,11 +93,11 @@ func generateArchitectureDiagram() {
 }
 
 // generateComponentDiagram creates a detailed component diagram showing the
-// relationships and dependencies between different packages in the golang-starter project.
+// relationships and dependencies between different packages in the kmhd2spotify project.
 //
 // The diagram illustrates:
 //   - main.go as the entry point
-//   - cmd/golang-starter package handling CLI operations
+//   - cmd/kmhd2spotify package handling CLI operations
 //   - Integration with configuration, starter, version, and man packages
 //   - Data flow between components
 //
@@ -112,7 +112,7 @@ func generateComponentDiagram() {
 
 	// Main components
 	main := programming.Language.Go(diagram.NodeLabel("main.go"))
-	rootCmd := programming.Language.Go(diagram.NodeLabel("cmd/golang-starter\nroot.go"))
+	rootCmd := programming.Language.Go(diagram.NodeLabel("cmd/kmhd2spotify\nroot.go"))
 	config := programming.Language.Go(diagram.NodeLabel("pkg/config\nconfig.go"))
 	starter := programming.Language.Go(diagram.NodeLabel("internal/starter\nstarter.go"))
 	version := programming.Language.Go(diagram.NodeLabel("pkg/version\nversion.go"))

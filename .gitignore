@@ -1,10 +1,13 @@
 # Cosign
-golang-starter.key
+kmhd2spotify.key
 cosign.key
 *.sig
 
 # local secret environment variables
 .env
+
+# Data directory for Docker volumes (contains tokens and other persistent data)
+data/
 
 # Binaries for programs and plugins
 *.exe
@@ -34,3 +37,5 @@ profiles/
 prompt.txt
 prompt.md
 TASKS.md
+.kiro/
+.kilocode/

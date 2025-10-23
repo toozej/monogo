@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
   push:
   schedule:
-    - cron: "0 1 * * 1"
+    - cron: "26 1 * * 1"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -146,7 +146,7 @@ jobs:
           distribution: goreleaser
           version: latest
           args: release --clean
-          workdir: '/home/runner/work/golang-starter/golang-starter'
+          workdir: '/home/runner/work/kmhd2spotify/kmhd2spotify'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
@@ -175,13 +175,13 @@ jobs:
         uses: sigstore/cosign-installer@main # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
       - name: Get public cosign key
         run: |
-          curl --silent https://raw.githubusercontent.com/toozej/golang-starter/main/golang-starter.pub -O
+          curl --silent https://raw.githubusercontent.com/toozej/kmhd2spotify/main/kmhd2spotify.pub -O
       - name: Verify signatures of binaries
         run: |
-          FILE=./dist/golang-starter_${{ matrix.platform }}_${{ matrix.arch }}/golang-starter${{ matrix.extension }}
+          FILE=./dist/kmhd2spotify_${{ matrix.platform }}_${{ matrix.arch }}/kmhd2spotify${{ matrix.extension }}
           if test -f "${FILE}"; then
             echo "verifying binary: ${FILE}"
-            cosign verify --key golang-starter.pub --signature "${FILE}.sig" "${FILE}"
+            cosign verify --key kmhd2spotify.pub --signature "${FILE}.sig" "${FILE}"
           else
             echo "skipping verifying non-existant binary: ${FILE}"
           fi
@@ -200,13 +200,13 @@ jobs:
         uses: sigstore/cosign-installer@main # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
       - name: Get public cosign key
         run: |
-          curl --silent https://raw.githubusercontent.com/toozej/golang-starter/main/golang-starter.pub -O
+          curl --silent https://raw.githubusercontent.com/toozej/kmhd2spotify/main/kmhd2spotify.pub -O
       - name: Verify signatures of archives
         run: |
-          FILE=./dist/golang-starter_${{ matrix.platform }}_${{ matrix.arch }}.${{ matrix.extension }}
+          FILE=./dist/kmhd2spotify_${{ matrix.platform }}_${{ matrix.arch }}.${{ matrix.extension }}
           if test -f "${FILE}"; then
             echo "verifying archive: ${FILE}"
-            cosign verify --key golang-starter.pub --signature "${FILE}.sig" "${FILE}"
+            cosign verify --key kmhd2spotify.pub --signature "${FILE}.sig" "${FILE}"
           else
             echo "skipping verifying non-existant archive: ${FILE}"
           fi
@@ -219,7 +219,7 @@ jobs:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
         with:
-          image-ref: 'ghcr.io/toozej/golang-starter:latest'
+          image-ref: 'ghcr.io/toozej/kmhd2spotify:latest'
           format: 'table'
           exit-code: '1'
           ignore-unfixed: true
@@ -237,13 +237,13 @@ jobs:
     steps:
       - name: Install Cosign
         uses: sigstore/cosign-installer@main # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
-      - name: Get public cosign key for golang-starter project from GitHub
+      - name: Get public cosign key for kmhd2spotify project from GitHub
         run: |
-          curl --silent https://raw.githubusercontent.com/toozej/golang-starter/main/golang-starter.pub -O
+          curl --silent https://raw.githubusercontent.com/toozej/kmhd2spotify/main/kmhd2spotify.pub -O
       - name: Verify signatures of Docker images
         run: |
-          cosign verify --key golang-starter.pub \
-            ${{ matrix.registry }}toozej/golang-starter:${{ matrix.tag }}
+          cosign verify --key kmhd2spotify.pub \
+            ${{ matrix.registry }}toozej/kmhd2spotify:${{ matrix.tag }}
 
   workflow-keepalive:
     if: github.event_name == 'schedule'

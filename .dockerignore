@@ -1,6 +1,8 @@
 .git
 .github
 .gitignore
+.kiro
+.kilocode
 .pre-commit-config.yaml
 c.out
 completions
@@ -15,5 +17,5 @@ checkmake.ini
 Makefile
 Dockerfile*
 docker-compose.yml
-golang-starter
-golang-starter.key
+kmhd2spotify
+kmhd2spotify.key
