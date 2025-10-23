@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
-	"net/url"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -464,12 +463,6 @@ func authenticateSpotify(spotifyService types.SpotifyService) error {
 	fmt.Printf("Please visit this URL to authenticate:\n%s\n\n", authURL)
 	fmt.Printf("Waiting for authentication... (Press Ctrl+C to cancel)\n")
 
-	// Parse the redirect URI to get the port for our temporary server
-	redirectURL, err := url.Parse(conf.Spotify.RedirectURL)
-	if err != nil {
-		return fmt.Errorf("failed to parse redirect URL: %w", err)
-	}
-
 	// Create a channel to signal when authentication is complete
 	authComplete := make(chan error, 1)
 
@@ -479,11 +472,9 @@ func authenticateSpotify(spotifyService types.SpotifyService) error {
 		handleSpotifyCallback(w, r, spotifyService, authComplete)
 	})
 
-	// Use the host and port from the redirect URL
-	serverAddr := fmt.Sprintf("%s:%s", redirectURL.Hostname(), redirectURL.Port())
-	if redirectURL.Port() == "" {
-		serverAddr = fmt.Sprintf("%s:80", redirectURL.Hostname())
-	}
+	// Use the server configuration from config instead of parsing redirect URI
+	// This allows the server to bind to the correct interface in Docker containers
+	serverAddr := conf.Server.Address()
 
 	server := &http.Server{
 		Addr:              serverAddr,
