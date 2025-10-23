@@ -14,14 +14,8 @@ import (
 	"github.com/toozej/kmhd2spotify/pkg/config"
 )
 
-// Test data constants
-const (
-	testBaseURL = "https://kmhd.org"
-)
-
 func createTestConfig() config.KMHDConfig {
 	return config.KMHDConfig{
-		BaseURL:     testBaseURL,
 		APIEndpoint: "https://www.kmhd.org/pf/api/v3/content/fetch/playlist",
 		HTTPTimeout: 30,
 	}
@@ -48,7 +42,6 @@ func TestNewKMHDAPIClient(t *testing.T) {
 		{
 			name: "valid configuration",
 			config: config.KMHDConfig{
-				BaseURL:     testBaseURL,
 				APIEndpoint: "https://www.kmhd.org/pf/api/v3/content/fetch/playlist",
 				HTTPTimeout: 30,
 			},
@@ -63,7 +56,6 @@ func TestNewKMHDAPIClient(t *testing.T) {
 		{
 			name: "empty API endpoint uses default",
 			config: config.KMHDConfig{
-				BaseURL:     "",
 				APIEndpoint: "",
 				HTTPTimeout: 30,
 			},

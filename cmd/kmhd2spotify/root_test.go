@@ -12,9 +12,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	// Set required environment variables for config validation during init()
-	os.Setenv("KMHD_BASE_URL", "https://example.com")
-	os.Setenv("KMHD_PLAYLIST_PATH", "/playlist")
+	// No required environment variables needed for config validation
 	os.Exit(m.Run())
 }
 

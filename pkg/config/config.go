@@ -59,6 +59,10 @@ type SpotifyConfig struct {
 	// PlaylistNamePrefix is the prefix for monthly Spotify playlists to sync KMHD songs to.
 	// Monthly playlists will be created with format: "{prefix}-YYYY-MM" (e.g., "KMHD-2025-10")
 	PlaylistNamePrefix string `env:"PLAYLIST_NAME_PREFIX"`
+
+	// TokenFilePath is the path where the Spotify authentication token is stored.
+	// If not specified, defaults to ~/.config/kmhd2spotify/spotify_token.json
+	TokenFilePath string `env:"TOKEN_FILE_PATH" envDefault:"~/.config/kmhd2spotify/spotify_token.json"`
 }
 
 // KMHDConfig represents the configuration for KMHD JSON API integration.
@@ -66,9 +70,6 @@ type SpotifyConfig struct {
 // This struct contains all the necessary configuration parameters for
 // fetching playlist data from the KMHD JSON API.
 type KMHDConfig struct {
-	// BaseURL is the base URL of the KMHD website.
-	BaseURL string `env:"BASE_URL"`
-
 	// APIEndpoint is the JSON API endpoint URL for fetching playlist data.
 	APIEndpoint string `env:"API_ENDPOINT" envDefault:"https://www.kmhd.org/pf/api/v3/content/fetch/playlist"`
 
@@ -118,7 +119,7 @@ type ServerConfig struct {
 //
 //	// Use configuration
 //	fmt.Printf("Spotify Client ID: %s\n", conf.Spotify.ClientID)
-//	fmt.Printf("KMHD Base URL: %s\n", conf.KMHD.BaseURL)
+//	fmt.Printf("KMHD API Endpoint: %s\n", conf.KMHD.APIEndpoint)
 func GetEnvVars() Config {
 	// Get current working directory for secure file operations
 	cwd, err := os.Getwd()
@@ -181,6 +182,35 @@ func (s ServerConfig) Address() string {
 		s.Port = 8080
 	}
 	return fmt.Sprintf("%s:%d", s.Host, s.Port)
+}
+
+// GetTokenFilePath returns the resolved token file path, handling tilde expansion
+// and ensuring the directory exists.
+func (s SpotifyConfig) GetTokenFilePath() (string, error) {
+	tokenPath := s.TokenFilePath
+
+	// Handle tilde expansion
+	if strings.HasPrefix(tokenPath, "~/") {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("failed to get user home directory: %w", err)
+		}
+		tokenPath = filepath.Join(homeDir, tokenPath[2:])
+	}
+
+	// Convert to absolute path
+	absPath, err := filepath.Abs(tokenPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve absolute path: %w", err)
+	}
+
+	// Ensure the directory exists
+	tokenDir := filepath.Dir(absPath)
+	if err := os.MkdirAll(tokenDir, 0700); err != nil {
+		return "", fmt.Errorf("failed to create token directory %s: %w", tokenDir, err)
+	}
+
+	return absPath, nil
 }
 
 // validateConfig validates the configuration

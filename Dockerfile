@@ -29,6 +29,6 @@ FROM gcr.io/distroless/static-debian12:latest
 # Copy our static executable.
 COPY --from=build /go/kmhd2spotify/kmhd2spotify /go/bin/kmhd2spotify
 # Expose port for publishing as web service
-# EXPOSE 8081
+EXPOSE 8080
 # Run the binary.
 ENTRYPOINT ["/go/bin/kmhd2spotify"]

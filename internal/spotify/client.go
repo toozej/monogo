@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"sync"
 	"time"
 
@@ -79,8 +78,8 @@ func NewClient(cfg config.SpotifyConfig, logger *logrus.Logger) (*Client, error)
 		return nil, fmt.Errorf("redirect URL is required but not configured")
 	}
 
-	// Determine token file path
-	tokenFile, err := getTokenFilePath()
+	// Get token file path from config
+	tokenFile, err := cfg.GetTokenFilePath()
 	if err != nil {
 		logger.WithError(err).Warn("Could not determine token file path, authentication will be required each time")
 	}
@@ -551,33 +550,6 @@ func (c *Client) CreatePlaylist(name, description string, public bool) (*Playlis
 	}).Info("Successfully created new playlist")
 
 	return playlist, nil
-}
-
-// getTokenFilePath returns the path where tokens should be stored
-func getTokenFilePath() (string, error) {
-	// Check if custom token file path is set via environment variable
-	if tokenPath := os.Getenv("SPOTIFY_TOKEN_FILE_PATH"); tokenPath != "" {
-		// Ensure the directory exists
-		tokenDir := filepath.Dir(tokenPath)
-		if err := os.MkdirAll(tokenDir, 0700); err != nil {
-			return "", fmt.Errorf("failed to create token directory %s: %w", tokenDir, err)
-		}
-		return tokenPath, nil
-	}
-
-	// Default behavior: use ~/.config/kmhd2spotify/spotify_token.json
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return "", fmt.Errorf("failed to get user home directory: %w", err)
-	}
-
-	// Create ~/.config/kmhd2spotify directory if it doesn't exist
-	configDir := filepath.Join(homeDir, ".config", "kmhd2spotify")
-	if err := os.MkdirAll(configDir, 0700); err != nil {
-		return "", fmt.Errorf("failed to create config directory: %w", err)
-	}
-
-	return filepath.Join(configDir, "spotify_token.json"), nil
 }
 
 // loadToken attempts to load a stored token from disk
