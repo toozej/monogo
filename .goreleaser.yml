@@ -193,7 +193,7 @@ homebrew_casks:
       name: homebrew-tap
       token: "{{ .Env.TAP_GITHUB_TOKEN }}"
     manpages:
-      - "man/kmhd2spotify.1.gz"
+      - "manpages/kmhd2spotify.1.gz"
     completions:
       bash: "completions/kmhd2spotify.bash"
       zsh: "completions/kmhd2spotify.zsh"
