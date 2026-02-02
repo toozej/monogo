@@ -32,6 +32,10 @@ E2E tests require:
 - Chrome or Chromium browser installed on the system
 - chromedp will automatically find and use the installed browser
 - No additional setup required for headless mode
+- **Auto-Skip**: Tests automatically skip with a warning message if Chrome is
+  not found
+  - Install Chrome: `brew install --cask google-chrome` (macOS)
+  - Install Chromium: `sudo apt-get install chromium-browser` (Ubuntu)
 
 ## Test Structure
 
