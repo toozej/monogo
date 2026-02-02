@@ -38,8 +38,8 @@ jobs:
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v8
         with:
-          version: v1.62
           args: --timeout=5m
+          skip-cache: true
 
       - name: Install gosec
         run: go install github.com/securego/gosec/v2/cmd/gosec@latest
