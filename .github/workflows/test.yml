@@ -1,0 +1,125 @@
+name: Tests
+
+on:
+  workflow_call:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  test-service:
+    name: Service Layer Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: ./.github/actions/setup-go
+        with:
+          go-version: '1.24'
+
+      - name: Run service layer tests
+        run: go test -v -coverprofile=service-coverage.out -covermode=atomic ./service/...
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./service-coverage.out
+          flags: service
+          name: service-tests
+          fail_ci_if_error: false
+
+  test-db:
+    name: Database Layer Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: ./.github/actions/setup-go
+        with:
+          go-version: '1.24'
+
+      - name: Run database layer tests
+        run: go test -v -coverprofile=db-coverage.out -covermode=atomic ./db/...
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./db-coverage.out
+          flags: db
+          name: db-tests
+          fail_ci_if_error: false
+
+  test-controllers:
+    name: Controller Layer Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: ./.github/actions/setup-go
+        with:
+          go-version: '1.24'
+
+      - name: Run controller layer tests
+        run: go test -v -coverprofile=controllers-coverage.out -covermode=atomic ./controllers/...
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./controllers-coverage.out
+          flags: controllers
+          name: controller-tests
+          fail_ci_if_error: false
+
+  test-integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: ./.github/actions/setup-go
+        with:
+          go-version: '1.24'
+
+      - name: Run integration tests
+        run: go test -tags=integration -v -coverprofile=integration-coverage.out -covermode=atomic ./integration_test/...
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./integration-coverage.out
+          flags: integration
+          name: integration-tests
+          fail_ci_if_error: false
+
+  aggregate-results:
+    name: Aggregate Test Results
+    runs-on: ubuntu-latest
+    needs: [test-service, test-db, test-controllers, test-integration]
+    if: always()
+    steps:
+      - name: Check test results
+        run: |
+          if [ "${{ needs.test-service.result }}" != "success" ] || \
+             [ "${{ needs.test-db.result }}" != "success" ] || \
+             [ "${{ needs.test-controllers.result }}" != "success" ] || \
+             [ "${{ needs.test-integration.result }}" != "success" ]; then
+            echo "One or more test jobs failed"
+            exit 1
+          fi
+          echo "All test jobs passed successfully"

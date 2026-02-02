@@ -1,0 +1,38 @@
+name: 'Setup Go with Caching'
+description: 'Set up Go environment with multi-level caching for dependencies and build cache'
+inputs:
+  go-version:
+    description: 'Go version to use'
+    required: false
+    default: '1.24'
+  cache-dependency-path:
+    description: 'Path to go.sum file for cache key'
+    required: false
+    default: 'go.sum'
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ inputs.go-version }}
+        cache: true
+        cache-dependency-path: ${{ inputs.cache-dependency-path }}
+
+    - name: Cache Go modules
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/go/pkg/mod
+          ~/.cache/go-build
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+
+    - name: Download dependencies
+      shell: bash
+      run: go mod download
+
+    - name: Verify dependencies
+      shell: bash
+      run: go mod verify
