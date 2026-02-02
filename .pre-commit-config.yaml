@@ -115,14 +115,14 @@ repos:
 
   # GitHub Actions validation
   - repo: https://github.com/rhysd/actionlint
-    rev: v1.7.10
+    rev: 0933c147c9d6587653d45fdcb4c497c57a65f9af  # frozen: v1.7.10  # pragma: allowlist secret
     hooks:
       - id: actionlint-docker
         args: ['--shellcheck=']
 
   # JSON Schema validation for GitHub workflows and actions
   - repo: https://github.com/python-jsonschema/check-jsonschema
-    rev: 0.36.1
+    rev: ccf21790019848af3eb4464be2a9d5efed6358f3  # frozen: 0.36.1  # pragma: allowlist secret
     hooks:
       - id: check-github-workflows
         files: ^\.github/workflows/.*\.ya?ml$
@@ -138,7 +138,7 @@ repos:
         files: \.(sh|bash)$
 
   - repo: https://github.com/scop/pre-commit-shfmt
-    rev: v3.12.0-2
+    rev: 2a30809d16bc7a60d9b97353c797f42b510d3368  # frozen: v3.12.0-2  # pragma: allowlist secret
     hooks:
       - id: shfmt
         args: ['-i', '2', '-ci', '-bn', '-w']
