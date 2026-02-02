@@ -28,7 +28,7 @@ func Init() (*gorm.DB, error) {
 
 	localDB, _ := db.DB()
 	localDB.SetMaxIdleConns(10)
-	//db.LogMode(true)
+	// db.LogMode(true)
 	DB = db
 	return DB, nil
 }

@@ -52,18 +52,34 @@ type PodcastData struct {
 			Link  string `xml:"link"`
 		} `xml:"image"`
 		Item []struct {
-			Text        string `xml:",chardata"`
-			Title       string `xml:"title"`
-			Description string `xml:"description"`
-			Encoded     string `xml:"encoded"`
-			Summary     string `xml:"summary"`
-			EpisodeType string `xml:"episodeType"`
-			Author      string `xml:"author"`
-			Image       struct {
+			Enclosure struct {
+				Text   string `xml:",chardata"`
+				URL    string `xml:"url,attr"`
+				Length string `xml:"length,attr"`
+				Type   string `xml:"type,attr"`
+			} `xml:"enclosure"`
+			Image struct {
 				Text string `xml:",chardata"`
 				Href string `xml:"href,attr"`
 			} `xml:"image"`
-			Content []struct {
+			GUID struct {
+				Text        string `xml:",chardata"`
+				IsPermaLink string `xml:"isPermaLink,attr"`
+			} `xml:"guid"`
+			Duration    string `xml:"duration"`
+			ClipID      string `xml:"clipId"`
+			EpisodeType string `xml:"episodeType"`
+			Author      string `xml:"author"`
+			Encoded     string `xml:"encoded"`
+			Episode     string `xml:"episode"`
+			Description string `xml:"description"`
+			Summary     string `xml:"summary"`
+			PubDate     string `xml:"pubDate"`
+			Text        string `xml:",chardata"`
+			Title       string `xml:"title"`
+			Link        string `xml:"link"`
+			StitcherID  string `xml:"stitcherId"`
+			Content     []struct {
 				Text   string `xml:",chardata"`
 				URL    string `xml:"url,attr"`
 				Type   string `xml:"type,attr"`
@@ -72,22 +88,6 @@ type PodcastData struct {
 					URL  string `xml:"url,attr"`
 				} `xml:"player"`
 			} `xml:"content"`
-			Guid struct {
-				Text        string `xml:",chardata"`
-				IsPermaLink string `xml:"isPermaLink,attr"`
-			} `xml:"guid"`
-			ClipId    string `xml:"clipId"`
-			PubDate   string `xml:"pubDate"`
-			Duration  string `xml:"duration"`
-			Enclosure struct {
-				Text   string `xml:",chardata"`
-				URL    string `xml:"url,attr"`
-				Length string `xml:"length,attr"`
-				Type   string `xml:"type,attr"`
-			} `xml:"enclosure"`
-			Link       string `xml:"link"`
-			StitcherId string `xml:"stitcherId"`
-			Episode    string `xml:"episode"`
 		} `xml:"item"`
 	} `xml:"channel"`
 }
@@ -96,7 +96,7 @@ type CommonSearchResultModel struct {
 	URL          string   `json:"url"`
 	Title        string   `json:"title"`
 	Image        string   `json:"image"`
-	AlreadySaved bool     `json:"already_saved"`
 	Description  string   `json:"description"`
 	Categories   []string `json:"categories"`
+	AlreadySaved bool     `json:"already_saved"`
 }

@@ -134,7 +134,6 @@ func GetPaginatedTags(page int, count int, tags *[]Tag, total *int64) error {
 	return result.Error
 }
 func GetPodcastById(id string, podcast *Podcast) error {
-
 	result := DB.Preload("PodcastItems", func(db *gorm.DB) *gorm.DB {
 		return db.Order("podcast_items.pub_date DESC")
 	}).First(&podcast, "id=?", id)
@@ -142,12 +141,10 @@ func GetPodcastById(id string, podcast *Podcast) error {
 }
 
 func GetPodcastItemById(id string, podcastItem *PodcastItem) error {
-
 	result := DB.Preload(clause.Associations).First(&podcastItem, "id=?", id)
 	return result.Error
 }
 func DeletePodcastItemById(id string) error {
-
 	result := DB.Where("id=?", id).Delete(&PodcastItem{})
 	return result.Error
 }
@@ -163,18 +160,15 @@ func DeletePodcastById(id string) error {
 }
 
 func DeleteTagById(id string) error {
-
 	result := DB.Where("id=?", id).Delete(&Tag{})
 	return result.Error
 }
 
 func GetAllPodcastItemsByPodcastId(podcastId string, podcastItems *[]PodcastItem) error {
-
 	result := DB.Preload(clause.Associations).Where(&PodcastItem{PodcastID: podcastId}).Find(&podcastItems)
 	return result.Error
 }
 func GetAllPodcastItemsByPodcastIds(podcastIds []string, podcastItems *[]PodcastItem) error {
-
 	result := DB.Preload(clause.Associations).Where("podcast_id in ?", podcastIds).Order("pub_date desc").Find(&podcastItems)
 	return result.Error
 }
@@ -212,7 +206,7 @@ func UpdatePodcastItemFileSize(podcastItemId string, size int64) error {
 func GetAllPodcastItemsWithoutImage() (*[]PodcastItem, error) {
 	var podcastItems []PodcastItem
 	result := DB.Preload(clause.Associations).Where("local_image is ?", nil).Where("image != ?", "").Where("download_status=?", Downloaded).Order("created_at desc").Find(&podcastItems)
-	//fmt.Println("To be downloaded : " + string(len(podcastItems)))
+	// fmt.Println("To be downloaded : " + string(len(podcastItems)))
 	return &podcastItems, result.Error
 }
 
@@ -224,7 +218,7 @@ func GetAllPodcastItemsToBeDownloaded() (*[]PodcastItem, error) {
 
 	var podcastItems []PodcastItem
 	result := DB.Preload(clause.Associations).Where("download_status=?", NotDownloaded).Find(&podcastItems)
-	//fmt.Println("To be downloaded : " + string(len(podcastItems)))
+	// fmt.Println("To be downloaded : " + string(len(podcastItems)))
 	return &podcastItems, result.Error
 }
 func GetAllPodcastItemsAlreadyDownloaded() (*[]PodcastItem, error) {
@@ -283,7 +277,6 @@ func ForceSetLastEpisodeDate(podcastId string) {
 }
 
 func TogglePodcastPauseStatus(podcastId string, isPaused bool) error {
-
 	tx := DB.Debug().Exec("update podcasts set is_paused = @isPaused where id = @id", sql.Named("id", podcastId), sql.Named("isPaused", isPaused))
 	return tx.Error
 }
@@ -294,12 +287,10 @@ func GetPodcastItemsByPodcastIdAndGUIDs(podcastId string, guids []string) (*[]Po
 	return &podcastItems, result.Error
 }
 func GetPodcastItemByPodcastIdAndGUID(podcastId string, guid string, podcastItem *PodcastItem) error {
-
 	result := DB.Preload(clause.Associations).Where(&PodcastItem{PodcastID: podcastId, GUID: guid}).First(&podcastItem)
 	return result.Error
 }
 func GetPodcastByTitleAndAuthor(title string, author string, podcast *Podcast) error {
-
 	result := DB.Preload(clause.Associations).Where(&Podcast{Title: title, Author: author}).First(&podcast)
 	return result.Error
 }
@@ -401,11 +392,10 @@ func UnlockMissedJobs() {
 		return
 	}
 	for _, job := range jobLocks {
-		if (job.Date == time.Time{}) {
+		if (job.Date.Equal(time.Time{})) {
 			continue
 		}
-		var duration time.Duration
-		duration = time.Duration(job.Duration)
+		var duration = time.Duration(job.Duration)
 		d := job.Date.Add(time.Minute * duration)
 		if d.Before(time.Now()) {
 			fmt.Println(job.Name + " is unlocked")

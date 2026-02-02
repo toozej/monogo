@@ -22,7 +22,7 @@ func main() {
 	var err error
 	db.DB, err = db.Init()
 	if err != nil {
-		fmt.Println("statuse: ", err)
+		fmt.Println("statutes: ", err)
 	} else {
 		db.Migrate()
 	}
@@ -49,10 +49,10 @@ func main() {
 			return "/" + raw
 		},
 		"isDateNull": func(raw time.Time) bool {
-			return raw == (time.Time{})
+			return raw.Equal((time.Time{}))
 		},
 		"formatDate": func(raw time.Time) string {
-			if raw == (time.Time{}) {
+			if raw.Equal((time.Time{})) {
 				return ""
 			}
 
@@ -60,7 +60,7 @@ func main() {
 		},
 		"naturalDate": func(raw time.Time) string {
 			return service.NatualTime(time.Now(), raw)
-			//return raw.Format("Jan 2 2006")
+			// return raw.Format("Jan 2 2006")
 		},
 		"latestEpisodeDate": func(podcastItems []db.PodcastItem) string {
 			var latest time.Time
@@ -129,7 +129,7 @@ func main() {
 	}
 	tmpl := template.Must(template.New("main").Funcs(funcMap).ParseGlob("client/*"))
 
-	//r.LoadHTMLGlob("client/*")
+	// r.LoadHTMLGlob("client/*")
 	r.SetHTMLTemplate(tmpl)
 
 	pass := os.Getenv("PASSWORD")
@@ -204,11 +204,9 @@ func main() {
 	go intiCron()
 
 	r.Run() // listen and serve on 0.0.0.0:8080 (for windows "localhost:8080")
-
 }
 func setupSettings() gin.HandlerFunc {
 	return func(c *gin.Context) {
-
 		setting := db.GetOrCreateSetting()
 		c.Set("setting", setting)
 		c.Writer.Header().Set("X-Clacks-Overhead", "GNU Terry Pratchett")
@@ -224,7 +222,7 @@ func intiCron() {
 		log.Print(err)
 	}
 	service.UnlockMissedJobs()
-	//gocron.Every(uint64(checkFrequency)).Minutes().Do(service.DownloadMissingEpisodes)
+	// gocron.Every(uint64(checkFrequency)).Minutes().Do(service.DownloadMissingEpisodes)
 	gocron.Every(uint64(checkFrequency)).Minutes().Do(service.RefreshEpisodes)
 	gocron.Every(uint64(checkFrequency)).Minutes().Do(service.CheckMissingFiles)
 	gocron.Every(uint64(checkFrequency) * 2).Minutes().Do(service.UnlockMissedJobs)

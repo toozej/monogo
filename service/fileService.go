@@ -67,7 +67,7 @@ func Download(link string, episodeTitle string, podcastName string, prefix strin
 	}
 	defer resp.Body.Close()
 	_, erra := io.Copy(file, resp.Body)
-	//fmt.Println(size)
+	// fmt.Println(size)
 	defer file.Close()
 	if erra != nil {
 		Logger.Errorw("Error saving file"+link, err)
@@ -75,7 +75,6 @@ func Download(link string, episodeTitle string, podcastName string, prefix strin
 	}
 	changeOwnership(finalPath)
 	return finalPath, nil
-
 }
 
 func GetPodcastLocalImagePath(link string, podcastName string) string {
@@ -145,7 +144,7 @@ func DownloadPodcastCoverImage(link string, podcastName string) (string, error) 
 	}
 	defer resp.Body.Close()
 	_, erra := io.Copy(file, resp.Body)
-	//fmt.Println(size)
+	// fmt.Println(size)
 	defer file.Close()
 	if erra != nil {
 		Logger.Errorw("Error saving file"+link, err)
@@ -189,7 +188,7 @@ func DownloadImage(link string, episodeId string, podcastName string) (string, e
 	}
 	defer resp.Body.Close()
 	_, erra := io.Copy(file, resp.Body)
-	//fmt.Println(size)
+	// fmt.Println(size)
 	defer file.Close()
 	if erra != nil {
 		Logger.Errorw("Error saving file"+link, err)
@@ -197,7 +196,6 @@ func DownloadImage(link string, episodeId string, podcastName string) (string, e
 	}
 	changeOwnership(finalPath)
 	return finalPath, nil
-
 }
 func changeOwnership(path string) {
 	uid, err1 := strconv.Atoi(os.Getenv("PUID"))
@@ -207,7 +205,6 @@ func changeOwnership(path string) {
 		fmt.Println(path + " : Attempting change")
 		os.Chown(path, uid, gid)
 	}
-
 }
 func DeleteFile(filePath string) error {
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
@@ -221,7 +218,6 @@ func DeleteFile(filePath string) error {
 func FileExists(filePath string) bool {
 	_, err := os.Stat(filePath)
 	return err == nil
-
 }
 
 func GetAllBackupFiles() ([]string, error) {
@@ -282,21 +278,20 @@ func GetFileSizeFromUrl(url string) (int64, error) {
 }
 
 func CreateBackup() (string, error) {
-
 	backupFileName := "podgrab_backup_" + time.Now().Format("2006.01.02_150405") + ".tar.gz"
 	folder := createConfigFolderIfNotExists("backups")
 	configPath := os.Getenv("CONFIG")
 	tarballFilePath := path.Join(folder, backupFileName)
 	file, err := os.Create(tarballFilePath)
 	if err != nil {
-		return "", errors.New(fmt.Sprintf("Could not create tarball file '%s', got error '%s'", tarballFilePath, err.Error()))
+		return "", fmt.Errorf("could not create tarball file '%s', got error '%s'", tarballFilePath, err.Error())
 	}
 	defer file.Close()
 
 	dbPath := path.Join(configPath, "podgrab.db")
 	_, err = os.Stat(dbPath)
 	if err != nil {
-		return "", errors.New(fmt.Sprintf("Could not find db file '%s', got error '%s'", dbPath, err.Error()))
+		return "", fmt.Errorf("could not find db file '%s', got error '%s'", dbPath, err.Error())
 	}
 	gzipWriter := gzip.NewWriter(file)
 	defer gzipWriter.Close()
@@ -314,13 +309,13 @@ func CreateBackup() (string, error) {
 func addFileToTarWriter(filePath string, tarWriter *tar.Writer) error {
 	file, err := os.Open(filePath)
 	if err != nil {
-		return errors.New(fmt.Sprintf("Could not open file '%s', got error '%s'", filePath, err.Error()))
+		return fmt.Errorf("could not open file '%s', got error '%s'", filePath, err.Error())
 	}
 	defer file.Close()
 
 	stat, err := file.Stat()
 	if err != nil {
-		return errors.New(fmt.Sprintf("Could not get stat for file '%s', got error '%s'", filePath, err.Error()))
+		return fmt.Errorf("could not get stat for file '%s', got error '%s'", filePath, err.Error())
 	}
 
 	header := &tar.Header{
@@ -332,12 +327,12 @@ func addFileToTarWriter(filePath string, tarWriter *tar.Writer) error {
 
 	err = tarWriter.WriteHeader(header)
 	if err != nil {
-		return errors.New(fmt.Sprintf("Could not write header for file '%s', got error '%s'", filePath, err.Error()))
+		return fmt.Errorf("could not write header for file '%s', got error '%s'", filePath, err.Error())
 	}
 
 	_, err = io.Copy(tarWriter, file)
 	if err != nil {
-		return errors.New(fmt.Sprintf("Could not copy the file '%s' data to the tarball, got error '%s'", filePath, err.Error()))
+		return fmt.Errorf("could not copy the file '%s' data to the tarball, got error '%s'", filePath, err.Error())
 	}
 
 	return nil
@@ -354,7 +349,7 @@ func httpClient() *http.Client {
 }
 
 func getRequest(url string) (*http.Request, error) {
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest("GET", url, http.NoBody)
 	if err != nil {
 		return nil, err
 	}
@@ -369,7 +364,7 @@ func getRequest(url string) (*http.Request, error) {
 
 func createFolder(folder string, parent string) string {
 	folder = cleanFileName(folder)
-	//str := stringy.New(folder)
+	// str := stringy.New(folder)
 	folderPath := path.Join(parent, folder)
 	if _, err := os.Stat(folderPath); os.IsNotExist(err) {
 		os.MkdirAll(folderPath, 0777)
@@ -401,10 +396,9 @@ func getFileName(link string, title string, defaultExtension string) string {
 	if len(ext) == 0 {
 		ext = defaultExtension
 	}
-	//str := stringy.New(title)
+	// str := stringy.New(title)
 	str := stringy.New(cleanFileName(title))
 	return str.KebabCase().Get() + ext
-
 }
 
 func cleanFileName(original string) string {

@@ -24,7 +24,6 @@ var (
 // HTMLAllowing sanitizes html, allowing some tags.
 // Arrays of allowed tags and allowed attributes may optionally be passed as the second and third arguments.
 func HTMLAllowing(s string, args ...[]string) (string, error) {
-
 	allowedTags := defaultTags
 	if len(args) > 0 {
 		allowedTags = args[0]
@@ -45,7 +44,6 @@ func HTMLAllowing(s string, args ...[]string) (string, error) {
 		token := tokenizer.Token()
 
 		switch tokenType {
-
 		case parser.ErrorToken:
 			err := tokenizer.Err()
 			if err == io.EOF {
@@ -90,32 +88,27 @@ func HTMLAllowing(s string, args ...[]string) (string, error) {
 			// We ignore doctypes by default - html5 does not require them and this is intended for sanitizing snippets of text
 		default:
 			// We ignore unknown token types by default
-
 		}
-
 	}
-
 }
 
 // HTML strips html tags, replace common entities, and escapes <>&;'" in the result.
 // Note the returned text may contain entities as it is escaped by HTMLEscapeString, and most entities are not translated.
 func HTML(s string) (output string) {
-
 	// Shortcut strings with no tags in them
 	if !strings.ContainsAny(s, "<>") {
 		output = s
 	} else {
-
 		// First remove line breaks etc as these have no meaning outside html tags (except pre)
 		// this means pre sections will lose formatting... but will result in less unintentional paras.
-		s = strings.Replace(s, "\n", "", -1)
+		s = strings.ReplaceAll(s, "\n", "")
 
 		// Then replace line breaks with newlines, to preserve that formatting
-		s = strings.Replace(s, "</p>", "\n", -1)
-		s = strings.Replace(s, "<br>", "\n", -1)
-		s = strings.Replace(s, "</br>", "\n", -1)
-		s = strings.Replace(s, "<br/>", "\n", -1)
-		s = strings.Replace(s, "<br />", "\n", -1)
+		s = strings.ReplaceAll(s, "</p>", "\n")
+		s = strings.ReplaceAll(s, "<br>", "\n")
+		s = strings.ReplaceAll(s, "</br>", "\n")
+		s = strings.ReplaceAll(s, "<br/>", "\n")
+		s = strings.ReplaceAll(s, "<br />", "\n")
 
 		// Walk through the string removing all tags
 		b := bytes.NewBufferString("")
@@ -136,13 +129,13 @@ func HTML(s string) (output string) {
 	}
 
 	// Remove a few common harmless entities, to arrive at something more like plain text
-	output = strings.Replace(output, "&#8216;", "'", -1)
-	output = strings.Replace(output, "&#8217;", "'", -1)
-	output = strings.Replace(output, "&#8220;", "\"", -1)
-	output = strings.Replace(output, "&#8221;", "\"", -1)
-	output = strings.Replace(output, "&nbsp;", " ", -1)
-	output = strings.Replace(output, "&quot;", "\"", -1)
-	output = strings.Replace(output, "&apos;", "'", -1)
+	output = strings.ReplaceAll(output, "&#8216;", "'")
+	output = strings.ReplaceAll(output, "&#8217;", "'")
+	output = strings.ReplaceAll(output, "&#8220;", "\"")
+	output = strings.ReplaceAll(output, "&#8221;", "\"")
+	output = strings.ReplaceAll(output, "&nbsp;", " ")
+	output = strings.ReplaceAll(output, "&quot;", "\"")
+	output = strings.ReplaceAll(output, "&apos;", "'")
 
 	// Translate some entities into their plain text equivalent (for example accents, if encoded as entities)
 	output = html.UnescapeString(output)
@@ -151,10 +144,10 @@ func HTML(s string) (output string) {
 	output = template.HTMLEscapeString(output)
 
 	// After processing, remove some harmless entities &, ' and " which are encoded by HTMLEscapeString
-	output = strings.Replace(output, "&#34;", "\"", -1)
-	output = strings.Replace(output, "&#39;", "'", -1)
-	output = strings.Replace(output, "&amp; ", "& ", -1)     // NB space after
-	output = strings.Replace(output, "&amp;amp; ", "& ", -1) // NB space after
+	output = strings.ReplaceAll(output, "&#34;", "\"")
+	output = strings.ReplaceAll(output, "&#39;", "'")
+	output = strings.ReplaceAll(output, "&amp; ", "& ")     // NB space after
+	output = strings.ReplaceAll(output, "&amp;amp; ", "& ") // NB space after
 
 	return output
 }
@@ -169,7 +162,7 @@ var illegalPath = regexp.MustCompile(`[^[:alnum:]\~\-\./]`)
 func Path(s string) string {
 	// Start with lowercase string
 	filePath := strings.ToLower(s)
-	filePath = strings.Replace(filePath, "..", "", -1)
+	filePath = strings.ReplaceAll(filePath, "..", "")
 	filePath = path.Clean(filePath)
 
 	// Remove illegal characters for paths, flattening accents
@@ -180,7 +173,7 @@ func Path(s string) string {
 	return filePath
 }
 
-// Remove all other unrecognised characters apart from
+// Remove all other unrecognized characters apart from
 var illegalName = regexp.MustCompile(`[^[:alnum:]-.]`)
 
 // Name makes a string safe to use in a file name by first finding the path basename, then replacing non-ascii characters.
@@ -204,7 +197,6 @@ var baseNameSeparators = regexp.MustCompile(`[./]`)
 // BaseName makes a string safe to use in a file name, producing a sanitized basename replacing . or / with -.
 // No attempt is made to normalise a path or normalise case.
 func BaseName(s string) string {
-
 	// Replace certain joining characters with a dash
 	baseName := baseNameSeparators.ReplaceAllString(s, "-")
 
@@ -326,7 +318,6 @@ func cleanAttributes(a []parser.Attribute, allowed []string) []parser.Attribute 
 	var cleaned []parser.Attribute
 	for _, attr := range a {
 		if includes(allowed, attr.Key) {
-
 			val := strings.ToLower(attr.Val)
 
 			// Check for illegal attribute values
@@ -360,7 +351,6 @@ var (
 // cleanString replaces separators with - and removes characters listed in the regexp provided from string.
 // Accents, spaces, and all characters not in A-Za-z0-9 are replaced.
 func cleanString(s string, r *regexp.Regexp) string {
-
 	// Remove any trailing space to avoid ending on -
 	s = strings.Trim(s, " ")
 
@@ -370,7 +360,7 @@ func cleanString(s string, r *regexp.Regexp) string {
 	// Replace certain joining characters with a dash
 	s = separators.ReplaceAllString(s, "-")
 
-	// Remove all other unrecognised characters
+	// Remove all other unrecognized characters
 	s = r.ReplaceAllString(s, "")
 
 	// Remove any multiple dashes caused by replacements above

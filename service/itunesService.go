@@ -44,7 +44,6 @@ const (
 )
 
 func (service PodcastIndexService) Query(q string) []*model.CommonSearchResultModel {
-
 	c := podcastindex.NewClient(PODCASTINDEX_KEY, PODCASTINDEX_SECRET)
 	var toReturn []*model.CommonSearchResultModel
 	podcasts, err := c.Search(q)

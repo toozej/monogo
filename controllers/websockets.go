@@ -25,10 +25,10 @@ var allConnections = make(map[*websocket.Conn]string)
 var broadcast = make(chan Message) // broadcast channel
 
 type Message struct {
+	Connection  *websocket.Conn `json:"-"`
 	Identifier  string          `json:"identifier"`
 	MessageType string          `json:"messageType"`
 	Payload     string          `json:"payload"`
-	Connection  *websocket.Conn `json:"-"`
 }
 
 func Wshandler(w http.ResponseWriter, r *http.Request) {
@@ -43,7 +43,7 @@ func Wshandler(w http.ResponseWriter, r *http.Request) {
 		err := conn.ReadJSON(&mess)
 		if err != nil {
 			//	fmt.Println("Socket Error")
-			//fmt.Println(err.Error())
+			// fmt.Println(err.Error())
 			isPlayer := activePlayers[conn] != ""
 			if isPlayer {
 				delete(activePlayers, conn)
@@ -66,7 +66,7 @@ func HandleWebsocketMessages() {
 	for {
 		// Grab the next message from the broadcast channel
 		msg := <-broadcast
-		//fmt.Println(msg)
+		// fmt.Println(msg)
 
 		switch msg.MessageType {
 		case "RegisterPlayer":
@@ -94,7 +94,6 @@ func HandleWebsocketMessages() {
 				items := getItemsToPlay(payload.ItemIds, payload.PodcastId, payload.TagIds)
 				var player *websocket.Conn
 				for connection, id := range activePlayers {
-
 					if msg.Identifier == id {
 						player = connection
 						break
@@ -116,7 +115,6 @@ func HandleWebsocketMessages() {
 		case "Register":
 			var player *websocket.Conn
 			for connection, id := range activePlayers {
-
 				if msg.Identifier == id {
 					player = connection
 					break

@@ -207,10 +207,10 @@ func TestGetFileSize(t *testing.T) {
 func TestGetFileSizeFromUrl(t *testing.T) {
 	tests := []struct {
 		name       string
-		statusCode int
 		size       string
-		wantError  bool
+		statusCode int
 		wantSize   int64
+		wantError  bool
 	}{
 		{
 			name:       "success",
@@ -311,11 +311,11 @@ func TestDownload(t *testing.T) {
 
 	tests := []struct {
 		name         string
-		content      []byte
-		statusCode   int
 		episodeTitle string
 		podcastName  string
 		prefix       string
+		content      []byte
+		statusCode   int
 		wantError    bool
 	}{
 		{

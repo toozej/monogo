@@ -18,6 +18,7 @@ type RssPodcastData struct {
 	Channel    RssChannel `xml:"channel"`
 }
 type RssChannel struct {
+	Image       RssItemImage `xml:"image"`
 	Text        string       `xml:",chardata"`
 	Language    string       `xml:"language"`
 	Link        string       `xml:"link"`
@@ -25,9 +26,8 @@ type RssChannel struct {
 	Description string       `xml:"description"`
 	Type        string       `xml:"type"`
 	Summary     string       `xml:"summary"`
-	Image       RssItemImage `xml:"image"`
-	Item        []RssItem    `xml:"item"`
 	Author      string       `xml:"author"`
+	Item        []RssItem    `xml:"item"`
 }
 type RssItem struct {
 	Text        string           `xml:",chardata"`

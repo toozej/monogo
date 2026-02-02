@@ -139,7 +139,7 @@ func TestSettingModel(t *testing.T) {
 		AutoDownload:           true,
 		MaxDownloadConcurrency: 10,
 		UserAgent:              "TestAgent/1.0",
-		BaseUrl:                "http://test.local",
+		BaseURL:                "http://test.local",
 	}
 
 	err := database.Create(setting).Error
@@ -155,8 +155,8 @@ func TestSettingModel(t *testing.T) {
 // TestJobLockModel tests the JobLock model and IsLocked method.
 func TestJobLockModel(t *testing.T) {
 	tests := []struct {
-		name       string
 		lock       *JobLock
+		name       string
 		wantLocked bool
 	}{
 		{

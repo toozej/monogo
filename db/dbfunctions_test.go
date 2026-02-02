@@ -27,8 +27,8 @@ func TestGetPodcastByURL(t *testing.T) {
 	tests := []struct {
 		name      string
 		url       string
-		wantError bool
 		wantID    string
+		wantError bool
 	}{
 		{
 			name:      "existing_podcast",
@@ -85,8 +85,8 @@ func TestGetAllPodcasts(t *testing.T) {
 	tests := []struct {
 		name        string
 		sorting     string
-		wantCount   int
 		wantFirstID string
+		wantCount   int
 	}{
 		{
 			name:        "default_sorting",

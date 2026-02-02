@@ -37,33 +37,23 @@ type Podcast struct {
 // PodcastItem is
 type PodcastItem struct {
 	Base
-	PodcastID string
-	Podcast   Podcast
-	Title     string
-	Summary   string `gorm:"type:text"`
-
-	EpisodeType string
-
-	Duration int
-
-	PubDate time.Time
-
-	FileURL string
-
-	GUID  string
-	Image string
-
+	PubDate        time.Time
+	BookmarkDate   time.Time
 	DownloadDate   time.Time
+	FileURL        string
+	PodcastID      string
+	LocalImage     string
+	Summary        string `gorm:"type:text"`
+	Title          string
+	GUID           string
+	Image          string
+	EpisodeType    string
 	DownloadPath   string
+	Podcast        Podcast
 	DownloadStatus DownloadStatus `gorm:"default:0"`
-
-	IsPlayed bool `gorm:"default:false"`
-
-	BookmarkDate time.Time
-
-	LocalImage string
-
-	FileSize int64
+	Duration       int
+	FileSize       int64
+	IsPlayed       bool `gorm:"default:false"`
 }
 
 type DownloadStatus int
@@ -77,18 +67,18 @@ const (
 
 type Setting struct {
 	Base
-	DownloadOnAdd                 bool `gorm:"default:true"`
+	UserAgent                     string
+	BaseURL                       string
 	InitialDownloadCount          int  `gorm:"default:5"`
-	AutoDownload                  bool `gorm:"default:true"`
-	AppendDateToFileName          bool `gorm:"default:false"`
-	AppendEpisodeNumberToFileName bool `gorm:"default:false"`
+	MaxDownloadConcurrency        int  `gorm:"default:5"`
 	DarkMode                      bool `gorm:"default:false"`
+	AppendEpisodeNumberToFileName bool `gorm:"default:false"`
 	DownloadEpisodeImages         bool `gorm:"default:false"`
 	GenerateNFOFile               bool `gorm:"default:false"`
 	DontDownloadDeletedFromDisk   bool `gorm:"default:false"`
-	BaseUrl                       string
-	MaxDownloadConcurrency        int `gorm:"default:5"`
-	UserAgent                     string
+	AppendDateToFileName          bool `gorm:"default:false"`
+	AutoDownload                  bool `gorm:"default:true"`
+	DownloadOnAdd                 bool `gorm:"default:true"`
 }
 type Migration struct {
 	Base

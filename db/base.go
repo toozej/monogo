@@ -9,10 +9,10 @@ import (
 
 // Base is
 type Base struct {
-	ID        string `sql:"type:uuid;primary_key"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	DeletedAt *time.Time `gorm:"index"`
+	ID        string     `sql:"type:uuid;primary_key"`
 }
 
 // BeforeCreate generates a UUID for new records before database insertion

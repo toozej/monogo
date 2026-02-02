@@ -71,7 +71,6 @@ func GetAllPodcastItemsByPodcastIds(podcastIds []string) *[]db.PodcastItem {
 }
 
 func GetTagsByIds(ids []string) *[]db.Tag {
-
 	tags, _ := db.GetTagsByIds(ids)
 
 	return tags
@@ -91,7 +90,6 @@ func GetAllPodcasts(sorting string) *[]db.Podcast {
 	for _, stat := range *stats {
 		countMap[Key{stat.PodcastID, stat.DownloadStatus}] = stat.Count
 		sizeMap[Key{stat.PodcastID, stat.DownloadStatus}] = stat.Size
-
 	}
 	var toReturn []db.Podcast
 	for _, podcast := range podcasts {
@@ -121,7 +119,6 @@ func AddOpml(content string) error {
 			go func(url string) {
 				defer wg.Done()
 				AddPodcast(url)
-
 			}(outline.XmlUrl)
 		}
 
@@ -138,16 +135,13 @@ func AddOpml(content string) error {
 	wg.Wait()
 	go RefreshEpisodes()
 	return nil
-
 }
 
 func ExportOmpl(usePodgrabLink bool, baseUrl string) ([]byte, error) {
-
 	podcasts := GetAllPodcasts("")
 
 	var outlines []model.OpmlOutline
 	for _, podcast := range *podcasts {
-
 		xmlUrl := podcast.URL
 		if usePodgrabLink {
 			xmlUrl = fmt.Sprintf("%s/podcasts/%s/rss", baseUrl, podcast.ID)
@@ -200,10 +194,8 @@ func getItunesImageUrl(body []byte) string {
 		if attr.Name.Local == "href" {
 			return attr.Value
 		}
-
 	}
 	return ""
-
 }
 
 func AddPodcast(url string) (db.Podcast, error) {
@@ -239,14 +231,13 @@ func AddPodcast(url string) (db.Podcast, error) {
 	}
 
 	return podcast, &model.PodcastAlreadyExistsError{Url: url}
-
 }
 
 func AddPodcastItems(podcast *db.Podcast, newPodcast bool) error {
-	//fmt.Println("Creating: " + podcast.ID)
+	// fmt.Println("Creating: " + podcast.ID)
 	data, _, err := FetchURL(podcast.URL)
 	if err != nil {
-		//log.Fatal(err)
+		// log.Fatal(err)
 		return err
 	}
 	setting := db.GetOrCreateSetting()
@@ -257,7 +248,7 @@ func AddPodcastItems(podcast *db.Podcast, newPodcast bool) error {
 	var allGuids []string
 	for i := 0; i < len(data.Channel.Item); i++ {
 		obj := data.Channel.Item[i]
-		allGuids = append(allGuids, obj.Guid.Text)
+		allGuids = append(allGuids, obj.GUID.Text)
 	}
 
 	existingItems, err := db.GetPodcastItemsByPodcastIdAndGUIDs(podcast.ID, allGuids)
@@ -271,32 +262,32 @@ func AddPodcastItems(podcast *db.Podcast, newPodcast bool) error {
 	for i := 0; i < len(data.Channel.Item); i++ {
 		obj := data.Channel.Item[i]
 		var podcastItem db.PodcastItem
-		_, keyExists := keyMap[obj.Guid.Text]
+		_, keyExists := keyMap[obj.GUID.Text]
 		if !keyExists {
 			duration, _ := strconv.Atoi(obj.Duration)
 			toParse := strings.TrimSpace(obj.PubDate)
 
 			pubDate, _ := time.Parse(time.RFC1123Z, toParse)
-			if (pubDate == time.Time{}) {
+			if (pubDate.Equal(time.Time{})) {
 				pubDate, _ = time.Parse(time.RFC1123, toParse)
 			}
-			if (pubDate == time.Time{}) {
+			if (pubDate.Equal(time.Time{})) {
 				//	RFC1123     = "Mon, 02 Jan 2006 15:04:05 MST"
 				modifiedRFC1123 := "Mon, 2 Jan 2006 15:04:05 MST"
 				pubDate, _ = time.Parse(modifiedRFC1123, toParse)
 			}
-			if (pubDate == time.Time{}) {
+			if (pubDate.Equal(time.Time{})) {
 				//	RFC1123Z    = "Mon, 02 Jan 2006 15:04:05 -0700" // RFC1123 with numeric zone
 				modifiedRFC1123Z := "Mon, 2 Jan 2006 15:04:05 -0700"
 				pubDate, _ = time.Parse(modifiedRFC1123Z, toParse)
 			}
-			if (pubDate == time.Time{}) {
+			if (pubDate.Equal(time.Time{})) {
 				//	RFC1123Z    = "Mon, 02 Jan 2006 15:04:05 -0700" // RFC1123 with numeric zone
 				modifiedRFC1123Z := "Mon, 02 Jan 2006 15:04:05 -0700"
 				pubDate, _ = time.Parse(modifiedRFC1123Z, toParse)
 			}
 
-			if (pubDate == time.Time{}) {
+			if (pubDate.Equal(time.Time{})) {
 				fmt.Printf("Cant format date : %s", obj.PubDate)
 			}
 
@@ -340,7 +331,7 @@ func AddPodcastItems(podcast *db.Podcast, newPodcast bool) error {
 				Duration:       duration,
 				PubDate:        pubDate,
 				FileURL:        obj.Enclosure.URL,
-				GUID:           obj.Guid.Text,
+				GUID:           obj.GUID.Text,
 				Image:          obj.Image.Href,
 				DownloadStatus: downloadStatus,
 			}
@@ -351,12 +342,11 @@ func AddPodcastItems(podcast *db.Podcast, newPodcast bool) error {
 	if (latestDate != time.Time{}) {
 		db.UpdateLastEpisodeDateForPodcast(podcast.ID, latestDate)
 	}
-	//go updateSizeFromUrl(itemsAdded)
+	// go updateSizeFromUrl(itemsAdded)
 	return err
 }
 
 func updateSizeFromUrl(itemUrlMap map[string]string) {
-
 	for id, url := range itemUrlMap {
 		size, err := GetFileSizeFromUrl(url)
 		if err != nil {
@@ -365,7 +355,6 @@ func updateSizeFromUrl(itemUrlMap map[string]string) {
 
 		db.UpdatePodcastItemFileSize(id, size)
 	}
-
 }
 
 func UpdateAllFileSizes() {
@@ -554,7 +543,7 @@ func CheckMissingFiles() error {
 	data, err := db.GetAllPodcastItemsAlreadyDownloaded()
 	setting := db.GetOrCreateSetting()
 
-	//fmt.Println("Processing episodes: ", strconv.Itoa(len(*data)))
+	// fmt.Println("Processing episodes: ", strconv.Itoa(len(*data)))
 	if err != nil {
 		return err
 	}
@@ -575,7 +564,7 @@ func DeleteEpisodeFile(podcastItemId string) error {
 	var podcastItem db.PodcastItem
 	err := db.GetPodcastItemById(podcastItemId, &podcastItem)
 
-	//fmt.Println("Processing episodes: ", strconv.Itoa(len(*data)))
+	// fmt.Println("Processing episodes: ", strconv.Itoa(len(*data)))
 	if err != nil {
 		return err
 	}
@@ -597,7 +586,7 @@ func DownloadSingleEpisode(podcastItemId string) error {
 	var podcastItem db.PodcastItem
 	err := db.GetPodcastItemById(podcastItemId, &podcastItem)
 
-	//fmt.Println("Processing episodes: ", strconv.Itoa(len(*data)))
+	// fmt.Println("Processing episodes: ", strconv.Itoa(len(*data)))
 	if err != nil {
 		return err
 	}
@@ -660,10 +649,8 @@ func DeletePodcastEpisodes(id string) error {
 			DeleteFile(item.LocalImage)
 		}
 		SetPodcastItemAsNotDownloaded(item.ID, db.Deleted)
-
 	}
 	return nil
-
 }
 func DeletePodcast(id string, deleteFiles bool) error {
 	var podcast db.Podcast
@@ -684,10 +671,8 @@ func DeletePodcast(id string, deleteFiles bool) error {
 			if item.LocalImage != "" {
 				DeleteFile(item.LocalImage)
 			}
-
 		}
 		db.DeletePodcastItemById(item.ID)
-
 	}
 
 	err = deletePodcastFolder(podcast.Title)
@@ -700,7 +685,6 @@ func DeletePodcast(id string, deleteFiles bool) error {
 		return err
 	}
 	return nil
-
 }
 func DeleteTag(id string) error {
 	db.UntagAllByTagId(id)
@@ -709,14 +693,13 @@ func DeleteTag(id string) error {
 		return err
 	}
 	return nil
-
 }
 
 func makeQuery(url string) ([]byte, error) {
-	//link := "https://www.goodreads.com/search/index.xml?q=Good%27s+Omens&key=" + "jCmNlIXjz29GoB8wYsrd0w"
-	//link := "https://www.goodreads.com/search/index.xml?key=jCmNlIXjz29GoB8wYsrd0w&q=Ender%27s+Game"
+	// link := "https://www.goodreads.com/search/index.xml?q=Good%27s+Omens&key=" + "jCmNlIXjz29GoB8wYsrd0w"
+	// link := "https://www.goodreads.com/search/index.xml?key=jCmNlIXjz29GoB8wYsrd0w&q=Ender%27s+Game"
 	fmt.Println(url)
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest("GET", url, http.NoBody)
 	if err != nil {
 		return nil, err
 	}
@@ -731,7 +714,6 @@ func makeQuery(url string) ([]byte, error) {
 	body, err := ioutil.ReadAll(resp.Body)
 
 	return body, nil
-
 }
 func GetSearchFromGpodder(pod model.GPodcast) *model.CommonSearchResultModel {
 	p := new(model.CommonSearchResultModel)
@@ -781,7 +763,7 @@ func UpdateSettings(downloadOnAdd bool, initialDownloadCount int, autoDownload b
 	setting.DownloadEpisodeImages = downloadEpisodeImages
 	setting.GenerateNFOFile = generateNFOFile
 	setting.DontDownloadDeletedFromDisk = dontDownloadDeletedFromDisk
-	setting.BaseUrl = baseUrl
+	setting.BaseURL = baseUrl
 	setting.MaxDownloadConcurrency = maxDownloadConcurrency
 	setting.UserAgent = userAgent
 
@@ -793,11 +775,9 @@ func UnlockMissedJobs() {
 }
 
 func AddTag(label, description string) (db.Tag, error) {
-
 	tag, err := db.GetTagByLabel(label)
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-
 		tag := db.Tag{
 			Label:       label,
 			Description: description,
@@ -808,7 +788,6 @@ func AddTag(label, description string) (db.Tag, error) {
 	}
 
 	return *tag, &model.TagAlreadyExistsError{Label: label}
-
 }
 
 func TogglePodcastPause(id string, isPaused bool) error {

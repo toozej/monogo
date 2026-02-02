@@ -21,8 +21,11 @@ type SearchGPodderData struct {
 	SearchSource string `binding:"required" form:"searchSource" json:"searchSource" query:"searchSource"`
 }
 type SettingModel struct {
-	DownloadOnAdd                 bool   `form:"downloadOnAdd" json:"downloadOnAdd" query:"downloadOnAdd"`
+	BaseURL                       string `form:"baseUrl" json:"baseUrl" query:"baseUrl"`
+	UserAgent                     string `form:"userAgent" json:"userAgent" query:"userAgent"`
 	InitialDownloadCount          int    `form:"initialDownloadCount" json:"initialDownloadCount" query:"initialDownloadCount"`
+	MaxDownloadConcurrency        int    `form:"maxDownloadConcurrency" json:"maxDownloadConcurrency" query:"maxDownloadConcurrency"`
+	DownloadOnAdd                 bool   `form:"downloadOnAdd" json:"downloadOnAdd" query:"downloadOnAdd"`
 	AutoDownload                  bool   `form:"autoDownload" json:"autoDownload" query:"autoDownload"`
 	AppendDateToFileName          bool   `form:"appendDateToFileName" json:"appendDateToFileName" query:"appendDateToFileName"`
 	AppendEpisodeNumberToFileName bool   `form:"appendEpisodeNumberToFileName" json:"appendEpisodeNumberToFileName" query:"appendEpisodeNumberToFileName"`
@@ -30,9 +33,6 @@ type SettingModel struct {
 	DownloadEpisodeImages         bool   `form:"downloadEpisodeImages" json:"downloadEpisodeImages" query:"downloadEpisodeImages"`
 	GenerateNFOFile               bool   `form:"generateNFOFile" json:"generateNFOFile" query:"generateNFOFile"`
 	DontDownloadDeletedFromDisk   bool   `form:"dontDownloadDeletedFromDisk" json:"dontDownloadDeletedFromDisk" query:"dontDownloadDeletedFromDisk"`
-	BaseUrl                       string `form:"baseUrl" json:"baseUrl" query:"baseUrl"`
-	MaxDownloadConcurrency        int    `form:"maxDownloadConcurrency" json:"maxDownloadConcurrency" query:"maxDownloadConcurrency"`
-	UserAgent                     string `form:"userAgent" json:"userAgent" query:"userAgent"`
 }
 
 var searchOptions = map[string]string{
@@ -49,7 +49,7 @@ func AddPage(c *gin.Context) {
 	c.HTML(http.StatusOK, "addPodcast.html", gin.H{"title": "Add Podcast", "setting": setting, "searchOptions": searchOptions})
 }
 func HomePage(c *gin.Context) {
-	//var podcasts []db.Podcast
+	// var podcasts []db.Podcast
 	podcasts := service.GetAllPodcasts("")
 	setting := c.MustGet("setting").(*db.Setting)
 	c.HTML(http.StatusOK, "index.html", gin.H{"title": "Podgrab", "podcasts": podcasts, "setting": setting})
@@ -57,7 +57,6 @@ func HomePage(c *gin.Context) {
 func PodcastPage(c *gin.Context) {
 	var searchByIdQuery SearchByIdQuery
 	if c.ShouldBindUri(&searchByIdQuery) == nil {
-
 		var podcast db.Podcast
 
 		if err := db.GetPodcastById(searchByIdQuery.Id, &podcast); err == nil {
@@ -108,7 +107,6 @@ func PodcastPage(c *gin.Context) {
 	} else {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 	}
-
 }
 
 func getItemsToPlay(itemIds []string, podcastId string, tagIds []string) []db.PodcastItem {
@@ -116,7 +114,6 @@ func getItemsToPlay(itemIds []string, podcastId string, tagIds []string) []db.Po
 	if len(itemIds) > 0 {
 		toAdd, _ := service.GetAllPodcastItemsByIds(itemIds)
 		items = *toAdd
-
 	} else if podcastId != "" {
 		pod := service.GetPodcastById(podcastId)
 		items = pod.PodcastItems
@@ -136,7 +133,6 @@ func getItemsToPlay(itemIds []string, podcastId string, tagIds []string) []db.Po
 }
 
 func PlayerPage(c *gin.Context) {
-
 	itemIds, hasItemIds := c.GetQueryArray("itemIds")
 	podcastId, hasPodcastId := c.GetQuery("podcastId")
 	tagIds, hasTagIds := c.GetQueryArray("tagIds")
@@ -184,10 +180,8 @@ func PlayerPage(c *gin.Context) {
 		"totalCount":     totalCount,
 		"downloadedOnly": true,
 	})
-
 }
 func SettingsPage(c *gin.Context) {
-
 	setting := c.MustGet("setting").(*db.Setting)
 	diskStats, _ := db.GetPodcastEpisodeDiskStats()
 	c.HTML(http.StatusOK, "settings.html", gin.H{
@@ -195,10 +189,8 @@ func SettingsPage(c *gin.Context) {
 		"title":     "Update your preferences",
 		"diskStats": diskStats,
 	})
-
 }
 func BackupsPage(c *gin.Context) {
-
 	files, err := service.GetAllBackupFiles()
 	var allFiles []interface{}
 	setting := c.MustGet("setting").(*db.Setting)
@@ -228,7 +220,6 @@ func BackupsPage(c *gin.Context) {
 	} else {
 		c.JSON(http.StatusBadRequest, err)
 	}
-
 }
 
 func getSortOptions() interface{} {
@@ -260,7 +251,6 @@ func AllEpisodesPage(c *gin.Context) {
 		"sortOptions":  getSortOptions(),
 	}
 	c.HTML(http.StatusOK, "episodes_new.html", toReturn)
-
 }
 
 func AllTagsPage(c *gin.Context) {
@@ -276,11 +266,10 @@ func AllTagsPage(c *gin.Context) {
 
 	var tags []db.Tag
 	var totalCount int64
-	//fmt.Printf("%+v\n", filter)
+	// fmt.Printf("%+v\n", filter)
 
 	if err := db.GetPaginatedTags(page, count,
 		&tags, &totalCount); err == nil {
-
 		setting := c.MustGet("setting").(*db.Setting)
 		totalPages := math.Ceil(float64(totalCount) / float64(count))
 		nextPage, previousPage := 0, 0
@@ -305,7 +294,6 @@ func AllTagsPage(c *gin.Context) {
 	} else {
 		c.JSON(http.StatusBadRequest, err)
 	}
-
 }
 
 func Search(c *gin.Context) {
@@ -330,11 +318,9 @@ func Search(c *gin.Context) {
 		}
 		c.JSON(200, data)
 	}
-
 }
 
 func GetOmpl(c *gin.Context) {
-
 	usePodgrabLink := c.DefaultQuery("usePodgrabLink", "false") == "true"
 
 	data, err := service.ExportOmpl(usePodgrabLink, getBaseUrl(c))
@@ -358,7 +344,7 @@ func UploadOpml(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request"})
 		return
 	}
-	content := string(buf.Bytes())
+	content := buf.String()
 	err = service.AddOpml(content)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
@@ -372,20 +358,15 @@ func AddNewPodcast(c *gin.Context) {
 	err := c.ShouldBind(&addPodcastData)
 
 	if err == nil {
-
 		_, err = service.AddPodcast(addPodcastData.Url)
 		if err == nil {
 			go service.RefreshEpisodes()
 			c.Redirect(http.StatusFound, "/")
-
 		} else {
-
 			c.JSON(http.StatusBadRequest, err)
-
 		}
 	} else {
 		//	fmt.Println(err.Error())
 		c.JSON(http.StatusBadRequest, err)
 	}
-
 }

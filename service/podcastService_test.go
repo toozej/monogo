@@ -95,10 +95,10 @@ func TestFetchURL(t *testing.T) {
 	tests := []struct {
 		name          string
 		feedContent   string
-		statusCode    int
-		wantError     bool
 		wantTitle     string
+		statusCode    int
 		wantItemCount int
+		wantError     bool
 	}{
 		{
 			name:          "valid_rss_feed",
@@ -178,8 +178,8 @@ func TestFetchURL(t *testing.T) {
 func TestGetItunesImageUrl(t *testing.T) {
 	tests := []struct {
 		name    string
-		body    []byte
 		wantURL string
+		body    []byte
 	}{
 		{
 			name:    "with_itunes_image",
@@ -362,7 +362,7 @@ func TestUpdateSettings(t *testing.T) {
 	assert.True(t, setting.AppendEpisodeNumberToFileName, "AppendEpisodeNumberToFileName should be updated")
 	assert.True(t, setting.DarkMode, "DarkMode should be updated")
 	assert.True(t, setting.DownloadEpisodeImages, "DownloadEpisodeImages should be updated")
-	assert.Equal(t, "http://test.local", setting.BaseUrl, "BaseUrl should be updated")
+	assert.Equal(t, "http://test.local", setting.BaseURL, "BaseURL should be updated")
 	assert.Equal(t, 10, setting.MaxDownloadConcurrency, "MaxDownloadConcurrency should be updated")
 	assert.Equal(t, "TestAgent/1.0", setting.UserAgent, "UserAgent should be updated")
 }
@@ -617,8 +617,8 @@ func TestExportOmpl(t *testing.T) {
 
 	tests := []struct {
 		name           string
-		usePodgrabLink bool
 		baseURL        string
+		usePodgrabLink bool
 	}{
 		{
 			name:           "export_with_original_urls",

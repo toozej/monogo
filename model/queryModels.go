@@ -21,13 +21,13 @@ const (
 )
 
 type EpisodesFilter struct {
-	Pagination
 	IsDownloaded *string     `uri:"isDownloaded" query:"isDownloaded" json:"isDownloaded" form:"isDownloaded"`
 	IsPlayed     *string     `uri:"isPlayed" query:"isPlayed" json:"isPlayed" form:"isPlayed"`
 	Sorting      EpisodeSort `uri:"sorting" query:"sorting" json:"sorting" form:"sorting"`
 	Q            string      `uri:"q" query:"q" json:"q" form:"q"`
 	TagIds       []string    `uri:"tagIds" query:"tagIds[]" json:"tagIds" form:"tagIds[]"`
 	PodcastIds   []string    `uri:"podcastIds" query:"podcastIds[]" json:"podcastIds" form:"podcastIds[]"`
+	Pagination
 }
 
 func (filter *EpisodesFilter) VerifyPaginationValues() {

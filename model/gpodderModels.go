@@ -5,12 +5,12 @@ type GPodcast struct {
 	Title               string `json:"title"`
 	Author              string `json:"author"`
 	Description         string `json:"description"`
-	Subscribers         int    `json:"subscribers"`
-	SubscribersLastWeek int    `json:"subscribers_last_week"`
 	LogoURL             string `json:"logo_url"`
 	ScaledLogoURL       string `json:"scaled_logo_url"`
 	Website             string `json:"website"`
 	MygpoLink           string `json:"mygpo_link"`
+	Subscribers         int    `json:"subscribers"`
+	SubscribersLastWeek int    `json:"subscribers_last_week"`
 	AlreadySaved        bool   `json:"already_saved"`
 }
 

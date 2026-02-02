@@ -23,12 +23,12 @@ type OpmlExportModel struct {
 type OpmlHead struct {
 	Text  string `xml:",chardata"`
 	Title string `xml:"title"`
-	//DateCreated time.Time `xml:"dateCreated"`
+	// DateCreated time.Time `xml:"dateCreated"`
 }
 type OpmlExportHead struct {
+	DateCreated time.Time `xml:"dateCreated"`
 	Text        string    `xml:",chardata"`
 	Title       string    `xml:"title"`
-	DateCreated time.Time `xml:"dateCreated"`
 }
 
 type OpmlBody struct {

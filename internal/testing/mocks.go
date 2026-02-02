@@ -12,33 +12,28 @@ import (
 // MockRepository is a mock implementation of database.Repository for testing.
 // It stores data in memory and allows tests to control behavior and verify calls.
 type MockRepository struct {
-	// Data stores
-	Podcasts     map[string]*db.Podcast
-	PodcastItems map[string]*db.PodcastItem
-	Tags         map[string]*db.Tag
-	Settings     *db.Setting
-	JobLocks     map[string]*db.JobLock
-
-	// Call tracking
+	GetPodcastByURLError    error
+	GetOrCreateSettingError error
+	GetAllPodcastItemsError error
+	CreatePodcastItemError  error
+	GetPodcastItemByIdError error
+	UpdatePodcastError      error
+	CreatePodcastError      error
+	PodcastItems            map[string]*db.PodcastItem
+	Tags                    map[string]*db.Tag
+	Settings                *db.Setting
+	JobLocks                map[string]*db.JobLock
+	Podcasts                map[string]*db.Podcast
 	GetPodcastByURLCalls    int
-	CreatePodcastCalls      int
-	UpdatePodcastCalls      int
-	DeletePodcastByIdCalls  int
-	CreatePodcastItemCalls  int
-	UpdatePodcastItemCalls  int
-	GetAllPodcastItemsCalls int
-	GetOrCreateSettingCalls int
 	LockCalls               int
 	UnlockCalls             int
-
-	// Error injection for testing error paths
-	GetPodcastByURLError    error
-	CreatePodcastError      error
-	UpdatePodcastError      error
-	GetPodcastItemByIdError error
-	CreatePodcastItemError  error
-	GetAllPodcastItemsError error
-	GetOrCreateSettingError error
+	GetOrCreateSettingCalls int
+	GetAllPodcastItemsCalls int
+	UpdatePodcastItemCalls  int
+	CreatePodcastItemCalls  int
+	DeletePodcastByIdCalls  int
+	UpdatePodcastCalls      int
+	CreatePodcastCalls      int
 }
 
 // NewMockRepository creates a new mock repository with empty data stores.

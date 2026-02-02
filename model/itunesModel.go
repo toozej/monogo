@@ -3,43 +3,43 @@ package model
 import "time"
 
 type ItunesResponse struct {
-	ResultCount int                  `json:"resultCount"`
 	Results     []ItunesSingleResult `json:"results"`
+	ResultCount int                  `json:"resultCount"`
 }
 
 type ItunesSingleResult struct {
-	WrapperType            string    `json:"wrapperType"`
-	Kind                   string    `json:"kind"`
-	CollectionID           int       `json:"collectionId"`
-	TrackID                int       `json:"trackId"`
+	ReleaseDate            time.Time `json:"releaseDate"`
+	ArtworkURL30           string    `json:"artworkUrl30"`
+	CollectionViewURL      string    `json:"collectionViewUrl"`
+	TrackExplicitness      string    `json:"trackExplicitness"`
 	ArtistName             string    `json:"artistName"`
 	CollectionName         string    `json:"collectionName"`
 	TrackName              string    `json:"trackName"`
 	CollectionCensoredName string    `json:"collectionCensoredName"`
-	TrackCensoredName      string    `json:"trackCensoredName"`
-	CollectionViewURL      string    `json:"collectionViewUrl"`
-	FeedURL                string    `json:"feedUrl"`
-	TrackViewURL           string    `json:"trackViewUrl"`
-	ArtworkURL30           string    `json:"artworkUrl30"`
 	ArtworkURL60           string    `json:"artworkUrl60"`
-	ArtworkURL100          string    `json:"artworkUrl100"`
-	CollectionPrice        float64   `json:"collectionPrice"`
-	TrackPrice             float64   `json:"trackPrice"`
-	TrackRentalPrice       int       `json:"trackRentalPrice"`
-	CollectionHdPrice      int       `json:"collectionHdPrice"`
-	TrackHdPrice           int       `json:"trackHdPrice"`
-	TrackHdRentalPrice     int       `json:"trackHdRentalPrice"`
-	ReleaseDate            time.Time `json:"releaseDate"`
-	CollectionExplicitness string    `json:"collectionExplicitness"`
-	TrackExplicitness      string    `json:"trackExplicitness"`
-	TrackCount             int       `json:"trackCount"`
 	Country                string    `json:"country"`
-	Currency               string    `json:"currency"`
-	PrimaryGenreName       string    `json:"primaryGenreName"`
-	ContentAdvisoryRating  string    `json:"contentAdvisoryRating,omitempty"`
+	FeedURL                string    `json:"feedUrl"`
+	ArtistViewURL          string    `json:"artistViewUrl,omitempty"`
+	TrackViewURL           string    `json:"trackViewUrl"`
+	TrackCensoredName      string    `json:"trackCensoredName"`
+	ArtworkURL100          string    `json:"artworkUrl100"`
+	CollectionExplicitness string    `json:"collectionExplicitness"`
+	WrapperType            string    `json:"wrapperType"`
 	ArtworkURL600          string    `json:"artworkUrl600"`
+	ContentAdvisoryRating  string    `json:"contentAdvisoryRating,omitempty"`
+	PrimaryGenreName       string    `json:"primaryGenreName"`
+	Currency               string    `json:"currency"`
+	Kind                   string    `json:"kind"`
 	GenreIds               []string  `json:"genreIds"`
 	Genres                 []string  `json:"genres"`
+	TrackPrice             float64   `json:"trackPrice"`
+	TrackCount             int       `json:"trackCount"`
+	TrackHdRentalPrice     int       `json:"trackHdRentalPrice"`
+	TrackHdPrice           int       `json:"trackHdPrice"`
+	CollectionHdPrice      int       `json:"collectionHdPrice"`
+	TrackRentalPrice       int       `json:"trackRentalPrice"`
+	CollectionPrice        float64   `json:"collectionPrice"`
+	TrackID                int       `json:"trackId"`
 	ArtistID               int       `json:"artistId,omitempty"`
-	ArtistViewURL          string    `json:"artistViewUrl,omitempty"`
+	CollectionID           int       `json:"collectionId"`
 }
