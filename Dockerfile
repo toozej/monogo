@@ -1,8 +1,8 @@
-ARG GO_VERSION=1.15.2
+ARG GO_VERSION=1.21.6
 
 FROM golang:${GO_VERSION}-alpine AS builder
 
-RUN apk update && apk add alpine-sdk git && rm -rf /var/cache/apk/*
+RUN apk add --no-cache alpine-sdk git
 
 RUN mkdir -p /api
 WORKDIR /api
@@ -14,7 +14,7 @@ RUN go mod download
 COPY . .
 RUN go build -o ./app ./main.go
 
-FROM alpine:latest
+FROM alpine:3.21
 
 LABEL org.opencontainers.image.source="https://github.com/akhilrex/podgrab"
 
@@ -24,7 +24,7 @@ ENV UID=998
 ENV PID=100
 ENV GIN_MODE=release
 VOLUME ["/config", "/assets"]
-RUN apk update && apk add ca-certificates && rm -rf /var/cache/apk/*
+RUN apk add --no-cache ca-certificates
 RUN mkdir -p /config; \
     mkdir -p /assets; \
     mkdir -p /api

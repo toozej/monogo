@@ -18,3 +18,8 @@ assets/*
 keys/*
 backups/*
 nodemon.json
+# Backup files from update scripts
+*.backup.*
+
+# Pre-commit
+.pre-commit-cache/
