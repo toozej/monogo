@@ -59,7 +59,7 @@
     </div>
 
         <div v-if="downloadOnAdd">
-           
+
         <label for="initialDownloadCount" style="display: inline-block;" >
             <span class="label-body">How many episodes to be downloaded when a new podcast is added</span>
 
@@ -68,17 +68,17 @@
         &nbsp;
         <input type="number" name="initialDownloadCount" v-model.number="initialDownloadCount" min="0">
     </div>
-   
+
         <label for="autoDownload">
             <input type="checkbox" name="autoDownload" v-model="autoDownload">
             <span class="label-body">Automatically download new episodes to the disk</span>
         </label>
-     
+
         <label for="appendDateToFileName">
             <input type="checkbox" name="appendDateToFileName" v-model="appendDateToFileName">
             <span class="label-body">Append episode date to episode file name</span>
         </label>
-       
+
         <label for="appendEpisodeNumberToFileName">
             <input type="checkbox" name="appendEpisodeNumberToFileName" v-model="appendEpisodeNumberToFileName">
             <span class="label-body">Append episode number to episode file name</span>
@@ -112,7 +112,7 @@
             <span class="label-body">The <code>User-Agent</code> header used when downloading podcasts</span>
             <input type="text" class="u-full-width" name="userAgent" v-model="userAgent">
         </label>
-      
+
         <input type="submit" value="Save" class="button">
     </form>
 </div>
@@ -161,7 +161,7 @@
                 <td><a href="https://www.buymeacoffee.com/akhilrex" target="_blank" rel="noopener noreferrer">Buy him a beer!!</a></td>
             </tr>
         </table>
-        
+
     </div>
 </div>
 

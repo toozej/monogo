@@ -12,7 +12,7 @@
         display: none;
       }
 
-      
+
       h2,
       h3,
       h4,
@@ -53,7 +53,7 @@
       }
       body.playerExists .button-enqueue{
         display: inline-block;
-      
+
         [v-cloak] {
         display: none;
       }
@@ -65,8 +65,8 @@
     <div class="container">
       {{template "navbar" .}}
 
-      <br />{{$setting := .setting}} 
-      
+      <br />{{$setting := .setting}}
+
       <div id="app" v-cloak>
 
   <button @click="toggleFilters()" class="u-full-width">
@@ -82,17 +82,17 @@
       </vue-multiselect></div>
     <div class="columns one">      <vue-multiselect :show-pointer="false"  v-model="filter.count" :options="pagingOptions" :searchable="false"  :allow-empty="false" :close-on-select="true" :show-labels="false" placeholder="Pick a value"></vue-multiselect>
 </div>
-  
+
 <div class="columns three">    <vue-multiselect v-model="selectedPlayedStatus" :options="playedStatusOptions" :searchable="false"
   :multiple="false" :close-on-select="true" :clear-on-select="true" :allow-empty="false" :show-labels="false"
   placeholder="Sort By" label="Label" track-by="Value" :preselect-first="true">
  </vue-multiselect></div>
-      
-   
+
+
   </div>
     <div class="row">
       <vue-multiselect class="columns three" v-model="selectedPodcasts" :options="podcasts"  :show-labels="false"
-      :multiple="true" :close-on-select="false" :clear-on-select="false" 
+      :multiple="true" :close-on-select="false" :clear-on-select="false"
       :preserve-search="true" placeholder="Podcasts" label="Title" track-by="ID" :preselect-first="false">
         <template slot="selection" slot-scope="{ values, search, isOpen }">
           <span class="multiselect__single" v-if="values.length && !isOpen">${ values.length } options selected</span>
@@ -109,9 +109,9 @@
         <a title="Play items in this page" v-if="podcastItems.length" class="button" @click="playPage()"><i class="fas fa-play"></i></a>
         <a title="Enqueue items in this page" v-if="podcastItems.length" class="button  button-enqueue" @click="enqueuePage()"><i class="fas fa-plus"></i></a>
         <a title="Reset Filters" class="button" @click="resetFilters()"><i class="fas fa-undo"></i></a>
-       
+
       </div>
-      
+
     </div>
     </form>
  <hr>
@@ -158,7 +158,7 @@
           @click="changePlayedStatus(item)"
           ><i class="fas fa-envelope"></i
         ></a>
-       
+
         <a
          v-if="!item.IsPlayed"
           class="button button"
@@ -173,7 +173,7 @@
           @click="changeBookmarkStatus(item)"
           ><i class="far fa-bookmark"></i
         ></a>
-      
+
         <a
         v-if="isBookmarked(item)"
           class="button button"
@@ -231,41 +231,41 @@
     </template>
     <p v-if="podcastItems.length===0">Nothing to see here! Maybe try changing the filter criteria.</p>
 
-     
-   
+
+
       <div class="row" v-if="podcastItems.length">
         <div class="columns twelve" style="text-align: center">
-         
+
           <a v-if="filter.previousPage"
            @click=" goToPage(1)"
             class="button"
             >First</a
           >
-          
+
           <a v-if="filter.previousPage"
            @click="goToPreviousPage()"
             class="button"
-            >Previous</a 
+            >Previous</a
           >
-         
-          
+
+
           <select name="page" id="pageDdl" v-model="filter.page" >
               <option :key="index" v-for="index in filter.totalPages" >${index}</option>
           </select>
-          
+
           <select name="count" id="countDdl" v-model="filter.count" >
               <option :key="index" v-for="index in countOptions" >${index}</option>
 
         </select>
-        
+
           <a
           v-if="filter.nextPage"
             class="button"
             @click="goToNextPage()"
             >Next</a
           >
-    
-        
+
+
           <a
           v-if="filter.totalPages>filter.page"
             class="button"
@@ -274,7 +274,7 @@
           >
         </div>
       </div>
-   
+
   </div>
 
     {{template "scripts"}}
@@ -296,7 +296,7 @@ var app = new Vue({
             return this.filter.count;
           }
         },
-      
+
         watch:{
         count(newValue,oldValue){
           if(newValue===oldValue){
@@ -319,16 +319,16 @@ var app = new Vue({
             this.filter.nextPage=newPage+1;
            }
            this.getData()
-           
+
           },
           showFilters(current,old){
-           
+
             if(localStorage){
               localStorage.showFilters=current
             }
 
           },
-          
+
           selectedPodcasts(current,old){
             var arr=[];
             for (let index = 0; index < current.length; index++) {
@@ -448,7 +448,7 @@ var app = new Vue({
           },
           changeBookmarkStatus(item){
               isBookmarked= this.isBookmarked(item);
-            
+
               var self=this;
               changeBookmarkStatus(item.ID,!isBookmarked,function(){
                   if(isBookmarked){
@@ -458,7 +458,7 @@ var app = new Vue({
                   }
               })
           },
-          
+
           isBookmarked(item){
             return item.BookmarkDate!==this.nildate
           },
@@ -476,7 +476,7 @@ var app = new Vue({
           },
           searchQueryUpated(){
             var self=this;
-           
+
             clearTimeout(this.debounce)
             this.debounce = setTimeout(() => {
               self.filter.page=1
@@ -491,7 +491,7 @@ var app = new Vue({
           submitFilters(){
             this.filter.page=1;
             this.getData();
-        
+
           },
           toggleFilters(){
             this.showFilters=!this.showFilters
@@ -571,7 +571,7 @@ var app = new Vue({
           selectedPlayedStatus:"",
           countOptions:[10,20,30,40,50,100],
           showFilters:localStorage && localStorage.showFilters && JSON.parse(localStorage.showFilters),
-         
+
             {{ $len := len .podcastItems}}
             podcastItems: {{if gt $len 0}} {{ .podcastItems }} {{else}} [] {{end}},
             settings:{{.setting}},
@@ -714,7 +714,7 @@ var app = new Vue({
           .then(function () {});
         return false;
       }
-     
+
     </script>
     <script>
 

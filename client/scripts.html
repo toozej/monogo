@@ -31,7 +31,7 @@
       more.textContent = " show more";
       more.style.cursor = "pointer";
       more.classList.add("link-show-more")
-      
+
       more.onclick = function () {
         var short= this.parentNode;
         var sibling= short.parentNode.firstChild;
@@ -44,7 +44,7 @@
           sibling = sibling.nextSibling;
 
         }
-       
+
         long.style.display = display;
         short.style.display = "none";
       };
@@ -65,7 +65,7 @@
           sibling = sibling.nextSibling;
 
         }
-       
+
         short.style.display = display;
         long.style.display = "none";
       };
@@ -193,7 +193,7 @@
               duration: 5000,
             });
             app.removePodcast(id)
-            
+
           })
           .catch(function (error) {
             if (error.response && error.response.data && error.response.data.message) {
@@ -298,6 +298,6 @@
             duration: 5000,
           });
           }
-      
+
 </script>
 {{end}}
