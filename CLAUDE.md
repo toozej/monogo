@@ -1,12 +1,16 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with
+code in this repository.
 
 ## Project Overview
 
-Podgrab is a self-hosted podcast manager written in Go that automatically downloads podcast episodes. It's built as a lightweight web application with a Go backend and HTML template frontend.
+Podgrab is a self-hosted podcast manager written in Go that automatically
+downloads podcast episodes. It's built as a lightweight web application with a
+Go backend and HTML template frontend.
 
-**Stack**: Go 1.15+, Gin web framework, GORM with SQLite, HTML templates, WebSockets for real-time updates
+**Stack**: Go 1.15+, Gin web framework, GORM with SQLite, HTML templates,
+WebSockets for real-time updates
 
 ## Development Commands
 
@@ -48,7 +52,8 @@ go fmt ./...
 go mod tidy
 ```
 
-**Note**: This project does not have automated tests. Changes should be tested manually by running the application.
+**Note**: This project does not have automated tests. Changes should be tested
+manually by running the application.
 
 ## Architecture Overview
 
@@ -57,6 +62,7 @@ go mod tidy
 The codebase follows a layered architecture with clear separation of concerns:
 
 **Entry Point** (`main.go`):
+
 - Initializes database and runs migrations
 - Sets up Gin router with middleware
 - Configures template functions for HTML rendering
@@ -67,53 +73,66 @@ The codebase follows a layered architecture with clear separation of concerns:
 **Core Layers**:
 
 1. **Controllers** (`controllers/`): HTTP request handlers
+
    - `podcast.go`: REST API endpoints for podcasts, episodes, tags
    - `pages.go`: HTML page rendering endpoints
    - `websockets.go`: WebSocket handler for real-time client updates
 
-2. **Service** (`service/`): Business logic
-   - `podcastService.go`: Podcast/episode CRUD, RSS parsing, download orchestration
+1. **Service** (`service/`): Business logic
+
+   - `podcastService.go`: Podcast/episode CRUD, RSS parsing, download
+     orchestration
    - `fileService.go`: File downloads, episode naming, image handling
    - `itunesService.go`: iTunes API integration for podcast search
    - `gpodderService.go`: GPodder API integration
 
-3. **DB** (`db/`): Data layer with GORM
+1. **DB** (`db/`): Data layer with GORM
+
    - `podcast.go`: Core data models (Podcast, PodcastItem, Setting, Tag)
    - `dbfunctions.go`: Database queries and operations
    - `db.go`: Database initialization
    - `migrations.go`: Schema migrations
 
-4. **Model** (`model/`): External data structures
+1. **Model** (`model/`): External data structures
+
    - RSS feed parsing models
    - iTunes API response models
    - OPML import/export models
    - Request/response DTOs
 
-5. **Client** (`client/`): HTML templates
+1. **Client** (`client/`): HTML templates
+
    - Go templates with custom functions defined in main.go
    - No separate JavaScript build process - templates served directly
 
 ### Key Architectural Patterns
 
 **Background Jobs**: The application uses `gocron` to schedule recurring tasks:
-- `RefreshEpisodes()`: Checks RSS feeds for new episodes (every CHECK_FREQUENCY mins)
+
+- `RefreshEpisodes()`: Checks RSS feeds for new episodes (every CHECK_FREQUENCY
+  mins)
 - `DownloadMissingEpisodes()`: Downloads queued episodes
 - `CheckMissingFiles()`: Detects deleted files to update database
 - `CreateBackup()`: Database backups (every 2 days)
 
 **Download Flow**:
-1. User adds podcast URL → Controller parses RSS → Service creates Podcast + PodcastItem records
-2. Background job detects new episodes → Queues downloads based on settings
-3. `fileService.Download()` handles concurrent downloads (max controlled by `MaxDownloadConcurrency` setting)
-4. WebSocket broadcasts download progress to connected clients
+
+1. User adds podcast URL → Controller parses RSS → Service creates Podcast +
+   PodcastItem records
+1. Background job detects new episodes → Queues downloads based on settings
+1. `fileService.Download()` handles concurrent downloads (max controlled by
+   `MaxDownloadConcurrency` setting)
+1. WebSocket broadcasts download progress to connected clients
 
 **Real-time Updates**: WebSocket connection (`/ws`) broadcasts events:
+
 - Download progress
 - Episode status changes
 - Playlist updates
 - Clients subscribe and update UI reactively
 
 **File Management**:
+
 - Episodes stored in `/assets/{podcast-name}/` with sanitized filenames
 - Optional date/episode number prefixes based on settings
 - Image caching to reduce external requests
@@ -122,6 +141,7 @@ The codebase follows a layered architecture with clear separation of concerns:
 ### Database Schema
 
 **Core Models** (all use UUID primary keys via `db.Base`):
+
 - `Podcast`: RSS feed metadata, relationship to episodes and tags
 - `PodcastItem`: Individual episodes with download state tracking
 - `Tag`: Labels for organizing podcasts (many-to-many)
@@ -129,10 +149,12 @@ The codebase follows a layered architecture with clear separation of concerns:
 - `JobLock`: Prevents duplicate background job execution
 
 **Key Relationships**:
+
 - Podcast → PodcastItems (one-to-many)
 - Podcast ↔ Tags (many-to-many via `podcast_tags`)
 
 **Download States** (enum in `podcast.go`):
+
 - `NotDownloaded`: Queued for download
 - `Downloading`: Currently downloading
 - `Downloaded`: Successfully downloaded
@@ -154,6 +176,7 @@ Required for deployment (set in `.env` or docker-compose):
 ### Settings Database
 
 Runtime settings stored in database (editable via `/settings` page):
+
 - `DownloadOnAdd`: Auto-download when adding podcast
 - `InitialDownloadCount`: How many episodes to download initially
 - `AutoDownload`: Enable automatic downloads for new episodes
@@ -165,6 +188,7 @@ Runtime settings stored in database (editable via `/settings` page):
 ### Template Functions
 
 Custom template helpers defined in `main.go`:
+
 - `formatDate`, `naturalDate`: Time formatting
 - `formatFileSize`, `formatDuration`: Human-readable sizes/durations
 - `downloadedEpisodes`, `downloadingEpisodes`: Episode stats
@@ -174,7 +198,9 @@ When modifying templates, reference these functions in `main.go:35-128`.
 
 ### RSS Feed Parsing
 
-The application uses `encoding/xml` with custom models in `model/rssModels.go`. When handling new podcast sources:
+The application uses `encoding/xml` with custom models in `model/rssModels.go`.
+When handling new podcast sources:
+
 - RSS parsing happens in `service.FetchURL()` and `service/podcastService.go`
 - XML namespace handling via `xmlquery` for complex feeds
 - Some feeds require special user-agent headers (configurable in settings)
@@ -182,6 +208,7 @@ The application uses `encoding/xml` with custom models in `model/rssModels.go`. 
 ### Concurrent Downloads
 
 Download concurrency managed by semaphore pattern in `fileService.go`:
+
 - Controlled via `Setting.MaxDownloadConcurrency`
 - Default is 5 concurrent downloads
 - Each download spawns a goroutine that acquires a slot
@@ -190,6 +217,7 @@ Download concurrency managed by semaphore pattern in `fileService.go`:
 ### WebSocket Protocol
 
 WebSocket messages sent from `controllers/websockets.go`:
+
 - Messages are JSON with `type` and `data` fields
 - Broadcast to all connected clients
 - No authentication on WebSocket (relies on HTTP basic auth)
@@ -199,23 +227,23 @@ WebSocket messages sent from `controllers/websockets.go`:
 ### Adding Support for New Podcast Sources
 
 1. Extend RSS parsing models in `model/rssModels.go` if needed
-2. Update `service.FetchURL()` for custom parsing logic
-3. Test with `service.AddPodcast()` which handles the full flow
-4. Consider user-agent requirements in `fileService.httpClient()`
+1. Update `service.FetchURL()` for custom parsing logic
+1. Test with `service.AddPodcast()` which handles the full flow
+1. Consider user-agent requirements in `fileService.httpClient()`
 
 ### Modifying Download Behavior
 
 1. Check current logic in `service/fileService.go` (Download function)
-2. Settings are accessed via `db.GetOrCreateSetting()`
-3. Filename generation in `getFileName()` considers multiple settings
-4. Update WebSocket broadcasts if adding progress tracking
+1. Settings are accessed via `db.GetOrCreateSetting()`
+1. Filename generation in `getFileName()` considers multiple settings
+1. Update WebSocket broadcasts if adding progress tracking
 
 ### Database Migrations
 
 1. Add new migration in `db/migrations.go`
-2. Migration runs automatically on startup via `db.Migrate()`
-3. Use GORM auto-migration for simple schema changes
-4. Complex migrations require explicit SQL in migration records
+1. Migration runs automatically on startup via `db.Migrate()`
+1. Use GORM auto-migration for simple schema changes
+1. Complex migrations require explicit SQL in migration records
 
 ## File Organization Principles
 
@@ -227,7 +255,9 @@ WebSocket messages sent from `controllers/websockets.go`:
 ## Known Gotchas
 
 - Template parsing happens at startup - restart required for template changes
-- SQLite database can lock under high concurrency - consider connection pool tuning
-- Background jobs use simple locking via `JobLock` table - not distributed-system safe
+- SQLite database can lock under high concurrency - consider connection pool
+  tuning
+- Background jobs use simple locking via `JobLock` table - not
+  distributed-system safe
 - File paths are sanitized but folder structure is flat (one folder per podcast)
 - WebSocket connections don't persist across server restarts
