@@ -1,5 +1,5 @@
 # golangci-lint configuration for Podgrab
-# Documentation: https://golangci-lint.run/usage/configuration/
+# Documentation: https://golangci-lint.run/docs/configuration/
 
 version: "2"
 
@@ -9,139 +9,119 @@ run:
   modules-download-mode: readonly
 
 linters:
+  default: none
   enable:
     # Default linters
-    - errcheck      # Check for unchecked errors
-    - govet         # Vet examines Go source code
-    - ineffassign   # Detect ineffectual assignments
-    - staticcheck   # Go static analysis
-    - unused        # Check for unused constants, variables, functions and types
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
 
     # Additional recommended linters
-    - bodyclose     # Check HTTP response body is closed
-    - dupl          # Code clone detection
-    - gocyclo       # Cyclomatic complexity
-    - gosec         # Security problems
-    - misspell      # Spell check
-    - prealloc      # Preallocate slices
-    - predeclared   # Shadow variable detection (replaces govet.check-shadowing)
-    - unconvert     # Unnecessary type conversions
-    - unparam       # Unused function parameters
-    - whitespace    # Whitespace issues
+    - bodyclose
+    - dupl
+    - gocyclo
+    - gosec
+    - misspell
+    - prealloc
+    - predeclared
+    - unconvert
+    - unparam
+    - whitespace
 
     # Style linters
-    - gocritic      # Opinionated Go source code checker
-    - revive        # Fast, configurable, extensible, flexible linter
+    - gocritic
+    - revive
 
-  disable:
-    - exhaustive    # Too strict for this codebase
-    - funlen        # Function length (not critical)
-    - gochecknoglobals  # Global variables used appropriately
-    - gochecknoinits    # Init functions used appropriately
-    - gocognit      # Cognitive complexity (too strict)
-    - godot         # Comment formatting (too strict)
-    - lll           # Line length (not critical)
-    - nestif        # Nesting depth (refactor gradually)
-    - nlreturn      # Blank line before return (stylistic)
-    - testpackage   # Separate test package not required
-    - wsl           # Whitespace linter (too opinionated)
+  settings:
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
 
-linters-settings:
-  errcheck:
-    check-type-assertions: true
-    check-blank: true
-    exclude-functions:
-      - (*database/sql.Rows).Close
-      - (*database/sql.DB).Close
+    govet:
+      enable-all: true
 
-  govet:
-    enable-all: true
+    gocyclo:
+      min-complexity: 22
 
-  gocyclo:
-    min-complexity: 22  # Warn on complexity > 22
+    dupl:
+      threshold: 100
 
-  dupl:
-    threshold: 100  # Tokens before duplicate code warning
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+      disabled-checks:
+        - ifElseChain
+        - singleCaseSwitch
 
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - style
-      - performance
-    disabled-checks:
-      - ifElseChain
-      - singleCaseSwitch
+    misspell:
+      locale: US
 
-  misspell:
-    locale: US
-    ignore-words:
-      - podgrab
-      - podcast
-      - podcastindex
-      - gorm
-      - sqlite
+    prealloc:
+      simple: true
+      range-loops: true
+      for-loops: true
 
-  prealloc:
-    simple: true
-    range-loops: true
-    for-loops: true
+    revive:
+      confidence: 0.8
+      rules:
+        - name: blank-imports
+        - name: context-as-argument
+        - name: dot-imports
+        - name: error-return
+        - name: error-strings
+        - name: error-naming
+        - name: exported
+        - name: if-return
+        - name: increment-decrement
+        - name: var-naming
+        - name: package-comments
+        - name: range
+        - name: receiver-naming
+        - name: indent-error-flow
+        - name: superfluous-else
+        - name: unreachable-code
 
-  revive:
-    confidence: 0.8
+    gosec:
+      severity: medium
+      confidence: medium
+      excludes:
+        - G104
+
+    whitespace:
+      multi-if: false
+      multi-func: false
+
+  exclusions:
+    warn-unused: true
+    presets:
+      - std-error-handling
+    paths:
+      - 'vendor/.*'
+      - 'webassets/.*'
+      - 'client/.*'
+      - 'e2e_test/.*'
+      - 'integration_test/.*'
     rules:
-      - name: blank-imports
-      - name: context-as-argument
-      - name: dot-imports
-      - name: error-return
-      - name: error-strings
-      - name: error-naming
-      - name: exported
-      - name: if-return
-      - name: increment-decrement
-      - name: var-naming
-      - name: package-comments
-      - name: range
-      - name: receiver-naming
-      - name: indent-error-flow
-      - name: superfluous-else
-      - name: unreachable-code
+      - path: '_test\.go'
+        linters:
+          - gocyclo
+          - errcheck
+          - dupl
+          - gosec
 
-  gosec:
-    severity: medium
-    confidence: medium
-    excludes:
-      - G104  # Unhandled errors (covered by errcheck, avoid duplicate warnings)
+      - path: 'main\.go'
+        text: '.*SA1019.*'
 
-  whitespace:
-    multi-if: false
-    multi-func: false
+      - path: '.*\.pb\.go'
+        linters:
+          - all
 
 issues:
   max-issues-per-linter: 50
   max-same-issues: 3
   new: false
-  fix: false  # Disabled for consistency between direct run and pre-commit
-
-  # Exclude directories (replaces run.skip-dirs)
-  exclude-dirs:
-    - vendor
-    - webassets
-    - client
-
-  exclude-rules:
-    # Exclude some linters from running on tests files
-    - path: _test\.go
-      linters:
-        - gocyclo
-        - errcheck
-        - dupl
-        - gosec
-
-    # Exclude known issues in legacy code
-    - path: main\.go
-      text: ".*SA1019.*"  # Deprecated function usage
-
-    # Ignore errors in auto-generated code
-    - path: .*\.pb\.go
-      linters:
-        - all
+  fix: false
