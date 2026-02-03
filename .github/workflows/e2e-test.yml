@@ -75,30 +75,12 @@ jobs:
       - name: Verify Chrome installation
         run: google-chrome --version
 
-      - name: Setup Chrome SUID sandbox for Ubuntu 24.04
-        run: |
-          # Locate Chrome's sandbox
-          CHROME_SANDBOX=$(find /opt/google/chrome -name chrome-sandbox 2>/dev/null | head -n1)
-          if [ -z "$CHROME_SANDBOX" ]; then
-            CHROME_SANDBOX="/usr/lib/chromium-browser/chrome-sandbox"
-          fi
-
-          # Export the sandbox path
-          echo "CHROME_DEVEL_SANDBOX=$CHROME_SANDBOX" >> $GITHUB_ENV
-
-          # Verify sandbox exists
-          if [ -f "$CHROME_SANDBOX" ]; then
-            echo "Using Chrome sandbox at: $CHROME_SANDBOX"
-            ls -la "$CHROME_SANDBOX"
-          else
-            echo "Warning: Chrome sandbox not found at $CHROME_SANDBOX"
-          fi
-
       - name: Run E2E tests
         run: go test -tags=e2e -v -timeout 10m ./e2e_test/...
         env:
           CHROME_BIN: /usr/bin/google-chrome
-          CHROME_DEVEL_SANDBOX: ${{ env.CHROME_DEVEL_SANDBOX }}
+          # CI environment variable is automatically set by GitHub Actions
+          # The E2E tests detect this and run Chrome with --no-sandbox flag
 
       - name: Upload test artifacts
         uses: actions/upload-artifact@v4

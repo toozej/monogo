@@ -66,12 +66,19 @@ func TestMain(m *testing.M) {
 	testServerURL = testServer.URL
 
 	// Setup browser context optimized for CI environments
-	// Note: Using Chrome's SUID sandbox (via CHROME_DEVEL_SANDBOX env var)
-	// instead of --no-sandbox for better security on Ubuntu 24.04+
+	// In CI environments (GitHub Actions, etc.), we need --no-sandbox because
+	// Ubuntu 24.04+ disables unprivileged user namespaces with AppArmor
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
 		chromedp.Flag("disable-dev-shm-usage", true),
 		chromedp.Flag("disable-gpu", true),
 	)
+
+	// Add --no-sandbox flag in CI environments
+	// This is safe for test environments and required for Chrome to run in containers/CI
+	if os.Getenv("CI") != "" || os.Getenv("GITHUB_ACTIONS") != "" {
+		opts = append(opts, chromedp.Flag("no-sandbox", true))
+	}
+
 	allocCtx, allocCancel := chromedp.NewExecAllocator(context.Background(), opts...)
 	defer allocCancel()
 
