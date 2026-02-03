@@ -1,3 +1,4 @@
+// Package controllers implements HTTP request handlers for web pages and API endpoints.
 package controllers
 
 import (
@@ -16,10 +17,13 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// SearchGPodderData represents search g podder data data.
 type SearchGPodderData struct {
 	Q            string `binding:"required" form:"q" json:"q" query:"q"`
 	SearchSource string `binding:"required" form:"searchSource" json:"searchSource" query:"searchSource"`
 }
+
+// SettingModel represents setting model data.
 type SettingModel struct {
 	BaseURL                       string `form:"baseUrl" json:"baseUrl" query:"baseUrl"`
 	UserAgent                     string `form:"userAgent" json:"userAgent" query:"userAgent"`
@@ -44,22 +48,27 @@ var searchProvider = map[string]service.SearchService{
 	"podcastindex": new(service.PodcastIndexService),
 }
 
+// AddPage handles the add page request.
 func AddPage(c *gin.Context) {
 	setting := c.MustGet("setting").(*db.Setting)
 	c.HTML(http.StatusOK, "addPodcast.html", gin.H{"title": "Add Podcast", "setting": setting, "searchOptions": searchOptions})
 }
+
+// HomePage handles the home page request.
 func HomePage(c *gin.Context) {
 	// var podcasts []db.Podcast
 	podcasts := service.GetAllPodcasts("")
 	setting := c.MustGet("setting").(*db.Setting)
 	c.HTML(http.StatusOK, "index.html", gin.H{"title": "Podgrab", "podcasts": podcasts, "setting": setting})
 }
+
+// PodcastPage handles the podcast page request.
 func PodcastPage(c *gin.Context) {
-	var searchByIdQuery SearchByIdQuery
-	if c.ShouldBindUri(&searchByIdQuery) == nil {
+	var searchByIDQuery SearchByIDQuery
+	if c.ShouldBindUri(&searchByIDQuery) == nil {
 		var podcast db.Podcast
 
-		if err := db.GetPodcastById(searchByIdQuery.Id, &podcast); err == nil {
+		if err := db.GetPodcastByID(searchByIDQuery.ID, &podcast); err == nil {
 			var pagination model.Pagination
 			if c.ShouldBindQuery(&pagination) == nil {
 				var page, count int
@@ -96,7 +105,7 @@ func PodcastPage(c *gin.Context) {
 					"nextPage":       nextPage,
 					"previousPage":   previousPage,
 					"downloadedOnly": false,
-					"podcastId":      searchByIdQuery.Id,
+					"podcastID":      searchByIDQuery.ID,
 				})
 			} else {
 				c.JSON(http.StatusBadRequest, err)
@@ -109,62 +118,63 @@ func PodcastPage(c *gin.Context) {
 	}
 }
 
-func getItemsToPlay(itemIds []string, podcastId string, tagIds []string) []db.PodcastItem {
+func getItemsToPlay(itemIDs []string, podcastID string, tagIDs []string) []db.PodcastItem {
 	var items []db.PodcastItem
-	if len(itemIds) > 0 {
-		toAdd, _ := service.GetAllPodcastItemsByIds(itemIds)
+	switch {
+	case len(itemIDs) > 0:
+		toAdd, _ := service.GetAllPodcastItemsByIDs(itemIDs)
 		items = *toAdd
-	} else if podcastId != "" {
-		pod := service.GetPodcastById(podcastId)
+	case podcastID != "":
+		pod := service.GetPodcastByID(podcastID)
 		items = pod.PodcastItems
-	} else if len(tagIds) != 0 {
-		tags := service.GetTagsByIds(tagIds)
-		var tagNames []string
-		var podIds []string
+	case len(tagIDs) != 0:
+		tags := service.GetTagsByIDs(tagIDs)
+		podIDs := make([]string, 0, len(*tags)*5) // Preallocate with estimated capacity
 		for _, tag := range *tags {
-			tagNames = append(tagNames, tag.Label)
 			for _, pod := range tag.Podcasts {
-				podIds = append(podIds, pod.ID)
+				podIDs = append(podIDs, pod.ID)
 			}
 		}
-		items = *service.GetAllPodcastItemsByPodcastIds(podIds)
+		items = *service.GetAllPodcastItemsByPodcastIDs(podIDs)
 	}
 	return items
 }
 
+// PlayerPage handles the player page request.
 func PlayerPage(c *gin.Context) {
-	itemIds, hasItemIds := c.GetQueryArray("itemIds")
-	podcastId, hasPodcastId := c.GetQuery("podcastId")
-	tagIds, hasTagIds := c.GetQueryArray("tagIds")
+	itemIDs, hasItemIDs := c.GetQueryArray("itemIDs")
+	podcastID, hasPodcastID := c.GetQuery("podcastID")
+	tagIDs, hasTagIDs := c.GetQueryArray("tagIDs")
 	title := "Podgrab"
 	var items []db.PodcastItem
 	var totalCount int64
-	if hasItemIds {
-		toAdd, _ := service.GetAllPodcastItemsByIds(itemIds)
+	switch {
+	case hasItemIDs:
+		toAdd, _ := service.GetAllPodcastItemsByIDs(itemIDs)
 		items = *toAdd
 		totalCount = int64(len(items))
-	} else if hasPodcastId {
-		pod := service.GetPodcastById(podcastId)
+	case hasPodcastID:
+		pod := service.GetPodcastByID(podcastID)
 		items = pod.PodcastItems
 		title = "Playing: " + pod.Title
 		totalCount = int64(len(items))
-	} else if hasTagIds {
-		tags := service.GetTagsByIds(tagIds)
-		var tagNames []string
-		var podIds []string
+	case hasTagIDs:
+		tags := service.GetTagsByIDs(tagIDs)
+		tagNames := make([]string, 0, len(*tags))
+		podIDs := make([]string, 0, len(*tags)*5) // Preallocate with estimated capacity
 		for _, tag := range *tags {
 			tagNames = append(tagNames, tag.Label)
 			for _, pod := range tag.Podcasts {
-				podIds = append(podIds, pod.ID)
+				podIDs = append(podIDs, pod.ID)
 			}
 		}
-		items = *service.GetAllPodcastItemsByPodcastIds(podIds)
+		items = *service.GetAllPodcastItemsByPodcastIDs(podIDs)
 		if len(tagNames) == 1 {
 			title = fmt.Sprintf("Playing episodes with tag : %s", (tagNames[0]))
 		} else {
 			title = fmt.Sprintf("Playing episodes with tags : %s", strings.Join(tagNames, ", "))
 		}
-	} else {
+	default:
 		title = "Playing Latest Episodes"
 		if err := db.GetPaginatedPodcastItems(1, 20, nil, nil, time.Time{}, &items, &totalCount); err != nil {
 			fmt.Println(err.Error())
@@ -181,6 +191,8 @@ func PlayerPage(c *gin.Context) {
 		"downloadedOnly": true,
 	})
 }
+
+// SettingsPage handles the settings page request.
 func SettingsPage(c *gin.Context) {
 	setting := c.MustGet("setting").(*db.Setting)
 	diskStats, _ := db.GetPodcastEpisodeDiskStats()
@@ -190,6 +202,8 @@ func SettingsPage(c *gin.Context) {
 		"diskStats": diskStats,
 	})
 }
+
+// BackupsPage handles the backups page request.
 func BackupsPage(c *gin.Context) {
 	files, err := service.GetAllBackupFiles()
 	var allFiles []interface{}
@@ -232,9 +246,12 @@ func getSortOptions() interface{} {
 		{"Duration (desc)", "duration_desc"},
 	}
 }
+
+// AllEpisodesPage handles the all episodes page request.
 func AllEpisodesPage(c *gin.Context) {
 	var filter model.EpisodesFilter
-	c.ShouldBindQuery(&filter)
+	// Use default filter values if binding fails
+	_ = c.ShouldBindQuery(&filter)
 	filter.VerifyPaginationValues()
 	setting := c.MustGet("setting").(*db.Setting)
 	podcasts := service.GetAllPodcasts("")
@@ -253,10 +270,12 @@ func AllEpisodesPage(c *gin.Context) {
 	c.HTML(http.StatusOK, "episodes_new.html", toReturn)
 }
 
+// AllTagsPage handles the all tags page request.
 func AllTagsPage(c *gin.Context) {
 	var pagination model.Pagination
 	var page, count int
-	c.ShouldBindQuery(&pagination)
+	// Use default pagination values if binding fails
+	_ = c.ShouldBindQuery(&pagination)
 	if page = pagination.Page; page == 0 {
 		page = 1
 	}
@@ -296,6 +315,7 @@ func AllTagsPage(c *gin.Context) {
 	}
 }
 
+// Search handles the search request.
 func Search(c *gin.Context) {
 	var searchQuery SearchGPodderData
 	if c.ShouldBindQuery(&searchQuery) == nil {
@@ -320,10 +340,11 @@ func Search(c *gin.Context) {
 	}
 }
 
+// GetOmpl handles the get ompl request.
 func GetOmpl(c *gin.Context) {
 	usePodgrabLink := c.DefaultQuery("usePodgrabLink", "false") == "true"
 
-	data, err := service.ExportOmpl(usePodgrabLink, getBaseUrl(c))
+	data, err := service.ExportOmpl(usePodgrabLink, getBaseURL(c))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request"})
 		return
@@ -331,13 +352,19 @@ func GetOmpl(c *gin.Context) {
 	c.Header("Content-Disposition", "attachment; filename=podgrab-export.opml")
 	c.Data(200, "text/xml", data)
 }
+
+// UploadOpml handles the upload opml request.
 func UploadOpml(c *gin.Context) {
 	file, _, err := c.Request.FormFile("file")
-	defer file.Close()
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request"})
 		return
 	}
+	defer func() {
+		if err := file.Close(); err != nil {
+			fmt.Printf("Error closing file: %v\n", err)
+		}
+	}()
 
 	buf := bytes.NewBuffer(nil)
 	if _, err := io.Copy(buf, file); err != nil {
@@ -353,14 +380,19 @@ func UploadOpml(c *gin.Context) {
 	}
 }
 
+// AddNewPodcast handles the add new podcast request.
 func AddNewPodcast(c *gin.Context) {
 	var addPodcastData AddPodcastData
 	err := c.ShouldBind(&addPodcastData)
 
 	if err == nil {
-		_, err = service.AddPodcast(addPodcastData.Url)
+		_, err = service.AddPodcast(addPodcastData.URL)
 		if err == nil {
-			go service.RefreshEpisodes()
+			go func() {
+				if err := service.RefreshEpisodes(); err != nil {
+					fmt.Printf("Error refreshing episodes: %v\n", err)
+				}
+			}()
 			c.Redirect(http.StatusFound, "/")
 		} else {
 			c.JSON(http.StatusBadRequest, err)

@@ -16,49 +16,60 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// Sorting field constants for podcast queries.
 const (
 	DateAdded   = "dateadded"
 	Name        = "name"
 	LastEpisode = "lastepisode"
 )
 
+// Sort order constants for query results.
 const (
 	Asc  = "asc"
 	Desc = "desc"
 )
 
+// SearchQuery represents search query data.
 type SearchQuery struct {
 	Q    string `binding:"required" form:"q"`
 	Type string `form:"type"`
 }
 
+// PodcastListQuery represents podcast list query data.
 type PodcastListQuery struct {
 	Sort  string `uri:"sort" query:"sort" json:"sort" form:"sort" default:"created_at"`
 	Order string `uri:"order" query:"order" json:"order" form:"order" default:"asc"`
 }
 
-type SearchByIdQuery struct {
-	Id string `binding:"required" uri:"id" json:"id" form:"id"`
+// SearchByIDQuery represents search by id query data.
+type SearchByIDQuery struct {
+	ID string `binding:"required" uri:"id" json:"id" form:"id"`
 }
 
+// AddRemoveTagQuery represents add remove tag query data.
 type AddRemoveTagQuery struct {
-	Id    string `binding:"required" uri:"id" json:"id" form:"id"`
-	TagId string `binding:"required" uri:"tagId" json:"tagId" form:"tagId"`
+	ID    string `binding:"required" uri:"id" json:"id" form:"id"`
+	TagID string `binding:"required" uri:"tagID" json:"tagID" form:"tagID"`
 }
 
+// PatchPodcastItem represents patch podcast item data.
 type PatchPodcastItem struct {
 	Title    string `form:"title" json:"title" query:"title"`
 	IsPlayed bool   `json:"isPlayed" form:"isPlayed" query:"isPlayed"`
 }
 
+// AddPodcastData represents add podcast data data.
 type AddPodcastData struct {
-	Url string `binding:"required" form:"url" json:"url"`
+	URL string `binding:"required" form:"url" json:"url"`
 }
+
+// AddTagData represents add tag data data.
 type AddTagData struct {
 	Label       string `binding:"required" form:"label" json:"label"`
 	Description string `form:"description" json:"description"`
 }
 
+// GetAllPodcasts handles the get all podcasts request.
 func GetAllPodcasts(c *gin.Context) {
 	var podcastListQuery PodcastListQuery
 
@@ -81,13 +92,14 @@ func GetAllPodcasts(c *gin.Context) {
 	}
 }
 
-func GetPodcastById(c *gin.Context) {
-	var searchByIdQuery SearchByIdQuery
+// GetPodcastByID handles the get podcast by id request.
+func GetPodcastByID(c *gin.Context) {
+	var searchByIDQuery SearchByIDQuery
 
-	if c.ShouldBindUri(&searchByIdQuery) == nil {
+	if c.ShouldBindUri(&searchByIDQuery) == nil {
 		var podcast db.Podcast
 
-		err := db.GetPodcastById(searchByIdQuery.Id, &podcast)
+		err := db.GetPodcastByID(searchByIDQuery.ID, &podcast)
 		fmt.Println(err)
 		c.JSON(200, podcast)
 	} else {
@@ -95,23 +107,11 @@ func GetPodcastById(c *gin.Context) {
 	}
 }
 
-func PausePodcastById(c *gin.Context) {
-	var searchByIdQuery SearchByIdQuery
-	if c.ShouldBindUri(&searchByIdQuery) == nil {
-		err := service.TogglePodcastPause(searchByIdQuery.Id, true)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, err)
-			return
-		}
-		c.JSON(200, gin.H{})
-	} else {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
-	}
-}
-func UnpausePodcastById(c *gin.Context) {
-	var searchByIdQuery SearchByIdQuery
-	if c.ShouldBindUri(&searchByIdQuery) == nil {
-		err := service.TogglePodcastPause(searchByIdQuery.Id, false)
+// PausePodcastByID handles the pause podcast by id request.
+func PausePodcastByID(c *gin.Context) {
+	var searchByIDQuery SearchByIDQuery
+	if c.ShouldBindUri(&searchByIDQuery) == nil {
+		err := service.TogglePodcastPause(searchByIDQuery.ID, true)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, err)
 			return
@@ -122,56 +122,89 @@ func UnpausePodcastById(c *gin.Context) {
 	}
 }
 
-func DeletePodcastById(c *gin.Context) {
-	var searchByIdQuery SearchByIdQuery
+// UnpausePodcastByID handles the unpause podcast by id request.
+func UnpausePodcastByID(c *gin.Context) {
+	var searchByIDQuery SearchByIDQuery
+	if c.ShouldBindUri(&searchByIDQuery) == nil {
+		err := service.TogglePodcastPause(searchByIDQuery.ID, false)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, err)
+			return
+		}
+		c.JSON(200, gin.H{})
+	} else {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+	}
+}
 
-	if c.ShouldBindUri(&searchByIdQuery) == nil {
-		service.DeletePodcast(searchByIdQuery.Id, true)
+// DeletePodcastByID handles the delete podcast by id request.
+func DeletePodcastByID(c *gin.Context) {
+	var searchByIDQuery SearchByIDQuery
+
+	if c.ShouldBindUri(&searchByIDQuery) == nil {
+		if err := service.DeletePodcast(searchByIDQuery.ID, true); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusNoContent, gin.H{})
 	} else {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 	}
 }
 
-func DeleteOnlyPodcastById(c *gin.Context) {
-	var searchByIdQuery SearchByIdQuery
+// DeleteOnlyPodcastByID handles the delete only podcast by id request.
+func DeleteOnlyPodcastByID(c *gin.Context) {
+	var searchByIDQuery SearchByIDQuery
 
-	if c.ShouldBindUri(&searchByIdQuery) == nil {
-		service.DeletePodcast(searchByIdQuery.Id, false)
+	if c.ShouldBindUri(&searchByIDQuery) == nil {
+		if err := service.DeletePodcast(searchByIDQuery.ID, false); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusNoContent, gin.H{})
 	} else {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 	}
 }
 
-func DeletePodcastEpisodesById(c *gin.Context) {
-	var searchByIdQuery SearchByIdQuery
+// DeletePodcastEpisodesByID handles the delete podcast episodes by id request.
+func DeletePodcastEpisodesByID(c *gin.Context) {
+	var searchByIDQuery SearchByIDQuery
 
-	if c.ShouldBindUri(&searchByIdQuery) == nil {
-		service.DeletePodcastEpisodes(searchByIdQuery.Id)
-		c.JSON(http.StatusNoContent, gin.H{})
-	} else {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
-	}
-}
-func DeletePodcasDeleteOnlyPodcasttEpisodesById(c *gin.Context) {
-	var searchByIdQuery SearchByIdQuery
-
-	if c.ShouldBindUri(&searchByIdQuery) == nil {
-		service.DeletePodcastEpisodes(searchByIdQuery.Id)
+	if c.ShouldBindUri(&searchByIDQuery) == nil {
+		if err := service.DeletePodcastEpisodes(searchByIDQuery.ID); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusNoContent, gin.H{})
 	} else {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 	}
 }
 
-func GetPodcastItemsByPodcastId(c *gin.Context) {
-	var searchByIdQuery SearchByIdQuery
+// DeletePodcasDeleteOnlyPodcasttEpisodesByID handles the delete podcas delete only podcastt episodes by id request.
+func DeletePodcasDeleteOnlyPodcasttEpisodesByID(c *gin.Context) {
+	var searchByIDQuery SearchByIDQuery
 
-	if c.ShouldBindUri(&searchByIdQuery) == nil {
+	if c.ShouldBindUri(&searchByIDQuery) == nil {
+		if err := service.DeletePodcastEpisodes(searchByIDQuery.ID); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusNoContent, gin.H{})
+	} else {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+	}
+}
+
+// GetPodcastItemsByPodcastID handles the get podcast items by podcast id request.
+func GetPodcastItemsByPodcastID(c *gin.Context) {
+	var searchByIDQuery SearchByIDQuery
+
+	if c.ShouldBindUri(&searchByIDQuery) == nil {
 		var podcastItems []db.PodcastItem
 
-		err := db.GetAllPodcastItemsByPodcastId(searchByIdQuery.Id, &podcastItems)
+		err := db.GetAllPodcastItemsByPodcastID(searchByIDQuery.ID, &podcastItems)
 		fmt.Println(err)
 		c.JSON(200, podcastItems)
 	} else {
@@ -179,19 +212,25 @@ func GetPodcastItemsByPodcastId(c *gin.Context) {
 	}
 }
 
-func DownloadAllEpisodesByPodcastId(c *gin.Context) {
-	var searchByIdQuery SearchByIdQuery
+// DownloadAllEpisodesByPodcastID handles the download all episodes by podcast id request.
+func DownloadAllEpisodesByPodcastID(c *gin.Context) {
+	var searchByIDQuery SearchByIDQuery
 
-	if c.ShouldBindUri(&searchByIdQuery) == nil {
-		err := service.SetAllEpisodesToDownload(searchByIdQuery.Id)
+	if c.ShouldBindUri(&searchByIDQuery) == nil {
+		err := service.SetAllEpisodesToDownload(searchByIDQuery.ID)
 		fmt.Println(err)
-		go service.RefreshEpisodes()
+		go func() {
+			if err := service.RefreshEpisodes(); err != nil {
+				fmt.Printf("Error refreshing episodes: %v\n", err)
+			}
+		}()
 		c.JSON(200, gin.H{})
 	} else {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 	}
 }
 
+// GetAllPodcastItems handles the get all podcast items request.
 func GetAllPodcastItems(c *gin.Context) {
 	var filter model.EpisodesFilter
 	err := c.ShouldBindQuery(&filter)
@@ -211,13 +250,14 @@ func GetAllPodcastItems(c *gin.Context) {
 	}
 }
 
-func GetPodcastItemById(c *gin.Context) {
-	var searchByIdQuery SearchByIdQuery
+// GetPodcastItemByID handles the get podcast item by id request.
+func GetPodcastItemByID(c *gin.Context) {
+	var searchByIDQuery SearchByIDQuery
 
-	if c.ShouldBindUri(&searchByIdQuery) == nil {
+	if c.ShouldBindUri(&searchByIDQuery) == nil {
 		var podcast db.PodcastItem
 
-		err := db.GetPodcastItemById(searchByIdQuery.Id, &podcast)
+		err := db.GetPodcastItemByID(searchByIDQuery.ID, &podcast)
 		fmt.Println(err)
 		c.JSON(200, podcast)
 	} else {
@@ -225,13 +265,14 @@ func GetPodcastItemById(c *gin.Context) {
 	}
 }
 
-func GetPodcastItemImageById(c *gin.Context) {
-	var searchByIdQuery SearchByIdQuery
+// GetPodcastItemImageByID handles the get podcast item image by id request.
+func GetPodcastItemImageByID(c *gin.Context) {
+	var searchByIDQuery SearchByIDQuery
 
-	if c.ShouldBindUri(&searchByIdQuery) == nil {
+	if c.ShouldBindUri(&searchByIDQuery) == nil {
 		var podcast db.PodcastItem
 
-		err := db.GetPodcastItemById(searchByIdQuery.Id, &podcast)
+		err := db.GetPodcastItemByID(searchByIDQuery.ID, &podcast)
 		if err == nil {
 			if _, err = os.Stat(podcast.LocalImage); os.IsNotExist(err) {
 				c.Redirect(302, podcast.Image)
@@ -244,13 +285,14 @@ func GetPodcastItemImageById(c *gin.Context) {
 	}
 }
 
-func GetPodcastImageById(c *gin.Context) {
-	var searchByIdQuery SearchByIdQuery
+// GetPodcastImageByID handles the get podcast image by id request.
+func GetPodcastImageByID(c *gin.Context) {
+	var searchByIDQuery SearchByIDQuery
 
-	if c.ShouldBindUri(&searchByIdQuery) == nil {
+	if c.ShouldBindUri(&searchByIDQuery) == nil {
 		var podcast db.Podcast
 
-		err := db.GetPodcastById(searchByIdQuery.Id, &podcast)
+		err := db.GetPodcastByID(searchByIDQuery.ID, &podcast)
 		if err == nil {
 			localPath := service.GetPodcastLocalImagePath(podcast.Image, podcast.Title)
 			if _, err = os.Stat(localPath); os.IsNotExist(err) {
@@ -264,13 +306,14 @@ func GetPodcastImageById(c *gin.Context) {
 	}
 }
 
-func GetPodcastItemFileById(c *gin.Context) {
-	var searchByIdQuery SearchByIdQuery
+// GetPodcastItemFileByID handles the get podcast item file by id request.
+func GetPodcastItemFileByID(c *gin.Context) {
+	var searchByIDQuery SearchByIDQuery
 
-	if c.ShouldBindUri(&searchByIdQuery) == nil {
+	if c.ShouldBindUri(&searchByIDQuery) == nil {
 		var podcast db.PodcastItem
 
-		err := db.GetPodcastItemById(searchByIdQuery.Id, &podcast)
+		err := db.GetPodcastItemByID(searchByIDQuery.ID, &podcast)
 		if err == nil {
 			if _, err = os.Stat(podcast.DownloadPath); !os.IsNotExist(err) {
 				c.Header("Content-Description", "File Transfer")
@@ -287,12 +330,17 @@ func GetPodcastItemFileById(c *gin.Context) {
 	}
 }
 
+// GetFileContentType handles the get file content type request.
 func GetFileContentType(filePath string) string {
-	file, err := os.Open(filePath)
+	file, err := os.Open(filePath) //nolint:gosec // G304: filePath is from database, managed by application
 	if err != nil {
 		return "application/octet-stream"
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			fmt.Printf("Error closing file: %v\n", err)
+		}
+	}()
 	buffer := make([]byte, 512)
 	if _, err := file.Read(buffer); err != nil {
 		return "application/octet-stream"
@@ -300,49 +348,70 @@ func GetFileContentType(filePath string) string {
 	return http.DetectContentType(buffer)
 }
 
+// MarkPodcastItemAsUnplayed handles the mark podcast item as unplayed request.
 func MarkPodcastItemAsUnplayed(c *gin.Context) {
-	var searchByIdQuery SearchByIdQuery
+	var searchByIDQuery SearchByIDQuery
 
-	if c.ShouldBindUri(&searchByIdQuery) == nil {
-		service.SetPodcastItemPlayedStatus(searchByIdQuery.Id, false)
+	if c.ShouldBindUri(&searchByIDQuery) == nil {
+		if err := service.SetPodcastItemPlayedStatus(searchByIDQuery.ID, false); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 	} else {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 	}
 }
+
+// MarkPodcastItemAsPlayed handles the mark podcast item as played request.
 func MarkPodcastItemAsPlayed(c *gin.Context) {
-	var searchByIdQuery SearchByIdQuery
+	var searchByIDQuery SearchByIDQuery
 
-	if c.ShouldBindUri(&searchByIdQuery) == nil {
-		service.SetPodcastItemPlayedStatus(searchByIdQuery.Id, true)
+	if c.ShouldBindUri(&searchByIDQuery) == nil {
+		if err := service.SetPodcastItemPlayedStatus(searchByIDQuery.ID, true); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 	} else {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 	}
 }
+
+// BookmarkPodcastItem handles the bookmark podcast item request.
 func BookmarkPodcastItem(c *gin.Context) {
-	var searchByIdQuery SearchByIdQuery
+	var searchByIDQuery SearchByIDQuery
 
-	if c.ShouldBindUri(&searchByIdQuery) == nil {
-		service.SetPodcastItemBookmarkStatus(searchByIdQuery.Id, true)
+	if c.ShouldBindUri(&searchByIDQuery) == nil {
+		if err := service.SetPodcastItemBookmarkStatus(searchByIDQuery.ID, true); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 	} else {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 	}
 }
+
+// UnbookmarkPodcastItem handles the unbookmark podcast item request.
 func UnbookmarkPodcastItem(c *gin.Context) {
-	var searchByIdQuery SearchByIdQuery
+	var searchByIDQuery SearchByIDQuery
 
-	if c.ShouldBindUri(&searchByIdQuery) == nil {
-		service.SetPodcastItemBookmarkStatus(searchByIdQuery.Id, false)
+	if c.ShouldBindUri(&searchByIDQuery) == nil {
+		if err := service.SetPodcastItemBookmarkStatus(searchByIDQuery.ID, false); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 	} else {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 	}
 }
-func PatchPodcastItemById(c *gin.Context) {
-	var searchByIdQuery SearchByIdQuery
 
-	if c.ShouldBindUri(&searchByIdQuery) == nil {
+// PatchPodcastItemByID handles the patch podcast item by id request.
+func PatchPodcastItemByID(c *gin.Context) {
+	var searchByIDQuery SearchByIDQuery
+
+	if c.ShouldBindUri(&searchByIDQuery) == nil {
 		var podcast db.PodcastItem
 
-		err := db.GetPodcastItemById(searchByIdQuery.Id, &podcast)
+		err := db.GetPodcastItemByID(searchByIDQuery.ID, &podcast)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 			return
@@ -362,34 +431,50 @@ func PatchPodcastItemById(c *gin.Context) {
 	}
 }
 
+// DownloadPodcastItem handles the download podcast item request.
 func DownloadPodcastItem(c *gin.Context) {
-	var searchByIdQuery SearchByIdQuery
+	var searchByIDQuery SearchByIDQuery
 
-	if c.ShouldBindUri(&searchByIdQuery) == nil {
-		go service.DownloadSingleEpisode(searchByIdQuery.Id)
+	if c.ShouldBindUri(&searchByIDQuery) == nil {
+		go func() {
+			if err := service.DownloadSingleEpisode(searchByIDQuery.ID); err != nil {
+				fmt.Printf("Error downloading episode: %v\n", err)
+			}
+		}()
 		c.JSON(200, gin.H{})
 	} else {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 	}
 }
+
+// DeletePodcastItem handles the delete podcast item request.
 func DeletePodcastItem(c *gin.Context) {
-	var searchByIdQuery SearchByIdQuery
+	var searchByIDQuery SearchByIDQuery
 
-	if c.ShouldBindUri(&searchByIdQuery) == nil {
-		go service.DeleteEpisodeFile(searchByIdQuery.Id)
+	if c.ShouldBindUri(&searchByIDQuery) == nil {
+		go func() {
+			if err := service.DeleteEpisodeFile(searchByIDQuery.ID); err != nil {
+				fmt.Printf("Error deleting episode file: %v\n", err)
+			}
+		}()
 		c.JSON(200, gin.H{})
 	} else {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 	}
 }
 
+// AddPodcast handles the add podcast request.
 func AddPodcast(c *gin.Context) {
 	var addPodcastData AddPodcastData
 	err := c.ShouldBindJSON(&addPodcastData)
 	if err == nil {
-		pod, err := service.AddPodcast(addPodcastData.Url)
+		pod, err := service.AddPodcast(addPodcastData.URL)
 		if err == nil {
-			go service.RefreshEpisodes()
+			go func() {
+				if err := service.RefreshEpisodes(); err != nil {
+					fmt.Printf("Error refreshing episodes: %v\n", err)
+				}
+			}()
 			c.JSON(200, pod)
 		} else {
 			if v, ok := err.(*model.PodcastAlreadyExistsError); ok {
@@ -405,6 +490,7 @@ func AddPodcast(c *gin.Context) {
 	}
 }
 
+// GetAllTags handles the get all tags request.
 func GetAllTags(c *gin.Context) {
 	tags, err := db.GetAllTags("")
 	if err != nil {
@@ -414,10 +500,11 @@ func GetAllTags(c *gin.Context) {
 	}
 }
 
-func GetTagById(c *gin.Context) {
-	var searchByIdQuery SearchByIdQuery
-	if c.ShouldBindUri(&searchByIdQuery) == nil {
-		tag, err := db.GetTagById(searchByIdQuery.Id)
+// GetTagByID handles the get tag by id request.
+func GetTagByID(c *gin.Context) {
+	var searchByIDQuery SearchByIDQuery
+	if c.ShouldBindUri(&searchByIDQuery) == nil {
+		tag, err := db.GetTagByID(searchByIDQuery.ID)
 		if err == nil {
 			c.JSON(200, tag)
 		}
@@ -426,7 +513,7 @@ func GetTagById(c *gin.Context) {
 	}
 }
 
-func getBaseUrl(c *gin.Context) string {
+func getBaseURL(c *gin.Context) string {
 	setting := c.MustGet("setting").(*db.Setting)
 	if setting.BaseURL == "" {
 		url := location.Get(c)
@@ -436,8 +523,8 @@ func getBaseUrl(c *gin.Context) string {
 }
 
 func createRss(items []db.PodcastItem, title, description, image string, c *gin.Context) model.RssPodcastData {
-	var rssItems []model.RssItem
-	url := getBaseUrl(c)
+	rssItems := make([]model.RssItem, 0, len(items))
+	url := getBaseURL(c)
 	for _, item := range items {
 		rssItem := model.RssItem{
 			Title:       item.Title,
@@ -454,7 +541,7 @@ func createRss(items []db.PodcastItem, title, description, image string, c *gin.
 				Type:   "audio/mpeg",
 			},
 			PubDate: item.PubDate.Format("Mon, 02 Jan 2006 15:04:05 -0700"),
-			Guid: model.RssItemGuid{
+			GUID: model.RssItemGUID{
 				IsPermaLink: "false",
 				Text:        item.ID,
 			},
@@ -489,17 +576,18 @@ func createRss(items []db.PodcastItem, title, description, image string, c *gin.
 	}
 }
 
-func GetRssForPodcastById(c *gin.Context) {
-	var searchByIdQuery SearchByIdQuery
-	if c.ShouldBindUri(&searchByIdQuery) == nil {
+// GetRssForPodcastByID handles the get rss for podcast by id request.
+func GetRssForPodcastByID(c *gin.Context) {
+	var searchByIDQuery SearchByIDQuery
+	if c.ShouldBindUri(&searchByIDQuery) == nil {
 		var podcast db.Podcast
-		err := db.GetPodcastById(searchByIdQuery.Id, &podcast)
+		err := db.GetPodcastByID(searchByIDQuery.ID, &podcast)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 		}
-		var podIds []string
-		podIds = append(podIds, searchByIdQuery.Id)
-		items := *service.GetAllPodcastItemsByPodcastIds(podIds)
+		podIDs := make([]string, 0, 1)
+		podIDs = append(podIDs, searchByIDQuery.ID)
+		items := *service.GetAllPodcastItemsByPodcastIDs(podIDs)
 
 		description := podcast.Summary
 		title := podcast.Title
@@ -511,15 +599,17 @@ func GetRssForPodcastById(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 	}
 }
-func GetRssForTagById(c *gin.Context) {
-	var searchByIdQuery SearchByIdQuery
-	if c.ShouldBindUri(&searchByIdQuery) == nil {
-		tag, err := db.GetTagById(searchByIdQuery.Id)
-		var podIds []string
+
+// GetRssForTagByID handles the get rss for tag by id request.
+func GetRssForTagByID(c *gin.Context) {
+	var searchByIDQuery SearchByIDQuery
+	if c.ShouldBindUri(&searchByIDQuery) == nil {
+		tag, err := db.GetTagByID(searchByIDQuery.ID)
+		podIDs := make([]string, 0, len(tag.Podcasts))
 		for _, pod := range tag.Podcasts {
-			podIds = append(podIds, pod.ID)
+			podIDs = append(podIDs, pod.ID)
 		}
-		items := *service.GetAllPodcastItemsByPodcastIds(podIds)
+		items := *service.GetAllPodcastItemsByPodcastIDs(podIDs)
 
 		description := fmt.Sprintf("Playing episodes with tag : %s", tag.Label)
 		title := fmt.Sprintf(" %s | Podgrab", tag.Label)
@@ -531,6 +621,8 @@ func GetRssForTagById(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 	}
 }
+
+// GetRss handles the get rss request.
 func GetRss(c *gin.Context) {
 	var items []db.PodcastItem
 
@@ -544,10 +636,12 @@ func GetRss(c *gin.Context) {
 
 	c.XML(200, createRss(items, title, description, "", c))
 }
-func DeleteTagById(c *gin.Context) {
-	var searchByIdQuery SearchByIdQuery
-	if c.ShouldBindUri(&searchByIdQuery) == nil {
-		err := service.DeleteTag(searchByIdQuery.Id)
+
+// DeleteTagByID handles the delete tag by id request.
+func DeleteTagByID(c *gin.Context) {
+	var searchByIDQuery SearchByIDQuery
+	if c.ShouldBindUri(&searchByIDQuery) == nil {
+		err := service.DeleteTag(searchByIDQuery.ID)
 		if err == nil {
 			c.JSON(http.StatusNoContent, gin.H{})
 		}
@@ -555,6 +649,8 @@ func DeleteTagById(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 	}
 }
+
+// AddTag handles the add tag request.
 func AddTag(c *gin.Context) {
 	var addTagData AddTagData
 	err := c.ShouldBindJSON(&addTagData)
@@ -576,11 +672,12 @@ func AddTag(c *gin.Context) {
 	}
 }
 
+// AddTagToPodcast handles the add tag to podcast request.
 func AddTagToPodcast(c *gin.Context) {
 	var addRemoveTagQuery AddRemoveTagQuery
 
 	if c.ShouldBindUri(&addRemoveTagQuery) == nil {
-		err := db.AddTagToPodcast(addRemoveTagQuery.Id, addRemoveTagQuery.TagId)
+		err := db.AddTagToPodcast(addRemoveTagQuery.ID, addRemoveTagQuery.TagID)
 		if err == nil {
 			c.JSON(200, gin.H{})
 		}
@@ -589,11 +686,12 @@ func AddTagToPodcast(c *gin.Context) {
 	}
 }
 
+// RemoveTagFromPodcast handles the remove tag from podcast request.
 func RemoveTagFromPodcast(c *gin.Context) {
 	var addRemoveTagQuery AddRemoveTagQuery
 
 	if c.ShouldBindUri(&addRemoveTagQuery) == nil {
-		err := db.RemoveTagFromPodcast(addRemoveTagQuery.Id, addRemoveTagQuery.TagId)
+		err := db.RemoveTagFromPodcast(addRemoveTagQuery.ID, addRemoveTagQuery.TagID)
 		if err == nil {
 			c.JSON(200, gin.H{})
 		}
@@ -602,6 +700,7 @@ func RemoveTagFromPodcast(c *gin.Context) {
 	}
 }
 
+// UpdateSetting handles the update setting request.
 func UpdateSetting(c *gin.Context) {
 	var model SettingModel
 	err := c.ShouldBind(&model)

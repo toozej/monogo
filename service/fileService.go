@@ -1,3 +1,4 @@
+// Package service implements business logic for podcast management and downloads.
 package service
 
 import (
@@ -7,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/akhilrex/podgrab/db"
@@ -22,6 +23,7 @@ import (
 	stringy "github.com/gobeam/stringy"
 )
 
+// Download download.
 func Download(link string, episodeTitle string, podcastName string, prefix string) (string, error) {
 	if link == "" {
 		return "", errors.New("Download path empty")
@@ -60,15 +62,29 @@ func Download(link string, episodeTitle string, podcastName string, prefix strin
 		return "", fmt.Errorf("HTTP error: %d %s", resp.StatusCode, resp.Status)
 	}
 
-	file, err := os.Create(finalPath)
+	// Validate and clean path to prevent directory traversal
+	if err := validatePath(finalPath, folder); err != nil {
+		return "", err
+	}
+	cleanPath := filepath.Clean(finalPath)
+
+	file, err := os.Create(cleanPath)
 	if err != nil {
 		Logger.Errorw("Error creating file"+link, err)
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			Logger.Errorw("Error closing response body", err)
+		}
+	}()
 	_, erra := io.Copy(file, resp.Body)
 	// fmt.Println(size)
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			Logger.Errorw("Error closing file", err)
+		}
+	}()
 	if erra != nil {
 		Logger.Errorw("Error saving file"+link, err)
 		return "", erra
@@ -77,6 +93,7 @@ func Download(link string, episodeTitle string, podcastName string, prefix strin
 	return finalPath, nil
 }
 
+// GetPodcastLocalImagePath get podcast local image path.
 func GetPodcastLocalImagePath(link string, podcastName string) string {
 	fileName := getFileName(link, "folder", ".jpg")
 	folder := createDataFolderIfNotExists(podcastName)
@@ -85,6 +102,7 @@ func GetPodcastLocalImagePath(link string, podcastName string) string {
 	return finalPath
 }
 
+// CreateNfoFile create nfo file.
 func CreateNfoFile(podcast *db.Podcast) error {
 	fileName := "album.nfo"
 	folder := createDataFolderIfNotExists(podcast.Title)
@@ -108,9 +126,10 @@ func CreateNfoFile(podcast *db.Podcast) error {
 		return err
 	}
 	toPersist := xml.Header + string(out)
-	return ioutil.WriteFile(finalPath, []byte(toPersist), 0644)
+	return os.WriteFile(finalPath, []byte(toPersist), 0600)
 }
 
+// DownloadPodcastCoverImage download podcast cover image.
 func DownloadPodcastCoverImage(link string, podcastName string) (string, error) {
 	if link == "" {
 		return "", errors.New("Download path empty")
@@ -132,20 +151,35 @@ func DownloadPodcastCoverImage(link string, podcastName string) (string, error) 
 	folder := createDataFolderIfNotExists(podcastName)
 
 	finalPath := path.Join(folder, fileName)
-	if _, err := os.Stat(finalPath); !os.IsNotExist(err) {
-		changeOwnership(finalPath)
-		return finalPath, nil
+
+	// Validate and clean path to prevent directory traversal
+	if err := validatePath(finalPath, folder); err != nil {
+		return "", err
+	}
+	cleanPath := filepath.Clean(finalPath)
+
+	if _, err := os.Stat(cleanPath); !os.IsNotExist(err) {
+		changeOwnership(cleanPath)
+		return cleanPath, nil
 	}
 
-	file, err := os.Create(finalPath)
+	file, err := os.Create(cleanPath)
 	if err != nil {
 		Logger.Errorw("Error creating file"+link, err)
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			Logger.Errorw("Error closing response body", err)
+		}
+	}()
 	_, erra := io.Copy(file, resp.Body)
 	// fmt.Println(size)
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			Logger.Errorw("Error closing file", err)
+		}
+	}()
 	if erra != nil {
 		Logger.Errorw("Error saving file"+link, err)
 		return "", erra
@@ -154,7 +188,8 @@ func DownloadPodcastCoverImage(link string, podcastName string) (string, error) 
 	return finalPath, nil
 }
 
-func DownloadImage(link string, episodeId string, podcastName string) (string, error) {
+// DownloadImage download image.
+func DownloadImage(link string, episodeID string, podcastName string) (string, error) {
 	if link == "" {
 		return "", errors.New("Download path empty")
 	}
@@ -171,25 +206,39 @@ func DownloadImage(link string, episodeId string, podcastName string) (string, e
 		return "", err
 	}
 
-	fileName := getFileName(link, episodeId, ".jpg")
+	fileName := getFileName(link, episodeID, ".jpg")
 	folder := createDataFolderIfNotExists(podcastName)
 	imageFolder := createFolder("images", folder)
 	finalPath := path.Join(imageFolder, fileName)
 
-	if _, err := os.Stat(finalPath); !os.IsNotExist(err) {
-		changeOwnership(finalPath)
-		return finalPath, nil
+	// Validate and clean path to prevent directory traversal
+	if err := validatePath(finalPath, imageFolder); err != nil {
+		return "", err
+	}
+	cleanPath := filepath.Clean(finalPath)
+
+	if _, err := os.Stat(cleanPath); !os.IsNotExist(err) {
+		changeOwnership(cleanPath)
+		return cleanPath, nil
 	}
 
-	file, err := os.Create(finalPath)
+	file, err := os.Create(cleanPath)
 	if err != nil {
 		Logger.Errorw("Error creating file"+link, err)
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			Logger.Errorw("Error closing response body", err)
+		}
+	}()
 	_, erra := io.Copy(file, resp.Body)
 	// fmt.Println(size)
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			Logger.Errorw("Error closing file", err)
+		}
+	}()
 	if erra != nil {
 		Logger.Errorw("Error saving file"+link, err)
 		return "", erra
@@ -203,9 +252,13 @@ func changeOwnership(path string) {
 	fmt.Println(path)
 	if err1 == nil && err2 == nil {
 		fmt.Println(path + " : Attempting change")
-		os.Chown(path, uid, gid)
+		if err := os.Chown(path, uid, gid); err != nil {
+			fmt.Printf("Error changing ownership: %v\n", err)
+		}
 	}
 }
+
+// DeleteFile delete file.
 func DeleteFile(filePath string) error {
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		return err
@@ -215,15 +268,18 @@ func DeleteFile(filePath string) error {
 	}
 	return nil
 }
+
+// FileExists file exists.
 func FileExists(filePath string) bool {
 	_, err := os.Stat(filePath)
 	return err == nil
 }
 
+// GetAllBackupFiles get all backup files.
 func GetAllBackupFiles() ([]string, error) {
 	var files []string
 	folder := createConfigFolderIfNotExists("backups")
-	err := filepath.Walk(folder, func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(folder, func(path string, info os.FileInfo, _ error) error {
 		if !info.IsDir() {
 			files = append(files, path)
 		}
@@ -233,6 +289,7 @@ func GetAllBackupFiles() ([]string, error) {
 	return files, err
 }
 
+// GetFileSize get file size.
 func GetFileSize(path string) (int64, error) {
 	info, err := os.Stat(path)
 	if err != nil {
@@ -253,20 +310,33 @@ func deleteOldBackup() {
 	toDelete := files[5:]
 	for _, file := range toDelete {
 		fmt.Println(file)
-		DeleteFile(file)
+		if err := DeleteFile(file); err != nil {
+			fmt.Printf("Error deleting file %s: %v\n", file, err)
+		}
 	}
 }
 
-func GetFileSizeFromUrl(url string) (int64, error) {
-	resp, err := http.Head(url)
+// GetFileSizeFromURL get file size from url.
+func GetFileSizeFromURL(urlString string) (int64, error) {
+	// Validate URL to prevent SSRF attacks
+	if err := validateURL(urlString); err != nil {
+		return 0, err
+	}
+
+	resp, err := http.Head(urlString) //nolint:gosec // G107: URL validated by validateURL function above
 	if err != nil {
 		return 0, err
 	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fmt.Printf("Error closing response body: %v\n", err)
+		}
+	}()
 
 	// Is our request ok?
 
 	if resp.StatusCode != http.StatusOK {
-		return 0, fmt.Errorf("Did not receive 200")
+		return 0, fmt.Errorf("did not receive 200")
 	}
 
 	size, err := strconv.Atoi(resp.Header.Get("Content-Length"))
@@ -277,16 +347,21 @@ func GetFileSizeFromUrl(url string) (int64, error) {
 	return int64(size), nil
 }
 
+// CreateBackup create backup.
 func CreateBackup() (string, error) {
 	backupFileName := "podgrab_backup_" + time.Now().Format("2006.01.02_150405") + ".tar.gz"
 	folder := createConfigFolderIfNotExists("backups")
 	configPath := os.Getenv("CONFIG")
 	tarballFilePath := path.Join(folder, backupFileName)
-	file, err := os.Create(tarballFilePath)
+	file, err := os.Create(tarballFilePath) //nolint:gosec // G304: path constructed from config folder and timestamp
 	if err != nil {
 		return "", fmt.Errorf("could not create tarball file '%s', got error '%s'", tarballFilePath, err.Error())
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			fmt.Printf("Error closing file: %v\n", err)
+		}
+	}()
 
 	dbPath := path.Join(configPath, "podgrab.db")
 	_, err = os.Stat(dbPath)
@@ -294,10 +369,18 @@ func CreateBackup() (string, error) {
 		return "", fmt.Errorf("could not find db file '%s', got error '%s'", dbPath, err.Error())
 	}
 	gzipWriter := gzip.NewWriter(file)
-	defer gzipWriter.Close()
+	defer func() {
+		if err := gzipWriter.Close(); err != nil {
+			fmt.Printf("Error closing gzip writer: %v\n", err)
+		}
+	}()
 
 	tarWriter := tar.NewWriter(gzipWriter)
-	defer tarWriter.Close()
+	defer func() {
+		if err := tarWriter.Close(); err != nil {
+			fmt.Printf("Error closing tar writer: %v\n", err)
+		}
+	}()
 
 	err = addFileToTarWriter(dbPath, tarWriter)
 	if err == nil {
@@ -307,11 +390,15 @@ func CreateBackup() (string, error) {
 }
 
 func addFileToTarWriter(filePath string, tarWriter *tar.Writer) error {
-	file, err := os.Open(filePath)
+	file, err := os.Open(filePath) //nolint:gosec // G304: filePath is from backup process, constructed from config path
 	if err != nil {
 		return fmt.Errorf("could not open file '%s', got error '%s'", filePath, err.Error())
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			fmt.Printf("Error closing file: %v\n", err)
+		}
+	}()
 
 	stat, err := file.Stat()
 	if err != nil {
@@ -339,7 +426,7 @@ func addFileToTarWriter(filePath string, tarWriter *tar.Writer) error {
 }
 func httpClient() *http.Client {
 	client := http.Client{
-		CheckRedirect: func(r *http.Request, via []*http.Request) error {
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
 			//	r.URL.Opaque = r.URL.Path
 			return nil
 		},
@@ -367,7 +454,9 @@ func createFolder(folder string, parent string) string {
 	// str := stringy.New(folder)
 	folderPath := path.Join(parent, folder)
 	if _, err := os.Stat(folderPath); os.IsNotExist(err) {
-		os.MkdirAll(folderPath, 0777)
+		if err := os.MkdirAll(folderPath, 0750); err != nil {
+			fmt.Printf("Error creating folder: %v\n", err)
+		}
 		changeOwnership(folderPath)
 	}
 	return folderPath
@@ -387,10 +476,10 @@ func deletePodcastFolder(folder string) error {
 }
 
 func getFileName(link string, title string, defaultExtension string) string {
-	fileUrl, err := url.Parse(link)
+	fileURL, err := url.Parse(link)
 	checkError(err)
 
-	parsed := fileUrl.Path
+	parsed := fileURL.Path
 	ext := filepath.Ext(parsed)
 
 	if len(ext) == 0 {
@@ -403,6 +492,38 @@ func getFileName(link string, title string, defaultExtension string) string {
 
 func cleanFileName(original string) string {
 	return sanitize.Name(original)
+}
+
+func validatePath(filePath string, baseDir string) error {
+	cleanPath := filepath.Clean(filePath)
+	cleanBase := filepath.Clean(baseDir)
+
+	// Ensure the path is within the base directory
+	rel, err := filepath.Rel(cleanBase, cleanPath)
+	if err != nil {
+		return fmt.Errorf("invalid file path: %w", err)
+	}
+
+	// Check for path traversal attempts
+	if strings.HasPrefix(rel, ".."+string(filepath.Separator)) || rel == ".." {
+		return fmt.Errorf("path traversal detected: %s", filePath)
+	}
+
+	return nil
+}
+
+func validateURL(urlString string) error {
+	parsedURL, err := url.Parse(urlString)
+	if err != nil {
+		return fmt.Errorf("invalid URL: %w", err)
+	}
+
+	// Only allow HTTP and HTTPS schemes
+	if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
+		return fmt.Errorf("invalid URL scheme: %s", parsedURL.Scheme)
+	}
+
+	return nil
 }
 
 func checkError(err error) {

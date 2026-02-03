@@ -1,3 +1,4 @@
+// Package model defines data structures for external API responses and RSS feeds.
 package model
 
 import "encoding/xml"
@@ -92,6 +93,7 @@ type PodcastData struct {
 	} `xml:"channel"`
 }
 
+// CommonSearchResultModel represents common search result model data.
 type CommonSearchResultModel struct {
 	URL          string   `json:"url"`
 	Title        string   `json:"title"`

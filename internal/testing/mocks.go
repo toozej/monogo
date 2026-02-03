@@ -117,7 +117,7 @@ func (m *MockRepository) GetAllPodcasts(podcasts *[]db.Podcast, sorting string) 
 	return nil
 }
 
-func (m *MockRepository) GetPodcastById(id string, podcast *db.Podcast) error {
+func (m *MockRepository) GetPodcastByID(id string, podcast *db.Podcast) error {
 	if p, exists := m.Podcasts[id]; exists {
 		*podcast = *p
 		return nil
@@ -163,35 +163,35 @@ func (m *MockRepository) UpdatePodcast(podcast *db.Podcast) error {
 	return nil
 }
 
-func (m *MockRepository) DeletePodcastById(id string) error {
+func (m *MockRepository) DeletePodcastByID(id string) error {
 	m.DeletePodcastByIdCalls++
 	delete(m.Podcasts, id)
 	return nil
 }
 
-func (m *MockRepository) UpdateLastEpisodeDateForPodcast(podcastId string, lastEpisode time.Time) error {
-	if p, exists := m.Podcasts[podcastId]; exists {
+func (m *MockRepository) UpdateLastEpisodeDateForPodcast(podcastID string, lastEpisode time.Time) error {
+	if p, exists := m.Podcasts[podcastID]; exists {
 		p.LastEpisode = &lastEpisode
 		return nil
 	}
 	return errors.New("podcast not found")
 }
 
-func (m *MockRepository) ForceSetLastEpisodeDate(podcastId string) {
+func (m *MockRepository) ForceSetLastEpisodeDate(podcastID string) {
 	// Mock implementation - no-op
 }
 
-func (m *MockRepository) TogglePodcastPauseStatus(podcastId string, isPaused bool) error {
-	if p, exists := m.Podcasts[podcastId]; exists {
+func (m *MockRepository) TogglePodcastPauseStatus(podcastID string, isPaused bool) error {
+	if p, exists := m.Podcasts[podcastID]; exists {
 		p.IsPaused = isPaused
 		return nil
 	}
 	return errors.New("podcast not found")
 }
 
-func (m *MockRepository) SetAllEpisodesToDownload(podcastId string) error {
+func (m *MockRepository) SetAllEpisodesToDownload(podcastID string) error {
 	for _, item := range m.PodcastItems {
-		if item.PodcastID == podcastId && item.DownloadStatus == db.Deleted {
+		if item.PodcastID == podcastID && item.DownloadStatus == db.Deleted {
 			item.DownloadStatus = db.NotDownloaded
 		}
 	}
@@ -243,7 +243,7 @@ func (m *MockRepository) GetPaginatedPodcastItems(page int, count int, downloade
 	return nil
 }
 
-func (m *MockRepository) GetPodcastItemById(id string, podcastItem *db.PodcastItem) error {
+func (m *MockRepository) GetPodcastItemByID(id string, podcastItem *db.PodcastItem) error {
 	if m.GetPodcastItemByIdError != nil {
 		return m.GetPodcastItemByIdError
 	}
@@ -255,21 +255,21 @@ func (m *MockRepository) GetPodcastItemById(id string, podcastItem *db.PodcastIt
 	return errors.New("podcast item not found")
 }
 
-func (m *MockRepository) GetAllPodcastItemsByPodcastId(podcastId string, podcastItems *[]db.PodcastItem) error {
+func (m *MockRepository) GetAllPodcastItemsByPodcastID(podcastID string, podcastItems *[]db.PodcastItem) error {
 	*podcastItems = []db.PodcastItem{}
 	for _, item := range m.PodcastItems {
-		if item.PodcastID == podcastId {
+		if item.PodcastID == podcastID {
 			*podcastItems = append(*podcastItems, *item)
 		}
 	}
 	return nil
 }
 
-func (m *MockRepository) GetAllPodcastItemsByPodcastIds(podcastIds []string, podcastItems *[]db.PodcastItem) error {
+func (m *MockRepository) GetAllPodcastItemsByPodcastIDs(podcastIds []string, podcastItems *[]db.PodcastItem) error {
 	*podcastItems = []db.PodcastItem{}
-	for _, podcastId := range podcastIds {
+	for _, podcastID := range podcastIds {
 		for _, item := range m.PodcastItems {
-			if item.PodcastID == podcastId {
+			if item.PodcastID == podcastID {
 				*podcastItems = append(*podcastItems, *item)
 			}
 		}
@@ -277,7 +277,7 @@ func (m *MockRepository) GetAllPodcastItemsByPodcastIds(podcastIds []string, pod
 	return nil
 }
 
-func (m *MockRepository) GetAllPodcastItemsByIds(podcastItemIds []string) (*[]db.PodcastItem, error) {
+func (m *MockRepository) GetAllPodcastItemsByIDs(podcastItemIds []string) (*[]db.PodcastItem, error) {
 	items := []db.PodcastItem{}
 	for _, id := range podcastItemIds {
 		if item, exists := m.PodcastItems[id]; exists {
@@ -287,11 +287,11 @@ func (m *MockRepository) GetAllPodcastItemsByIds(podcastItemIds []string) (*[]db
 	return &items, nil
 }
 
-func (m *MockRepository) GetPodcastItemsByPodcastIdAndGUIDs(podcastId string, guids []string) (*[]db.PodcastItem, error) {
+func (m *MockRepository) GetPodcastItemsByPodcastIDAndGUIDs(podcastID string, guids []string) (*[]db.PodcastItem, error) {
 	items := []db.PodcastItem{}
 	for _, guid := range guids {
 		for _, item := range m.PodcastItems {
-			if item.PodcastID == podcastId && item.GUID == guid {
+			if item.PodcastID == podcastID && item.GUID == guid {
 				items = append(items, *item)
 			}
 		}
@@ -299,9 +299,9 @@ func (m *MockRepository) GetPodcastItemsByPodcastIdAndGUIDs(podcastId string, gu
 	return &items, nil
 }
 
-func (m *MockRepository) GetPodcastItemByPodcastIdAndGUID(podcastId string, guid string, podcastItem *db.PodcastItem) error {
+func (m *MockRepository) GetPodcastItemByPodcastIDAndGUID(podcastID string, guid string, podcastItem *db.PodcastItem) error {
 	for _, item := range m.PodcastItems {
-		if item.PodcastID == podcastId && item.GUID == guid {
+		if item.PodcastID == podcastID && item.GUID == guid {
 			*podcastItem = *item
 			return nil
 		}
@@ -363,20 +363,20 @@ func (m *MockRepository) UpdatePodcastItem(podcastItem *db.PodcastItem) error {
 	return nil
 }
 
-func (m *MockRepository) UpdatePodcastItemFileSize(podcastItemId string, size int64) error {
-	if item, exists := m.PodcastItems[podcastItemId]; exists {
+func (m *MockRepository) UpdatePodcastItemFileSize(podcastItemID string, size int64) error {
+	if item, exists := m.PodcastItems[podcastItemID]; exists {
 		item.FileSize = size
 		return nil
 	}
 	return errors.New("podcast item not found")
 }
 
-func (m *MockRepository) DeletePodcastItemById(id string) error {
+func (m *MockRepository) DeletePodcastItemByID(id string) error {
 	delete(m.PodcastItems, id)
 	return nil
 }
 
-func (m *MockRepository) GetEpisodeNumber(podcastItemId, podcastId string) (int, error) {
+func (m *MockRepository) GetEpisodeNumber(podcastItemID, podcastID string) (int, error) {
 	// Simplified mock - returns 1
 	return 1, nil
 }
@@ -411,14 +411,14 @@ func (m *MockRepository) GetPaginatedTags(page int, count int, tags *[]db.Tag, t
 	return nil
 }
 
-func (m *MockRepository) GetTagById(id string) (*db.Tag, error) {
+func (m *MockRepository) GetTagByID(id string) (*db.Tag, error) {
 	if tag, exists := m.Tags[id]; exists {
 		return tag, nil
 	}
 	return nil, errors.New("tag not found")
 }
 
-func (m *MockRepository) GetTagsByIds(ids []string) (*[]db.Tag, error) {
+func (m *MockRepository) GetTagsByIDs(ids []string) (*[]db.Tag, error) {
 	tags := []db.Tag{}
 	for _, id := range ids {
 		if tag, exists := m.Tags[id]; exists {
@@ -453,22 +453,22 @@ func (m *MockRepository) UpdateTag(tag *db.Tag) error {
 	return nil
 }
 
-func (m *MockRepository) DeleteTagById(id string) error {
+func (m *MockRepository) DeleteTagByID(id string) error {
 	delete(m.Tags, id)
 	return nil
 }
 
-func (m *MockRepository) AddTagToPodcast(id, tagId string) error {
+func (m *MockRepository) AddTagToPodcast(id, tagID string) error {
 	// Simplified mock - no-op
 	return nil
 }
 
-func (m *MockRepository) RemoveTagFromPodcast(id, tagId string) error {
+func (m *MockRepository) RemoveTagFromPodcast(id, tagID string) error {
 	// Simplified mock - no-op
 	return nil
 }
 
-func (m *MockRepository) UntagAllByTagId(tagId string) error {
+func (m *MockRepository) UntagAllByTagID(tagID string) error {
 	// Simplified mock - no-op
 	return nil
 }

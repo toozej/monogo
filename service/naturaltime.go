@@ -1,3 +1,4 @@
+// Package service implements business logic for podcast management and downloads.
 package service
 
 import (
@@ -6,12 +7,12 @@ import (
 	"time"
 )
 
+// NatualTime natual time.
 func NatualTime(base, value time.Time) string {
 	if value.Before(base) {
 		return pastNaturalTime(base, value)
-	} else {
-		return futureNaturalTime(base, value)
 	}
+	return futureNaturalTime(base, value)
 }
 
 func futureNaturalTime(base, value time.Time) string {

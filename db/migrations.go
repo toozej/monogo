@@ -1,3 +1,4 @@
+// Package db provides database models and data access functions.
 package db
 
 import (
@@ -20,11 +21,16 @@ var migrations = []localMigration{
 	},
 }
 
+// RunMigrations run migrations.
 func RunMigrations() {
 	for _, mig := range migrations {
-		ExecuteAndSaveMigration(mig.Name, mig.Query)
+		if err := ExecuteAndSaveMigration(mig.Name, mig.Query); err != nil {
+			fmt.Printf("Warning: migration '%s' failed: %v\n", mig.Name, err)
+		}
 	}
 }
+
+// ExecuteAndSaveMigration execute and save migration.
 func ExecuteAndSaveMigration(name string, query string) error {
 	var migration Migration
 	result := DB.Where("name=?", name).First(&migration)

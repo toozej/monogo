@@ -1,3 +1,4 @@
+// Package db provides database models and data access functions.
 package db
 
 import (

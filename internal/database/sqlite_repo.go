@@ -43,11 +43,11 @@ func (r *SQLiteRepository) GetAllPodcasts(podcasts *[]db.Podcast, sorting string
 	return db.GetAllPodcasts(podcasts, sorting)
 }
 
-// GetPodcastById retrieves a podcast by its ID.
+// GetPodcastByID retrieves a podcast by its ID.
 //
 //nolint:revive // Method name matches existing db package convention
-func (r *SQLiteRepository) GetPodcastById(id string, podcast *db.Podcast) error {
-	return db.GetPodcastById(id, podcast)
+func (r *SQLiteRepository) GetPodcastByID(id string, podcast *db.Podcast) error {
+	return db.GetPodcastByID(id, podcast)
 }
 
 // GetPodcastByTitleAndAuthor retrieves a podcast by its title and author.
@@ -65,11 +65,11 @@ func (r *SQLiteRepository) UpdatePodcast(podcast *db.Podcast) error {
 	return db.UpdatePodcast(podcast)
 }
 
-// DeletePodcastById deletes a podcast by its ID.
+// DeletePodcastByID deletes a podcast by its ID.
 //
 //nolint:revive // Method name matches existing db package convention
-func (r *SQLiteRepository) DeletePodcastById(id string) error {
-	return db.DeletePodcastById(id)
+func (r *SQLiteRepository) DeletePodcastByID(id string) error {
+	return db.DeletePodcastByID(id)
 }
 
 // UpdateLastEpisodeDateForPodcast updates the last episode date for a podcast.
@@ -114,38 +114,38 @@ func (r *SQLiteRepository) GetPaginatedPodcastItems(page int, count int, downloa
 	return db.GetPaginatedPodcastItems(page, count, downloadedOnly, playedOnly, fromDate, podcasts, total)
 }
 
-// GetPodcastItemById retrieves a podcast episode by its ID.
+// GetPodcastItemByID retrieves a podcast episode by its ID.
 //
 //nolint:revive // Method name matches existing db package convention
-func (r *SQLiteRepository) GetPodcastItemById(id string, podcastItem *db.PodcastItem) error {
-	return db.GetPodcastItemById(id, podcastItem)
+func (r *SQLiteRepository) GetPodcastItemByID(id string, podcastItem *db.PodcastItem) error {
+	return db.GetPodcastItemByID(id, podcastItem)
 }
 
 // GetAllPodcastItemsByPodcastID retrieves all episodes for a specific podcast.
 func (r *SQLiteRepository) GetAllPodcastItemsByPodcastID(podcastID string, podcastItems *[]db.PodcastItem) error {
-	return db.GetAllPodcastItemsByPodcastId(podcastID, podcastItems)
+	return db.GetAllPodcastItemsByPodcastID(podcastID, podcastItems)
 }
 
 // GetAllPodcastItemsByPodcastIDs retrieves episodes for multiple podcasts.
 func (r *SQLiteRepository) GetAllPodcastItemsByPodcastIDs(podcastIDs []string, podcastItems *[]db.PodcastItem) error {
-	return db.GetAllPodcastItemsByPodcastIds(podcastIDs, podcastItems)
+	return db.GetAllPodcastItemsByPodcastIDs(podcastIDs, podcastItems)
 }
 
-// GetAllPodcastItemsByIds retrieves episodes by their IDs in specified order.
+// GetAllPodcastItemsByIDs retrieves episodes by their IDs in specified order.
 //
 //nolint:revive // Method name matches existing db package convention
-func (r *SQLiteRepository) GetAllPodcastItemsByIds(podcastItemIDs []string) (*[]db.PodcastItem, error) {
-	return db.GetAllPodcastItemsByIds(podcastItemIDs)
+func (r *SQLiteRepository) GetAllPodcastItemsByIDs(podcastItemIDs []string) (*[]db.PodcastItem, error) {
+	return db.GetAllPodcastItemsByIDs(podcastItemIDs)
 }
 
 // GetPodcastItemsByPodcastIDAndGUIDs retrieves episodes by podcast ID and GUIDs.
 func (r *SQLiteRepository) GetPodcastItemsByPodcastIDAndGUIDs(podcastID string, guids []string) (*[]db.PodcastItem, error) {
-	return db.GetPodcastItemsByPodcastIdAndGUIDs(podcastID, guids)
+	return db.GetPodcastItemsByPodcastIDAndGUIDs(podcastID, guids)
 }
 
 // GetPodcastItemByPodcastIDAndGUID retrieves an episode by podcast ID and GUID.
 func (r *SQLiteRepository) GetPodcastItemByPodcastIDAndGUID(podcastID string, guid string, podcastItem *db.PodcastItem) error {
-	return db.GetPodcastItemByPodcastIdAndGUID(podcastID, guid, podcastItem)
+	return db.GetPodcastItemByPodcastIDAndGUID(podcastID, guid, podcastItem)
 }
 
 // GetAllPodcastItemsWithoutImage retrieves episodes without downloaded images.
@@ -178,11 +178,11 @@ func (r *SQLiteRepository) UpdatePodcastItemFileSize(podcastItemID string, size 
 	return db.UpdatePodcastItemFileSize(podcastItemID, size)
 }
 
-// DeletePodcastItemById deletes an episode by its ID.
+// DeletePodcastItemByID deletes an episode by its ID.
 //
 //nolint:revive // Method name matches existing db package convention
-func (r *SQLiteRepository) DeletePodcastItemById(id string) error {
-	return db.DeletePodcastItemById(id)
+func (r *SQLiteRepository) DeletePodcastItemByID(id string) error {
+	return db.DeletePodcastItemByID(id)
 }
 
 // GetEpisodeNumber retrieves the sequential episode number within a podcast.
@@ -214,18 +214,18 @@ func (r *SQLiteRepository) GetPaginatedTags(page int, count int, tags *[]db.Tag,
 	return db.GetPaginatedTags(page, count, tags, total)
 }
 
-// GetTagById retrieves a tag by its ID.
+// GetTagByID retrieves a tag by its ID.
 //
 //nolint:revive // Method name matches existing db package convention
-func (r *SQLiteRepository) GetTagById(id string) (*db.Tag, error) {
-	return db.GetTagById(id)
+func (r *SQLiteRepository) GetTagByID(id string) (*db.Tag, error) {
+	return db.GetTagByID(id)
 }
 
-// GetTagsByIds retrieves multiple tags by their IDs.
+// GetTagsByIDs retrieves multiple tags by their IDs.
 //
 //nolint:revive // Method name matches existing db package convention
-func (r *SQLiteRepository) GetTagsByIds(ids []string) (*[]db.Tag, error) {
-	return db.GetTagsByIds(ids)
+func (r *SQLiteRepository) GetTagsByIDs(ids []string) (*[]db.Tag, error) {
+	return db.GetTagsByIDs(ids)
 }
 
 // GetTagByLabel retrieves a tag by its label.
@@ -243,11 +243,11 @@ func (r *SQLiteRepository) UpdateTag(tag *db.Tag) error {
 	return db.UpdateTag(tag)
 }
 
-// DeleteTagById deletes a tag by its ID.
+// DeleteTagByID deletes a tag by its ID.
 //
 //nolint:revive // Method name matches existing db package convention
-func (r *SQLiteRepository) DeleteTagById(id string) error {
-	return db.DeleteTagById(id)
+func (r *SQLiteRepository) DeleteTagByID(id string) error {
+	return db.DeleteTagByID(id)
 }
 
 // AddTagToPodcast associates a tag with a podcast.
@@ -262,7 +262,7 @@ func (r *SQLiteRepository) RemoveTagFromPodcast(id, tagID string) error {
 
 // UntagAllByTagID removes all podcast associations for a tag.
 func (r *SQLiteRepository) UntagAllByTagID(tagID string) error {
-	return db.UntagAllByTagId(tagID)
+	return db.UntagAllByTagID(tagID)
 }
 
 // Settings operations

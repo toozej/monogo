@@ -1,12 +1,15 @@
+// Package model defines data structures for external API responses and RSS feeds.
 package model
 
 import "time"
 
+// ItunesResponse represents itunes response data.
 type ItunesResponse struct {
 	Results     []ItunesSingleResult `json:"results"`
 	ResultCount int                  `json:"resultCount"`
 }
 
+// ItunesSingleResult represents itunes single result data.
 type ItunesSingleResult struct {
 	ReleaseDate            time.Time `json:"releaseDate"`
 	ArtworkURL30           string    `json:"artworkUrl30"`
@@ -30,7 +33,7 @@ type ItunesSingleResult struct {
 	PrimaryGenreName       string    `json:"primaryGenreName"`
 	Currency               string    `json:"currency"`
 	Kind                   string    `json:"kind"`
-	GenreIds               []string  `json:"genreIds"`
+	GenreIDs               []string  `json:"genreIds"`
 	Genres                 []string  `json:"genres"`
 	TrackPrice             float64   `json:"trackPrice"`
 	TrackCount             int       `json:"trackCount"`

@@ -1,3 +1,4 @@
+// Package model defines data structures for external API responses and RSS feeds.
 package model
 
 import "encoding/xml"
@@ -17,6 +18,8 @@ type RssPodcastData struct {
 	Version    string     `xml:"version,attr"`
 	Channel    RssChannel `xml:"channel"`
 }
+
+// RssChannel represents rss channel data.
 type RssChannel struct {
 	Image       RssItemImage `xml:"image"`
 	Text        string       `xml:",chardata"`
@@ -29,6 +32,8 @@ type RssChannel struct {
 	Author      string       `xml:"author"`
 	Item        []RssItem    `xml:"item"`
 }
+
+// RssItem represents rss item data.
 type RssItem struct {
 	Text        string           `xml:",chardata"`
 	Title       string           `xml:"title"`
@@ -38,8 +43,8 @@ type RssItem struct {
 	EpisodeType string           `xml:"episodeType"`
 	Author      string           `xml:"author"`
 	Image       RssItemImage     `xml:"image"`
-	Guid        RssItemGuid      `xml:"guid"`
-	ClipId      string           `xml:"clipId"`
+	GUID        RssItemGUID      `xml:"guid"`
+	ClipID      string           `xml:"clipId"`
 	PubDate     string           `xml:"pubDate"`
 	Duration    string           `xml:"duration"`
 	Enclosure   RssItemEnclosure `xml:"enclosure"`
@@ -47,19 +52,23 @@ type RssItem struct {
 	Episode     string           `xml:"episode"`
 }
 
+// RssItemEnclosure represents rss item enclosure data.
 type RssItemEnclosure struct {
 	Text   string `xml:",chardata"`
 	URL    string `xml:"url,attr"`
 	Length string `xml:"length,attr"`
 	Type   string `xml:"type,attr"`
 }
+
+// RssItemImage represents rss item image data.
 type RssItemImage struct {
 	Text string `xml:",chardata"`
 	Href string `xml:"href,attr"`
 	URL  string `xml:"url"`
 }
 
-type RssItemGuid struct {
+// RssItemGUID represents rss item guid data.
+type RssItemGUID struct {
 	Text        string `xml:",chardata"`
 	IsPermaLink string `xml:"isPermaLink,attr"`
 }

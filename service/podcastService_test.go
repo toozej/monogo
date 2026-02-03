@@ -1,3 +1,4 @@
+// Package service implements business logic for podcast management and downloads.
 package service
 
 import (
@@ -200,7 +201,7 @@ func TestGetItunesImageUrl(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			url := getItunesImageUrl(tt.body)
+			url := getItunesImageURL(tt.body)
 
 			if tt.wantURL == "" {
 				assert.Empty(t, url, "Should return empty URL")
@@ -558,7 +559,7 @@ func TestGetPodcastById(t *testing.T) {
 	podcast := db.CreateTestPodcast(t, database)
 
 	// Retrieve podcast
-	retrieved := GetPodcastById(podcast.ID)
+	retrieved := GetPodcastByID(podcast.ID)
 	require.NotNil(t, retrieved, "Should retrieve podcast")
 	assert.Equal(t, podcast.ID, retrieved.ID, "Should have correct ID")
 	assert.Equal(t, podcast.Title, retrieved.Title, "Should have correct title")
@@ -579,7 +580,7 @@ func TestGetPodcastItemById(t *testing.T) {
 	item := db.CreateTestPodcastItem(t, database, podcast.ID)
 
 	// Retrieve episode
-	retrieved := GetPodcastItemById(item.ID)
+	retrieved := GetPodcastItemByID(item.ID)
 	require.NotNil(t, retrieved, "Should retrieve episode")
 	assert.Equal(t, item.ID, retrieved.ID, "Should have correct ID")
 	assert.Equal(t, item.Title, retrieved.Title, "Should have correct title")
@@ -778,7 +779,7 @@ func TestGetAllPodcastItemsByIds(t *testing.T) {
 	item2 := db.CreateTestPodcastItem(t, database, podcast.ID)
 
 	// Retrieve by IDs
-	items, err := GetAllPodcastItemsByIds([]string{item1.ID, item2.ID})
+	items, err := GetAllPodcastItemsByIDs([]string{item1.ID, item2.ID})
 	require.NoError(t, err, "Should retrieve items without error")
 	require.NotNil(t, items, "Should return items")
 	assert.Len(t, *items, 2, "Should return both items")
@@ -806,7 +807,7 @@ func TestGetAllPodcastItemsByPodcastIds(t *testing.T) {
 	db.CreateTestPodcastItem(t, database, podcast2.ID)
 
 	// Retrieve by podcast IDs
-	items := GetAllPodcastItemsByPodcastIds([]string{podcast1.ID, podcast2.ID})
+	items := GetAllPodcastItemsByPodcastIDs([]string{podcast1.ID, podcast2.ID})
 	require.NotNil(t, items, "Should return items")
 	assert.Len(t, *items, 3, "Should return all items from both podcasts")
 }
@@ -826,7 +827,7 @@ func TestGetTagsByIds(t *testing.T) {
 	tag2 := db.CreateTestTag(t, database, "Tag2")
 
 	// Retrieve by IDs
-	tags := GetTagsByIds([]string{tag1.ID, tag2.ID})
+	tags := GetTagsByIDs([]string{tag1.ID, tag2.ID})
 	require.NotNil(t, tags, "Should return tags")
 	assert.Len(t, *tags, 2, "Should return both tags")
 }

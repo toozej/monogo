@@ -1,3 +1,4 @@
+// Package db provides database models and data access functions.
 package db
 
 import (
@@ -56,15 +57,22 @@ type PodcastItem struct {
 	IsPlayed       bool `gorm:"default:false"`
 }
 
+// DownloadStatus represents the download state of a podcast episode.
 type DownloadStatus int
 
+// Download status constants.
 const (
+	// NotDownloaded indicates the episode has not been downloaded yet.
 	NotDownloaded DownloadStatus = iota
+	// Downloading indicates the episode is currently being downloaded.
 	Downloading
+	// Downloaded indicates the episode has been successfully downloaded.
 	Downloaded
+	// Deleted indicates the episode file has been removed.
 	Deleted
 )
 
+// Setting represents setting data.
 type Setting struct {
 	Base
 	UserAgent                     string
@@ -80,12 +88,15 @@ type Setting struct {
 	AutoDownload                  bool `gorm:"default:true"`
 	DownloadOnAdd                 bool `gorm:"default:true"`
 }
+
+// Migration represents migration data.
 type Migration struct {
 	Base
 	Date time.Time
 	Name string
 }
 
+// JobLock represents job lock data.
 type JobLock struct {
 	Base
 	Date     time.Time
@@ -93,6 +104,7 @@ type JobLock struct {
 	Duration int
 }
 
+// Tag represents tag data.
 type Tag struct {
 	Base
 	Label       string
@@ -100,10 +112,12 @@ type Tag struct {
 	Podcasts    []*Podcast `gorm:"many2many:podcast_tags;"`
 }
 
+// IsLocked returns true if the job lock is currently active.
 func (lock *JobLock) IsLocked() bool {
 	return lock != nil && lock.Date != time.Time{}
 }
 
+// PodcastItemStatsModel represents podcast item stats model data.
 type PodcastItemStatsModel struct {
 	PodcastID      string
 	DownloadStatus DownloadStatus
@@ -111,12 +125,14 @@ type PodcastItemStatsModel struct {
 	Size           int64
 }
 
+// PodcastItemDiskStatsModel represents podcast item disk stats model data.
 type PodcastItemDiskStatsModel struct {
 	DownloadStatus DownloadStatus
 	Count          int
 	Size           int64
 }
 
+// PodcastItemConsolidateDiskStatsModel represents podcast item consolidate disk stats model data.
 type PodcastItemConsolidateDiskStatsModel struct {
 	Downloaded      int64
 	Downloading     int64

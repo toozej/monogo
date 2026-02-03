@@ -1,3 +1,4 @@
+// Package main implements the Podgrab podcast manager application.
 package main
 
 import (
@@ -95,19 +96,19 @@ func main() {
 			if size < divisor {
 				return fmt.Sprintf("%.0f bytes", size)
 			}
-			size = size / divisor
+			size /= divisor
 			if size < divisor {
 				return fmt.Sprintf("%.2f KB", size)
 			}
-			size = size / divisor
+			size /= divisor
 			if size < divisor {
 				return fmt.Sprintf("%.2f MB", size)
 			}
-			size = size / divisor
+			size /= divisor
 			if size < divisor {
 				return fmt.Sprintf("%.2f GB", size)
 			}
-			size = size / divisor
+			size /= divisor
 			return fmt.Sprintf("%.2f TB", size)
 		},
 		"formatDuration": func(total int) string {
@@ -119,7 +120,7 @@ func main() {
 			hrs := 0
 			if mins >= 60 {
 				hrs = mins / 60
-				mins = mins % 60
+				mins %= 60
 			}
 			if hrs > 0 {
 				return fmt.Sprintf("%02d:%02d:%02d", hrs, mins, secs)
@@ -150,36 +151,36 @@ func main() {
 	router.Static(backupPath, backupPath)
 	router.POST("/podcasts", controllers.AddPodcast)
 	router.GET("/podcasts", controllers.GetAllPodcasts)
-	router.GET("/podcasts/:id", controllers.GetPodcastById)
-	router.GET("/podcasts/:id/image", controllers.GetPodcastImageById)
-	router.DELETE("/podcasts/:id", controllers.DeletePodcastById)
-	router.GET("/podcasts/:id/items", controllers.GetPodcastItemsByPodcastId)
-	router.GET("/podcasts/:id/download", controllers.DownloadAllEpisodesByPodcastId)
-	router.DELETE("/podcasts/:id/items", controllers.DeletePodcastEpisodesById)
-	router.DELETE("/podcasts/:id/podcast", controllers.DeleteOnlyPodcastById)
-	router.GET("/podcasts/:id/pause", controllers.PausePodcastById)
-	router.GET("/podcasts/:id/unpause", controllers.UnpausePodcastById)
-	router.GET("/podcasts/:id/rss", controllers.GetRssForPodcastById)
+	router.GET("/podcasts/:id", controllers.GetPodcastByID)
+	router.GET("/podcasts/:id/image", controllers.GetPodcastImageByID)
+	router.DELETE("/podcasts/:id", controllers.DeletePodcastByID)
+	router.GET("/podcasts/:id/items", controllers.GetPodcastItemsByPodcastID)
+	router.GET("/podcasts/:id/download", controllers.DownloadAllEpisodesByPodcastID)
+	router.DELETE("/podcasts/:id/items", controllers.DeletePodcastEpisodesByID)
+	router.DELETE("/podcasts/:id/podcast", controllers.DeleteOnlyPodcastByID)
+	router.GET("/podcasts/:id/pause", controllers.PausePodcastByID)
+	router.GET("/podcasts/:id/unpause", controllers.UnpausePodcastByID)
+	router.GET("/podcasts/:id/rss", controllers.GetRssForPodcastByID)
 
 	router.GET("/podcastitems", controllers.GetAllPodcastItems)
-	router.GET("/podcastitems/:id", controllers.GetPodcastItemById)
-	router.GET("/podcastitems/:id/image", controllers.GetPodcastItemImageById)
-	router.GET("/podcastitems/:id/file", controllers.GetPodcastItemFileById)
+	router.GET("/podcastitems/:id", controllers.GetPodcastItemByID)
+	router.GET("/podcastitems/:id/image", controllers.GetPodcastItemImageByID)
+	router.GET("/podcastitems/:id/file", controllers.GetPodcastItemFileByID)
 	router.GET("/podcastitems/:id/markUnplayed", controllers.MarkPodcastItemAsUnplayed)
 	router.GET("/podcastitems/:id/markPlayed", controllers.MarkPodcastItemAsPlayed)
 	router.GET("/podcastitems/:id/bookmark", controllers.BookmarkPodcastItem)
 	router.GET("/podcastitems/:id/unbookmark", controllers.UnbookmarkPodcastItem)
-	router.PATCH("/podcastitems/:id", controllers.PatchPodcastItemById)
+	router.PATCH("/podcastitems/:id", controllers.PatchPodcastItemByID)
 	router.GET("/podcastitems/:id/download", controllers.DownloadPodcastItem)
 	router.GET("/podcastitems/:id/delete", controllers.DeletePodcastItem)
 
 	router.GET("/tags", controllers.GetAllTags)
-	router.GET("/tags/:id", controllers.GetTagById)
-	router.GET("/tags/:id/rss", controllers.GetRssForTagById)
-	router.DELETE("/tags/:id", controllers.DeleteTagById)
+	router.GET("/tags/:id", controllers.GetTagByID)
+	router.GET("/tags/:id/rss", controllers.GetRssForTagByID)
+	router.DELETE("/tags/:id", controllers.DeleteTagByID)
 	router.POST("/tags", controllers.AddTag)
-	router.POST("/podcasts/:id/tags/:tagId", controllers.AddTagToPodcast)
-	router.DELETE("/podcasts/:id/tags/:tagId", controllers.RemoveTagFromPodcast)
+	router.POST("/podcasts/:id/tags/:tagID", controllers.AddTagToPodcast)
+	router.DELETE("/podcasts/:id/tags/:tagID", controllers.RemoveTagFromPodcast)
 
 	router.GET("/add", controllers.AddPage)
 	router.GET("/search", controllers.Search)
@@ -203,7 +204,9 @@ func main() {
 	go assetEnv()
 	go intiCron()
 
-	r.Run() // listen and serve on 0.0.0.0:8080 (for windows "localhost:8080")
+	if err := r.Run(); err != nil {
+		log.Fatalf("Failed to start server: %v", err)
+	}
 }
 func setupSettings() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -217,18 +220,19 @@ func setupSettings() gin.HandlerFunc {
 
 func intiCron() {
 	checkFrequency, err := strconv.Atoi(os.Getenv("CHECK_FREQUENCY"))
-	if err != nil {
+	if err != nil || checkFrequency <= 0 {
 		checkFrequency = 30
 		log.Print(err)
 	}
+	freq := uint64(checkFrequency) //nolint:gosec // G115: Safe conversion - checkFrequency validated to be positive
 	service.UnlockMissedJobs()
-	// gocron.Every(uint64(checkFrequency)).Minutes().Do(service.DownloadMissingEpisodes)
-	gocron.Every(uint64(checkFrequency)).Minutes().Do(service.RefreshEpisodes)
-	gocron.Every(uint64(checkFrequency)).Minutes().Do(service.CheckMissingFiles)
-	gocron.Every(uint64(checkFrequency) * 2).Minutes().Do(service.UnlockMissedJobs)
-	gocron.Every(uint64(checkFrequency) * 3).Minutes().Do(service.UpdateAllFileSizes)
-	gocron.Every(uint64(checkFrequency)).Minutes().Do(service.DownloadMissingImages)
-	gocron.Every(2).Days().Do(service.CreateBackup)
+	// gocron.Every(freq).Minutes().Do(service.DownloadMissingEpisodes)
+	_ = gocron.Every(freq).Minutes().Do(service.RefreshEpisodes)
+	_ = gocron.Every(freq).Minutes().Do(service.CheckMissingFiles)
+	_ = gocron.Every(freq * 2).Minutes().Do(service.UnlockMissedJobs)
+	_ = gocron.Every(freq * 3).Minutes().Do(service.UpdateAllFileSizes)
+	_ = gocron.Every(freq).Minutes().Do(service.DownloadMissingImages)
+	_ = gocron.Every(2).Days().Do(service.CreateBackup)
 	<-gocron.Start()
 }
 

@@ -1,15 +1,18 @@
+// Package model defines data structures for external API responses and RSS feeds.
 package model
 
 import "fmt"
 
+// PodcastAlreadyExistsError represents podcast already exists error data.
 type PodcastAlreadyExistsError struct {
-	Url string
+	URL string
 }
 
 func (e *PodcastAlreadyExistsError) Error() string {
 	return "Podcast with this url already exists"
 }
 
+// TagAlreadyExistsError represents tag already exists error data.
 type TagAlreadyExistsError struct {
 	Label string
 }

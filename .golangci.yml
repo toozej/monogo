@@ -110,8 +110,7 @@ linters-settings:
     severity: medium
     confidence: medium
     excludes:
-      - G104  # Unhandled errors (covered by errcheck)
-      - G304  # File path provided as input (needed for file downloads)
+      - G104  # Unhandled errors (covered by errcheck, avoid duplicate warnings)
 
   whitespace:
     multi-if: false
@@ -121,7 +120,7 @@ issues:
   max-issues-per-linter: 50
   max-same-issues: 3
   new: false
-  fix: true
+  fix: false  # Disabled for consistency between direct run and pre-commit
 
   # Exclude directories (replaces run.skip-dirs)
   exclude-dirs:
@@ -141,11 +140,6 @@ issues:
     # Exclude known issues in legacy code
     - path: main\.go
       text: ".*SA1019.*"  # Deprecated function usage
-
-    # Ignore specific gosec warnings for download functionality
-    - linters:
-        - gosec
-      text: "G107"  # Url provided to HTTP request as taint input
 
     # Ignore errors in auto-generated code
     - path: .*\.pb\.go

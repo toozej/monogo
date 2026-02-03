@@ -1,3 +1,4 @@
+// Package db provides database models and data access functions.
 package db
 
 import (
@@ -35,11 +36,13 @@ func Init() (*gorm.DB, error) {
 
 // Migrate Database
 func Migrate() {
-	DB.AutoMigrate(&Podcast{}, &PodcastItem{}, &Setting{}, &Migration{}, &JobLock{}, &Tag{})
+	if err := DB.AutoMigrate(&Podcast{}, &PodcastItem{}, &Setting{}, &Migration{}, &JobLock{}, &Tag{}); err != nil {
+		panic(fmt.Sprintf("failed to auto-migrate database: %v", err))
+	}
 	RunMigrations()
 }
 
-// Using this function to get a connection, you can create your connection pool here.
+// GetDB returns the database connection for creating a connection pool.
 func GetDB() *gorm.DB {
 	return DB
 }

@@ -186,7 +186,7 @@ func TestDeletePodcastById(t *testing.T) {
 	podcast := CreateTestPodcast(t, database)
 
 	// Delete it
-	err := DeletePodcastById(podcast.ID)
+	err := DeletePodcastByID(podcast.ID)
 	require.NoError(t, err, "Should delete podcast")
 
 	// Verify deletion
@@ -212,7 +212,7 @@ func TestGetPodcastById(t *testing.T) {
 
 	// Retrieve podcast
 	var retrieved Podcast
-	err := GetPodcastById(podcast.ID, &retrieved)
+	err := GetPodcastByID(podcast.ID, &retrieved)
 
 	require.NoError(t, err, "Should get podcast")
 	assert.Equal(t, podcast.ID, retrieved.ID, "Should have correct ID")
@@ -296,7 +296,7 @@ func TestDeletePodcastItemById(t *testing.T) {
 	item := CreateTestPodcastItem(t, database, podcast.ID)
 
 	// Delete it
-	err := DeletePodcastItemById(item.ID)
+	err := DeletePodcastItemByID(item.ID)
 	require.NoError(t, err, "Should delete item")
 
 	// Verify deletion
@@ -326,7 +326,7 @@ func TestGetAllPodcastItemsByPodcastId(t *testing.T) {
 	CreateTestPodcastItem(t, database, otherPodcast.ID)
 
 	var items []PodcastItem
-	err := GetAllPodcastItemsByPodcastId(podcast.ID, &items)
+	err := GetAllPodcastItemsByPodcastID(podcast.ID, &items)
 
 	require.NoError(t, err, "Should get items")
 	assert.Len(t, items, 2, "Should return only items for specified podcast")
@@ -347,7 +347,7 @@ func TestGetPodcastItemByPodcastIdAndGUID(t *testing.T) {
 	})
 
 	var retrieved PodcastItem
-	err := GetPodcastItemByPodcastIdAndGUID(podcast.ID, "unique-guid-123", &retrieved)
+	err := GetPodcastItemByPodcastIDAndGUID(podcast.ID, "unique-guid-123", &retrieved)
 
 	require.NoError(t, err, "Should find item by GUID")
 	assert.Equal(t, item.ID, retrieved.ID, "Should return correct item")
@@ -643,7 +643,7 @@ func TestDeleteTagById(t *testing.T) {
 
 	tag := CreateTestTag(t, database, "ToDelete")
 
-	err := DeleteTagById(tag.ID)
+	err := DeleteTagByID(tag.ID)
 	require.NoError(t, err, "Should delete tag")
 
 	// Verify deletion

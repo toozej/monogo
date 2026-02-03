@@ -1,3 +1,4 @@
+// Package service implements business logic for podcast management and downloads.
 package service
 
 import (

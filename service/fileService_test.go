@@ -1,3 +1,4 @@
+// Package service implements business logic for podcast management and downloads.
 package service
 
 import (
@@ -247,7 +248,7 @@ func TestGetFileSizeFromUrl(t *testing.T) {
 			defer server.Close()
 
 			// Test
-			size, err := GetFileSizeFromUrl(server.URL)
+			size, err := GetFileSizeFromURL(server.URL)
 
 			if tt.wantError {
 				assert.Error(t, err, "Expected error")

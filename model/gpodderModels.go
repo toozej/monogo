@@ -1,5 +1,7 @@
+// Package model defines data structures for external API responses and RSS feeds.
 package model
 
+// GPodcast represents g podcast data.
 type GPodcast struct {
 	URL                 string `json:"url"`
 	Title               string `json:"title"`
@@ -14,6 +16,7 @@ type GPodcast struct {
 	AlreadySaved        bool   `json:"already_saved"`
 }
 
+// GPodcastTag represents g podcast tag data.
 type GPodcastTag struct {
 	Tag   string `json:"tag"`
 	Title string `json:"title"`

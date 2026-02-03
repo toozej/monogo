@@ -1,3 +1,4 @@
+// Package service implements business logic for podcast management and downloads.
 package service
 
 import (
@@ -23,15 +24,16 @@ func TestItunesService_Query(t *testing.T) {
 
 // TestItunesService_Constants tests that iTunes constants are defined.
 func TestItunesService_Constants(t *testing.T) {
-	// Verify ITUNES_BASE constant is set
-	assert.Equal(t, "https://itunes.apple.com", ITUNES_BASE, "Should have correct iTunes base URL")
+	// Verify ItunesBase constant is set
+	assert.Equal(t, "https://itunes.apple.com", ItunesBase, "Should have correct iTunes base URL")
 }
 
-// TestPodcastIndexService_Constants tests that Podcast Index constants are defined.
-func TestPodcastIndexService_Constants(t *testing.T) {
-	// Verify constants are set
-	assert.NotEmpty(t, PODCASTINDEX_KEY, "Should have Podcast Index API key")
-	assert.NotEmpty(t, PODCASTINDEX_SECRET, "Should have Podcast Index API secret")
+// TestPodcastIndexService_Credentials tests that Podcast Index credentials can be retrieved.
+func TestPodcastIndexService_Credentials(t *testing.T) {
+	// Verify credentials can be retrieved
+	key, secret := getPodcastIndexCredentials()
+	assert.NotEmpty(t, key, "Should have Podcast Index API key")
+	assert.NotEmpty(t, secret, "Should have Podcast Index API secret")
 }
 
 // TestPodcastIndexService_Query tests Podcast Index API search.
