@@ -105,6 +105,12 @@ go test -tags=e2e -v ./e2e_test/...
 **Location**: `e2e_test/` **Build Tag**: `//go:build e2e` **Browser**:
 Chrome/Chromium with chromedp
 
+**Requirements**:
+
+- Chrome or Chromium browser installed
+- On Ubuntu 24.04+: CHROME_DEVEL_SANDBOX environment variable set (see
+  Troubleshooting)
+
 **Test Files**:
 
 1. `setup_test.go` - Infrastructure and helpers
@@ -360,6 +366,38 @@ See `.github/workflows/test.yml` and `.github/workflows/e2e-test.yml`
 - Check for race conditions
 - Verify Chrome is properly installed
 
+### Chrome Sandbox Issues (Ubuntu 24.04+)
+
+**Problem**: E2E tests fail with namespace errors on Ubuntu 24.04+
+
+```
+Failed to move to new namespace: PID namespaces supported,
+Network namespace supported, but failed: errno = Operation not permitted
+```
+
+**Root Cause**: Ubuntu 24.04 restricts unprivileged user namespaces via AppArmor
+
+**Solution**: Use Chrome's SUID sandbox instead of `--no-sandbox`
+
+```bash
+# Set CHROME_DEVEL_SANDBOX environment variable
+export CHROME_DEVEL_SANDBOX=/path/to/chrome-sandbox
+
+# For CI/CD, this is set automatically in .github/workflows/e2e-test.yml
+```
+
+**Why This Works**:
+
+- SUID sandbox provides secure process isolation
+- Maintains security without requiring privileged containers
+- Recommended by Chromium security team over `--no-sandbox`
+
+**Alternative Solutions** (not recommended):
+
+- Using `--no-sandbox` (disables all sandboxing, security risk)
+- Running in privileged mode (requires root, security risk)
+- Modifying AppArmor policies (system-wide changes)
+
 ### Import Cycle Errors
 
 **Problem**: Circular imports between test packages
@@ -386,6 +424,4 @@ See `.github/workflows/test.yml` and `.github/workflows/e2e-test.yml`
 - [Go Testing Documentation](https://golang.org/pkg/testing/)
 - [testify Documentation](https://github.com/stretchr/testify)
 - [chromedp Documentation](https://github.com/chromedp/chromedp)
-- [Implementation Summary](../IMPLEMENTATION_SUMMARY.md) - Complete testing &
-  CI/CD transformation details
 - [CI/CD Documentation](./ci-cd.md) - GitHub Actions workflows and automation

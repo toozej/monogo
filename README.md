@@ -84,6 +84,8 @@ Access the web interface at `http://localhost:8080`
 - `CONFIG`: Directory for database and backups (default: `.`)
 - `CHECK_FREQUENCY`: Minutes between RSS feed checks (default: `30`)
 - `PASSWORD`: Enable basic authentication (username: `podgrab`)
+- `LOG_LEVEL`: Logging verbosity - `debug`, `info`, `warn`, `error` (default:
+  `info`)
 
 ### Application Settings
 
@@ -169,8 +171,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
 - **[Testing Guide](docs/testing.md)**: Comprehensive testing documentation
 - **[CI/CD Guide](docs/ci-cd.md)**: GitHub Actions workflows and automation
 - **[Contributing](CONTRIBUTING.md)**: How to contribute to Podgrab
-- **[Implementation Summary](IMPLEMENTATION_SUMMARY.md)**: Testing & CI/CD
-  transformation details
+- **[Logging Guide](internal/logger/README.md)**: Structured logging
+  documentation
 - **[API Documentation](docs/api/)**: REST API reference
 - **[Architecture](docs/architecture/)**: System design and architecture
 
@@ -183,6 +185,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
 - **RSS Parsing**: gofeed
 - **Background Jobs**: gocron
 - **Real-time Updates**: WebSockets
+- **Logging**: Uber Zap (structured logging)
 - **Testing**: chromedp (E2E), testify (assertions)
 
 ## Contributing

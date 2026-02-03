@@ -10,6 +10,7 @@ Complete guide for setting up a Podgrab development environment.
 - **Git**: For version control
 - **Make**: For build automation (optional)
 - **Docker**: For containerized development (optional)
+- **Chrome/Chromium**: For E2E tests (optional)
 
 ### Installation
 
@@ -139,6 +140,9 @@ PASSWORD=development
 
 # Optional: Check frequency (minutes)
 CHECK_FREQUENCY=30
+
+# Optional: Logging level (debug, info, warn, error)
+LOG_LEVEL=debug
 ```
 
 **Create directories:**
@@ -292,22 +296,29 @@ staticcheck ./...
 
 ## Testing
 
-**Note:** Podgrab currently has no automated tests. This is an area for
-contribution.
+Podgrab has comprehensive test coverage with unit, integration, and E2E tests.
 
-### Running Tests (Future)
+### Running Tests
 
 ```bash
-# Run all tests
-go test ./...
+# Run all unit tests
+go test -v ./...
 
 # Run with coverage
-go test -cover ./...
-
-# Generate coverage report
 go test -coverprofile=coverage.out ./...
 go tool cover -html=coverage.out
+
+# Run integration tests
+go test -tags=integration -v ./integration_test/...
+
+# Run E2E tests (requires Chrome/Chromium)
+go test -tags=e2e -v ./e2e_test/...
+
+# Run specific test
+go test -v -run TestFetchURL_ValidRSSFeed ./service/
 ```
+
+See [Testing Guide](../testing.md) for comprehensive testing documentation.
 
 ### Manual Testing Checklist
 
@@ -395,7 +406,8 @@ Create `.vscode/launch.json`:
         "DATA": "/tmp/podgrab/assets",
         "CONFIG": "/tmp/podgrab/config",
         "PASSWORD": "development",
-        "CHECK_FREQUENCY": "30"
+        "CHECK_FREQUENCY": "30",
+        "LOG_LEVEL": "debug"
       },
       "args": []
     }
@@ -429,14 +441,32 @@ next             # Step over
 
 ### Logging
 
-Enable debug logging:
+Podgrab uses structured logging with Uber Zap. Use the global logger instance:
 
 ```go
-// In main.go or specific files
-import "log"
+// Import logger
+import "github.com/akhilrex/podgrab/internal/logger"
 
-log.Println("Debug message:", variable)
+// Use structured logging
+logger.Log.Infow("Processing podcast", "podcast_id", podcastID)
+logger.Log.Errorw("Failed to download", "error", err, "url", url)
+logger.Log.Debug("Debug message")
 ```
+
+**Set log level via environment:**
+
+```bash
+# Enable debug logging
+export LOG_LEVEL=debug
+go run main.go
+
+# Production logging
+export LOG_LEVEL=warn
+export GIN_MODE=release
+go run main.go
+```
+
+See [Logging Guide](../../internal/logger/README.md) for detailed documentation.
 
 ### HTTP Request Debugging
 

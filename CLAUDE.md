@@ -10,7 +10,7 @@ downloads podcast episodes. It's built as a lightweight web application with a
 Go backend and HTML template frontend.
 
 **Stack**: Go 1.15+, Gin web framework, GORM with SQLite, HTML templates,
-WebSockets for real-time updates
+WebSockets for real-time updates, Uber Zap structured logging
 
 ## Development Commands
 
@@ -50,10 +50,19 @@ go fmt ./...
 
 # Tidy dependencies
 go mod tidy
+
+# Run tests
+go test ./... -v
+
+# Run integration tests
+go test ./integration_test/... -v -tags=integration
+
+# Run E2E tests (requires Chrome/Chromium)
+go test ./e2e_test/... -v -tags=e2e
 ```
 
-**Note**: This project does not have automated tests. Changes should be tested
-manually by running the application.
+**Note**: This project has comprehensive test coverage (100+ tests). Run the
+appropriate test suite for your changes.
 
 ## Architecture Overview
 
@@ -104,6 +113,12 @@ The codebase follows a layered architecture with clear separation of concerns:
 
    - Go templates with custom functions defined in main.go
    - No separate JavaScript build process - templates served directly
+
+1. **Internal** (`internal/`): Internal packages
+
+   - `logger/`: Centralized structured logging with Uber Zap
+   - `database/`: Repository interfaces and implementations
+   - `testing/`: Test helpers and mocks
 
 ### Key Architectural Patterns
 
@@ -172,6 +187,8 @@ Required for deployment (set in `.env` or docker-compose):
 - `PASSWORD`: Enable basic auth if set (username: `podgrab`)
 - `PORT`: Override default port 8080
 - `GIN_MODE`: Set to `release` for production
+- `LOG_LEVEL`: Logging verbosity (`debug`, `info`, `warn`, `error`) - default:
+  `info`
 
 ### Settings Database
 
@@ -184,6 +201,19 @@ Runtime settings stored in database (editable via `/settings` page):
 - `MaxDownloadConcurrency`: Concurrent download limit (default: 5)
 
 ## Important Implementation Details
+
+### Structured Logging
+
+The application uses Uber Zap for structured logging via
+`internal/logger/logger.go`:
+
+- Global logger instance: `logger.Log` (SugaredLogger)
+- Log levels controlled by `LOG_LEVEL` environment variable
+- Console format in development, JSON in production (based on `GIN_MODE`)
+- Always use structured logging with context:
+  `logger.Log.Errorw("message", "key", value)`
+
+For detailed logging documentation, see `internal/logger/README.md`.
 
 ### Template Functions
 

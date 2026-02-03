@@ -200,6 +200,67 @@ Lock Cleanup:      Every 60 min (30×2)
 Backups:           Every 2 days (independent)
 ```
 
+#### LOG_LEVEL
+
+Logging verbosity level for application output.
+
+```bash
+LOG_LEVEL=info
+```
+
+**Docker:**
+
+```yaml
+environment:
+  - LOG_LEVEL=debug
+```
+
+**Default:** `info`
+
+**Valid Values:**
+
+| Level   | Description                                         | Use Case    |
+| ------- | --------------------------------------------------- | ----------- |
+| `debug` | Detailed information for diagnosing problems        | Development |
+| `info`  | General informational messages                      | Production  |
+| `warn`  | Warning messages for potentially harmful situations | Production  |
+| `error` | Error messages for serious problems                 | Production  |
+
+**Output Format:**
+
+- **Development** (`GIN_MODE` != `release`):
+  - Human-readable console output
+  - Colored log levels
+  - ISO8601 timestamps
+- **Production** (`GIN_MODE` = `release`):
+  - JSON formatted output
+  - Machine-parseable
+  - Optimized for log aggregation
+
+**Recommendations:**
+
+- **Development**: Use `debug` for detailed troubleshooting
+- **Production**: Use `info` or `warn` to reduce log volume
+- **Performance debugging**: Use `debug` temporarily, then revert
+- **Containerized deployments**: JSON format integrates with log aggregators
+  (ELK, Splunk, etc.)
+
+**Example Output:**
+
+```bash
+# debug level (development)
+2024-01-15T10:30:45Z  DEBUG  Processing podcast  podcast_id=abc123 name="Tech Podcast"
+2024-01-15T10:30:46Z  INFO   Download started    episode_id=xyz789 size=50MB
+
+# info level (production JSON)
+{"level":"info","ts":"2024-01-15T10:30:46Z","msg":"Download started","episode_id":"xyz789","size":"50MB"}
+```
+
+**Structured Logging:**
+
+Podgrab uses Uber Zap for structured logging with key-value pairs. For detailed
+documentation, see [Logging Guide](../../internal/logger/README.md).
+
 ## Application Settings
 
 Configured through Settings page (`/settings`) or API endpoint

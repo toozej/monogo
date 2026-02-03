@@ -41,6 +41,8 @@ architecture, deployment, API usage, and development.
 - **[Development Setup](development/setup.md)** - Setting up your development
   environment
 - **[Contributing Guide](../CONTRIBUTING.md)** - How to contribute to Podgrab
+- **[Logging Guide](../internal/logger/README.md)** - Structured logging with
+  Uber Zap
 
 ### User Guides
 
@@ -73,8 +75,6 @@ Contributing to Podgrab? Check these docs:
 ## 📖 Additional Resources
 
 - **[Main README](../README.md)** - Project overview and quick start
-- **[Implementation Summary](../IMPLEMENTATION_SUMMARY.md)** - Testing & CI/CD
-  transformation details
 - **[CLAUDE.md](../CLAUDE.md)** - AI assistant guide for working with this
   codebase
 
