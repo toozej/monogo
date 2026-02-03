@@ -2,9 +2,8 @@ ARG GO_VERSION=1.21.6
 
 FROM golang:${GO_VERSION}-alpine AS builder
 
-RUN apk add --no-cache alpine-sdk git
-
-RUN mkdir -p /api
+RUN apk add --no-cache alpine-sdk git && \
+    mkdir -p /api
 WORKDIR /api
 
 COPY go.mod .

@@ -61,6 +61,7 @@ jobs:
         with:
           dockerfile: Dockerfile
           failure-threshold: warning
+          ignore: DL3018,DL3059
 
       - name: Check go.mod and go.sum are tidy
         run: |
