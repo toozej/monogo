@@ -220,8 +220,8 @@ func DownloadAllEpisodesByPodcastID(c *gin.Context) {
 		err := service.SetAllEpisodesToDownload(searchByIDQuery.ID)
 		fmt.Println(err)
 		go func() {
-			if err := service.RefreshEpisodes(); err != nil {
-				fmt.Printf("Error refreshing episodes: %v\n", err)
+			if refreshErr := service.RefreshEpisodes(); refreshErr != nil {
+				fmt.Printf("Error refreshing episodes: %v\n", refreshErr)
 			}
 		}()
 		c.JSON(200, gin.H{})
@@ -238,7 +238,7 @@ func GetAllPodcastItems(c *gin.Context) {
 		fmt.Println(err.Error())
 	}
 	filter.VerifyPaginationValues()
-	if podcastItems, totalCount, err := db.GetPaginatedPodcastItemsNew(filter); err == nil {
+	if podcastItems, totalCount, err := db.GetPaginatedPodcastItemsNew(&filter); err == nil {
 		filter.SetCounts(totalCount)
 		toReturn := gin.H{
 			"podcastItems": podcastItems,
@@ -437,8 +437,8 @@ func DownloadPodcastItem(c *gin.Context) {
 
 	if c.ShouldBindUri(&searchByIDQuery) == nil {
 		go func() {
-			if err := service.DownloadSingleEpisode(searchByIDQuery.ID); err != nil {
-				fmt.Printf("Error downloading episode: %v\n", err)
+			if downloadErr := service.DownloadSingleEpisode(searchByIDQuery.ID); downloadErr != nil {
+				fmt.Printf("Error downloading episode: %v\n", downloadErr)
 			}
 		}()
 		c.JSON(200, gin.H{})
@@ -453,8 +453,8 @@ func DeletePodcastItem(c *gin.Context) {
 
 	if c.ShouldBindUri(&searchByIDQuery) == nil {
 		go func() {
-			if err := service.DeleteEpisodeFile(searchByIDQuery.ID); err != nil {
-				fmt.Printf("Error deleting episode file: %v\n", err)
+			if deleteErr := service.DeleteEpisodeFile(searchByIDQuery.ID); deleteErr != nil {
+				fmt.Printf("Error deleting episode file: %v\n", deleteErr)
 			}
 		}()
 		c.JSON(200, gin.H{})
@@ -468,20 +468,20 @@ func AddPodcast(c *gin.Context) {
 	var addPodcastData AddPodcastData
 	err := c.ShouldBindJSON(&addPodcastData)
 	if err == nil {
-		pod, err := service.AddPodcast(addPodcastData.URL)
-		if err == nil {
+		pod, addErr := service.AddPodcast(addPodcastData.URL)
+		if addErr == nil {
 			go func() {
-				if err := service.RefreshEpisodes(); err != nil {
-					fmt.Printf("Error refreshing episodes: %v\n", err)
+				if refreshErr := service.RefreshEpisodes(); refreshErr != nil {
+					fmt.Printf("Error refreshing episodes: %v\n", refreshErr)
 				}
 			}()
 			c.JSON(200, pod)
 		} else {
-			if v, ok := err.(*model.PodcastAlreadyExistsError); ok {
+			if v, ok := addErr.(*model.PodcastAlreadyExistsError); ok {
 				c.JSON(409, gin.H{"message": v.Error()})
 			} else {
-				log.Println(err.Error())
-				c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+				log.Println(addErr.Error())
+				c.JSON(http.StatusBadRequest, gin.H{"message": addErr.Error()})
 			}
 		}
 	} else {
@@ -514,7 +514,10 @@ func GetTagByID(c *gin.Context) {
 }
 
 func getBaseURL(c *gin.Context) string {
-	setting := c.MustGet("setting").(*db.Setting)
+	setting, ok := c.MustGet("setting").(*db.Setting)
+	if !ok {
+		return ""
+	}
 	if setting.BaseURL == "" {
 		url := location.Get(c)
 		return fmt.Sprintf("%s://%s", url.Scheme, url.Host)
@@ -525,29 +528,29 @@ func getBaseURL(c *gin.Context) string {
 func createRss(items []db.PodcastItem, title, description, image string, c *gin.Context) model.RssPodcastData {
 	rssItems := make([]model.RssItem, 0, len(items))
 	url := getBaseURL(c)
-	for _, item := range items {
+	for i := range items {
 		rssItem := model.RssItem{
-			Title:       item.Title,
-			Description: item.Summary,
-			Summary:     item.Summary,
+			Title:       items[i].Title,
+			Description: items[i].Summary,
+			Summary:     items[i].Summary,
 			Image: model.RssItemImage{
-				Text: item.Title,
-				Href: fmt.Sprintf("%s/podcastitems/%s/image", url, item.ID),
+				Text: items[i].Title,
+				Href: fmt.Sprintf("%s/podcastitems/%s/image", url, items[i].ID),
 			},
-			EpisodeType: item.EpisodeType,
+			EpisodeType: items[i].EpisodeType,
 			Enclosure: model.RssItemEnclosure{
-				URL:    fmt.Sprintf("%s/podcastitems/%s/file", url, item.ID),
-				Length: fmt.Sprint(item.FileSize),
+				URL:    fmt.Sprintf("%s/podcastitems/%s/file", url, items[i].ID),
+				Length: fmt.Sprint(items[i].FileSize),
 				Type:   "audio/mpeg",
 			},
-			PubDate: item.PubDate.Format("Mon, 02 Jan 2006 15:04:05 -0700"),
+			PubDate: items[i].PubDate.Format("Mon, 02 Jan 2006 15:04:05 -0700"),
 			GUID: model.RssItemGUID{
 				IsPermaLink: "false",
-				Text:        item.ID,
+				Text:        items[i].ID,
 			},
 			Link:     fmt.Sprintf("%s/allTags", url),
-			Text:     item.Title,
-			Duration: fmt.Sprint(item.Duration),
+			Text:     items[i].Title,
+			Duration: fmt.Sprint(items[i].Duration),
 		}
 		rssItems = append(rssItems, rssItem)
 	}
@@ -606,8 +609,8 @@ func GetRssForTagByID(c *gin.Context) {
 	if c.ShouldBindUri(&searchByIDQuery) == nil {
 		tag, err := db.GetTagByID(searchByIDQuery.ID)
 		podIDs := make([]string, 0, len(tag.Podcasts))
-		for _, pod := range tag.Podcasts {
-			podIDs = append(podIDs, pod.ID)
+		for i := range tag.Podcasts {
+			podIDs = append(podIDs, tag.Podcasts[i].ID)
 		}
 		items := *service.GetAllPodcastItemsByPodcastIDs(podIDs)
 
@@ -655,15 +658,15 @@ func AddTag(c *gin.Context) {
 	var addTagData AddTagData
 	err := c.ShouldBindJSON(&addTagData)
 	if err == nil {
-		tag, err := service.AddTag(addTagData.Label, addTagData.Description)
-		if err == nil {
+		tag, tagErr := service.AddTag(addTagData.Label, addTagData.Description)
+		if tagErr == nil {
 			c.JSON(200, tag)
 		} else {
-			if v, ok := err.(*model.TagAlreadyExistsError); ok {
+			if v, ok := tagErr.(*model.TagAlreadyExistsError); ok {
 				c.JSON(409, gin.H{"message": v.Error()})
 			} else {
-				log.Println(err.Error())
-				c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+				log.Println(tagErr.Error())
+				c.JSON(http.StatusBadRequest, gin.H{"message": tagErr.Error()})
 			}
 		}
 	} else {
@@ -702,14 +705,14 @@ func RemoveTagFromPodcast(c *gin.Context) {
 
 // UpdateSetting handles the update setting request.
 func UpdateSetting(c *gin.Context) {
-	var model SettingModel
-	err := c.ShouldBind(&model)
+	var settingModel SettingModel
+	err := c.ShouldBind(&settingModel)
 
 	if err == nil {
-		err = service.UpdateSettings(model.DownloadOnAdd, model.InitialDownloadCount,
-			model.AutoDownload, model.AppendDateToFileName, model.AppendEpisodeNumberToFileName,
-			model.DarkMode, model.DownloadEpisodeImages, model.GenerateNFOFile, model.DontDownloadDeletedFromDisk, model.BaseURL,
-			model.MaxDownloadConcurrency, model.UserAgent,
+		err = service.UpdateSettings(settingModel.DownloadOnAdd, settingModel.InitialDownloadCount,
+			settingModel.AutoDownload, settingModel.AppendDateToFileName, settingModel.AppendEpisodeNumberToFileName,
+			settingModel.DarkMode, settingModel.DownloadEpisodeImages, settingModel.GenerateNFOFile, settingModel.DontDownloadDeletedFromDisk, settingModel.BaseURL,
+			settingModel.MaxDownloadConcurrency, settingModel.UserAgent,
 		)
 		if err == nil {
 			c.JSON(200, gin.H{"message": "Success"})

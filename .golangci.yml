@@ -99,12 +99,6 @@ linters:
     warn-unused: true
     presets:
       - std-error-handling
-    paths:
-      - 'vendor/.*'
-      - 'webassets/.*'
-      - 'client/.*'
-      - 'e2e_test/.*'
-      - 'integration_test/.*'
     rules:
       - path: '_test\.go'
         linters:
@@ -112,13 +106,6 @@ linters:
           - errcheck
           - dupl
           - gosec
-
-      - path: 'main\.go'
-        text: '.*SA1019.*'
-
-      - path: '.*\.pb\.go'
-        linters:
-          - all
 
 issues:
   max-issues-per-linter: 50

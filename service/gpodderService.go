@@ -17,9 +17,13 @@ const BASE = "https://gpodder.net"
 
 // Query query.
 func Query(q string) []*model.CommonSearchResultModel {
-	url := fmt.Sprintf("%s/search.json?q=%s", BASE, url.QueryEscape(q))
+	searchURL := fmt.Sprintf("%s/search.json?q=%s", BASE, url.QueryEscape(q))
 
-	body, _ := makeQuery(url)
+	body, err := makeQuery(searchURL)
+	if err != nil {
+		fmt.Printf("Error making query: %v\n", err)
+		return []*model.CommonSearchResultModel{}
+	}
 	var response []model.GPodcast
 	if err := json.Unmarshal(body, &response); err != nil {
 		fmt.Printf("Error unmarshaling response: %v\n", err)
@@ -27,8 +31,8 @@ func Query(q string) []*model.CommonSearchResultModel {
 
 	toReturn := make([]*model.CommonSearchResultModel, 0, len(response))
 
-	for _, obj := range response {
-		toReturn = append(toReturn, GetSearchFromGpodder(obj))
+	for i := range response {
+		toReturn = append(toReturn, GetSearchFromGpodder(&response[i]))
 	}
 
 	return toReturn
@@ -36,9 +40,13 @@ func Query(q string) []*model.CommonSearchResultModel {
 
 // ByTag by tag.
 func ByTag(tag string, count int) []model.GPodcast {
-	url := fmt.Sprintf("%s/api/2/tag/%s/%d.json", BASE, url.QueryEscape(tag), count)
+	tagURL := fmt.Sprintf("%s/api/2/tag/%s/%d.json", BASE, url.QueryEscape(tag), count)
 
-	body, _ := makeQuery(url)
+	body, err := makeQuery(tagURL)
+	if err != nil {
+		fmt.Printf("Error making query: %v\n", err)
+		return []model.GPodcast{}
+	}
 	var response []model.GPodcast
 	if err := json.Unmarshal(body, &response); err != nil {
 		fmt.Printf("Error unmarshaling response: %v\n", err)
@@ -48,9 +56,13 @@ func ByTag(tag string, count int) []model.GPodcast {
 
 // Top top.
 func Top(count int) []model.GPodcast {
-	url := fmt.Sprintf("%s/toplist/%d.json", BASE, count)
+	topURL := fmt.Sprintf("%s/toplist/%d.json", BASE, count)
 
-	body, _ := makeQuery(url)
+	body, err := makeQuery(topURL)
+	if err != nil {
+		fmt.Printf("Error making query: %v\n", err)
+		return []model.GPodcast{}
+	}
 	var response []model.GPodcast
 	if err := json.Unmarshal(body, &response); err != nil {
 		fmt.Printf("Error unmarshaling response: %v\n", err)
@@ -60,9 +72,13 @@ func Top(count int) []model.GPodcast {
 
 // Tags tags.
 func Tags(count int) []model.GPodcastTag {
-	url := fmt.Sprintf("%s/api/2/tags/%d.json", BASE, count)
+	tagsURL := fmt.Sprintf("%s/api/2/tags/%d.json", BASE, count)
 
-	body, _ := makeQuery(url)
+	body, err := makeQuery(tagsURL)
+	if err != nil {
+		fmt.Printf("Error making query: %v\n", err)
+		return []model.GPodcastTag{}
+	}
 	var response []model.GPodcastTag
 	if err := json.Unmarshal(body, &response); err != nil {
 		fmt.Printf("Error unmarshaling GPodder response: %v\n", err)

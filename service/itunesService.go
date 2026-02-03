@@ -26,9 +26,13 @@ const ItunesBase = "https://itunes.apple.com"
 
 // Query searches for podcasts using the iTunes API.
 func (service ItunesService) Query(q string) []*model.CommonSearchResultModel {
-	url := fmt.Sprintf("%s/search?term=%s&entity=podcast", ItunesBase, url.QueryEscape(q))
+	searchURL := fmt.Sprintf("%s/search?term=%s&entity=podcast", ItunesBase, url.QueryEscape(q))
 
-	body, _ := makeQuery(url)
+	body, err := makeQuery(searchURL)
+	if err != nil {
+		fmt.Printf("Error making iTunes query: %v\n", err)
+		return []*model.CommonSearchResultModel{}
+	}
 	var response model.ItunesResponse
 	if err := json.Unmarshal(body, &response); err != nil {
 		fmt.Printf("Error unmarshaling iTunes response: %v\n", err)
@@ -36,8 +40,8 @@ func (service ItunesService) Query(q string) []*model.CommonSearchResultModel {
 
 	toReturn := make([]*model.CommonSearchResultModel, 0, len(response.Results))
 
-	for _, obj := range response.Results {
-		toReturn = append(toReturn, GetSearchFromItunes(obj))
+	for i := range response.Results {
+		toReturn = append(toReturn, GetSearchFromItunes(&response.Results[i]))
 	}
 
 	return toReturn
@@ -47,19 +51,19 @@ func (service ItunesService) Query(q string) []*model.CommonSearchResultModel {
 type PodcastIndexService struct {
 }
 
-func getPodcastIndexCredentials() (string, string) {
-	key := os.Getenv("PODCASTINDEX_KEY")
-	secret := os.Getenv("PODCASTINDEX_SECRET")
+func getPodcastIndexCredentials() (apiKey, apiSecret string) {
+	apiKey = os.Getenv("PODCASTINDEX_KEY")
+	apiSecret = os.Getenv("PODCASTINDEX_SECRET")
 
 	// Use demo credentials if environment variables are not set
 	// These are public demo credentials from podcastindex.org
-	if key == "" {
-		key = getDefaultPodcastIndexKey()
+	if apiKey == "" {
+		apiKey = getDefaultPodcastIndexKey()
 	}
-	if secret == "" {
-		secret = getDefaultPodcastIndexSecret()
+	if apiSecret == "" {
+		apiSecret = getDefaultPodcastIndexSecret()
 	}
-	return key, secret
+	return apiKey, apiSecret
 }
 
 func getDefaultPodcastIndexKey() string {

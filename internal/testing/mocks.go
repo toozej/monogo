@@ -125,7 +125,7 @@ func (m *MockRepository) GetPodcastByID(id string, podcast *db.Podcast) error {
 	return errors.New("podcast not found")
 }
 
-func (m *MockRepository) GetPodcastByTitleAndAuthor(title string, author string, podcast *db.Podcast) error {
+func (m *MockRepository) GetPodcastByTitleAndAuthor(title, author string, podcast *db.Podcast) error {
 	for _, p := range m.Podcasts {
 		if p.Title == title && p.Author == author {
 			*podcast = *p
@@ -224,7 +224,7 @@ func (m *MockRepository) GetAllPodcastItemsWithoutSize() (*[]db.PodcastItem, err
 	return &items, nil
 }
 
-func (m *MockRepository) GetPaginatedPodcastItemsNew(queryModel model.EpisodesFilter) (*[]db.PodcastItem, int64, error) {
+func (m *MockRepository) GetPaginatedPodcastItemsNew(queryModel *model.EpisodesFilter) (*[]db.PodcastItem, int64, error) {
 	// Simplified mock - returns all items
 	items := make([]db.PodcastItem, 0, len(m.PodcastItems))
 	for _, item := range m.PodcastItems {
@@ -233,7 +233,7 @@ func (m *MockRepository) GetPaginatedPodcastItemsNew(queryModel model.EpisodesFi
 	return &items, int64(len(items)), nil
 }
 
-func (m *MockRepository) GetPaginatedPodcastItems(page int, count int, downloadedOnly *bool, playedOnly *bool, fromDate time.Time, podcasts *[]db.PodcastItem, total *int64) error {
+func (m *MockRepository) GetPaginatedPodcastItems(page, count int, downloadedOnly, playedOnly *bool, fromDate time.Time, podcasts *[]db.PodcastItem, total *int64) error {
 	// Simplified mock implementation
 	*podcasts = []db.PodcastItem{}
 	for _, item := range m.PodcastItems {
@@ -299,7 +299,7 @@ func (m *MockRepository) GetPodcastItemsByPodcastIDAndGUIDs(podcastID string, gu
 	return &items, nil
 }
 
-func (m *MockRepository) GetPodcastItemByPodcastIDAndGUID(podcastID string, guid string, podcastItem *db.PodcastItem) error {
+func (m *MockRepository) GetPodcastItemByPodcastIDAndGUID(podcastID, guid string, podcastItem *db.PodcastItem) error {
 	for _, item := range m.PodcastItems {
 		if item.PodcastID == podcastID && item.GUID == guid {
 			*podcastItem = *item
@@ -402,7 +402,7 @@ func (m *MockRepository) GetAllTags(sorting string) (*[]db.Tag, error) {
 	return &tags, nil
 }
 
-func (m *MockRepository) GetPaginatedTags(page int, count int, tags *[]db.Tag, total *int64) error {
+func (m *MockRepository) GetPaginatedTags(page, count int, tags *[]db.Tag, total *int64) error {
 	*tags = []db.Tag{}
 	for _, tag := range m.Tags {
 		*tags = append(*tags, *tag)

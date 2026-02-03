@@ -49,8 +49,6 @@ func Wshandler(w http.ResponseWriter, r *http.Request) {
 		var mess Message
 		err := conn.ReadJSON(&mess)
 		if err != nil {
-			//	fmt.Println("Socket Error")
-			// fmt.Println(err.Error())
 			isPlayer := activePlayers[conn] != ""
 			if isPlayer {
 				delete(activePlayers, conn)
@@ -65,7 +63,6 @@ func Wshandler(w http.ResponseWriter, r *http.Request) {
 		mess.Connection = conn
 		allConnections[conn] = mess.Identifier
 		broadcast <- mess
-		//	conn.WriteJSON(mess)
 	}
 }
 
@@ -74,7 +71,6 @@ func HandleWebsocketMessages() {
 	for {
 		// Grab the next message from the broadcast channel
 		msg := <-broadcast
-		// fmt.Println(msg)
 
 		switch msg.MessageType {
 		case "RegisterPlayer":
@@ -112,14 +108,14 @@ func HandleWebsocketMessages() {
 					}
 				}
 				if player != nil {
-					payloadStr, err := json.Marshal(items)
-					if err == nil {
-						if err := player.WriteJSON(Message{
+					payloadStr, marshalErr := json.Marshal(items)
+					if marshalErr == nil {
+						if writeErr := player.WriteJSON(Message{
 							Identifier:  msg.Identifier,
 							MessageType: "Enqueue",
 							Payload:     string(payloadStr),
-						}); err != nil {
-							fmt.Printf("Error writing JSON to connection: %v\n", err)
+						}); writeErr != nil {
+							fmt.Printf("Error writing JSON to connection: %v\n", writeErr)
 						}
 					}
 				}
@@ -152,14 +148,5 @@ func HandleWebsocketMessages() {
 				}
 			}
 		}
-		// Send it out to every client that is currently connected
-		// for client := range clients {
-		// 	err := client.WriteJSON(msg)
-		// 	if err != nil {
-		// 		log.Printf("error: %v", err)
-		// 		client.Close()
-		// 		delete(clients, client)
-		// 	}
-		// }
 	}
 }

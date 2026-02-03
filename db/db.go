@@ -27,9 +27,12 @@ func Init() (*gorm.DB, error) {
 		return nil, err
 	}
 
-	localDB, _ := db.DB()
-	localDB.SetMaxIdleConns(10)
-	// db.LogMode(true)
+	localDB, err := db.DB()
+	if err != nil {
+		fmt.Println("failed to get database connection: ", err)
+	} else {
+		localDB.SetMaxIdleConns(10)
+	}
 	DB = db
 	return DB, nil
 }

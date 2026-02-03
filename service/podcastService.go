@@ -26,10 +26,16 @@ import (
 var Logger *zap.SugaredLogger
 
 func init() {
-	zapper, _ := zap.NewProduction()
+	zapper, err := zap.NewProduction()
+	if err != nil {
+		fmt.Printf("Error creating logger: %v\n", err)
+		return
+	}
 	Logger = zapper.Sugar()
 	// Note: Sync is called when the program exits, not here in init
-	_ = zapper.Sync()
+	if err := zapper.Sync(); err != nil {
+		fmt.Printf("Error syncing logger: %v\n", err)
+	}
 }
 
 // ParseOpml parse opml.
@@ -89,7 +95,10 @@ func GetAllPodcastItemsByPodcastIDs(podcastIDs []string) *[]db.PodcastItem {
 
 // GetTagsByIDs get tags by ids.
 func GetTagsByIDs(ids []string) *[]db.Tag {
-	tags, _ := db.GetTagsByIDs(ids)
+	tags, err := db.GetTagsByIDs(ids)
+	if err != nil {
+		fmt.Printf("Error getting tags by IDs: %v\n", err)
+	}
 
 	return tags
 }
@@ -101,7 +110,11 @@ func GetAllPodcasts(sorting string) *[]db.Podcast {
 		fmt.Printf("Error getting all podcasts: %v\n", err)
 	}
 
-	stats, _ := db.GetPodcastEpisodeStats()
+	stats, err := db.GetPodcastEpisodeStats()
+	if err != nil {
+		fmt.Printf("Error getting podcast episode stats: %v\n", err)
+		stats = &[]db.PodcastItemStatsModel{}
+	}
 
 	type Key struct {
 		PodcastID      string
@@ -114,29 +127,29 @@ func GetAllPodcasts(sorting string) *[]db.Podcast {
 		sizeMap[Key{stat.PodcastID, stat.DownloadStatus}] = stat.Size
 	}
 	toReturn := make([]db.Podcast, 0, len(podcasts))
-	for _, podcast := range podcasts {
-		podcast.DownloadedEpisodesCount = countMap[Key{podcast.ID, db.Downloaded}]
-		podcast.DownloadingEpisodesCount = countMap[Key{podcast.ID, db.NotDownloaded}]
-		podcast.AllEpisodesCount = podcast.DownloadedEpisodesCount + podcast.DownloadingEpisodesCount + countMap[Key{podcast.ID, db.Deleted}]
+	for i := range podcasts {
+		podcasts[i].DownloadedEpisodesCount = countMap[Key{podcasts[i].ID, db.Downloaded}]
+		podcasts[i].DownloadingEpisodesCount = countMap[Key{podcasts[i].ID, db.NotDownloaded}]
+		podcasts[i].AllEpisodesCount = podcasts[i].DownloadedEpisodesCount + podcasts[i].DownloadingEpisodesCount + countMap[Key{podcasts[i].ID, db.Deleted}]
 
-		podcast.DownloadedEpisodesSize = sizeMap[Key{podcast.ID, db.Downloaded}]
-		podcast.DownloadingEpisodesSize = sizeMap[Key{podcast.ID, db.NotDownloaded}]
-		podcast.AllEpisodesSize = podcast.DownloadedEpisodesSize + podcast.DownloadingEpisodesSize + sizeMap[Key{podcast.ID, db.Deleted}]
+		podcasts[i].DownloadedEpisodesSize = sizeMap[Key{podcasts[i].ID, db.Downloaded}]
+		podcasts[i].DownloadingEpisodesSize = sizeMap[Key{podcasts[i].ID, db.NotDownloaded}]
+		podcasts[i].AllEpisodesSize = podcasts[i].DownloadedEpisodesSize + podcasts[i].DownloadingEpisodesSize + sizeMap[Key{podcasts[i].ID, db.Deleted}]
 
-		toReturn = append(toReturn, podcast)
+		toReturn = append(toReturn, podcasts[i])
 	}
 	return &toReturn
 }
 
 // AddOpml add opml.
 func AddOpml(content string) error {
-	model, err := ParseOpml(content)
+	opmlModel, err := ParseOpml(content)
 	if err != nil {
 		fmt.Println(err.Error())
 		return errors.New("invalid file format")
 	}
 	var wg sync.WaitGroup
-	for _, outline := range model.Body.Outline {
+	for _, outline := range opmlModel.Body.Outline {
 		if outline.XMLURL != "" {
 			wg.Add(1)
 			go func(url string) {
@@ -173,17 +186,17 @@ func ExportOmpl(usePodgrabLink bool, baseURL string) ([]byte, error) {
 	podcasts := GetAllPodcasts("")
 
 	outlines := make([]model.OpmlOutline, 0, len(*podcasts))
-	for _, podcast := range *podcasts {
-		xmlURL := podcast.URL
+	for i := range *podcasts {
+		xmlURL := (*podcasts)[i].URL
 		if usePodgrabLink {
-			xmlURL = fmt.Sprintf("%s/podcasts/%s/rss", baseURL, podcast.ID)
+			xmlURL = fmt.Sprintf("%s/podcasts/%s/rss", baseURL, (*podcasts)[i].ID)
 		}
 
 		toAdd := model.OpmlOutline{
-			AttrText: podcast.Summary,
+			AttrText: (*podcasts)[i].Summary,
 			Type:     "rss",
 			XMLURL:   xmlURL,
-			Title:    podcast.Title,
+			Title:    (*podcasts)[i].Title,
 		}
 		outlines = append(outlines, toAdd)
 	}
@@ -203,7 +216,6 @@ func ExportOmpl(usePodgrabLink bool, baseURL string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	//	fmt.Println(xml.Header + string(data))
 	data = []byte(xml.Header + string(data))
 	return data, err
 }
@@ -236,14 +248,14 @@ func AddPodcast(url string) (db.Podcast, error) {
 	err := db.GetPodcastByURL(url, &podcast)
 	setting := db.GetOrCreateSetting()
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		data, body, err := FetchURL(url)
-		if err != nil {
-			fmt.Println(err.Error())
-			Logger.Errorw("Error adding podcast", err)
-			return db.Podcast{}, err
+		data, body, fetchErr := FetchURL(url)
+		if fetchErr != nil {
+			fmt.Println(fetchErr.Error())
+			Logger.Errorw("Error adding podcast", fetchErr)
+			return db.Podcast{}, fetchErr
 		}
 
-		podcast := db.Podcast{
+		podcastItem := db.Podcast{
 			Title:   data.Channel.Title,
 			Summary: strip.StripTags(data.Channel.Summary),
 			Author:  data.Channel.Author,
@@ -251,144 +263,181 @@ func AddPodcast(url string) (db.Podcast, error) {
 			URL:     url,
 		}
 
-		if podcast.Image == "" {
-			podcast.Image = getItunesImageURL(body)
+		if podcastItem.Image == "" {
+			podcastItem.Image = getItunesImageURL(body)
 		}
 
-		err = db.CreatePodcast(&podcast)
+		err = db.CreatePodcast(&podcastItem)
 		go func() {
-			if _, err := DownloadPodcastCoverImage(podcast.Image, podcast.Title); err != nil {
-				fmt.Printf("Error downloading podcast cover image: %v\n", err)
+			if _, dlErr := DownloadPodcastCoverImage(podcastItem.Image, podcastItem.Title); dlErr != nil {
+				fmt.Printf("Error downloading podcast cover image: %v\n", dlErr)
 			}
 		}()
 		if setting.GenerateNFOFile {
 			go func() {
-				if err := CreateNfoFile(&podcast); err != nil {
-					fmt.Printf("Error creating NFO file: %v\n", err)
+				if nfoErr := CreateNfoFile(&podcastItem); nfoErr != nil {
+					fmt.Printf("Error creating NFO file: %v\n", nfoErr)
 				}
 			}()
 		}
-		return podcast, err
+		return podcastItem, err
 	}
 
 	return podcast, &model.PodcastAlreadyExistsError{URL: url}
 }
 
+// parsePubDate attempts to parse a publication date string using multiple RFC formats.
+func parsePubDate(dateStr string) time.Time {
+	toParse := strings.TrimSpace(dateStr)
+
+	pubDate, dateErr := time.Parse(time.RFC1123Z, toParse)
+	if dateErr == nil && !pubDate.Equal(time.Time{}) {
+		return pubDate
+	}
+
+	pubDate, dateErr = time.Parse(time.RFC1123, toParse)
+	if dateErr == nil && !pubDate.Equal(time.Time{}) {
+		return pubDate
+	}
+
+	// RFC1123 with single-digit day: "Mon, 2 Jan 2006 15:04:05 MST"
+	modifiedRFC1123 := "Mon, 2 Jan 2006 15:04:05 MST"
+	pubDate, dateErr = time.Parse(modifiedRFC1123, toParse)
+	if dateErr == nil && !pubDate.Equal(time.Time{}) {
+		return pubDate
+	}
+
+	// RFC1123Z with single-digit day: "Mon, 2 Jan 2006 15:04:05 -0700"
+	modifiedRFC1123Z := "Mon, 2 Jan 2006 15:04:05 -0700"
+	pubDate, dateErr = time.Parse(modifiedRFC1123Z, toParse)
+	if dateErr == nil && !pubDate.Equal(time.Time{}) {
+		return pubDate
+	}
+
+	// RFC1123Z with two-digit day: "Mon, 02 Jan 2006 15:04:05 -0700"
+	modifiedRFC1123Z = "Mon, 02 Jan 2006 15:04:05 -0700"
+	pubDate, dateErr = time.Parse(modifiedRFC1123Z, toParse)
+	if dateErr == nil && !pubDate.Equal(time.Time{}) {
+		return pubDate
+	}
+
+	fmt.Printf("Cant format date : %s\n", dateStr)
+	return time.Time{}
+}
+
+// determineDownloadStatus calculates the initial download status for a podcast item.
+func determineDownloadStatus(setting *db.Setting, podcast *db.Podcast, newPodcast bool, itemIndex, limit int) db.DownloadStatus {
+	if podcast.IsPaused {
+		return db.Deleted
+	}
+
+	if newPodcast && !setting.DownloadOnAdd {
+		return db.Deleted
+	}
+
+	if !setting.AutoDownload {
+		return db.Deleted
+	}
+
+	if !newPodcast {
+		return db.NotDownloaded
+	}
+
+	if itemIndex < limit {
+		return db.NotDownloaded
+	}
+
+	return db.Deleted
+}
+
+// parseDuration safely parses a duration string to integer.
+func parseDuration(durationStr string) int {
+	duration, parseErr := strconv.Atoi(durationStr)
+	if parseErr != nil {
+		fmt.Printf("Error parsing duration: %v\n", parseErr)
+		return 0
+	}
+	return duration
+}
+
+// extractSummary extracts summary from RSS item, falling back to description if needed.
+func extractSummary(summary, description string) string {
+	cleanSummary := strip.StripTags(summary)
+	if cleanSummary == "" {
+		cleanSummary = strip.StripTags(description)
+	}
+	return cleanSummary
+}
+
 // AddPodcastItems add podcast items.
 func AddPodcastItems(podcast *db.Podcast, newPodcast bool) error {
-	// fmt.Println("Creating: " + podcast.ID)
 	data, _, err := FetchURL(podcast.URL)
 	if err != nil {
-		// log.Fatal(err)
 		return err
 	}
 	setting := db.GetOrCreateSetting()
 	limit := setting.InitialDownloadCount
-	// if len(data.Channel.Item) < limit {
-	// 	limit = len(data.Channel.Item)
-	// }
+
+	// Extract all GUIDs for bulk lookup
 	var allGuids []string
 	for i := 0; i < len(data.Channel.Item); i++ {
-		obj := data.Channel.Item[i]
-		allGuids = append(allGuids, obj.GUID.Text)
+		allGuids = append(allGuids, data.Channel.Item[i].GUID.Text)
 	}
 
+	// Build existing items map
 	existingItems, err := db.GetPodcastItemsByPodcastIDAndGUIDs(podcast.ID, allGuids)
 	keyMap := make(map[string]int)
-
-	for _, item := range *existingItems {
-		keyMap[item.GUID] = 1
+	for i := range *existingItems {
+		keyMap[(*existingItems)[i].GUID] = 1
 	}
+
 	var latestDate = time.Time{}
 	var itemsAdded = make(map[string]string)
+
+	// Process each RSS item
 	for i := 0; i < len(data.Channel.Item); i++ {
 		obj := data.Channel.Item[i]
-		var podcastItem db.PodcastItem
 		_, keyExists := keyMap[obj.GUID.Text]
-		if !keyExists {
-			duration, _ := strconv.Atoi(obj.Duration)
-			toParse := strings.TrimSpace(obj.PubDate)
-
-			pubDate, _ := time.Parse(time.RFC1123Z, toParse)
-			if (pubDate.Equal(time.Time{})) {
-				pubDate, _ = time.Parse(time.RFC1123, toParse)
-			}
-			if (pubDate.Equal(time.Time{})) {
-				//	RFC1123     = "Mon, 02 Jan 2006 15:04:05 MST"
-				modifiedRFC1123 := "Mon, 2 Jan 2006 15:04:05 MST"
-				pubDate, _ = time.Parse(modifiedRFC1123, toParse)
-			}
-			if (pubDate.Equal(time.Time{})) {
-				//	RFC1123Z    = "Mon, 02 Jan 2006 15:04:05 -0700" // RFC1123 with numeric zone
-				modifiedRFC1123Z := "Mon, 2 Jan 2006 15:04:05 -0700"
-				pubDate, _ = time.Parse(modifiedRFC1123Z, toParse)
-			}
-			if (pubDate.Equal(time.Time{})) {
-				//	RFC1123Z    = "Mon, 02 Jan 2006 15:04:05 -0700" // RFC1123 with numeric zone
-				modifiedRFC1123Z := "Mon, 02 Jan 2006 15:04:05 -0700"
-				pubDate, _ = time.Parse(modifiedRFC1123Z, toParse)
-			}
-
-			if (pubDate.Equal(time.Time{})) {
-				fmt.Printf("Cant format date : %s", obj.PubDate)
-			}
-
-			if latestDate.Before(pubDate) {
-				latestDate = pubDate
-			}
-
-			var downloadStatus db.DownloadStatus
-			if setting.AutoDownload {
-				if !newPodcast {
-					downloadStatus = db.NotDownloaded
-				} else {
-					if i < limit {
-						downloadStatus = db.NotDownloaded
-					} else {
-						downloadStatus = db.Deleted
-					}
-				}
-			} else {
-				downloadStatus = db.Deleted
-			}
-
-			if newPodcast && !setting.DownloadOnAdd {
-				downloadStatus = db.Deleted
-			}
-
-			if podcast.IsPaused {
-				downloadStatus = db.Deleted
-			}
-
-			summary := strip.StripTags(obj.Summary)
-			if summary == "" {
-				summary = strip.StripTags(obj.Description)
-			}
-
-			podcastItem = db.PodcastItem{
-				PodcastID:      podcast.ID,
-				Title:          obj.Title,
-				Summary:        summary,
-				EpisodeType:    obj.EpisodeType,
-				Duration:       duration,
-				PubDate:        pubDate,
-				FileURL:        obj.Enclosure.URL,
-				GUID:           obj.GUID.Text,
-				Image:          obj.Image.Href,
-				DownloadStatus: downloadStatus,
-			}
-			if err := db.CreatePodcastItem(&podcastItem); err != nil {
-				fmt.Printf("Error creating podcast item: %v\n", err)
-			}
-			itemsAdded[podcastItem.ID] = podcastItem.FileURL
+		if keyExists {
+			continue
 		}
+
+		// Parse item fields
+		duration := parseDuration(obj.Duration)
+		pubDate := parsePubDate(obj.PubDate)
+		downloadStatus := determineDownloadStatus(setting, podcast, newPodcast, i, limit)
+		summary := extractSummary(obj.Summary, obj.Description)
+
+		// Track latest episode date
+		if latestDate.Before(pubDate) {
+			latestDate = pubDate
+		}
+
+		// Create podcast item
+		podcastItem := db.PodcastItem{
+			PodcastID:      podcast.ID,
+			Title:          obj.Title,
+			Summary:        summary,
+			EpisodeType:    obj.EpisodeType,
+			Duration:       duration,
+			PubDate:        pubDate,
+			FileURL:        obj.Enclosure.URL,
+			GUID:           obj.GUID.Text,
+			Image:          obj.Image.Href,
+			DownloadStatus: downloadStatus,
+		}
+		if createErr := db.CreatePodcastItem(&podcastItem); createErr != nil {
+			fmt.Printf("Error creating podcast item: %v\n", createErr)
+		}
+		itemsAdded[podcastItem.ID] = podcastItem.FileURL
 	}
+
+	// Update podcast with latest episode date
 	if (latestDate != time.Time{}) {
-		if err := db.UpdateLastEpisodeDateForPodcast(podcast.ID, latestDate); err != nil {
-			fmt.Printf("Error updating last episode date: %v\n", err)
+		if updateErr := db.UpdateLastEpisodeDateForPodcast(podcast.ID, latestDate); updateErr != nil {
+			fmt.Printf("Error updating last episode date: %v\n", updateErr)
 		}
 	}
-	// go updateSizeFromURL(itemsAdded)
 	return err
 }
 
@@ -412,14 +461,20 @@ func UpdateAllFileSizes() {
 	if err != nil {
 		return
 	}
-	for _, item := range *items {
+	for i := range *items {
 		var size int64
-		if item.DownloadStatus == db.Downloaded {
-			size, _ = GetFileSize(item.DownloadPath)
+		if (*items)[i].DownloadStatus == db.Downloaded {
+			size, err = GetFileSize((*items)[i].DownloadPath)
+			if err != nil {
+				fmt.Printf("Error getting file size for %s: %v\n", (*items)[i].DownloadPath, err)
+			}
 		} else {
-			size, _ = GetFileSizeFromURL(item.FileURL)
+			size, err = GetFileSizeFromURL((*items)[i].FileURL)
+			if err != nil {
+				fmt.Printf("Error getting file size from URL %s: %v\n", (*items)[i].FileURL, err)
+			}
 		}
-		if err := db.UpdatePodcastItemFileSize(item.ID, size); err != nil {
+		if err := db.UpdatePodcastItemFileSize((*items)[i].ID, size); err != nil {
 			fmt.Printf("Error updating podcast item file size: %v\n", err)
 		}
 	}
@@ -448,8 +503,8 @@ func DownloadMissingImages() error {
 	if err != nil {
 		return err
 	}
-	for _, item := range *items {
-		if err := downloadImageLocally(item.ID); err != nil {
+	for i := range *items {
+		if err := downloadImageLocally((*items)[i].ID); err != nil {
 			fmt.Printf("Error downloading image locally: %v\n", err)
 		}
 	}
@@ -489,7 +544,7 @@ func SetPodcastItemBookmarkStatus(id string, bookmark bool) error {
 }
 
 // SetPodcastItemAsDownloaded set podcast item as downloaded.
-func SetPodcastItemAsDownloaded(id string, location string) error {
+func SetPodcastItemAsDownloaded(id, location string) error {
 	var podcastItem db.PodcastItem
 
 	err := db.GetPodcastItemByID(id, &podcastItem)
@@ -591,15 +646,19 @@ func DownloadMissingEpisodes() error {
 		return err
 	}
 	var wg sync.WaitGroup
-	for index, item := range *data {
+	for index := range *data {
 		wg.Add(1)
 		go func(item db.PodcastItem, setting db.Setting) {
 			defer wg.Done()
-			url, _ := Download(item.FileURL, item.Title, item.Podcast.Title, GetPodcastPrefix(&item, &setting))
+			url, dlErr := Download(item.FileURL, item.Title, item.Podcast.Title, GetPodcastPrefix(&item, &setting))
+			if dlErr != nil {
+				fmt.Printf("Error downloading episode: %v\n", dlErr)
+				return
+			}
 			if err := SetPodcastItemAsDownloaded(item.ID, url); err != nil {
 				fmt.Printf("Error setting podcast item as downloaded: %v\n", err)
 			}
-		}(item, *setting)
+		}((*data)[index], *setting)
 
 		if index%setting.MaxDownloadConcurrency == 0 {
 			wg.Wait()
@@ -615,19 +674,18 @@ func CheckMissingFiles() error {
 	data, err := db.GetAllPodcastItemsAlreadyDownloaded()
 	setting := db.GetOrCreateSetting()
 
-	// fmt.Println("Processing episodes: ", strconv.Itoa(len(*data)))
 	if err != nil {
 		return err
 	}
-	for _, item := range *data {
-		fileExists := FileExists(item.DownloadPath)
+	for i := range *data {
+		fileExists := FileExists((*data)[i].DownloadPath)
 		if !fileExists {
 			if setting.DontDownloadDeletedFromDisk {
-				if err := SetPodcastItemAsNotDownloaded(item.ID, db.Deleted); err != nil {
+				if err := SetPodcastItemAsNotDownloaded((*data)[i].ID, db.Deleted); err != nil {
 					fmt.Printf("Error setting podcast item as not downloaded: %v\n", err)
 				}
 			} else {
-				if err := SetPodcastItemAsNotDownloaded(item.ID, db.NotDownloaded); err != nil {
+				if err := SetPodcastItemAsNotDownloaded((*data)[i].ID, db.NotDownloaded); err != nil {
 					fmt.Printf("Error setting podcast item as not downloaded: %v\n", err)
 				}
 			}
@@ -641,7 +699,6 @@ func DeleteEpisodeFile(podcastItemID string) error {
 	var podcastItem db.PodcastItem
 	err := db.GetPodcastItemByID(podcastItemID, &podcastItem)
 
-	// fmt.Println("Processing episodes: ", strconv.Itoa(len(*data)))
 	if err != nil {
 		return err
 	}
@@ -669,27 +726,26 @@ func DownloadSingleEpisode(podcastItemID string) error {
 	var podcastItem db.PodcastItem
 	err := db.GetPodcastItemByID(podcastItemID, &podcastItem)
 
-	// fmt.Println("Processing episodes: ", strconv.Itoa(len(*data)))
 	if err != nil {
 		return err
 	}
 
 	setting := db.GetOrCreateSetting()
-	if err := SetPodcastItemAsQueuedForDownload(podcastItemID); err != nil {
-		fmt.Printf("Error setting podcast item as queued for download: %v\n", err)
+	if queueErr := SetPodcastItemAsQueuedForDownload(podcastItemID); queueErr != nil {
+		fmt.Printf("Error setting podcast item as queued for download: %v\n", queueErr)
 	}
 
-	url, err := Download(podcastItem.FileURL, podcastItem.Title, podcastItem.Podcast.Title, GetPodcastPrefix(&podcastItem, setting))
+	url, dlErr := Download(podcastItem.FileURL, podcastItem.Title, podcastItem.Podcast.Title, GetPodcastPrefix(&podcastItem, setting))
 
-	if err != nil {
-		fmt.Println(err.Error())
-		return err
+	if dlErr != nil {
+		fmt.Println(dlErr.Error())
+		return dlErr
 	}
 	err = SetPodcastItemAsDownloaded(podcastItem.ID, url)
 
 	if setting.DownloadEpisodeImages {
-		if err := downloadImageLocally(podcastItem.ID); err != nil {
-			fmt.Printf("Error downloading image locally: %v\n", err)
+		if imgErr := downloadImageLocally(podcastItem.ID); imgErr != nil {
+			fmt.Printf("Error downloading image locally: %v\n", imgErr)
 		}
 	}
 	return err
@@ -703,13 +759,13 @@ func RefreshEpisodes() error {
 	if err != nil {
 		return err
 	}
-	for _, item := range data {
-		isNewPodcast := item.LastEpisode == nil
+	for i := range data {
+		isNewPodcast := data[i].LastEpisode == nil
 		if isNewPodcast {
-			fmt.Println(item.Title)
-			db.ForceSetLastEpisodeDate(item.ID)
+			fmt.Println(data[i].Title)
+			db.ForceSetLastEpisodeDate(data[i].ID)
 		}
-		if err := AddPodcastItems(&item, isNewPodcast); err != nil {
+		if err := AddPodcastItems(&data[i], isNewPodcast); err != nil {
 			fmt.Printf("Error adding podcast items: %v\n", err)
 		}
 	}
@@ -738,17 +794,17 @@ func DeletePodcastEpisodes(id string) error {
 	if err != nil {
 		return err
 	}
-	for _, item := range podcastItems {
-		if err := DeleteFile(item.DownloadPath); err != nil {
-			fmt.Printf("Error deleting file: %v\n", err)
+	for i := range podcastItems {
+		if delErr := DeleteFile(podcastItems[i].DownloadPath); delErr != nil {
+			fmt.Printf("Error deleting file: %v\n", delErr)
 		}
-		if item.LocalImage != "" {
-			if err := DeleteFile(item.LocalImage); err != nil {
-				fmt.Printf("Error deleting file: %v\n", err)
+		if podcastItems[i].LocalImage != "" {
+			if delErr := DeleteFile(podcastItems[i].LocalImage); delErr != nil {
+				fmt.Printf("Error deleting file: %v\n", delErr)
 			}
 		}
-		if err := SetPodcastItemAsNotDownloaded(item.ID, db.Deleted); err != nil {
-			fmt.Printf("Error setting podcast item as not downloaded: %v\n", err)
+		if updateErr := SetPodcastItemAsNotDownloaded(podcastItems[i].ID, db.Deleted); updateErr != nil {
+			fmt.Printf("Error setting podcast item as not downloaded: %v\n", updateErr)
 		}
 	}
 	return nil
@@ -768,19 +824,19 @@ func DeletePodcast(id string, deleteFiles bool) error {
 	if err != nil {
 		return err
 	}
-	for _, item := range podcastItems {
+	for i := range podcastItems {
 		if deleteFiles {
-			if err := DeleteFile(item.DownloadPath); err != nil {
-				fmt.Printf("Error deleting file: %v\n", err)
+			if delErr := DeleteFile(podcastItems[i].DownloadPath); delErr != nil {
+				fmt.Printf("Error deleting file: %v\n", delErr)
 			}
-			if item.LocalImage != "" {
-				if err := DeleteFile(item.LocalImage); err != nil {
-					fmt.Printf("Error deleting file: %v\n", err)
+			if podcastItems[i].LocalImage != "" {
+				if delErr := DeleteFile(podcastItems[i].LocalImage); delErr != nil {
+					fmt.Printf("Error deleting file: %v\n", delErr)
 				}
 			}
 		}
-		if err := db.DeletePodcastItemByID(item.ID); err != nil {
-			fmt.Printf("Error deleting podcast item: %v\n", err)
+		if deleteErr := db.DeletePodcastItemByID(podcastItems[i].ID); deleteErr != nil {
+			fmt.Printf("Error deleting podcast item: %v\n", deleteErr)
 		}
 	}
 
@@ -798,8 +854,8 @@ func DeletePodcast(id string, deleteFiles bool) error {
 
 // DeleteTag delete tag.
 func DeleteTag(id string) error {
-	if err := db.UntagAllByTagID(id); err != nil {
-		fmt.Printf("Error untagging by tag ID: %v\n", err)
+	if untagErr := db.UntagAllByTagID(id); untagErr != nil {
+		fmt.Printf("Error untagging by tag ID: %v\n", untagErr)
 	}
 	err := db.DeleteTagByID(id)
 	if err != nil {
@@ -823,18 +879,18 @@ func makeQuery(url string) ([]byte, error) {
 	}
 
 	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			fmt.Printf("Error closing response body: %v\n", err)
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			fmt.Printf("Error closing response body: %v\n", closeErr)
 		}
 	}()
 	fmt.Println("Response status:", resp.Status)
-	body, err := io.ReadAll(resp.Body)
+	body, readErr := io.ReadAll(resp.Body)
 
-	return body, err
+	return body, readErr
 }
 
 // GetSearchFromGpodder get search from gpodder.
-func GetSearchFromGpodder(pod model.GPodcast) *model.CommonSearchResultModel {
+func GetSearchFromGpodder(pod *model.GPodcast) *model.CommonSearchResultModel {
 	p := new(model.CommonSearchResultModel)
 	p.URL = pod.URL
 	p.Image = pod.LogoURL
@@ -844,7 +900,7 @@ func GetSearchFromGpodder(pod model.GPodcast) *model.CommonSearchResultModel {
 }
 
 // GetSearchFromItunes get search from itunes.
-func GetSearchFromItunes(pod model.ItunesSingleResult) *model.CommonSearchResultModel {
+func GetSearchFromItunes(pod *model.ItunesSingleResult) *model.CommonSearchResultModel {
 	p := new(model.CommonSearchResultModel)
 	p.URL = pod.FeedURL
 	p.Image = pod.ArtworkURL600

@@ -64,7 +64,7 @@ func getSortOrder(sorting model.EpisodeSort) string {
 }
 
 // GetPaginatedPodcastItemsNew get paginated podcast items new.
-func GetPaginatedPodcastItemsNew(queryModel model.EpisodesFilter) (*[]PodcastItem, int64, error) {
+func GetPaginatedPodcastItemsNew(queryModel *model.EpisodesFilter) (*[]PodcastItem, int64, error) {
 	var podcasts []PodcastItem
 	var total int64
 	query := DB.Debug().Preload("Podcast")
@@ -109,7 +109,7 @@ func GetPaginatedPodcastItemsNew(queryModel model.EpisodesFilter) (*[]PodcastIte
 }
 
 // GetPaginatedPodcastItems get paginated podcast items.
-func GetPaginatedPodcastItems(page int, count int, downloadedOnly *bool, playedOnly *bool, fromDate time.Time, podcasts *[]PodcastItem, total *int64) error {
+func GetPaginatedPodcastItems(page, count int, downloadedOnly, playedOnly *bool, fromDate time.Time, podcasts *[]PodcastItem, total *int64) error {
 	query := DB.Preload("Podcast")
 	if downloadedOnly != nil {
 		if *downloadedOnly {
@@ -137,7 +137,7 @@ func GetPaginatedPodcastItems(page int, count int, downloadedOnly *bool, playedO
 }
 
 // GetPaginatedTags get paginated tags.
-func GetPaginatedTags(page int, count int, tags *[]Tag, total *int64) error {
+func GetPaginatedTags(page, count int, tags *[]Tag, total *int64) error {
 	query := DB.Preload("Podcasts")
 
 	result := query.Limit(count).Offset((page - 1) * count).Order("created_at desc").Find(&tags)
@@ -237,7 +237,6 @@ func UpdatePodcastItemFileSize(podcastItemID string, size int64) error {
 func GetAllPodcastItemsWithoutImage() (*[]PodcastItem, error) {
 	var podcastItems []PodcastItem
 	result := DB.Preload(clause.Associations).Where("local_image is ?", nil).Where("image != ?", "").Where("download_status=?", Downloaded).Order("created_at desc").Find(&podcastItems)
-	// fmt.Println("To be downloaded : " + string(len(podcastItems)))
 	return &podcastItems, result.Error
 }
 
@@ -250,7 +249,6 @@ func GetAllPodcastItemsToBeDownloaded() (*[]PodcastItem, error) {
 
 	var podcastItems []PodcastItem
 	result := DB.Preload(clause.Associations).Where("download_status=?", NotDownloaded).Find(&podcastItems)
-	// fmt.Println("To be downloaded : " + string(len(podcastItems)))
 	return &podcastItems, result.Error
 }
 
@@ -328,13 +326,13 @@ func GetPodcastItemsByPodcastIDAndGUIDs(podcastID string, guids []string) (*[]Po
 }
 
 // GetPodcastItemByPodcastIDAndGUID get podcast item by podcast id and g u i d.
-func GetPodcastItemByPodcastIDAndGUID(podcastID string, guid string, podcastItem *PodcastItem) error {
+func GetPodcastItemByPodcastIDAndGUID(podcastID, guid string, podcastItem *PodcastItem) error {
 	result := DB.Preload(clause.Associations).Where(&PodcastItem{PodcastID: podcastID, GUID: guid}).First(&podcastItem)
 	return result.Error
 }
 
 // GetPodcastByTitleAndAuthor get podcast by title and author.
-func GetPodcastByTitleAndAuthor(title string, author string, podcast *Podcast) error {
+func GetPodcastByTitleAndAuthor(title, author string, podcast *Podcast) error {
 	result := DB.Preload(clause.Associations).Where(&Podcast{Title: title, Author: author}).First(&podcast)
 	return result.Error
 }

@@ -61,21 +61,20 @@ func main() {
 		},
 		"naturalDate": func(raw time.Time) string {
 			return service.NatualTime(time.Now(), raw)
-			// return raw.Format("Jan 2 2006")
 		},
 		"latestEpisodeDate": func(podcastItems []db.PodcastItem) string {
 			var latest time.Time
-			for _, item := range podcastItems {
-				if item.PubDate.After(latest) {
-					latest = item.PubDate
+			for i := range podcastItems {
+				if podcastItems[i].PubDate.After(latest) {
+					latest = podcastItems[i].PubDate
 				}
 			}
 			return latest.Format("Jan 2 2006")
 		},
 		"downloadedEpisodes": func(podcastItems []db.PodcastItem) int {
 			count := 0
-			for _, item := range podcastItems {
-				if item.DownloadStatus == db.Downloaded {
+			for i := range podcastItems {
+				if podcastItems[i].DownloadStatus == db.Downloaded {
 					count++
 				}
 			}
@@ -83,8 +82,8 @@ func main() {
 		},
 		"downloadingEpisodes": func(podcastItems []db.PodcastItem) int {
 			count := 0
-			for _, item := range podcastItems {
-				if item.DownloadStatus == db.NotDownloaded {
+			for i := range podcastItems {
+				if podcastItems[i].DownloadStatus == db.NotDownloaded {
 					count++
 				}
 			}
@@ -130,7 +129,6 @@ func main() {
 	}
 	tmpl := template.Must(template.New("main").Funcs(funcMap).ParseGlob("client/*"))
 
-	// r.LoadHTMLGlob("client/*")
 	r.SetHTMLTemplate(tmpl)
 
 	pass := os.Getenv("PASSWORD")
@@ -226,13 +224,24 @@ func intiCron() {
 	}
 	freq := uint64(checkFrequency) //nolint:gosec // G115: Safe conversion - checkFrequency validated to be positive
 	service.UnlockMissedJobs()
-	// gocron.Every(freq).Minutes().Do(service.DownloadMissingEpisodes)
-	_ = gocron.Every(freq).Minutes().Do(service.RefreshEpisodes)
-	_ = gocron.Every(freq).Minutes().Do(service.CheckMissingFiles)
-	_ = gocron.Every(freq * 2).Minutes().Do(service.UnlockMissedJobs)
-	_ = gocron.Every(freq * 3).Minutes().Do(service.UpdateAllFileSizes)
-	_ = gocron.Every(freq).Minutes().Do(service.DownloadMissingImages)
-	_ = gocron.Every(2).Days().Do(service.CreateBackup)
+	if err := gocron.Every(freq).Minutes().Do(service.RefreshEpisodes); err != nil {
+		log.Printf("failed to schedule RefreshEpisodes: %v", err)
+	}
+	if err := gocron.Every(freq).Minutes().Do(service.CheckMissingFiles); err != nil {
+		log.Printf("failed to schedule CheckMissingFiles: %v", err)
+	}
+	if err := gocron.Every(freq * 2).Minutes().Do(service.UnlockMissedJobs); err != nil {
+		log.Printf("failed to schedule UnlockMissedJobs: %v", err)
+	}
+	if err := gocron.Every(freq * 3).Minutes().Do(service.UpdateAllFileSizes); err != nil {
+		log.Printf("failed to schedule UpdateAllFileSizes: %v", err)
+	}
+	if err := gocron.Every(freq).Minutes().Do(service.DownloadMissingImages); err != nil {
+		log.Printf("failed to schedule DownloadMissingImages: %v", err)
+	}
+	if err := gocron.Every(2).Days().Do(service.CreateBackup); err != nil {
+		log.Printf("failed to schedule CreateBackup: %v", err)
+	}
 	<-gocron.Start()
 }
 

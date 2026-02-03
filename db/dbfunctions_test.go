@@ -823,7 +823,7 @@ func TestGetPaginatedPodcastItemsNew(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			items, total, err := GetPaginatedPodcastItemsNew(tt.filter)
+			items, total, err := GetPaginatedPodcastItemsNew(&tt.filter)
 
 			require.NoError(t, err, "Should get items")
 			assert.Len(t, *items, tt.wantCount, "Should return correct count")

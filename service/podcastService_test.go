@@ -693,7 +693,7 @@ func TestGetSearchFromItunes(t *testing.T) {
 		ArtworkURL600: "https://example.com/artwork.jpg",
 	}
 
-	result := GetSearchFromItunes(itunesResult)
+	result := GetSearchFromItunes(&itunesResult)
 
 	require.NotNil(t, result, "Should convert iTunes result")
 	assert.Equal(t, "Test Podcast", result.Title, "Should have correct title")
@@ -710,7 +710,7 @@ func TestGetSearchFromGpodder(t *testing.T) {
 		Description: "Test description",
 	}
 
-	result := GetSearchFromGpodder(gpodderResult)
+	result := GetSearchFromGpodder(&gpodderResult)
 
 	require.NotNil(t, result, "Should convert GPodder result")
 	assert.Equal(t, "Test Podcast", result.Title, "Should have correct title")

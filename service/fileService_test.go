@@ -132,7 +132,7 @@ func TestFileExists(t *testing.T) {
 
 	// Create a test file
 	testFile := filepath.Join(dataDir, "test-file.txt")
-	err := os.WriteFile(testFile, []byte("test content"), 0600)
+	err := os.WriteFile(testFile, []byte("test content"), 0o600)
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -167,7 +167,7 @@ func TestDeleteFile(t *testing.T) {
 
 	// Create a test file
 	testFile := filepath.Join(dataDir, "test-delete.txt")
-	err := os.WriteFile(testFile, []byte("to be deleted"), 0600)
+	err := os.WriteFile(testFile, []byte("to be deleted"), 0o600)
 	require.NoError(t, err)
 
 	// Delete the file
@@ -191,7 +191,7 @@ func TestGetFileSize(t *testing.T) {
 	// Create test file with known size
 	testContent := []byte("Hello, this is test content!")
 	testFile := filepath.Join(dataDir, "test-size.txt")
-	err := os.WriteFile(testFile, testContent, 0600)
+	err := os.WriteFile(testFile, testContent, 0o600)
 	require.NoError(t, err)
 
 	// Get file size
@@ -557,7 +557,7 @@ func TestDeletePodcastFolder(t *testing.T) {
 	folderPath := createDataFolderIfNotExists(podcastName)
 
 	testFile := filepath.Join(folderPath, "test.txt")
-	err := os.WriteFile(testFile, []byte("test"), 0600)
+	err := os.WriteFile(testFile, []byte("test"), 0o600)
 	require.NoError(t, err)
 
 	// Delete folder
@@ -614,7 +614,7 @@ func TestGetAllBackupFiles(t *testing.T) {
 
 	// Create backup folder and files
 	backupFolder := filepath.Join(configDir, "backups")
-	err := os.MkdirAll(backupFolder, 0755) // nolint:gosec // Test directory - 0755 is appropriate
+	err := os.MkdirAll(backupFolder, 0o755) // nolint:gosec // Test directory - 0755 is appropriate
 	require.NoError(t, err, "Should create backup folder")
 
 	// Create test backup files
@@ -626,8 +626,8 @@ func TestGetAllBackupFiles(t *testing.T) {
 
 	for _, file := range backupFiles {
 		filePath := filepath.Join(backupFolder, file)
-		err := os.WriteFile(filePath, []byte("backup"), 0600)
-		require.NoError(t, err)
+		writeErr := os.WriteFile(filePath, []byte("backup"), 0o600)
+		require.NoError(t, writeErr)
 	}
 
 	// Get backup files

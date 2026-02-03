@@ -18,7 +18,7 @@ type Repository interface {
 	GetPodcastsByURLList(urls []string, podcasts *[]db.Podcast) error
 	GetAllPodcasts(podcasts *[]db.Podcast, sorting string) error
 	GetPodcastByID(id string, podcast *db.Podcast) error
-	GetPodcastByTitleAndAuthor(title string, author string, podcast *db.Podcast) error
+	GetPodcastByTitleAndAuthor(title, author string, podcast *db.Podcast) error
 	CreatePodcast(podcast *db.Podcast) error
 	UpdatePodcast(podcast *db.Podcast) error
 	DeletePodcastByID(id string) error
@@ -30,14 +30,14 @@ type Repository interface {
 	// PodcastItem operations
 	GetAllPodcastItems(podcasts *[]db.PodcastItem) error
 	GetAllPodcastItemsWithoutSize() (*[]db.PodcastItem, error)
-	GetPaginatedPodcastItemsNew(queryModel model.EpisodesFilter) (*[]db.PodcastItem, int64, error)
-	GetPaginatedPodcastItems(page int, count int, downloadedOnly *bool, playedOnly *bool, fromDate time.Time, podcasts *[]db.PodcastItem, total *int64) error
+	GetPaginatedPodcastItemsNew(queryModel *model.EpisodesFilter) (*[]db.PodcastItem, int64, error)
+	GetPaginatedPodcastItems(page, count int, downloadedOnly, playedOnly *bool, fromDate time.Time, podcasts *[]db.PodcastItem, total *int64) error
 	GetPodcastItemByID(id string, podcastItem *db.PodcastItem) error
 	GetAllPodcastItemsByPodcastID(podcastID string, podcastItems *[]db.PodcastItem) error
 	GetAllPodcastItemsByPodcastIDs(podcastIDs []string, podcastItems *[]db.PodcastItem) error
 	GetAllPodcastItemsByIDs(podcastItemIDs []string) (*[]db.PodcastItem, error)
 	GetPodcastItemsByPodcastIDAndGUIDs(podcastID string, guids []string) (*[]db.PodcastItem, error)
-	GetPodcastItemByPodcastIDAndGUID(podcastID string, guid string, podcastItem *db.PodcastItem) error
+	GetPodcastItemByPodcastIDAndGUID(podcastID, guid string, podcastItem *db.PodcastItem) error
 	GetAllPodcastItemsWithoutImage() (*[]db.PodcastItem, error)
 	GetAllPodcastItemsToBeDownloaded() (*[]db.PodcastItem, error)
 	GetAllPodcastItemsAlreadyDownloaded() (*[]db.PodcastItem, error)
@@ -53,7 +53,7 @@ type Repository interface {
 
 	// Tag operations
 	GetAllTags(sorting string) (*[]db.Tag, error)
-	GetPaginatedTags(page int, count int, tags *[]db.Tag, total *int64) error
+	GetPaginatedTags(page, count int, tags *[]db.Tag, total *int64) error
 	GetTagByID(id string) (*db.Tag, error)
 	GetTagsByIDs(ids []string) (*[]db.Tag, error)
 	GetTagByLabel(label string) (*db.Tag, error)

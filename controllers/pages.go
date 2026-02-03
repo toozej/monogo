@@ -50,15 +50,22 @@ var searchProvider = map[string]service.SearchService{
 
 // AddPage handles the add page request.
 func AddPage(c *gin.Context) {
-	setting := c.MustGet("setting").(*db.Setting)
+	setting, ok := c.MustGet("setting").(*db.Setting)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve settings"})
+		return
+	}
 	c.HTML(http.StatusOK, "addPodcast.html", gin.H{"title": "Add Podcast", "setting": setting, "searchOptions": searchOptions})
 }
 
 // HomePage handles the home page request.
 func HomePage(c *gin.Context) {
-	// var podcasts []db.Podcast
 	podcasts := service.GetAllPodcasts("")
-	setting := c.MustGet("setting").(*db.Setting)
+	setting, ok := c.MustGet("setting").(*db.Setting)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve settings"})
+		return
+	}
 	c.HTML(http.StatusOK, "index.html", gin.H{"title": "Podgrab", "podcasts": podcasts, "setting": setting})
 }
 
@@ -78,7 +85,11 @@ func PodcastPage(c *gin.Context) {
 				if count = pagination.Count; count == 0 {
 					count = 10
 				}
-				setting := c.MustGet("setting").(*db.Setting)
+				setting, ok := c.MustGet("setting").(*db.Setting)
+				if !ok {
+					c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve settings"})
+					return
+				}
 				totalCount := len(podcast.PodcastItems)
 				totalPages := int(math.Ceil(float64(totalCount) / float64(count)))
 				nextPage, previousPage := 0, 0
@@ -122,7 +133,11 @@ func getItemsToPlay(itemIDs []string, podcastID string, tagIDs []string) []db.Po
 	var items []db.PodcastItem
 	switch {
 	case len(itemIDs) > 0:
-		toAdd, _ := service.GetAllPodcastItemsByIDs(itemIDs)
+		toAdd, err := service.GetAllPodcastItemsByIDs(itemIDs)
+		if err != nil {
+			fmt.Printf("Error getting podcast items by IDs: %v\n", err)
+			return []db.PodcastItem{}
+		}
 		items = *toAdd
 	case podcastID != "":
 		pod := service.GetPodcastByID(podcastID)
@@ -130,9 +145,9 @@ func getItemsToPlay(itemIDs []string, podcastID string, tagIDs []string) []db.Po
 	case len(tagIDs) != 0:
 		tags := service.GetTagsByIDs(tagIDs)
 		podIDs := make([]string, 0, len(*tags)*5) // Preallocate with estimated capacity
-		for _, tag := range *tags {
-			for _, pod := range tag.Podcasts {
-				podIDs = append(podIDs, pod.ID)
+		for i := range *tags {
+			for j := range (*tags)[i].Podcasts {
+				podIDs = append(podIDs, (*tags)[i].Podcasts[j].ID)
 			}
 		}
 		items = *service.GetAllPodcastItemsByPodcastIDs(podIDs)
@@ -150,7 +165,12 @@ func PlayerPage(c *gin.Context) {
 	var totalCount int64
 	switch {
 	case hasItemIDs:
-		toAdd, _ := service.GetAllPodcastItemsByIDs(itemIDs)
+		toAdd, err := service.GetAllPodcastItemsByIDs(itemIDs)
+		if err != nil {
+			fmt.Printf("Error getting podcast items by IDs: %v\n", err)
+			c.HTML(http.StatusInternalServerError, "error.html", gin.H{"error": "Failed to load items"})
+			return
+		}
 		items = *toAdd
 		totalCount = int64(len(items))
 	case hasPodcastID:
@@ -162,10 +182,10 @@ func PlayerPage(c *gin.Context) {
 		tags := service.GetTagsByIDs(tagIDs)
 		tagNames := make([]string, 0, len(*tags))
 		podIDs := make([]string, 0, len(*tags)*5) // Preallocate with estimated capacity
-		for _, tag := range *tags {
-			tagNames = append(tagNames, tag.Label)
-			for _, pod := range tag.Podcasts {
-				podIDs = append(podIDs, pod.ID)
+		for i := range *tags {
+			tagNames = append(tagNames, (*tags)[i].Label)
+			for j := range (*tags)[i].Podcasts {
+				podIDs = append(podIDs, (*tags)[i].Podcasts[j].ID)
 			}
 		}
 		items = *service.GetAllPodcastItemsByPodcastIDs(podIDs)
@@ -180,7 +200,11 @@ func PlayerPage(c *gin.Context) {
 			fmt.Println(err.Error())
 		}
 	}
-	setting := c.MustGet("setting").(*db.Setting)
+	setting, ok := c.MustGet("setting").(*db.Setting)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve settings"})
+		return
+	}
 
 	c.HTML(http.StatusOK, "player.html", gin.H{
 		"title":          title,
@@ -194,8 +218,15 @@ func PlayerPage(c *gin.Context) {
 
 // SettingsPage handles the settings page request.
 func SettingsPage(c *gin.Context) {
-	setting := c.MustGet("setting").(*db.Setting)
-	diskStats, _ := db.GetPodcastEpisodeDiskStats()
+	setting, ok := c.MustGet("setting").(*db.Setting)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve settings"})
+		return
+	}
+	diskStats, err := db.GetPodcastEpisodeDiskStats()
+	if err != nil {
+		fmt.Printf("Error getting disk stats: %v\n", err)
+	}
 	c.HTML(http.StatusOK, "settings.html", gin.H{
 		"setting":   setting,
 		"title":     "Update your preferences",
@@ -207,15 +238,19 @@ func SettingsPage(c *gin.Context) {
 func BackupsPage(c *gin.Context) {
 	files, err := service.GetAllBackupFiles()
 	var allFiles []interface{}
-	setting := c.MustGet("setting").(*db.Setting)
+	setting, ok := c.MustGet("setting").(*db.Setting)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve settings"})
+		return
+	}
 
 	for _, file := range files {
 		arr := strings.Split(file, string(os.PathSeparator))
 		name := arr[len(arr)-1]
 		subsplit := strings.Split(name, "_")
 		dateStr := subsplit[2]
-		date, err := time.Parse("2006.01.02", dateStr)
-		if err == nil {
+		date, parseErr := time.Parse("2006.01.02", dateStr)
+		if parseErr == nil {
 			toAdd := map[string]interface{}{
 				"date": date,
 				"name": name,
@@ -251,11 +286,21 @@ func getSortOptions() interface{} {
 func AllEpisodesPage(c *gin.Context) {
 	var filter model.EpisodesFilter
 	// Use default filter values if binding fails
-	_ = c.ShouldBindQuery(&filter)
+	if err := c.ShouldBindQuery(&filter); err != nil {
+		fmt.Printf("Error binding query parameters: %v\n", err)
+	}
 	filter.VerifyPaginationValues()
-	setting := c.MustGet("setting").(*db.Setting)
+	setting, ok := c.MustGet("setting").(*db.Setting)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve settings"})
+		return
+	}
 	podcasts := service.GetAllPodcasts("")
-	tags, _ := db.GetAllTags("")
+	tags, err := db.GetAllTags("")
+	if err != nil {
+		fmt.Printf("Error getting all tags: %v\n", err)
+		tags = &[]db.Tag{}
+	}
 	toReturn := gin.H{
 		"title":        "All Episodes",
 		"podcastItems": []db.PodcastItem{},
@@ -275,7 +320,9 @@ func AllTagsPage(c *gin.Context) {
 	var pagination model.Pagination
 	var page, count int
 	// Use default pagination values if binding fails
-	_ = c.ShouldBindQuery(&pagination)
+	if err := c.ShouldBindQuery(&pagination); err != nil {
+		fmt.Printf("Error binding query parameters: %v\n", err)
+	}
 	if page = pagination.Page; page == 0 {
 		page = 1
 	}
@@ -285,11 +332,14 @@ func AllTagsPage(c *gin.Context) {
 
 	var tags []db.Tag
 	var totalCount int64
-	// fmt.Printf("%+v\n", filter)
 
 	if err := db.GetPaginatedTags(page, count,
 		&tags, &totalCount); err == nil {
-		setting := c.MustGet("setting").(*db.Setting)
+		setting, ok := c.MustGet("setting").(*db.Setting)
+		if !ok {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve settings"})
+			return
+		}
 		totalPages := math.Ceil(float64(totalCount) / float64(count))
 		nextPage, previousPage := 0, 0
 		if float64(page) < totalPages {
@@ -329,12 +379,12 @@ func Search(c *gin.Context) {
 		allPodcasts := service.GetAllPodcasts("")
 
 		urls := make(map[string]string, len(*allPodcasts))
-		for _, pod := range *allPodcasts {
-			urls[pod.URL] = pod.ID
+		for i := range *allPodcasts {
+			urls[(*allPodcasts)[i].URL] = (*allPodcasts)[i].ID
 		}
-		for _, pod := range data {
-			_, ok := urls[pod.URL]
-			pod.AlreadySaved = ok
+		for i := range data {
+			_, ok := urls[data[i].URL]
+			data[i].AlreadySaved = ok
 		}
 		c.JSON(200, data)
 	}
@@ -361,13 +411,13 @@ func UploadOpml(c *gin.Context) {
 		return
 	}
 	defer func() {
-		if err := file.Close(); err != nil {
-			fmt.Printf("Error closing file: %v\n", err)
+		if closeErr := file.Close(); closeErr != nil {
+			fmt.Printf("Error closing file: %v\n", closeErr)
 		}
 	}()
 
 	buf := bytes.NewBuffer(nil)
-	if _, err := io.Copy(buf, file); err != nil {
+	if _, copyErr := io.Copy(buf, file); copyErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request"})
 		return
 	}
@@ -389,8 +439,8 @@ func AddNewPodcast(c *gin.Context) {
 		_, err = service.AddPodcast(addPodcastData.URL)
 		if err == nil {
 			go func() {
-				if err := service.RefreshEpisodes(); err != nil {
-					fmt.Printf("Error refreshing episodes: %v\n", err)
+				if refreshErr := service.RefreshEpisodes(); refreshErr != nil {
+					fmt.Printf("Error refreshing episodes: %v\n", refreshErr)
 				}
 			}()
 			c.Redirect(http.StatusFound, "/")
@@ -398,7 +448,6 @@ func AddNewPodcast(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, err)
 		}
 	} else {
-		//	fmt.Println(err.Error())
 		c.JSON(http.StatusBadRequest, err)
 	}
 }

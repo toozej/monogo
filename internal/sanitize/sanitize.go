@@ -53,7 +53,7 @@ func HTMLAllowing(s string, args ...[]string) (string, error) {
 
 		case parser.StartTagToken:
 
-			if len(ignore) == 0 && includes(allowedTags, token.Data) {
+			if ignore == "" && includes(allowedTags, token.Data) {
 				token.Attr = cleanAttributes(token.Attr, allowedAttributes)
 				buffer.WriteString(token.String())
 			} else if includes(ignoreTags, token.Data) {
@@ -62,7 +62,7 @@ func HTMLAllowing(s string, args ...[]string) (string, error) {
 
 		case parser.SelfClosingTagToken:
 
-			if len(ignore) == 0 && includes(allowedTags, token.Data) {
+			if ignore == "" && includes(allowedTags, token.Data) {
 				token.Attr = cleanAttributes(token.Attr, allowedAttributes)
 				buffer.WriteString(token.String())
 			} else if token.Data == ignore {
@@ -70,7 +70,7 @@ func HTMLAllowing(s string, args ...[]string) (string, error) {
 			}
 
 		case parser.EndTagToken:
-			if len(ignore) == 0 && includes(allowedTags, token.Data) {
+			if ignore == "" && includes(allowedTags, token.Data) {
 				token.Attr = []parser.Attribute{}
 				buffer.WriteString(token.String())
 			} else if token.Data == ignore {
@@ -153,7 +153,7 @@ func HTML(s string) (output string) {
 }
 
 // We are very restrictive as this is intended for ascii url slugs
-var illegalPath = regexp.MustCompile(`[^[:alnum:]\~\-\./]`)
+var illegalPath = regexp.MustCompile(`[^[:alnum:]\~\-./]`)
 
 // Path makes a string safe to use as a URL path,
 // removing accents and replacing separators with -.

@@ -31,7 +31,7 @@ func RunMigrations() {
 }
 
 // ExecuteAndSaveMigration execute and save migration.
-func ExecuteAndSaveMigration(name string, query string) error {
+func ExecuteAndSaveMigration(name, query string) error {
 	var migration Migration
 	result := DB.Where("name=?", name).First(&migration)
 	if errors.Is(result.Error, gorm.ErrRecordNotFound) {

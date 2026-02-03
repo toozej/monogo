@@ -51,7 +51,7 @@ func (r *SQLiteRepository) GetPodcastByID(id string, podcast *db.Podcast) error 
 }
 
 // GetPodcastByTitleAndAuthor retrieves a podcast by its title and author.
-func (r *SQLiteRepository) GetPodcastByTitleAndAuthor(title string, author string, podcast *db.Podcast) error {
+func (r *SQLiteRepository) GetPodcastByTitleAndAuthor(title, author string, podcast *db.Podcast) error {
 	return db.GetPodcastByTitleAndAuthor(title, author, podcast)
 }
 
@@ -105,12 +105,12 @@ func (r *SQLiteRepository) GetAllPodcastItemsWithoutSize() (*[]db.PodcastItem, e
 }
 
 // GetPaginatedPodcastItemsNew retrieves paginated episodes with advanced filtering.
-func (r *SQLiteRepository) GetPaginatedPodcastItemsNew(queryModel model.EpisodesFilter) (*[]db.PodcastItem, int64, error) {
+func (r *SQLiteRepository) GetPaginatedPodcastItemsNew(queryModel *model.EpisodesFilter) (*[]db.PodcastItem, int64, error) {
 	return db.GetPaginatedPodcastItemsNew(queryModel)
 }
 
 // GetPaginatedPodcastItems retrieves paginated episodes with basic filtering.
-func (r *SQLiteRepository) GetPaginatedPodcastItems(page int, count int, downloadedOnly *bool, playedOnly *bool, fromDate time.Time, podcasts *[]db.PodcastItem, total *int64) error {
+func (r *SQLiteRepository) GetPaginatedPodcastItems(page, count int, downloadedOnly, playedOnly *bool, fromDate time.Time, podcasts *[]db.PodcastItem, total *int64) error {
 	return db.GetPaginatedPodcastItems(page, count, downloadedOnly, playedOnly, fromDate, podcasts, total)
 }
 
@@ -144,7 +144,7 @@ func (r *SQLiteRepository) GetPodcastItemsByPodcastIDAndGUIDs(podcastID string, 
 }
 
 // GetPodcastItemByPodcastIDAndGUID retrieves an episode by podcast ID and GUID.
-func (r *SQLiteRepository) GetPodcastItemByPodcastIDAndGUID(podcastID string, guid string, podcastItem *db.PodcastItem) error {
+func (r *SQLiteRepository) GetPodcastItemByPodcastIDAndGUID(podcastID, guid string, podcastItem *db.PodcastItem) error {
 	return db.GetPodcastItemByPodcastIDAndGUID(podcastID, guid, podcastItem)
 }
 
@@ -210,7 +210,7 @@ func (r *SQLiteRepository) GetAllTags(sorting string) (*[]db.Tag, error) {
 }
 
 // GetPaginatedTags retrieves paginated tags.
-func (r *SQLiteRepository) GetPaginatedTags(page int, count int, tags *[]db.Tag, total *int64) error {
+func (r *SQLiteRepository) GetPaginatedTags(page, count int, tags *[]db.Tag, total *int64) error {
 	return db.GetPaginatedTags(page, count, tags, total)
 }
 
