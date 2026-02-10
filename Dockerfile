@@ -31,4 +31,5 @@ COPY --from=build /go/kmhd2spotify/kmhd2spotify /go/bin/kmhd2spotify
 # Expose port for publishing as web service
 EXPOSE 8080
 # Run the binary.
+USER nonroot
 ENTRYPOINT ["/go/bin/kmhd2spotify"]
