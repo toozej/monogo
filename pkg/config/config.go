@@ -51,7 +51,7 @@ type SpotifyConfig struct {
 	ClientID string `env:"CLIENT_ID"`
 
 	// ClientSecret is the Spotify application client secret.
-	ClientSecret string `env:"CLIENT_SECRET"`
+	ClientSecret string `env:"CLIENT_SECRET"` // #nosec G117 -- OAuth client secret, expected in config
 
 	// RedirectURL is the callback URL for OAuth authentication.
 	RedirectURL string `env:"REDIRECT_URI"`

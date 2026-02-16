@@ -32,8 +32,8 @@ type Client struct {
 
 // TokenData represents the stored token information
 type TokenData struct {
-	AccessToken  string    `json:"access_token"`
-	RefreshToken string    `json:"refresh_token"`
+	AccessToken  string    `json:"access_token"`  // #nosec G117 -- OAuth token, expected to be stored
+	RefreshToken string    `json:"refresh_token"` // #nosec G117 -- OAuth token, expected to be stored
 	TokenType    string    `json:"token_type"`
 	Expiry       time.Time `json:"expiry"`
 }

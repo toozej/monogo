@@ -120,7 +120,7 @@ func (c *KMHDAPIClient) FetchPlaylist(date time.Time) (*types.SongCollection, er
 
 	for attempt := 1; attempt <= maxRetries; attempt++ {
 		attemptStart := time.Now()
-		resp, err = c.httpClient.Do(req)
+		resp, err = c.httpClient.Do(req) // #nosec G704 -- URL is hardcoded KMHD API endpoint
 		requestDuration = time.Since(attemptStart)
 
 		if err == nil && resp.StatusCode != http.StatusBadGateway && resp.StatusCode != http.StatusGatewayTimeout {
