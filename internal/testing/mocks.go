@@ -1,5 +1,5 @@
 //nolint:revive // Mock implementation - many trivial method wrappers with intentionally simplified signatures
-package testing
+package testhelpers
 
 import (
 	"errors"

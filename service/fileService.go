@@ -447,7 +447,7 @@ func createFolder(folder, parent string) string {
 	folder = cleanFileName(folder)
 	folderPath := path.Join(parent, folder)
 	if _, err := os.Stat(folderPath); os.IsNotExist(err) { //nolint:gosec // G703: folderPath constructed from sanitized folder name via cleanFileName()
-		if err := os.MkdirAll(folderPath, 0o750); err != nil {
+		if err := os.MkdirAll(folderPath, 0o750); err != nil { //nolint:gosec // G703: folderPath constructed from sanitized folder name via cleanFileName()
 			logger.Log.Errorw("creating folder", "error", err)
 		}
 		changeOwnership(folderPath)

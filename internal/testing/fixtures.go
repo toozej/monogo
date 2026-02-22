@@ -1,7 +1,7 @@
-// Package testing provides test fixtures and mock data for unit and integration tests.
+// Package testhelpers provides test fixtures and mock data for unit and integration tests.
 // This package contains RSS feed examples, test data constants, and helper utilities
 // for creating consistent test scenarios.
-package testing
+package testhelpers
 
 import "fmt"
 

@@ -30,7 +30,7 @@ func TestPodcastWorkflow_ViewHomePage(t *testing.T) {
 	var title string
 	err = chromedp.Run(ctx, chromedp.Title(&title))
 	assert.NoError(t, err, "Should get page title")
-	assert.Contains(t, title, "Podgrab", "Title should contain Podgrab")
+	assert.Contains(t, title, "PodGrab", "Title should contain PodGrab")
 }
 
 // TestPodcastWorkflow_ViewPodcastsList tests viewing the podcasts list.

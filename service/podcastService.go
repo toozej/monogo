@@ -854,7 +854,7 @@ func makeQuery(url string) ([]byte, error) {
 		return nil, err
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req) //nolint:gosec // G704: URL is a user-provided podcast RSS feed URL, SSRF is by design
 	if err != nil {
 		return nil, err
 	}
