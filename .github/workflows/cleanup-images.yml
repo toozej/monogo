@@ -16,6 +16,7 @@ jobs:
     steps:
       - name: Cleanup old images
         uses: dataaxiom/ghcr-cleanup-action@v1
+        continue-on-error: true
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           package: podgrab

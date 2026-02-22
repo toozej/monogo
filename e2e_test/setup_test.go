@@ -30,6 +30,19 @@ var (
 	skipE2E        bool
 )
 
+// newExecAllocatorOpts returns chromedp exec allocator options appropriate for
+// the current environment, including CI-specific flags when running in CI.
+func newExecAllocatorOpts(extra ...chromedp.ExecAllocatorOption) []chromedp.ExecAllocatorOption {
+	opts := append(chromedp.DefaultExecAllocatorOptions[:],
+		chromedp.Flag("disable-dev-shm-usage", true),
+		chromedp.Flag("disable-gpu", true),
+	)
+	if os.Getenv("CI") != "" || os.Getenv("GITHUB_ACTIONS") != "" {
+		opts = append(opts, chromedp.Flag("no-sandbox", true))
+	}
+	return append(opts, extra...)
+}
+
 // checkChromeAvailable checks if Chrome/Chromium is installed.
 func checkChromeAvailable() bool {
 	browsers := []string{

@@ -14,9 +14,7 @@ import (
 // TestResponsive_MobileView tests the mobile viewport rendering.
 func TestResponsive_MobileView(t *testing.T) {
 	// Create browser context with mobile viewport
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.WindowSize(375, 667), // iPhone SE dimensions
-	)
+	opts := newExecAllocatorOpts(chromedp.WindowSize(375, 667)) // iPhone SE dimensions
 
 	allocCtx, cancel := chromedp.NewExecAllocator(context.Background(), opts...)
 	defer cancel()
@@ -34,9 +32,7 @@ func TestResponsive_MobileView(t *testing.T) {
 // TestResponsive_TabletView tests the tablet viewport rendering.
 func TestResponsive_TabletView(t *testing.T) {
 	// Create browser context with tablet viewport
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.WindowSize(768, 1024), // iPad dimensions
-	)
+	opts := newExecAllocatorOpts(chromedp.WindowSize(768, 1024)) // iPad dimensions
 
 	allocCtx, cancel := chromedp.NewExecAllocator(context.Background(), opts...)
 	defer cancel()
@@ -54,9 +50,7 @@ func TestResponsive_TabletView(t *testing.T) {
 // TestResponsive_DesktopView tests the desktop viewport rendering.
 func TestResponsive_DesktopView(t *testing.T) {
 	// Create browser context with desktop viewport
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.WindowSize(1920, 1080), // Full HD desktop
-	)
+	opts := newExecAllocatorOpts(chromedp.WindowSize(1920, 1080)) // Full HD desktop
 
 	allocCtx, cancel := chromedp.NewExecAllocator(context.Background(), opts...)
 	defer cancel()
