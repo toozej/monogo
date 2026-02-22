@@ -100,11 +100,20 @@ func TestMain(m *testing.M) {
 
 	// Pre-warm Chrome so it's ready before the first test runs.
 	// Without this, Chrome startup time counts against the first test's timeout.
-	warmupCtx, warmupCancel := context.WithTimeout(testBrowserCtx, 60*time.Second)
-	if err := chromedp.Run(warmupCtx, chromedp.Navigate("about:blank")); err != nil {
+	//
+	// IMPORTANT: Use chromedp.NewContext (not context.WithTimeout) so the pre-warm
+	// gets its own chromedp *Context. If we used context.WithTimeout(testBrowserCtx),
+	// the warmup context would share testBrowserCtx's *Context, and calling
+	// warmupCancel() would trigger chromedp's internal cleanup for that shared
+	// *Context — effectively cancelling testBrowserCtx and causing all subsequent
+	// tests to fail immediately with "context canceled".
+	preWarmCtx, preWarmCancel := chromedp.NewContext(testBrowserCtx)
+	warmupRunCtx, warmupRunCancel := context.WithTimeout(preWarmCtx, 60*time.Second)
+	if err := chromedp.Run(warmupRunCtx, chromedp.Navigate("about:blank")); err != nil {
 		fmt.Printf("WARNING: Failed to pre-warm browser: %v\n", err)
 	}
-	warmupCancel()
+	warmupRunCancel()
+	preWarmCancel()
 
 	// Run tests
 	exitCode := m.Run()
