@@ -207,10 +207,10 @@ func GetAllPodcastItemsByIDs(podcastItemIDs []string) (*[]PodcastItem, error) {
 	sb.WriteString("\n CASE ID \n")
 
 	for i, v := range podcastItemIDs {
-		sb.WriteString(fmt.Sprintf("WHEN '%v' THEN %v \n", v, i+1))
+		fmt.Fprintf(&sb, "WHEN '%v' THEN %v \n", v, i+1)
 	}
 
-	sb.WriteString(fmt.Sprintln("END"))
+	fmt.Fprintln(&sb, "END")
 
 	result := DB.Debug().Preload(clause.Associations).Where("id in ?", podcastItemIDs).Order(sb.String()).Find(&podcastItems)
 	return &podcastItems, result.Error

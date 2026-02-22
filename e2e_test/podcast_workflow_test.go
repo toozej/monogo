@@ -26,8 +26,9 @@ func TestPodcastWorkflow_ViewHomePage(t *testing.T) {
 	require.NoError(t, err, "Should find body element")
 
 	// Verify we're on the podcasts page
+	// Use chromedp.Title instead of getElementText because <title> is a non-visible head element
 	var title string
-	err = getElementText(ctx, "title", &title)
+	err = chromedp.Run(ctx, chromedp.Title(&title))
 	assert.NoError(t, err, "Should get page title")
 	assert.Contains(t, title, "Podgrab", "Title should contain Podgrab")
 }

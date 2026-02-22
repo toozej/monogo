@@ -52,7 +52,7 @@ func Download(link, episodeTitle, podcastName, prefix string) (string, error) {
 		logger.Log.Errorw("Error creating request: "+link, err)
 	}
 
-	resp, err := client.Do(req)
+	resp, err := client.Do(req) //nolint:gosec // G704: URL comes from user-provided podcast RSS feeds
 	if err != nil {
 		logger.Log.Errorw("Error getting response: "+link, err)
 		return "", err
@@ -141,7 +141,7 @@ func DownloadPodcastCoverImage(link, podcastName string) (string, error) {
 		return "", err
 	}
 
-	resp, err := client.Do(req)
+	resp, err := client.Do(req) //nolint:gosec // G704: URL comes from user-provided podcast RSS feeds
 	if err != nil {
 		logger.Log.Errorw("Error getting response: "+link, err)
 		return "", err
@@ -199,7 +199,7 @@ func DownloadImage(link, episodeID, podcastName string) (string, error) {
 		return "", err
 	}
 
-	resp, err := client.Do(req)
+	resp, err := client.Do(req) //nolint:gosec // G704: URL comes from user-provided podcast RSS feeds
 	if err != nil {
 		logger.Log.Errorw("Error getting response: "+link, err)
 		return "", err
@@ -250,7 +250,7 @@ func changeOwnership(filePath string) {
 	logger.Log.Debugw("Debug", "value", filePath)
 	if err1 == nil && err2 == nil {
 		logger.Log.Debugw("Debug", "value", filePath+" : Attempting change")
-		if err := os.Chown(filePath, uid, gid); err != nil {
+		if err := os.Chown(filePath, uid, gid); err != nil { //nolint:gosec // G703: filePath validated via validatePath() before calling changeOwnership
 			logger.Log.Errorw("changing ownership", "error", err)
 		}
 	}
@@ -359,7 +359,7 @@ func CreateBackup() (string, error) {
 	}()
 
 	dbPath := path.Join(configPath, "podgrab.db")
-	_, err = os.Stat(dbPath)
+	_, err = os.Stat(dbPath) //nolint:gosec // G703: dbPath constructed from CONFIG env var and fixed filename
 	if err != nil {
 		return "", fmt.Errorf("could not find db file '%s', got error '%s'", dbPath, err.Error())
 	}
@@ -446,7 +446,7 @@ func getRequest(urlStr string) (*http.Request, error) {
 func createFolder(folder, parent string) string {
 	folder = cleanFileName(folder)
 	folderPath := path.Join(parent, folder)
-	if _, err := os.Stat(folderPath); os.IsNotExist(err) {
+	if _, err := os.Stat(folderPath); os.IsNotExist(err) { //nolint:gosec // G703: folderPath constructed from sanitized folder name via cleanFileName()
 		if err := os.MkdirAll(folderPath, 0o750); err != nil {
 			logger.Log.Errorw("creating folder", "error", err)
 		}
