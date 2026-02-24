@@ -71,7 +71,14 @@ jobs:
         with:
           dockerfile: Dockerfile
           failure-threshold: warning
-          ignore: DL3018,DL3059
+          ignore: DL3018,DL3059,DL3007
+
+      - name: Lint Dockerfile.goreleaser
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile.goreleaser
+          failure-threshold: warning
+          ignore: DL3007
 
       - name: Check go.mod and go.sum are tidy
         run: |
