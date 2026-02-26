@@ -6,6 +6,14 @@ project_name: podgrab
 env:
   - GO111MODULE=on
 
+env_files:
+  gitlab_token: ~/nope
+  gitea_token: ~/nope
+
+before:
+  hooks:
+    - go mod tidy
+
 snapshot:
   version_template: "{{ incpatch .Version }}-next"
 
@@ -30,7 +38,8 @@ builds:
     flags:
       - -trimpath
     ldflags:
-      - -s -w
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{ .CommitDate
+        }} -X main.builtBy=goreleaser
     main: .
     binary: podgrab
 
@@ -73,6 +82,7 @@ dockers_v2:
     images:
       - "toozej/podgrab"
       - "ghcr.io/toozej/podgrab"
+      - "quay.io/toozej/podgrab"
     tags:
       - "v{{ .Version }}"
       - "{{ .Version }}"
@@ -121,6 +131,53 @@ archives:
     files:
       - README.md
       - LICENSE
+
+nfpms:
+  - file_name_template: '{{ .ConventionalFileName }}'
+    id: packages
+    homepage: https://github.com/toozej/podgrab
+    description: |-
+      Self-hosted podcast manager
+    maintainer: toozej
+    license: GPLv3
+    vendor: podgrab
+    bindir: /usr/bin
+    section: utils
+    contents:
+      - src: ./LICENSE
+        dst: /usr/share/doc/podgrab/copyright
+        file_info:
+          mode: 0644
+    formats:
+      - apk
+      - deb
+      - rpm
+    dependencies:
+      - git
+    recommends:
+      - golang
+    deb:
+      lintian_overrides:
+        - statically-linked-binary
+        - changelog-file-missing-in-native-package
+
+homebrew_casks:
+  - name: podgrab
+    homepage: https://github.com/toozej/podgrab
+    description: "Self-hosted podcast manager"
+    license: GPLv3
+    repository:
+      owner: toozej
+      name: homebrew-tap
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
+    url:
+      verified: "github.com/toozej/podgrab/releases/download"
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/podgrab"]
+          end
 
 sboms:
   - artifacts: archive
