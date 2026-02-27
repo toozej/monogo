@@ -36,6 +36,6 @@ ENV PID=100
 ENV GIN_MODE=release
 VOLUME ["/config", "/assets"]
 
-USER non-root
+USER nonroot
 # Run the binary.
 ENTRYPOINT ["/go/bin/podgrab"]
