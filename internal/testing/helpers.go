@@ -6,10 +6,10 @@ import (
 	"os"
 	"testing"
 
+	"github.com/glebarez/sqlite"
 	"github.com/google/uuid"
 	"github.com/toozej/podgrab/db"
 	applogger "github.com/toozej/podgrab/internal/logger"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )

@@ -28,7 +28,7 @@ func TestRunReturnsErrorWhenDatabaseInitFails(t *testing.T) {
 	}
 }
 
-func TestRunReturnsErrorWhenSQLiteRequiresCGO(t *testing.T) {
+func TestRunReturnsErrorWhenSQLiteInitFails(t *testing.T) {
 	oldDB := db.DB
 	oldInitDB := initDB
 	db.DB = nil
@@ -38,7 +38,7 @@ func TestRunReturnsErrorWhenSQLiteRequiresCGO(t *testing.T) {
 	})
 
 	initDB = func() (*gorm.DB, error) {
-		return nil, errors.New("Binary was compiled with 'CGO_ENABLED=0', go-sqlite3 requires cgo to work. This is a stub")
+		return nil, errors.New("failed to initialize sqlite driver")
 	}
 
 	exitCode := run()

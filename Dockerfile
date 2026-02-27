@@ -19,7 +19,7 @@ RUN go test -coverprofile c.out -v ./...
 FROM init AS build
 ARG LDFLAGS
 
-RUN CGO_ENABLED=1 go build -ldflags="${LDFLAGS}"
+RUN CGO_ENABLED=0 go build -ldflags="${LDFLAGS}"
 
 # runtime image including CA certs and tzdata
 FROM gcr.io/distroless/static-debian13:latest

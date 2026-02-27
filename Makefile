@@ -105,7 +105,7 @@ local-cover: ## View coverage report in web browser
 	go tool cover -html=c.out
 
 local-build: ## Run `go build` using locally installed golang toolchain
-	CGO_ENABLED=1 go build -o $(CURDIR)/out/ -ldflags="$(LDFLAGS)"
+	CGO_ENABLED=0 go build -o $(CURDIR)/out/ -ldflags="$(LDFLAGS)"
 
 local-run: ## Run locally built binary
 	if test -e $(CURDIR)/.env; then \
@@ -122,7 +122,7 @@ local-iterate: ## Run `make local-build local-run` via `air` any time a .go or .
 
 local-release-test: ## Build assets and test goreleaser config using locally installed golang toolchain and goreleaser
 	goreleaser check
-	goreleaser build --rm-dist --snapshot
+	goreleaser build --clean --snapshot
 
 local-release: local-test docker-login ## Release assets using locally installed golang toolchain and goreleaser
 	if test -e $(CURDIR)/podgrab.key && test -e $(CURDIR)/.env; then \

@@ -12,12 +12,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/toozej/podgrab/db"
 	testhelpers "github.com/toozej/podgrab/internal/testing"
 	"github.com/toozej/podgrab/service"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 

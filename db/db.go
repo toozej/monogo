@@ -6,8 +6,8 @@ import (
 	"os"
 	"path"
 
+	"github.com/glebarez/sqlite"
 	"github.com/toozej/podgrab/internal/logger"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
@@ -16,7 +16,6 @@ var DB *gorm.DB
 
 // Init is used to Initialize Database
 func Init() (*gorm.DB, error) {
-	// github.com/mattn/go-sqlite3
 	configPath := os.Getenv("CONFIG")
 	dbPath := path.Join(configPath, "podgrab.db")
 	logger.Log.Info(dbPath)
