@@ -601,6 +601,7 @@ func (c *Client) saveTokenUnsafe() error {
 		Expiry:       c.token.Expiry,
 	}
 
+	// #nosec G117 - we need to store access token as JSON for future use
 	data, err := json.MarshalIndent(tokenData, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal token data: %w", err)
