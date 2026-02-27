@@ -972,7 +972,7 @@ func makeQuery(url string) ([]byte, error) {
 	}
 	req.Header.Set("Accept", "*/*")
 
-	resp, err := client.Do(req) // #nosec G704 -- URL is a user-provided podcast RSS feed URL, SSRF is by design
+	resp, err := client.Do(req) // #nosec G704 // lgtm[go/request-forgery] -- URL is a user-provided podcast RSS feed URL, SSRF is by design
 	if err != nil {
 		return nil, fmt.Errorf("error making request: %w", err)
 	}

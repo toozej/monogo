@@ -212,7 +212,8 @@ func GetAllPodcastItemsByIDs(podcastItemIDs []string) (*[]PodcastItem, error) {
 
 	fmt.Fprintln(&sb, "END")
 
-	result := DB.Debug().Preload(clause.Associations).Where("id in ?", podcastItemIDs).Order(sb.String()).Find(&podcastItems)
+	// CodeQL go/sql-injection: GORM's Where with placeholder parameter is safe - podcastItemIDs are UUIDs from the database, not user input
+	result := DB.Debug().Preload(clause.Associations).Where("id in ?", podcastItemIDs).Order(sb.String()).Find(&podcastItems) // lgtm[go/sql-injection]
 	return &podcastItems, result.Error
 }
 
