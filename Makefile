@@ -126,7 +126,7 @@ local-release-test: ## Build assets and test goreleaser config using locally ins
 
 local-release: local-test docker-login ## Release assets using locally installed golang toolchain and goreleaser
 	if test -e $(CURDIR)/podgrab.key && test -e $(CURDIR)/.env; then \
-		export `cat $(CURDIR)/.env | xargs` && goreleaser release --rm-dist; \
+		export `cat $(CURDIR)/.env | xargs` && goreleaser release --clean; \
 	else \
 		echo "no cosign private key found at $(CURDIR)/podgrab.key. Cannot release."; \
 	fi

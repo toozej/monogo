@@ -27,7 +27,7 @@ import (
 // Download download.
 func Download(link, episodeTitle, podcastName, episodePathName string) (string, error) {
 	if link == "" {
-		return "", errors.New("Download path empty")
+		return "", errors.New("Download link empty")
 	}
 
 	// Calculate file path first
@@ -135,7 +135,7 @@ func CreateNfoFile(podcast *db.Podcast) error {
 // DownloadPodcastCoverImage download podcast cover image.
 func DownloadPodcastCoverImage(link, podcastName string) (string, error) {
 	if link == "" {
-		return "", errors.New("Download path empty")
+		return "", errors.New("Download link empty")
 	}
 	client := httpClient()
 	req, err := getRequest(link)
@@ -193,7 +193,7 @@ func DownloadPodcastCoverImage(link, podcastName string) (string, error) {
 // DownloadImage download image.
 func DownloadImage(link, episodeID, podcastName string) (string, error) {
 	if link == "" {
-		return "", errors.New("Download path empty")
+		return "", errors.New("Download link empty")
 	}
 	client := httpClient()
 	req, err := getRequest(link)

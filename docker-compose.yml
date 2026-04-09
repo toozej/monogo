@@ -14,3 +14,18 @@ services:
     security_opt:
       - no-new-privileges:true
     read_only: true
+
+  podgrab-migrate:
+    build:
+      context: .
+      target: init
+    entrypoint: ["go", "run", "scripts/migrate_to_fork.go"]
+    environment:
+      - CONFIG=/config
+      - DATA=/assets
+      - LOG_LEVEL=info
+    volumes:
+      - /path/to/config:/config
+      - /path/to/data:/assets
+    profiles:
+      - migration

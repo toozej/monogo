@@ -679,6 +679,11 @@ func DownloadMissingEpisodes() error {
 		wg.Add(1)
 		go func(item db.PodcastItem, setting db.Setting) {
 			defer wg.Done()
+			// Skip episodes without a download URL (e.g., text-only posts)
+			if item.FileURL == "" {
+				logger.Log.Warnw("skipping episode with empty download URL", "episode", item.Title, "podcast", item.Podcast.Title)
+				return
+			}
 			podcastFileName := FormatFileName(&item, setting.FileNameFormat)
 			url, dlErr := Download(item.FileURL, item.Title, item.Podcast.Title, podcastFileName)
 			if dlErr != nil {
