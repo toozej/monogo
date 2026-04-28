@@ -86,11 +86,15 @@ dockers_v2:
       - 'ghcr.io/toozej/kmhd2spotify'
       - 'quay.io/toozej/kmhd2spotify'
     tags:
-      - "v{{ .Version }}"
-      - "{{ .Version }}"
+      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}v{{ .Version
+        }}{{ end }}'
+      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ .Version
+        }}{{ end }}'
       - "latest"
-      - "v{{ .Version }}-distroless"
-      - "{{ .Version }}-distroless"
+      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}v{{ .Version
+        }}-distroless{{ end }}'
+      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ .Version
+        }}-distroless{{ end }}'
       - "distroless"
     dockerfile: Dockerfile.goreleaser
     labels:
@@ -237,5 +241,6 @@ milestones:
   - close: true
 
 release:
+  disable: '{{ eq (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}'
   footer: |
     **Full Changelog**: https://github.com/toozej/kmhd2spotify/compare/{{ .PreviousTag }}...{{ .Tag }}
