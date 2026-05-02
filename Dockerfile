@@ -1,5 +1,5 @@
 # setup project and deps
-FROM golang:1.26-bookworm AS init
+FROM golang:1.26-trixie AS init
 
 WORKDIR /go/terranotate/
 
@@ -31,5 +31,5 @@ FROM scratch
 # Copy our static executable.
 COPY --from=build /go/terranotate/terranotate /go/bin/terranotate
 # Run the binary.
-USER non-root
+USER nonroot
 ENTRYPOINT ["/go/bin/terranotate"]
