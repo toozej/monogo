@@ -5,7 +5,7 @@ go 1.26
 require (
 	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/blushft/go-diagrams v0.0.0-20250322201119-d91ac4ca5de4
-	github.com/caarlos0/env/v11 v11.4.0
+	github.com/caarlos0/env/v11 v11.4.1
 	github.com/google/go-github/v85 v85.0.0
 	github.com/joho/godotenv v1.5.1
 	github.com/muesli/mango-cobra v1.3.0
