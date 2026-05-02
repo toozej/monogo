@@ -28,6 +28,9 @@ LDFLAGS = -s -w \
 	
 # Define the repository URL
 REPO_URL := https://github.com/toozej/go-find-archived-gh-actions
+IMAGE_AUTHOR = toozej
+IMAGE_NAME = go-find-archived-gh-actions
+IMAGE_TAG = latest
 
 # Detect the OS and architecture
 OS := $(shell uname -s)
@@ -48,22 +51,23 @@ local-release-verify: local-release local-sign local-verify ## Release and verif
 pre-reqs: pre-commit-install ## Install pre-commit hooks and necessary binaries
 
 vet: ## Run `go vet` in Docker
-	docker build --target vet -f $(CURDIR)/Dockerfile -t toozej/go-find-archived-gh-actions:latest . 
+	docker build --target vet -f $(CURDIR)/Dockerfile -t $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG) .
 
 test: ## Run `go test` with race detection in Docker
-	docker build --progress=plain --target test -f $(CURDIR)/Dockerfile -t toozej/go-find-archived-gh-actions:latest .
+	docker build --progress=plain --target test -f $(CURDIR)/Dockerfile -t $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG) .
 
 build: ## Build Docker image, including running tests
-	docker build -f $(CURDIR)/Dockerfile -t toozej/go-find-archived-gh-actions:latest .
+	docker build -f $(CURDIR)/Dockerfile -t $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG) .
 
 get-cosign-pub-key: ## Get go-find-archived-gh-actions Cosign public key from GitHub
 	test -f $(CURDIR)/go-find-archived-gh-actions.pub || curl --silent https://raw.githubusercontent.com/toozej/go-find-archived-gh-actions/main/go-find-archived-gh-actions.pub -O
 
 verify: get-cosign-pub-key ## Verify Docker image with Cosign
-	cosign verify --key $(CURDIR)/go-find-archived-gh-actions.pub toozej/go-find-archived-gh-actions:latest
+	cosign verify --key $(CURDIR)/go-find-archived-gh-actions.pub $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG)
 
 run: ## Run built Docker image
-	docker run --rm --name go-find-archived-gh-actions --env-file $(CURDIR)/.env toozej/go-find-archived-gh-actions:latest
+	-docker kill $(IMAGE_NAME)
+	docker run --rm --name $(IMAGE_NAME) --env-file $(CURDIR)/.env $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG)
 
 up: test build ## Run Docker Compose project with build Docker image
 	docker compose -f docker-compose.yml down --remove-orphans
@@ -74,10 +78,10 @@ down: ## Stop running Docker Compose project
 	docker compose -f docker-compose.yml down --remove-orphans
 
 distroless-build: ## Build Docker image using distroless as final base
-	docker build -f $(CURDIR)/Dockerfile.distroless -t toozej/go-find-archived-gh-actions:distroless . 
+	docker build -f $(CURDIR)/Dockerfile.distroless -t $(IMAGE_AUTHOR)/$(IMAGE_NAME):distroless . 
 
 distroless-run: ## Run built Docker image using distroless as final base
-	docker run --rm --name go-find-archived-gh-actions -v $(CURDIR)/config:/config toozej/go-find-archived-gh-actions:distroless
+	docker run --rm --name go-find-archived-gh-actions -v $(CURDIR)/config:/config $(IMAGE_AUTHOR)/$(IMAGE_NAME):distroless
 
 install: ## Install go-find-archived-gh-actions from latest GitHub release
 	if command -v go; then \
@@ -96,6 +100,7 @@ local-update-deps: ## Run `go get -t -u ./...` to update Go module dependencies
 	go get -t -u ./...
 
 local-vet: ## Run `go vet` using locally installed golang toolchain
+	go fmt $(CURDIR)/...
 	go vet $(CURDIR)/...
 
 local-vendor: ## Run `go mod tidy & vendor` using locally installed golang toolchain
@@ -281,9 +286,16 @@ benchmark: ## Run benchmarks
 	@echo "Running benchmarks..."
 	go test -bench=. -benchmem $(CURDIR)/internal/
 
-clean: ## Remove any locally compiled binaries and profiles
-	rm -f $(CURDIR)/out/go-find-archived-gh-actions
-	rm -rf $(CURDIR)/profiles/
+clean: ## Remove any locally compiled binaries, profiles, demo output, and built Docker image
+	@echo "=== Cleaning up compiled binaries, profiles, demo output, and built Docker image ==="
+	@rm -f $(CURDIR)/out/go-find-archived-gh-actions
+	@rm -rf $(CURDIR)/profiles/
+	@rm -rf $(CURDIR)/dist/
+	@rm -rf $(CURDIR)/c.out
+	@rm -rf $(CURDIR)/manpages/
+	@rm -rf $(CURDIR)/completions/
+	@rm -rf $(DEMO_DIR)
+	-docker image rm $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG)
 
 example-demo: local-build ## Run the built binary against example workflow to demo functionality
 	-$(CURDIR)/out/go-find-archived-gh-actions --workflow $(CURDIR)/example/workflows/example-archived-actions.yaml --verbose --check-outdated
