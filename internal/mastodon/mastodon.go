@@ -6,20 +6,17 @@ package mastodon
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/mattn/go-mastodon"
-
 	"github.com/toozej/rss2socials/internal/rss"
 	"github.com/toozej/rss2socials/pkg/config"
 )
 
-// GetTootContent constructs the toot message depending on the post title
-func GetTootContent(post rss.RSSItem, skipPrefixCategories []string) string {
-	for _, cat := range skipPrefixCategories {
-		if strings.HasPrefix(post.Title, cat) {
-			return fmt.Sprintf("%s - %s", post.Content, post.Link)
-		}
+// GetTootContent constructs the toot message for the given RSS item.
+// Posts with content use the "Content - Link" format; others use "New blog post: Link".
+func GetTootContent(post rss.RSSItem) string {
+	if post.Content != "" {
+		return fmt.Sprintf("%s - %s", post.Content, post.Link)
 	}
 	return fmt.Sprintf("New blog post: %s", post.Link)
 }

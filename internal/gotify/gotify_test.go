@@ -9,27 +9,57 @@ import (
 	"github.com/toozej/rss2socials/pkg/config"
 )
 
-// Test logFailure function with Gotify notifications
+// Test LogFailure function with Gotify notifications
 func TestLogFailure(t *testing.T) {
-	// Setup a test server to mock Gotify responses
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer server.Close()
 
-	// Set up config for testing
 	conf := &config.Config{
 		GotifyURL:   server.URL,
 		GotifyToken: "test-token",
 	}
-
-	logFailure("Test Error", errors.New("this is a test error"), conf)
-
-	// No direct assertions here since the function logs and sends a notification.
-	// Verifying that no panic or crash occurs is a basic test for this function.
+	LogFailure("Test Error", errors.New("this is a test error"), conf)
 }
 
-// Test sendGotifyNotification function for success
+// Test LogSuccess function with Gotify notifications enabled
+func TestLogSuccess_Enabled(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			t.Errorf("Expected POST request, got %s", r.Method)
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	conf := &config.Config{
+		GotifyURL:             server.URL,
+		GotifyToken:           "test-token",
+		GotifyNotifyOnSuccess: true,
+	}
+	LogSuccess("Test success message", conf)
+}
+
+// Test LogSuccess function with Gotify notifications disabled
+func TestLogSuccess_Disabled(t *testing.T) {
+	conf := &config.Config{
+		GotifyURL:             "https://gotify.example.com",
+		GotifyToken:           "test-token",
+		GotifyNotifyOnSuccess: false,
+	}
+	LogSuccess("Test success message", conf)
+}
+
+// Test LogSuccess with missing Gotify config
+func TestLogSuccess_MissingConfig(t *testing.T) {
+	conf := &config.Config{
+		GotifyNotifyOnSuccess: true,
+	}
+	LogSuccess("Test success message", conf)
+}
+
+// Test SendGotifyNotification function for success
 func TestSendGotifyNotification_Success(t *testing.T) {
 	// Setup a test server to mock Gotify responses
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -50,13 +80,13 @@ func TestSendGotifyNotification_Success(t *testing.T) {
 		GotifyToken: "test-token",
 	}
 
-	err := sendGotifyNotification(conf, "Test Title", "Test Message")
+	err := SendGotifyNotification(conf, "Test Title", "Test Message")
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
 }
 
-// Test sendGotifyNotification function for failure
+// Test 	SendGotifyNotification function for failure
 func TestSendGotifyNotification_Failure(t *testing.T) {
 	// Setup a test server to return an error response
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -69,33 +99,33 @@ func TestSendGotifyNotification_Failure(t *testing.T) {
 		GotifyToken: "test-token",
 	}
 
-	err := sendGotifyNotification(conf, "Test Title", "Test Message")
+	err := SendGotifyNotification(conf, "Test Title", "Test Message")
 	if err == nil {
 		t.Error("Expected error, got nil")
 	}
 }
 
-// Test sendGotifyNotification with missing URL
+// Test 	SendGotifyNotification with missing URL
 func TestSendGotifyNotification_MissingURL(t *testing.T) {
 	conf := &config.Config{
 		GotifyURL:   "",
 		GotifyToken: "test-token",
 	}
 
-	err := sendGotifyNotification(conf, "Test Title", "Test Message")
+	err := SendGotifyNotification(conf, "Test Title", "Test Message")
 	if err == nil || err.Error() != "gotify URL or token is not configured" {
 		t.Errorf("Expected 'gotify URL or token is not configured', got %v", err)
 	}
 }
 
-// Test sendGotifyNotification with missing token
+// Test 	SendGotifyNotification with missing token
 func TestSendGotifyNotification_MissingToken(t *testing.T) {
 	conf := &config.Config{
 		GotifyURL:   "https://example.com",
 		GotifyToken: "",
 	}
 
-	err := sendGotifyNotification(conf, "Test Title", "Test Message")
+	err := SendGotifyNotification(conf, "Test Title", "Test Message")
 	if err == nil || err.Error() != "gotify URL or token is not configured" {
 		t.Errorf("Expected 'gotify URL or token is not configured', got %v", err)
 	}

@@ -145,6 +145,12 @@ func init() {
 	// Social sites filter flag
 	rootCmd.Flags().StringSliceVar(&conf.SocialSites, "social-sites", conf.SocialSites, "Social media sites to post to (mastodon,bluesky,threads). Defaults to all sites with credentials configured.")
 
+	// Gotify flags
+	rootCmd.Flags().BoolVar(&conf.GotifyNotifyOnSuccess, "gotify-notify-on-success", conf.GotifyNotifyOnSuccess, "Send Gotify notifications on successful posts")
+
+	// Dedup flags
+	rootCmd.Flags().BoolVar(&conf.PostNewEntriesOnly, "post-new-entries-only", conf.PostNewEntriesOnly, "Only post entries that appear after first startup (skip existing feed entries)")
+
 	// add sub-commands
 	rootCmd.AddCommand(
 		man.NewManCmd(),

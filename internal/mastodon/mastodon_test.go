@@ -10,26 +10,26 @@ import (
 	"github.com/toozej/rss2socials/pkg/config"
 )
 
-func TestGetTootContent_Thoughts(t *testing.T) {
+func TestGetTootContent_WithContent(t *testing.T) {
 	post := rss.RSSItem{
 		Title:   "Thoughts on Go",
 		Content: "Go is a great language",
 		Link:    "https://example.com/thoughts",
 	}
 	expected := "Go is a great language - https://example.com/thoughts"
-	result := GetTootContent(post, []string{"Thoughts"})
+	result := GetTootContent(post)
 	if result != expected {
 		t.Errorf("Expected '%s', got '%s'", expected, result)
 	}
 }
 
-func TestGetTootContent_NewPost(t *testing.T) {
+func TestGetTootContent_WithoutContent(t *testing.T) {
 	post := rss.RSSItem{
 		Title: "New Blog Post",
 		Link:  "https://example.com/blog",
 	}
 	expected := "New blog post: https://example.com/blog"
-	result := GetTootContent(post, nil)
+	result := GetTootContent(post)
 	if result != expected {
 		t.Errorf("Expected '%s', got '%s'", expected, result)
 	}

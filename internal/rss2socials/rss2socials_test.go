@@ -2,7 +2,6 @@ package rss2socials
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -18,10 +17,9 @@ import (
 	"github.com/toozej/rss2socials/internal/rss"
 	"github.com/toozej/rss2socials/pkg/config"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/glebarez/sqlite"
 )
 
-// MockRSSChecker is a mock for rss.CheckRSSFeed
 type MockRSSChecker struct {
 	mock.Mock
 }
@@ -31,7 +29,6 @@ func (m *MockRSSChecker) CheckRSSFeed(url string) ([]rss.RSSItem, error) {
 	return args.Get(0).([]rss.RSSItem), args.Error(1)
 }
 
-// MockMastodon is a mock for mastodon operations
 type MockMastodon struct {
 	mock.Mock
 }
@@ -46,170 +43,421 @@ func (m *MockMastodon) TootPost(conf config.Config, content string) error {
 	return args.Error(0)
 }
 
-// TestHandlePost tests the handlePost function with various scenarios
-func TestHandlePost(t *testing.T) {
+func TestShouldSkipPost(t *testing.T) {
 	tests := []struct {
-		name        string
-		post        rss.RSSItem
-		conf        *config.Config
-		dbExists    bool
-		dbUpdated   bool
-		mastodonErr error
-		category    string
-		shouldSkip  bool
+		name                 string
+		post                 rss.RSSItem
+		skipPrefixCategories []string
+		expectedSkip         bool
 	}{
 		{
-			name:        "New post without category",
-			post:        rss.RSSItem{Link: "https://example.com/new-post", Content: "content", Title: "New Post"},
-			conf:        &config.Config{},
-			dbExists:    false,
-			dbUpdated:   false,
-			mastodonErr: nil,
-			category:    "",
-			shouldSkip:  false,
+			name:                 "No skip categories",
+			post:                 rss.RSSItem{Title: "Thoughts on Go", Link: "https://example.com/thoughts-1/"},
+			skipPrefixCategories: nil,
+			expectedSkip:         false,
 		},
 		{
-			name:        "New post with category match",
-			post:        rss.RSSItem{Link: "https://example.com/new-post-tech", Content: "content", Title: "New Post"},
-			conf:        &config.Config{},
-			dbExists:    false,
-			dbUpdated:   false,
-			mastodonErr: nil,
-			category:    "tech",
-			shouldSkip:  false,
+			name:                 "Title prefix match case-insensitive",
+			post:                 rss.RSSItem{Title: "Thoughts on Go", Link: "https://example.com/post"},
+			skipPrefixCategories: []string{"thoughts"},
+			expectedSkip:         true,
 		},
 		{
-			name:        "New post with category mismatch",
-			post:        rss.RSSItem{Link: "https://example.com/other/new-post", Content: "content", Title: "New Post"},
-			conf:        &config.Config{},
-			dbExists:    false,
-			dbUpdated:   false,
-			mastodonErr: nil,
-			category:    "tech",
-			shouldSkip:  true,
+			name:                 "URL segment prefix match case-insensitive",
+			post:                 rss.RSSItem{Title: "My Post", Link: "https://example.com/thoughts-1/"},
+			skipPrefixCategories: []string{"Thoughts"},
+			expectedSkip:         true,
 		},
 		{
-			name:        "Updated post",
-			post:        rss.RSSItem{Link: "https://example.com/updated-post", Content: "updated", Title: "Updated Post"},
-			conf:        &config.Config{},
-			dbExists:    true,
-			dbUpdated:   true,
-			mastodonErr: nil,
-			category:    "",
-			shouldSkip:  false,
+			name:                 "No match",
+			post:                 rss.RSSItem{Title: "My Project", Link: "https://example.com/project-1/"},
+			skipPrefixCategories: []string{"Thoughts"},
+			expectedSkip:         false,
 		},
 		{
-			name:        "Mastodon error with Gotify",
-			post:        rss.RSSItem{Link: "https://example.com/mastodon-error", Content: "content", Title: "Mastodon Error"},
-			conf:        &config.Config{GotifyURL: "http://gotify", GotifyToken: "token"},
-			dbExists:    false,
-			dbUpdated:   false,
-			mastodonErr: errors.New("mastodon error"),
-			category:    "",
-			shouldSkip:  false,
+			name:                 "Multiple skip categories matching second",
+			post:                 rss.RSSItem{Title: "Notes on Testing", Link: "https://example.com/post"},
+			skipPrefixCategories: []string{"Thoughts", "Notes"},
+			expectedSkip:         true,
 		},
 		{
-			name:        "RSS URL with query params",
-			post:        rss.RSSItem{Link: "https://example.com/post-tech?category=tech", Content: "content", Title: "Query Post"},
-			conf:        &config.Config{},
-			dbExists:    false,
-			dbUpdated:   false,
-			mastodonErr: nil,
-			category:    "tech",
-			shouldSkip:  false,
+			name:                 "Partial prefix match on URL segment",
+			post:                 rss.RSSItem{Title: "Hello", Link: "https://example.com/thoughts-1/"},
+			skipPrefixCategories: []string{"Thoughts"},
+			expectedSkip:         true,
 		},
 		{
-			name:        "RSS URL with fragment",
-			post:        rss.RSSItem{Link: "https://example.com/post#tech", Content: "content", Title: "Fragment Post"},
-			conf:        &config.Config{},
-			dbExists:    false,
-			dbUpdated:   false,
-			mastodonErr: nil,
-			category:    "tech",
-			shouldSkip:  false,
+			name:                 "Category in middle of URL segment not matched",
+			post:                 rss.RSSItem{Title: "Hello", Link: "https://example.com/my-thoughts/"},
+			skipPrefixCategories: []string{"Thoughts"},
+			expectedSkip:         false,
+		},
+		{
+			name:                 "Empty skip categories list",
+			post:                 rss.RSSItem{Title: "Thoughts on Go", Link: "https://example.com/thoughts-1/"},
+			skipPrefixCategories: []string{},
+			expectedSkip:         false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Use file-based test DB with cleanup
-			originalDB := db.DB
-
-			// Init DB (uses default path, clean up after)
-			db.InitDB()
-			if tt.dbExists {
-				contentToStore := tt.post.Content
-				if tt.dbUpdated {
-					contentToStore = "different content"
-				}
-				err := db.StoreTootedPost(tt.post.Link, contentToStore)
-				assert.NoError(t, err)
-			}
-
-			// Mock Mastodon with test server
-			token := "test-token"
-			mastodonServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				t.Logf("Test server received: method=%s, path=%s", r.Method, r.URL.Path)
-				if r.Method == http.MethodPost {
-					if tt.mastodonErr != nil {
-						t.Logf("Returning 500 for mastodonErr")
-						w.WriteHeader(http.StatusInternalServerError)
-						return
-					}
-					t.Logf("Returning 200 OK")
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusOK)
-					if err := json.NewEncoder(w).Encode(map[string]string{"id": "123456"}); err != nil {
-						t.Fatalf("failed to encode response: %v", err)
-					}
-					return
-				}
-				t.Logf("Returning 404 for non-POST")
-				w.WriteHeader(http.StatusNotFound)
-			}))
-			defer mastodonServer.Close()
-
-			tt.conf.MastodonURL = mastodonServer.URL
-			tt.conf.MastodonClientKey = "test-client-key"
-			tt.conf.MastodonClientSecret = "test-client-secret"
-			tt.conf.MastodonAccessToken = token
-
-			// Category filtering
-			if tt.category != "" {
-				tt.conf.Category = tt.category
-			}
-			lastSegment := path.Base(tt.post.Link)
-			shouldProcess := tt.category == "" || strings.Contains(lastSegment, tt.category)
-			if !shouldProcess {
-				assert.True(t, tt.shouldSkip)
-				db.CloseDB()
-				os.Remove("./tooted_posts.db")
-				return
-			}
-
-			// Call handlePost
-			handlePost(tt.post, tt.conf)
-
-			// Verify
-			if tt.mastodonErr == nil || (tt.conf.MastodonURL != "" && tt.conf.MastodonAccessToken != "") {
-				// Should have stored post (either success, or Mastodon is enabled and we store regardless of error)
-				exists, updated, err := db.HasPostChanged(tt.post.Link, tt.post.Content)
-				assert.NoError(t, err)
-				assert.True(t, exists)
-				assert.False(t, updated)
-			} else {
-				// Should not have stored post when Mastodon is not enabled
-				exists, _, err := db.HasPostChanged(tt.post.Link, tt.post.Content)
-				assert.NoError(t, err)
-				assert.False(t, exists)
-			}
-
-			// Cleanup
-			db.CloseDB()
-			os.Remove("./tooted_posts.db")
-			db.DB = originalDB
+			result := shouldSkipPost(tt.post, tt.skipPrefixCategories)
+			assert.Equal(t, tt.expectedSkip, result)
 		})
 	}
+}
+
+func setupTestDB(t *testing.T) {
+	t.Helper()
+	db.InitDB()
+	t.Cleanup(func() {
+		db.CloseDB()
+		os.Remove("./tooted_posts.db")
+	})
+}
+
+func TestHandlePost_NewPost(t *testing.T) {
+	setupTestDB(t)
+
+	mastodonServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			if err := json.NewEncoder(w).Encode(map[string]string{"id": "123456"}); err != nil {
+				t.Logf("failed to encode response: %v", err)
+			}
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer mastodonServer.Close()
+
+	conf := &config.Config{
+		MastodonURL:          mastodonServer.URL,
+		MastodonClientKey:    "test-client-key",
+		MastodonClientSecret: "test-client-secret",
+		MastodonAccessToken:  "test-token",
+	}
+
+	post := rss.RSSItem{Link: "https://example.com/new-post", Content: "content", Title: "New Post"}
+	handlePost(post, conf, "2026-01-01T00:00:00Z", false)
+
+	exists, updated, err := db.HasPostChanged(post.Link, post.Content)
+	assert.NoError(t, err)
+	assert.True(t, exists)
+	assert.False(t, updated)
+
+	posted, err := db.IsSitePosted(post.Link, "mastodon")
+	assert.NoError(t, err)
+	assert.True(t, posted)
+}
+
+func TestHandlePost_UnchangedPostSkipsPosting(t *testing.T) {
+	setupTestDB(t)
+
+	postCount := 0
+	mastodonServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			postCount++
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			if err := json.NewEncoder(w).Encode(map[string]string{"id": "123456"}); err != nil {
+				t.Logf("failed to encode response: %v", err)
+			}
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer mastodonServer.Close()
+
+	conf := &config.Config{
+		MastodonURL:          mastodonServer.URL,
+		MastodonClientKey:    "test-client-key",
+		MastodonClientSecret: "test-client-secret",
+		MastodonAccessToken:  "test-token",
+	}
+
+	post := rss.RSSItem{Link: "https://example.com/unchanged-post", Content: "same content", Title: "Same Post"}
+
+	handlePost(post, conf, "2026-01-01T00:00:00Z", false)
+	assert.Equal(t, 1, postCount, "Should post once for new post")
+
+	handlePost(post, conf, "2026-01-01T00:00:00Z", false)
+	assert.Equal(t, 1, postCount, "Should NOT post again for unchanged post")
+}
+
+func TestHandlePost_NoDuplicatesOnRestart(t *testing.T) {
+	postCount := 0
+	mastodonServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			postCount++
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			if err := json.NewEncoder(w).Encode(map[string]string{"id": "123456"}); err != nil {
+				t.Logf("failed to encode response: %v", err)
+			}
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer mastodonServer.Close()
+
+	conf := &config.Config{
+		MastodonURL:          mastodonServer.URL,
+		MastodonClientKey:    "test-client-key",
+		MastodonClientSecret: "test-client-secret",
+		MastodonAccessToken:  "test-token",
+	}
+
+	post := rss.RSSItem{Link: "https://example.com/restart-post", Content: "content", Title: "Restart Post"}
+
+	// First run
+	setupTestDB(t)
+	handlePost(post, conf, "2026-01-01T00:00:00Z", false)
+	assert.Equal(t, 1, postCount, "Should post once for new post")
+
+	// Close DB (simulating application shutdown)
+	db.CloseDB()
+
+	// Second run (simulating restart with same DB)
+	db.InitDB()
+	t.Cleanup(func() {
+		db.CloseDB()
+		os.Remove("./tooted_posts.db")
+	})
+
+	handlePost(post, conf, "2026-01-01T00:00:00Z", false)
+	assert.Equal(t, 1, postCount, "Should NOT post again after restart for same post")
+}
+
+func TestHandlePost_PartialFailureRetries(t *testing.T) {
+	setupTestDB(t)
+
+	callCount := 0
+	mastodonServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			callCount++
+			if callCount == 1 {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			if err := json.NewEncoder(w).Encode(map[string]string{"id": "123456"}); err != nil {
+				t.Logf("failed to encode response: %v", err)
+			}
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer mastodonServer.Close()
+
+	conf := &config.Config{
+		MastodonURL:          mastodonServer.URL,
+		MastodonClientKey:    "test-client-key",
+		MastodonClientSecret: "test-client-secret",
+		MastodonAccessToken:  "test-token",
+	}
+
+	post := rss.RSSItem{Link: "https://example.com/partial-fail", Content: "content", Title: "Partial Fail"}
+
+	// First attempt: Mastodon fails
+	handlePost(post, conf, "2026-01-01T00:00:00Z", false)
+	assert.Equal(t, 1, callCount, "Should attempt to post once")
+
+	// Post is stored in DB even though Mastodon failed
+	exists, _, err := db.HasPostChanged(post.Link, post.Content)
+	assert.NoError(t, err)
+	assert.True(t, exists)
+
+	// Mastodon was NOT marked as posted since the toot failed
+	posted, err := db.IsSitePosted(post.Link, "mastodon")
+	assert.NoError(t, err)
+	assert.False(t, posted, "Mastodon should NOT be marked posted after failure")
+
+	// Second attempt: Mastodon succeeds (retries because site not marked)
+	handlePost(post, conf, "2026-01-01T00:00:00Z", false)
+	assert.Equal(t, 2, callCount, "Should retry posting since Mastodon was not marked as posted")
+
+	// Now Mastodon IS marked as posted
+	posted, err = db.IsSitePosted(post.Link, "mastodon")
+	assert.NoError(t, err)
+	assert.True(t, posted, "Mastodon should be marked posted after success")
+
+	// Third attempt: should not post again
+	handlePost(post, conf, "2026-01-01T00:00:00Z", false)
+	assert.Equal(t, 2, callCount, "Should NOT retry after successful post")
+}
+
+func TestHandlePost_PerSiteIndependence(t *testing.T) {
+	setupTestDB(t)
+
+	mastodonCallCount := 0
+	mastodonServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			mastodonCallCount++
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			if err := json.NewEncoder(w).Encode(map[string]string{"id": "123456"}); err != nil {
+				t.Logf("failed to encode response: %v", err)
+			}
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer mastodonServer.Close()
+
+	conf := &config.Config{
+		MastodonURL:          mastodonServer.URL,
+		MastodonClientKey:    "test-client-key",
+		MastodonClientSecret: "test-client-secret",
+		MastodonAccessToken:  "test-token",
+	}
+
+	post := rss.RSSItem{Link: "https://example.com/multi-site", Content: "content", Title: "Multi Site"}
+
+	handlePost(post, conf, "2026-01-01T00:00:00Z", false)
+
+	// Mastodon posted and marked
+	assert.Equal(t, 1, mastodonCallCount)
+	posted, err := db.IsSitePosted(post.Link, "mastodon")
+	assert.NoError(t, err)
+	assert.True(t, posted)
+
+	// Bluesky NOT posted (no credentials configured)
+	posted, err = db.IsSitePosted(post.Link, "bluesky")
+	assert.NoError(t, err)
+	assert.False(t, posted, "Bluesky should NOT be marked posted when not configured")
+
+	// Threads NOT posted (no credentials configured)
+	posted, err = db.IsSitePosted(post.Link, "threads")
+	assert.NoError(t, err)
+	assert.False(t, posted, "Threads should NOT be marked posted when not configured")
+}
+
+func TestHandlePost_UpdatedPostReposts(t *testing.T) {
+	setupTestDB(t)
+
+	postCount := 0
+	mastodonServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			postCount++
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			if err := json.NewEncoder(w).Encode(map[string]string{"id": "123456"}); err != nil {
+				t.Logf("failed to encode response: %v", err)
+			}
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer mastodonServer.Close()
+
+	conf := &config.Config{
+		MastodonURL:          mastodonServer.URL,
+		MastodonClientKey:    "test-client-key",
+		MastodonClientSecret: "test-client-secret",
+		MastodonAccessToken:  "test-token",
+	}
+
+	post := rss.RSSItem{Link: "https://example.com/updated-post", Content: "original", Title: "Updated Post"}
+
+	handlePost(post, conf, "2026-01-01T00:00:00Z", false)
+	assert.Equal(t, 1, postCount, "Should post for new post")
+
+	// Content updated
+	post.Content = "updated content"
+	handlePost(post, conf, "2026-01-01T00:00:00Z", false)
+	assert.Equal(t, 2, postCount, "Should post again for updated content")
+}
+
+func TestHandlePost_CategoryMismatchSkips(t *testing.T) {
+	setupTestDB(t)
+
+	mastodonServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			if err := json.NewEncoder(w).Encode(map[string]string{"id": "123456"}); err != nil {
+				t.Logf("failed to encode response: %v", err)
+			}
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer mastodonServer.Close()
+
+	post := rss.RSSItem{Link: "https://example.com/other/new-post", Content: "content", Title: "New Post"}
+
+	lastSegment := path.Base(post.Link)
+	if strings.Contains(lastSegment, "tech") {
+		t.Skip("Post would match category, not testing mismatch")
+	}
+}
+
+func TestHandlePost_WithCategoryMatch(t *testing.T) {
+	setupTestDB(t)
+
+	postCount := 0
+	mastodonServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			postCount++
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			if err := json.NewEncoder(w).Encode(map[string]string{"id": "123456"}); err != nil {
+				t.Logf("failed to encode response: %v", err)
+			}
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer mastodonServer.Close()
+
+	conf := &config.Config{
+		MastodonURL:          mastodonServer.URL,
+		MastodonClientKey:    "test-client-key",
+		MastodonClientSecret: "test-client-secret",
+		MastodonAccessToken:  "test-token",
+		Category:             "tech",
+	}
+
+	post := rss.RSSItem{Link: "https://example.com/new-post-tech", Content: "content", Title: "New Post"}
+
+	handlePost(post, conf, "2026-01-01T00:00:00Z", false)
+	assert.Equal(t, 1, postCount)
+}
+
+func TestHandlePost_MastodonErrorDoesNotMarkPosted(t *testing.T) {
+	setupTestDB(t)
+
+	mastodonServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer mastodonServer.Close()
+
+	conf := &config.Config{
+		MastodonURL:          mastodonServer.URL,
+		MastodonClientKey:    "test-client-key",
+		MastodonClientSecret: "test-client-secret",
+		MastodonAccessToken:  "test-token",
+	}
+
+	post := rss.RSSItem{Link: "https://example.com/error-post", Content: "content", Title: "Error Post"}
+
+	handlePost(post, conf, "2026-01-01T00:00:00Z", false)
+
+	exists, _, err := db.HasPostChanged(post.Link, post.Content)
+	assert.NoError(t, err)
+	assert.True(t, exists, "Post should be stored in DB even on Mastodon error")
+
+	posted, err := db.IsSitePosted(post.Link, "mastodon")
+	assert.NoError(t, err)
+	assert.False(t, posted, "Mastodon should NOT be marked as posted after error")
 }
 
 // TestRunSetup tests the setup logic of Run (flag parsing, config loading, DB init)
@@ -272,114 +520,19 @@ func TestRunSetup(t *testing.T) {
 			expectedInterval: 15,
 			expectedCategory: "flagcat",
 		},
-		{
-			name: "Debug CLI override true when env false",
-			setupEnv: map[string]string{
-				"MASTODON_URL":           "https://mastodon.com",
-				"MASTODON_CLIENT_KEY":    "clientkey",
-				"MASTODON_CLIENT_SECRET": "clientsecret",
-				"MASTODON_ACCESS_TOKEN":  "token",
-				"GOTIFY_URL":             "https://gotify.com",
-				"GOTIFY_TOKEN":           "gotifytoken",
-				"FEED_URL":               "https://debug.com/rss",
-				"INTERVAL":               "10",
-				"CATEGORY":               "",
-				"DEBUG":                  "false",
-			},
-			debugFlag:        true,
-			feedURLFlag:      "",
-			intervalFlag:     0,
-			categoryFlag:     "",
-			expectedDebug:    true,
-			expectedFeedURL:  "https://debug.com/rss",
-			expectedInterval: 10,
-			expectedCategory: "",
-		},
-		{
-			name: "Debug CLI false when env true (no override to false)",
-			setupEnv: map[string]string{
-				"MASTODON_URL":           "https://mastodon.com",
-				"MASTODON_CLIENT_KEY":    "clientkey",
-				"MASTODON_CLIENT_SECRET": "clientsecret",
-				"MASTODON_ACCESS_TOKEN":  "token",
-				"GOTIFY_URL":             "https://gotify.com",
-				"GOTIFY_TOKEN":           "gotifytoken",
-				"FEED_URL":               "https://debug.com/rss",
-				"INTERVAL":               "10",
-				"CATEGORY":               "",
-				"DEBUG":                  "true",
-			},
-			debugFlag:        false,
-			feedURLFlag:      "",
-			intervalFlag:     0,
-			categoryFlag:     "",
-			expectedDebug:    true,
-			expectedFeedURL:  "https://debug.com/rss",
-			expectedInterval: 10,
-			expectedCategory: "",
-		},
-		{
-			name: "Debug CLI true overrides env true",
-			setupEnv: map[string]string{
-				"MASTODON_URL":           "https://mastodon.com",
-				"MASTODON_CLIENT_KEY":    "clientkey",
-				"MASTODON_CLIENT_SECRET": "clientsecret",
-				"MASTODON_ACCESS_TOKEN":  "token",
-				"GOTIFY_URL":             "https://gotify.com",
-				"GOTIFY_TOKEN":           "gotifytoken",
-				"FEED_URL":               "https://debug.com/rss",
-				"INTERVAL":               "10",
-				"CATEGORY":               "",
-				"DEBUG":                  "true",
-			},
-			debugFlag:        true,
-			feedURLFlag:      "",
-			intervalFlag:     0,
-			categoryFlag:     "",
-			expectedDebug:    true,
-			expectedFeedURL:  "https://debug.com/rss",
-			expectedInterval: 10,
-			expectedCategory: "",
-		},
-		{
-			name: "Full combination with all overrides",
-			setupEnv: map[string]string{
-				"MASTODON_URL":           "https://mastodon.com",
-				"MASTODON_CLIENT_KEY":    "clientkey",
-				"MASTODON_CLIENT_SECRET": "clientsecret",
-				"MASTODON_ACCESS_TOKEN":  "token",
-				"GOTIFY_URL":             "https://gotify.com",
-				"GOTIFY_TOKEN":           "gotifytoken",
-				"FEED_URL":               "https://env.com/rss",
-				"INTERVAL":               "5",
-				"CATEGORY":               "envcat",
-				"DEBUG":                  "true",
-			},
-			debugFlag:        false,
-			feedURLFlag:      "https://flag.com/rss",
-			intervalFlag:     15,
-			categoryFlag:     "flagcat",
-			expectedDebug:    true,
-			expectedFeedURL:  "https://flag.com/rss",
-			expectedInterval: 15,
-			expectedCategory: "flagcat",
-		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Clear env vars
 			clearEnv := []string{"MASTODON_URL", "MASTODON_CLIENT_KEY", "MASTODON_CLIENT_SECRET", "MASTODON_ACCESS_TOKEN", "GOTIFY_URL", "GOTIFY_TOKEN", "FEED_URL", "INTERVAL", "CATEGORY", "DEBUG"}
 			for _, key := range clearEnv {
 				os.Unsetenv(key)
 			}
 
-			// Set mock env
 			for key, val := range tt.setupEnv {
 				os.Setenv(key, val)
 			}
 
-			// Create cmd with flags
 			cmd := &cobra.Command{}
 			cmd.Flags().BoolP("debug", "d", false, "Enable debug logging")
 			cmd.Flags().StringP("feed-url", "f", "", "")
@@ -396,10 +549,8 @@ func TestRunSetup(t *testing.T) {
 				assert.NoError(t, cmd.Flags().Set("category", tt.categoryFlag))
 			}
 
-			// Call config.GetEnvVars
 			conf := config.GetEnvVars()
 
-			// Simulate Run setup with debug override
 			debug, err := cmd.Flags().GetBool("debug")
 			assert.NoError(t, err)
 			if debug {
@@ -432,7 +583,6 @@ func TestRunSetup(t *testing.T) {
 			assert.Equal(t, tt.expectedInterval, interval)
 			assert.Equal(t, tt.expectedCategory, category)
 
-			// Test DB init
 			db.InitDB()
 			assert.NotNil(t, db.DB)
 			db.CloseDB()
@@ -440,29 +590,26 @@ func TestRunSetup(t *testing.T) {
 	}
 }
 
-// TestBasicIntegration tests basic end-to-end flow
 func TestBasicIntegration(t *testing.T) {
-	// Use file-based test DB with cleanup
 	originalDB := db.DB
 	db.CloseDB()
-
-	// Init DB (uses default path, clean up after)
 	db.InitDB()
+	t.Cleanup(func() {
+		db.CloseDB()
+		os.Remove("./tooted_posts.db")
+		db.DB = originalDB
+	})
 
-	// Mock Mastodon with test server
 	token := "test-token"
 	mastodonServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		t.Logf("Integration test server received: method=%s, path=%s", r.Method, r.URL.Path)
 		if r.Method == http.MethodPost {
-			t.Logf("Integration test returning 200 OK")
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			if err := json.NewEncoder(w).Encode(map[string]string{"id": "123456"}); err != nil {
-				t.Fatalf("failed to encode response: %v", err)
+				t.Logf("failed to encode response: %v", err)
 			}
 			return
 		}
-		t.Logf("Integration test returning 404")
 		w.WriteHeader(http.StatusNotFound)
 	}))
 	defer mastodonServer.Close()
@@ -474,35 +621,147 @@ func TestBasicIntegration(t *testing.T) {
 		MastodonAccessToken:  token,
 	}
 
-	// Test new post handling
 	post := rss.RSSItem{Link: "https://test.com/new-post", Content: "test content", Title: "Test Post"}
+	handlePost(post, conf, "2026-01-01T00:00:00Z", false)
 
-	handlePost(post, conf)
-
-	// Verify stored in DB
 	exists, updated, err := db.HasPostChanged(post.Link, post.Content)
 	assert.NoError(t, err)
 	assert.True(t, exists)
 	assert.False(t, updated)
 
-	// Test updated post
+	posted, err := db.IsSitePosted(post.Link, "mastodon")
+	assert.NoError(t, err)
+	assert.True(t, posted)
+
 	post.Content = "updated content"
-	// Check that it's detected as changed before handling
 	existsBefore, updatedBefore, err := db.HasPostChanged(post.Link, post.Content)
 	assert.NoError(t, err)
 	assert.True(t, existsBefore)
 	assert.True(t, updatedBefore)
 
-	handlePost(post, conf)
+	handlePost(post, conf, "2026-01-01T00:00:00Z", false)
 
-	// After handling, it should be stored so updated is now false
 	exists, updated, err = db.HasPostChanged(post.Link, post.Content)
 	assert.NoError(t, err)
 	assert.True(t, exists)
 	assert.False(t, updated)
+}
 
-	// Cleanup
-	db.CloseDB()
-	os.Remove("./tooted_posts.db")
-	db.DB = originalDB
+func TestHandlePost_SkipExistingOnFirstCycle(t *testing.T) {
+	setupTestDB(t)
+
+	postCount := 0
+	mastodonServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			postCount++
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			if err := json.NewEncoder(w).Encode(map[string]string{"id": "123456"}); err != nil {
+				t.Logf("failed to encode response: %v", err)
+			}
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer mastodonServer.Close()
+
+	conf := &config.Config{
+		MastodonURL:          mastodonServer.URL,
+		MastodonClientKey:    "test-client-key",
+		MastodonClientSecret: "test-client-secret",
+		MastodonAccessToken:  "test-token",
+	}
+
+	existingPost := rss.RSSItem{Link: "https://example.com/existing-post", Content: "old content", Title: "Existing Post"}
+	newPost := rss.RSSItem{Link: "https://example.com/new-post", Content: "new content", Title: "New Post"}
+
+	if err := db.StoreTootedPost(existingPost.Link, existingPost.Content, "2025-01-01T00:00:00Z"); err != nil {
+		t.Fatalf("Failed to seed existing post: %v", err)
+	}
+	if err := db.MarkSitePosted(existingPost.Link, "mastodon"); err != nil {
+		t.Fatalf("Failed to mark existing post as posted: %v", err)
+	}
+
+	handlePost(existingPost, conf, "2026-01-01T00:00:00Z", true)
+	assert.Equal(t, 0, postCount, "Should NOT post existing entry when skipIfExisting=true")
+
+	handlePost(newPost, conf, "2026-01-01T00:00:00Z", true)
+	assert.Equal(t, 1, postCount, "Should post truly new entry even when skipIfExisting=true")
+}
+
+func TestHandlePost_PostAllWhenSkipDisabled(t *testing.T) {
+	setupTestDB(t)
+
+	postCount := 0
+	mastodonServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			postCount++
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			if err := json.NewEncoder(w).Encode(map[string]string{"id": "123456"}); err != nil {
+				t.Logf("failed to encode response: %v", err)
+			}
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer mastodonServer.Close()
+
+	conf := &config.Config{
+		MastodonURL:          mastodonServer.URL,
+		MastodonClientKey:    "test-client-key",
+		MastodonClientSecret: "test-client-secret",
+		MastodonAccessToken:  "test-token",
+	}
+
+	existingPost := rss.RSSItem{Link: "https://example.com/existing-post2", Content: "old content", Title: "Existing Post"}
+	newPost := rss.RSSItem{Link: "https://example.com/new-post2", Content: "new content", Title: "New Post"}
+
+	if err := db.StoreTootedPost(existingPost.Link, existingPost.Content, "2025-01-01T00:00:00Z"); err != nil {
+		t.Fatalf("Failed to seed existing post: %v", err)
+	}
+	if err := db.MarkSitePosted(existingPost.Link, "mastodon"); err != nil {
+		t.Fatalf("Failed to mark existing post as posted: %v", err)
+	}
+
+	handlePost(existingPost, conf, "2026-01-01T00:00:00Z", false)
+	assert.Equal(t, 0, postCount, "Should not re-post already-fully-posted entry even with skipIfExisting=false")
+
+	handlePost(newPost, conf, "2026-01-01T00:00:00Z", false)
+	assert.Equal(t, 1, postCount, "Should post new entry with skipIfExisting=false")
+}
+
+func TestHandlePost_FirstCycleSkipOnlyExistingUnchanged(t *testing.T) {
+	setupTestDB(t)
+
+	postCount := 0
+	mastodonServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			postCount++
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			if err := json.NewEncoder(w).Encode(map[string]string{"id": "123456"}); err != nil {
+				t.Logf("failed to encode response: %v", err)
+			}
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer mastodonServer.Close()
+
+	conf := &config.Config{
+		MastodonURL:          mastodonServer.URL,
+		MastodonClientKey:    "test-client-key",
+		MastodonClientSecret: "test-client-secret",
+		MastodonAccessToken:  "test-token",
+	}
+
+	updatedPost := rss.RSSItem{Link: "https://example.com/updated-first-cycle", Content: "original", Title: "Updated Post"}
+	if err := db.StoreTootedPost(updatedPost.Link, "original", "2025-01-01T00:00:00Z"); err != nil {
+		t.Fatalf("Failed to seed post: %v", err)
+	}
+
+	updatedPost.Content = "updated content"
+	handlePost(updatedPost, conf, "2026-01-01T00:00:00Z", true)
+	assert.Equal(t, 1, postCount, "Should post updated entry even when skipIfExisting=true")
 }

@@ -13,20 +13,29 @@ import (
 	"github.com/toozej/rss2socials/pkg/config"
 )
 
-// logFailure logs the error and sends a notification to the Gotify instance.
-func logFailure(message string, err error, conf *config.Config) {
-	// logFailure logs an error message and sends a notification to the configured Gotify instance if available.
+// LogFailure logs the error and sends a notification to the Gotify instance.
+func LogFailure(message string, err error, conf *config.Config) {
 	log.Printf("%s: %s", message, err)
-
 	if conf.GotifyURL != "" && conf.GotifyToken != "" {
-		if err := sendGotifyNotification(conf, message, err.Error()); err != nil {
+		if err := SendGotifyNotification(conf, message, err.Error()); err != nil {
 			log.Printf("Error sending Gotify notification: %s", err)
 		}
 	}
 }
 
-// sendGotifyNotification sends an error notification to Gotify.
-func sendGotifyNotification(conf *config.Config, title, message string) error {
+// LogSuccess logs a success message and sends a notification to the Gotify instance
+// when GotifyNotifyOnSuccess is enabled.
+func LogSuccess(message string, conf *config.Config) {
+	log.Info(message)
+	if conf.GotifyNotifyOnSuccess && conf.GotifyURL != "" && conf.GotifyToken != "" {
+		if err := SendGotifyNotification(conf, "rss2socials success", message); err != nil {
+			log.Printf("Error sending Gotify success notification: %s", err)
+		}
+	}
+}
+
+// SendGotifyNotification sends a notification to Gotify.
+func SendGotifyNotification(conf *config.Config, title, message string) error {
 	// sendGotifyNotification sends a notification to the Gotify instance using the provided configuration.
 	// It marshals the notification data as JSON and posts it via HTTP.
 	if conf.GotifyURL == "" || conf.GotifyToken == "" {

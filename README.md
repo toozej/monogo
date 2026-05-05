@@ -12,6 +12,7 @@ rss2socials is a CLI tool that monitors an RSS feed for new posts and automatica
 - Periodically checks an RSS feed for new or updated posts.
 - Posts updates to configured social platforms (Mastodon, Bluesky, Threads).
 - Stores previously posted items in an SQLite database to avoid duplicates.
+- **PostNewEntriesOnly** mode (default: enabled) prevents posting all existing RSS feed entries on first startup — only entries that appear after the first successful check are posted.
 - Configurable check interval and customizable content.
 - Debug mode for detailed logging.
 
@@ -58,6 +59,7 @@ THREADS_REDIRECT_URI=https://yourapp.com/callback
 
 # General
 FEED_URL=https://example.com/rss
+POST_NEW_ENTRIES_ONLY=true
 ```
 
     Alternatively, you can provide parameters as command-line flags.
@@ -67,8 +69,9 @@ FEED_URL=https://example.com/rss
     ./rss2socials --feed-url "https://example.com/rss" --interval 60
     ```
 
-    `--feed-url`: The URL of the RSS feed to monitor.
-    `--interval`: The interval in minutes for checking the RSS feed (default is 60 minutes).
+`--feed-url`: The URL of the RSS feed to monitor.
+`--interval`: The interval in minutes for checking the RSS feed (default is 60 minutes).
+`--post-new-entries-only`: Only post entries that appear after first startup; existing feed entries are stored but not posted (default: true). Set to false to post all entries on first run.
 
 3. Enable Debug Mode:
 Use the --debug flag to enable debug-level logging for troubleshooting.
@@ -142,6 +145,8 @@ See the [Threads API documentation](https://developers.facebook.com/docs/threads
 
 ### Database Management (internal/db/db.go)
 - Manages an SQLite database to store and check previously posted items.
+- Tracks `startup_time` per post to support the PostNewEntriesOnly dedup behavior.
+- On first startup with `POST_NEW_ENTRIES_ONLY=true`, existing feed entries are stored in the DB but not posted to any social site. Only new entries appearing in subsequent feed checks are posted.
 
 ## update golang version
 - `make update-golang-version`

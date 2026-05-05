@@ -64,6 +64,8 @@ type Config struct {
 
 	// GotifyToken is the token for Gotify notifications.
 	GotifyToken string `env:"GOTIFY_TOKEN"`
+	// GotifyNotifyOnSuccess enables Gotify notifications for successful posts.
+	GotifyNotifyOnSuccess bool `env:"GOTIFY_NOTIFY_ON_SUCCESS"`
 
 	// Debug enables debug-level logging.
 	Debug bool `env:"DEBUG"`
@@ -97,6 +99,11 @@ type Config struct {
 	// If empty, defaults to all sites with their required credentials fulfilled.
 	// Valid values: "mastodon", "bluesky", "threads"
 	SocialSites []string `env:"SOCIAL_SITES" envSeparator:","`
+
+	// PostNewEntriesOnly prevents posting all existing RSS entries on first startup.
+	// When true (default), only entries that appear after the first successful
+	// feed check are posted. Existing entries are stored in the DB but not posted.
+	PostNewEntriesOnly bool `env:"POST_NEW_ENTRIES_ONLY" envDefault:"true"`
 }
 
 // GetEnvVars loads and returns the application configuration from environment
