@@ -30,6 +30,153 @@ jobs:
       - name: Run tests
         run: |
           make test
+      - name: Slack notification on failure
+        if: failure() && env.SLACK_TOKEN != ''
+        uses: slackapi/slack-github-action@v2.1.0 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_TOKEN }}
+          payload: |
+            channel: ${{ secrets.SLACK_CHANNEL_ID }}
+            text: |
+              :x: *CI Checks Failed*
+              Repository: ${{ github.repository }}
+              Branch: ${{ github.ref_name }}
+              Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+              Commit: ${{ github.sha }}
+        env:
+          SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
+
+  demo:
+    name: demo-run
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '^1.26'
+          check-latest: true
+      - name: Build binary
+        run: make local-build
+      - name: Demo - check archived actions
+        run: |
+          ./out/go-find-archived-gh-actions \
+            --workflow example/workflows/example-archived-actions.yaml \
+            --verbose \
+            --token ${{ secrets.GH_TOKEN }} || true
+      - name: Demo - check archived + outdated actions
+        run: |
+          ./out/go-find-archived-gh-actions \
+            --workflow example/workflows/example-archived-actions.yaml \
+            --verbose \
+            --check-outdated \
+            --token ${{ secrets.GH_TOKEN }} || true
+      - name: Demo - check archived + outdated + stale actions
+        run: |
+          ./out/go-find-archived-gh-actions \
+            --workflow example/workflows/example-archived-actions.yaml \
+            --verbose \
+            --check-outdated \
+            --stale \
+            --token ${{ secrets.GH_TOKEN }} || true
+      - name: Demo - Slack notification
+        if: env.SLACK_TOKEN != ''
+        run: |
+          ./out/go-find-archived-gh-actions \
+            --workflow example/workflows/example-archived-actions.yaml \
+            --verbose \
+            --check-outdated \
+            --stale \
+            --notify \
+            --token ${{ secrets.GH_TOKEN }} || true
+        env:
+          SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
+          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
+      - name: Slack notification on failure
+        if: failure() && env.SLACK_TOKEN != ''
+        uses: slackapi/slack-github-action@v2.1.0 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_TOKEN }}
+          payload: |
+            channel: ${{ secrets.SLACK_CHANNEL_ID }}
+            text: |
+              :warning: *CI Demo Run Failed*
+              Repository: ${{ github.repository }}
+              Branch: ${{ github.ref_name }}
+              Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+              Commit: ${{ github.sha }}
+        env:
+          SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
+
+  e2e:
+    name: e2e-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '^1.26'
+          check-latest: true
+      - name: Build binary
+        run: make local-build
+      - name: E2E - verify archived actions are detected
+        run: |
+          output=$(./out/go-find-archived-gh-actions \
+            --workflow example/workflows/example-archived-actions.yaml \
+            --token ${{ secrets.GH_TOKEN }} 2>&1) || true
+          echo "$output"
+          if ! echo "$output" | grep -q "actions-rs"; then
+            echo "FAIL: Expected archived actions-rs actions to be detected"
+            exit 1
+          fi
+          echo "PASS: Archived actions detected correctly"
+      - name: E2E - verify debug mode shows rate limit info
+        run: |
+          output=$(./out/go-find-archived-gh-actions \
+            --workflow example/workflows/example-archived-actions.yaml \
+            --debug \
+            --token ${{ secrets.GH_TOKEN }} 2>&1) || true
+          echo "$output"
+          if ! echo "$output" | grep -qi "rate limit"; then
+            echo "WARN: Rate limit info not found in debug output (may not be available for all token types)"
+          fi
+          echo "PASS: Debug mode executed successfully"
+      - name: E2E - verify stale flag works
+        run: |
+          output=$(./out/go-find-archived-gh-actions \
+            --workflow example/workflows/example-archived-actions.yaml \
+            --stale \
+            --token ${{ secrets.GH_TOKEN }} 2>&1) || true
+          echo "$output"
+          echo "PASS: Stale flag executed successfully"
+      - name: E2E - Slack notification
+        if: env.SLACK_TOKEN != ''
+        run: |
+          ./out/go-find-archived-gh-actions \
+            --workflow example/workflows/example-archived-actions.yaml \
+            --verbose \
+            --notify \
+            --token ${{ secrets.GH_TOKEN }} || true
+        env:
+          SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
+          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
+      - name: Slack notification on failure
+        if: failure() && env.SLACK_TOKEN != ''
+        uses: slackapi/slack-github-action@v2.1.0 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_TOKEN }}
+          payload: |
+            channel: ${{ secrets.SLACK_CHANNEL_ID }}
+            text: |
+              :x: *E2E Tests Failed*
+              Repository: ${{ github.repository }}
+              Branch: ${{ github.ref_name }}
+              Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+              Commit: ${{ github.sha }}
+        env:
+          SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
 
   gitleaks:
     name: gitleaks

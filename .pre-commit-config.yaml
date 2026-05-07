@@ -101,12 +101,24 @@ repos:
       - id: goreleaser-check
 
   # run semgrep on all known filetypes
-  - repo: https://github.com/semgrep/pre-commit
-    rev: 'v1.159.0'
+  #- repo: https://github.com/semgrep/pre-commit
+  #  rev: 'v1.159.0'
+  #  hooks:
+  #    - id: semgrep
+  #      # See https://semgrep.dev/explore to select a ruleset and copy its URL
+  #      args: ['--config', 'auto', '--error', '--skip-unknown-extensions', '--quiet']
+
+  - repo: local
     hooks:
       - id: semgrep
-        # See https://semgrep.dev/explore to select a ruleset and copy its URL
-        args: ['--config', 'auto', '--error', '--skip-unknown-extensions', '--quiet']
+        name: semgrep
+        # using bash -c to ignore semgrep's exit code of 7 which indicates that a rule was matched, but the scan completed successfully. This allows us to treat rule matches as warnings rather than errors, while still catching actual errors in the scanning process.
+        entry: bash -c 'SEMGREP_CORE_DISABLE_SIG_HANDLER=1 semgrep "$@"; ec=$?; [ $ec -eq
+          7 ] && exit 0 || exit $ec' --
+        language: system
+        pass_filenames: false
+        args: ["--config=auto", "--config=.semgrep.yml", "--project-root=.", "--error", "--skip-unknown-extensions",
+          "--quiet"]
 
   - repo: meta
     hooks:

@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestRemoveDuplicates(t *testing.T) {
@@ -115,5 +116,63 @@ func TestExpandPath(t *testing.T) {
 				t.Errorf("expandPath(%q, %q) = %q, want %q", tt.path, tt.workDir, result, tt.expected)
 			}
 		})
+	}
+}
+
+func TestStaleActionInfo(t *testing.T) {
+	info := StaleActionInfo{
+		OwnerRepo:          "owner/repo",
+		FullRef:            "owner/repo@v1",
+		Workflow:           "ci.yml",
+		Deprecated:         true,
+		DeprecationMessage: "Node.js 16 is deprecated",
+		StaleByAge:         false,
+	}
+
+	if info.OwnerRepo != "owner/repo" {
+		t.Errorf("Expected OwnerRepo owner/repo, got %s", info.OwnerRepo)
+	}
+	if !info.Deprecated {
+		t.Error("Expected Deprecated to be true")
+	}
+	if info.DeprecationMessage != "Node.js 16 is deprecated" {
+		t.Errorf("Expected deprecation message, got %s", info.DeprecationMessage)
+	}
+
+	info2 := StaleActionInfo{
+		OwnerRepo:   "owner/old-repo",
+		FullRef:     "owner/old-repo@v2",
+		Workflow:    "release.yml",
+		Deprecated:  false,
+		StaleByAge:  true,
+		LastUpdated: time.Date(2022, 1, 1, 0, 0, 0, 0, time.UTC),
+	}
+
+	if !info2.StaleByAge {
+		t.Error("Expected StaleByAge to be true")
+	}
+	if info2.Deprecated {
+		t.Error("Expected Deprecated to be false")
+	}
+}
+
+func TestOutdatedActionInfo(t *testing.T) {
+	info := OutdatedActionInfo{
+		OwnerRepo:  "actions/checkout",
+		CurrentRef: "v3",
+		LatestTag:  "v4.0.0",
+		LatestURL:  "https://github.com/actions/checkout/releases/tag/v4.0.0",
+		Workflow:   "ci.yml",
+		FullRef:    "actions/checkout@v3",
+	}
+
+	if info.OwnerRepo != "actions/checkout" {
+		t.Errorf("Expected OwnerRepo actions/checkout, got %s", info.OwnerRepo)
+	}
+	if info.CurrentRef != "v3" {
+		t.Errorf("Expected CurrentRef v3, got %s", info.CurrentRef)
+	}
+	if info.LatestTag != "v4.0.0" {
+		t.Errorf("Expected LatestTag v4.0.0, got %s", info.LatestTag)
 	}
 }

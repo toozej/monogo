@@ -1,23 +1,3 @@
-// Package cmd provides command-line interface functionality for the go-find-archived-gh-actions application.
-//
-// This package implements the root command and manages the command-line interface
-// using the cobra library. It handles configuration, logging setup, and command
-// execution for detecting archived GitHub Actions in workflows.
-//
-// The package integrates with several components:
-//   - Configuration management through pkg/config
-//   - Workflow parsing through internal/workflow
-//   - GitHub API client through internal/github
-//   - Notification system through internal/notification
-//   - Issue creation through internal/issue
-//
-// Example usage:
-//
-//	import "github.com/toozej/go-find-archived-gh-actions/cmd/go-find-archived-gh-actions"
-//
-//	func main() {
-//		cmd.Execute()
-//	}
 package cmd
 
 import (
@@ -26,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -51,7 +32,11 @@ var (
 	notify        bool
 	createIssue   bool
 	checkOutdated bool
+	checkStale    bool
+	staleDays     int
 )
+
+const defaultStaleDays = 365
 
 var rootCmd = &cobra.Command{
 	Use:   "go-find-archived-gh-actions",
@@ -90,6 +75,11 @@ func rootCmdRun(cmd *cobra.Command, args []string) {
 
 	parser := workflow.NewParser()
 	ghClient := github.NewClient(token)
+
+	if debug {
+		ghClient.LogRateLimits(ctx)
+	}
+
 	var notifier *notification.NotificationManager
 	var issueCreator *issue.IssueCreator
 
@@ -195,12 +185,12 @@ func processWorkflows(ctx context.Context, parser *workflow.WorkflowParser, ghCl
 	if verbose {
 		fmt.Printf("Found %d workflow files\n", len(workflowFiles))
 		for _, wf := range workflowFiles {
-			fmt.Printf("  - %s (%d uses)\n", wf.Path, len(wf.UsesWithVersions))
+			fmt.Printf(" - %s (%d uses)\n", wf.Path, len(wf.UsesWithVersions))
 		}
 		fmt.Printf("Extracted %d unique action references\n", len(allActionRefs))
 		if len(allActionRefs) > 0 {
 			for _, ref := range allActionRefs {
-				fmt.Printf("  - %s@%s\n", ref.OwnerRepo, ref.Version)
+				fmt.Printf(" - %s@%s\n", ref.OwnerRepo, ref.Version)
 			}
 		}
 	}
@@ -223,10 +213,14 @@ func processWorkflows(ctx context.Context, parser *workflow.WorkflowParser, ghCl
 
 	archived, errors := ghClient.CheckMultipleRepos(ctx, ownerRepos)
 
+	if debug {
+		ghClient.LogRateLimits(ctx)
+	}
+
 	if verbose && len(errors) > 0 {
 		fmt.Printf("API errors encountered:\n")
 		for repo, err := range errors {
-			fmt.Printf("  - %s: %v\n", repo, err)
+			fmt.Printf(" - %s: %v\n", repo, err)
 		}
 	}
 
@@ -262,62 +256,58 @@ func processWorkflows(ctx context.Context, parser *workflow.WorkflowParser, ghCl
 			fmt.Printf("Checking %d non-archived action repositories for latest versions...\n", len(nonArchivedRepos))
 			releases, releaseErrors := ghClient.CheckMultipleReleases(ctx, nonArchivedRepos)
 
+			if debug {
+				ghClient.LogRateLimits(ctx)
+			}
+
 			if verbose && len(releaseErrors) > 0 {
 				fmt.Printf("Release API errors encountered:\n")
 				for repo, err := range releaseErrors {
-					fmt.Printf("  - %s: %v\n", repo, err)
+					fmt.Printf(" - %s: %v\n", repo, err)
+				}
+			}
+
+			outdatedActions = checkOutdatedActions(ctx, ghClient, workflowFiles, archived, releases)
+		}
+	}
+
+	var staleActions []StaleActionInfo
+	if checkStale {
+		var nonArchivedRepos []string
+		for _, ref := range allActionRefs {
+			if isArchived, exists := archived[ref.OwnerRepo]; !exists || !isArchived {
+				nonArchivedRepos = append(nonArchivedRepos, ref.OwnerRepo)
+			}
+		}
+		nonArchivedRepos = removeDuplicates(nonArchivedRepos)
+
+		if len(nonArchivedRepos) > 0 {
+			days := staleDays
+			if days <= 0 {
+				days = defaultStaleDays
+			}
+			staleThreshold := time.Duration(days) * 24 * time.Hour
+			fmt.Printf("Checking %d non-archived action repositories for stale/deprecated status...\n", len(nonArchivedRepos))
+			staleResults, staleErrors := ghClient.CheckMultipleStale(ctx, nonArchivedRepos, staleThreshold)
+
+			if verbose && len(staleErrors) > 0 {
+				fmt.Printf("Stale check errors encountered:\n")
+				for repo, err := range staleErrors {
+					fmt.Printf(" - %s: %v\n", repo, err)
 				}
 			}
 
 			for _, wf := range workflowFiles {
 				for _, ref := range wf.UsesWithVersions {
-					if isArchived, exists := archived[ref.OwnerRepo]; exists && isArchived {
-						continue
-					}
-
-					release, hasRelease := releases[ref.OwnerRepo]
-					if !hasRelease {
-						continue
-					}
-
-					if ver.IsMajorVersionTag(ref.Version) && ver.SameMajorVersion(ref.Version, release.TagName) {
-						same, _, _, err := ghClient.CompareRefSHAs(ctx, ref.OwnerRepo, ref.Version, release.TagName)
-						if err != nil {
-							if verbose {
-								fmt.Printf("  Cannot compare SHAs for %s@%s vs %s: %v\n", ref.OwnerRepo, ref.Version, release.TagName, err)
-							}
-							continue
-						}
-						if same {
-							continue
-						}
-						outdatedActions = append(outdatedActions, OutdatedActionInfo{
-							OwnerRepo:  ref.OwnerRepo,
-							CurrentRef: ref.Version,
-							LatestTag:  release.TagName,
-							LatestURL:  release.HTMLURL,
-							Workflow:   filepath.Base(wf.Path),
-							FullRef:    ref.FullRef,
-						})
-						continue
-					}
-
-					isOutdated, err := ver.IsVersionOutdated(ref.Version, release.TagName)
-					if err != nil {
-						if verbose {
-							fmt.Printf("  Cannot compare versions for %s: %v\n", ref.OwnerRepo, err)
-						}
-						continue
-					}
-
-					if isOutdated {
-						outdatedActions = append(outdatedActions, OutdatedActionInfo{
-							OwnerRepo:  ref.OwnerRepo,
-							CurrentRef: ref.Version,
-							LatestTag:  release.TagName,
-							LatestURL:  release.HTMLURL,
-							Workflow:   filepath.Base(wf.Path),
-							FullRef:    ref.FullRef,
+					if staleInfo, exists := staleResults[ref.OwnerRepo]; exists {
+						staleActions = append(staleActions, StaleActionInfo{
+							OwnerRepo:          ref.OwnerRepo,
+							FullRef:            ref.FullRef,
+							Workflow:           filepath.Base(wf.Path),
+							Deprecated:         staleInfo.Deprecated,
+							DeprecationMessage: staleInfo.DeprecationMessage,
+							LastUpdated:        staleInfo.LastUpdated,
+							StaleByAge:         staleInfo.StaleByAge,
 						})
 					}
 				}
@@ -325,10 +315,10 @@ func processWorkflows(ctx context.Context, parser *workflow.WorkflowParser, ghCl
 		}
 	}
 
-	hasIssues := len(archivedActions) > 0 || len(outdatedActions) > 0
+	hasIssues := len(archivedActions) > 0 || len(outdatedActions) > 0 || len(staleActions) > 0
 
 	if !hasIssues {
-		fmt.Println("✅ No archived or outdated GitHub Actions found!")
+		fmt.Println("✅ No archived, outdated, or stale GitHub Actions found!")
 		return false
 	}
 
@@ -343,7 +333,7 @@ func processWorkflows(ctx context.Context, parser *workflow.WorkflowParser, ghCl
 		for wf, actions := range workflowMap {
 			fmt.Printf("📄 %s:\n", wf)
 			for _, action := range actions {
-				fmt.Printf("  ❌ %s\n", action.Uses)
+				fmt.Printf(" ❌ %s\n", action.Uses)
 			}
 			fmt.Println()
 		}
@@ -355,7 +345,7 @@ func processWorkflows(ctx context.Context, parser *workflow.WorkflowParser, ghCl
 			uniqueOutdated[action.OwnerRepo] = true
 		}
 
-		fmt.Printf("\n⚠️  Found %d outdated GitHub Actions in %d uses:\n\n", len(uniqueOutdated), len(outdatedActions))
+		fmt.Printf("\n⚠️ Found %d outdated GitHub Actions in %d uses:\n\n", len(uniqueOutdated), len(outdatedActions))
 
 		outdatedWorkflowMap := make(map[string][]OutdatedActionInfo)
 		for _, action := range outdatedActions {
@@ -365,7 +355,37 @@ func processWorkflows(ctx context.Context, parser *workflow.WorkflowParser, ghCl
 		for wf, actions := range outdatedWorkflowMap {
 			fmt.Printf("📄 %s:\n", wf)
 			for _, action := range actions {
-				fmt.Printf("  ⚠️  %s@%s (latest: %s)\n", action.OwnerRepo, action.CurrentRef, action.LatestTag)
+				fmt.Printf(" ⚠️ %s@%s (latest: %s)\n", action.OwnerRepo, action.CurrentRef, action.LatestTag)
+			}
+			fmt.Println()
+		}
+	}
+
+	if len(staleActions) > 0 {
+		uniqueStale := make(map[string]bool)
+		for _, action := range staleActions {
+			uniqueStale[action.OwnerRepo] = true
+		}
+
+		fmt.Printf("\n⏳ Found %d stale/deprecated GitHub Actions in %d uses:\n\n", len(uniqueStale), len(staleActions))
+
+		staleWorkflowMap := make(map[string][]StaleActionInfo)
+		for _, action := range staleActions {
+			staleWorkflowMap[action.Workflow] = append(staleWorkflowMap[action.Workflow], action)
+		}
+
+		for wf, actions := range staleWorkflowMap {
+			fmt.Printf("📄 %s:\n", wf)
+			for _, action := range actions {
+				if action.Deprecated {
+					msg := action.DeprecationMessage
+					if msg != "" {
+						msg = ": " + msg
+					}
+					fmt.Printf(" ⏳ %s (DEPRECATED%s)\n", action.FullRef, msg)
+				} else if action.StaleByAge {
+					fmt.Printf(" ⏳ %s (not updated since %s)\n", action.FullRef, action.LastUpdated.Format("2006-01-02"))
+				}
 			}
 			fmt.Println()
 		}
@@ -397,15 +417,92 @@ func processWorkflows(ctx context.Context, parser *workflow.WorkflowParser, ghCl
 		}
 	}
 
-	if len(archivedActions) > 0 {
+	switch {
+	case len(archivedActions) > 0:
 		fmt.Println("\n❌ Archived actions detected. Please replace them with actively maintained alternatives.")
 		return true
-	} else if len(outdatedActions) > 0 {
-		fmt.Println("\n⚠️  Outdated actions detected. Consider updating to the latest versions.")
+	case len(outdatedActions) > 0:
+		fmt.Println("\n⚠️ Outdated actions detected. Consider updating to the latest versions.")
+		return true
+	case len(staleActions) > 0:
+		fmt.Println("\n⏳ Stale or deprecated actions detected. Consider replacing them with actively maintained alternatives.")
 		return true
 	}
 
 	return false
+}
+
+func checkOutdatedActions(ctx context.Context, ghClient *github.Client, workflowFiles []*workflow.WorkflowFile, archived map[string]bool, releases map[string]*github.ReleaseInfo) []OutdatedActionInfo {
+	var outdatedActions []OutdatedActionInfo
+	seenOutdated := make(map[string]bool)
+
+	for _, wf := range workflowFiles {
+		for _, ref := range wf.UsesWithVersions {
+			if isArchived, exists := archived[ref.OwnerRepo]; exists && isArchived {
+				continue
+			}
+
+			release, hasRelease := releases[ref.OwnerRepo]
+			if !hasRelease {
+				continue
+			}
+
+			cacheKey := ref.OwnerRepo + "@" + ref.Version + ":" + release.TagName
+			if seenOutdated[cacheKey] {
+				continue
+			}
+
+			if ver.IsMajorVersionTag(ref.Version) {
+				if ver.SameMajorVersion(ref.Version, release.TagName) {
+					same, _, _, err := ghClient.CompareRefSHAs(ctx, ref.OwnerRepo, ref.Version, release.TagName)
+					if err != nil {
+						if verbose {
+							fmt.Printf(" Cannot compare SHAs for %s@%s vs %s: %v\n", ref.OwnerRepo, ref.Version, release.TagName, err)
+						}
+						seenOutdated[cacheKey] = true
+						continue
+					}
+					if same {
+						seenOutdated[cacheKey] = true
+						continue
+					}
+					outdatedActions = append(outdatedActions, OutdatedActionInfo{
+						OwnerRepo:  ref.OwnerRepo,
+						CurrentRef: ref.Version,
+						LatestTag:  release.TagName,
+						LatestURL:  release.HTMLURL,
+						Workflow:   filepath.Base(wf.Path),
+						FullRef:    ref.FullRef,
+					})
+					seenOutdated[cacheKey] = true
+					continue
+				}
+			}
+
+			isOutdated, err := ver.IsVersionOutdated(ref.Version, release.TagName)
+			if err != nil {
+				if verbose {
+					fmt.Printf(" Cannot compare versions for %s: %v\n", ref.OwnerRepo, err)
+				}
+				seenOutdated[cacheKey] = true
+				continue
+			}
+
+			if isOutdated {
+				outdatedActions = append(outdatedActions, OutdatedActionInfo{
+					OwnerRepo:  ref.OwnerRepo,
+					CurrentRef: ref.Version,
+					LatestTag:  release.TagName,
+					LatestURL:  release.HTMLURL,
+					Workflow:   filepath.Base(wf.Path),
+					FullRef:    ref.FullRef,
+				})
+			}
+			seenOutdated[cacheKey] = true
+		}
+	}
+
+	return outdatedActions
 }
 
 type OutdatedActionInfo struct {
@@ -415,6 +512,16 @@ type OutdatedActionInfo struct {
 	LatestURL  string
 	Workflow   string
 	FullRef    string
+}
+
+type StaleActionInfo struct {
+	OwnerRepo          string
+	FullRef            string
+	Workflow           string
+	Deprecated         bool
+	DeprecationMessage string
+	LastUpdated        time.Time
+	StaleByAge         bool
 }
 
 func rootCmdPreRun(cmd *cobra.Command, args []string) {
@@ -443,6 +550,8 @@ func init() {
 	rootCmd.Flags().BoolVar(&notify, "notify", false, "Send notifications to configured endpoints")
 	rootCmd.Flags().BoolVar(&createIssue, "create-issue", false, "Create GitHub issue when archived actions found")
 	rootCmd.Flags().BoolVar(&checkOutdated, "check-outdated", false, "Check for outdated action versions")
+	rootCmd.Flags().BoolVar(&checkStale, "stale", false, "Check for stale/deprecated actions (not updated in over a year or marked with deprecation warning)")
+	rootCmd.Flags().IntVar(&staleDays, "stale-days", defaultStaleDays, "Number of days after which an action is considered stale (default 365)")
 
 	rootCmd.AddCommand(
 		man.NewManCmd(),

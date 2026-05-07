@@ -7,7 +7,20 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
+
+func newTestClient(server *httptest.Server) *Client {
+	return &Client{
+		httpClient:    server.Client(),
+		token:         "test-token",
+		baseURL:       server.URL,
+		archivedCache: make(map[string]bool),
+		releaseCache:  make(map[string]*ReleaseInfo),
+		refSHACache:   make(map[string]string),
+		repoInfoCache: make(map[string]*RepoInfo),
+	}
+}
 
 func TestClient_IsRepoArchived(t *testing.T) {
 	tests := []struct {
@@ -79,7 +92,7 @@ func TestClient_IsRepoArchived(t *testing.T) {
 		},
 		{
 			name:        "empty ownerRepo",
-			ownerRepo:   "  ",
+			ownerRepo:   " ",
 			expected:    false,
 			expectError: true,
 		},
@@ -133,20 +146,14 @@ func TestClient_IsRepoArchived(t *testing.T) {
 
 				w.WriteHeader(tt.statusCode)
 				if tt.responseBody != "" {
-					// nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter.no-direct-write-to-responsewriter
-					if _, err := w.Write([]byte(tt.responseBody)); err != nil {
+					if _, err := w.Write([]byte(tt.responseBody)); err != nil { // nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter
 						t.Errorf("failed to write response body: %v", err)
 					}
 				}
 			}))
 			defer server.Close()
 
-			client := &Client{
-				httpClient: server.Client(),
-				token:      "test-token",
-				baseURL:    server.URL,
-			}
-
+			client := newTestClient(server)
 			ctx := context.Background()
 			archived, repoInfo, err := client.IsRepoArchived(ctx, tt.ownerRepo)
 
@@ -171,9 +178,13 @@ func TestClient_IsRepoArchived(t *testing.T) {
 
 func TestClient_IsRepoArchived_RequestError(t *testing.T) {
 	client := &Client{
-		httpClient: http.DefaultClient,
-		token:      "test",
-		baseURL:    "http://127.0.0.1:0", // should fail to dial or connect
+		httpClient:    http.DefaultClient,
+		token:         "test",
+		baseURL:       "http://127.0.0.1:0",
+		archivedCache: make(map[string]bool),
+		releaseCache:  make(map[string]*ReleaseInfo),
+		refSHACache:   make(map[string]string),
+		repoInfoCache: make(map[string]*RepoInfo),
 	}
 	_, _, err := client.IsRepoArchived(context.Background(), "owner/repo")
 	if err == nil {
@@ -183,9 +194,13 @@ func TestClient_IsRepoArchived_RequestError(t *testing.T) {
 
 func TestClient_IsRepoArchived_BadURL(t *testing.T) {
 	client := &Client{
-		httpClient: http.DefaultClient,
-		token:      "test",
-		baseURL:    "://bad\x00url",
+		httpClient:    http.DefaultClient,
+		token:         "test",
+		baseURL:       "://bad\x00url",
+		archivedCache: make(map[string]bool),
+		releaseCache:  make(map[string]*ReleaseInfo),
+		refSHACache:   make(map[string]string),
+		repoInfoCache: make(map[string]*RepoInfo),
 	}
 	_, _, err := client.IsRepoArchived(context.Background(), "owner/repo")
 	if err == nil {
@@ -201,19 +216,13 @@ func TestClient_CheckMultipleRepos(t *testing.T) {
 		}
 		response := `{"archived": false}`
 		w.WriteHeader(200)
-		// nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter.no-direct-write-to-responsewriter
-		if _, err := w.Write([]byte(response)); err != nil {
+		if _, err := w.Write([]byte(response)); err != nil { // nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter
 			t.Errorf("failed to write response body: %v", err)
 		}
 	}))
 	defer server.Close()
 
-	client := &Client{
-		httpClient: server.Client(),
-		token:      "test-token",
-		baseURL:    server.URL,
-	}
-
+	client := newTestClient(server)
 	ctx := context.Background()
 	repos := []string{"owner/repo1", "owner/error_repo"}
 
@@ -231,6 +240,41 @@ func TestClient_CheckMultipleRepos(t *testing.T) {
 	}
 }
 
+func TestClient_IsRepoArchived_Caching(t *testing.T) {
+	callCount := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		callCount++
+		w.WriteHeader(200)
+		if _, err := w.Write([]byte(`{"archived": true, "name": "repo"}`)); err != nil { // nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter
+			t.Errorf("failed to write response body: %v", err)
+		}
+	}))
+	defer server.Close()
+
+	client := newTestClient(server)
+	ctx := context.Background()
+
+	archived1, _, err := client.IsRepoArchived(ctx, "owner/repo")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if !archived1 {
+		t.Error("Expected archived=true")
+	}
+
+	archived2, _, err := client.IsRepoArchived(ctx, "owner/repo")
+	if err != nil {
+		t.Fatalf("Unexpected error on cached call: %v", err)
+	}
+	if !archived2 {
+		t.Error("Expected archived=true from cache")
+	}
+
+	if callCount != 1 {
+		t.Errorf("Expected 1 API call (second should be cached), got %d", callCount)
+	}
+}
+
 func TestNewClient(t *testing.T) {
 	token := "test-token"
 	client := NewClient(token)
@@ -245,6 +289,16 @@ func TestNewClient(t *testing.T) {
 
 	if client.httpClient == nil {
 		t.Error("Expected httpClient to be set")
+	}
+
+	if client.archivedCache == nil {
+		t.Error("Expected archivedCache to be initialized")
+	}
+	if client.releaseCache == nil {
+		t.Error("Expected releaseCache to be initialized")
+	}
+	if client.refSHACache == nil {
+		t.Error("Expected refSHACache to be initialized")
 	}
 }
 
@@ -320,20 +374,14 @@ func TestClient_GetLatestRelease(t *testing.T) {
 
 				w.WriteHeader(tt.statusCode)
 				if tt.responseBody != "" {
-					// nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter.no-direct-write-to-responsewriter
-					if _, err := w.Write([]byte(tt.responseBody)); err != nil {
+					if _, err := w.Write([]byte(tt.responseBody)); err != nil { // nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter
 						t.Errorf("failed to write response body: %v", err)
 					}
 				}
 			}))
 			defer server.Close()
 
-			client := &Client{
-				httpClient: server.Client(),
-				token:      "test-token",
-				baseURL:    server.URL,
-			}
-
+			client := newTestClient(server)
 			ctx := context.Background()
 			release, err := client.GetLatestRelease(ctx, tt.ownerRepo)
 
@@ -353,6 +401,41 @@ func TestClient_GetLatestRelease(t *testing.T) {
 	}
 }
 
+func TestClient_GetLatestRelease_Caching(t *testing.T) {
+	callCount := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		callCount++
+		w.WriteHeader(200)
+		if _, err := w.Write([]byte(`{"tag_name": "v1.0.0"}`)); err != nil { // nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter
+			t.Errorf("failed to write response body: %v", err)
+		}
+	}))
+	defer server.Close()
+
+	client := newTestClient(server)
+	ctx := context.Background()
+
+	release1, err := client.GetLatestRelease(ctx, "owner/repo")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if release1.TagName != "v1.0.0" {
+		t.Errorf("Expected tag v1.0.0, got %s", release1.TagName)
+	}
+
+	release2, err := client.GetLatestRelease(ctx, "owner/repo")
+	if err != nil {
+		t.Fatalf("Unexpected error on cached call: %v", err)
+	}
+	if release2.TagName != "v1.0.0" {
+		t.Errorf("Expected tag v1.0.0 from cache, got %s", release2.TagName)
+	}
+
+	if callCount != 1 {
+		t.Errorf("Expected 1 API call (second should be cached), got %d", callCount)
+	}
+}
+
 func TestClient_CheckMultipleReleases(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "error") {
@@ -361,19 +444,13 @@ func TestClient_CheckMultipleReleases(t *testing.T) {
 		}
 		response := `{"tag_name": "v1.0.0"}`
 		w.WriteHeader(200)
-		// nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter.no-direct-write-to-responsewriter
-		if _, err := w.Write([]byte(response)); err != nil {
+		if _, err := w.Write([]byte(response)); err != nil { // nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter
 			t.Errorf("failed to write response body: %v", err)
 		}
 	}))
 	defer server.Close()
 
-	client := &Client{
-		httpClient: server.Client(),
-		token:      "test-token",
-		baseURL:    server.URL,
-	}
-
+	client := newTestClient(server)
 	ctx := context.Background()
 	repos := []string{"owner/repo1", "owner/error_repo"}
 
@@ -459,32 +536,23 @@ func TestClient_GetRefSHA(t *testing.T) {
 			callCount := 0
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				callCount++
-				// First try as tag, then as branch
 				if callCount == 1 && tt.statusCode == 200 && strings.Contains(tt.name, "branch") {
-					// First call (tag) returns 404 for branch test
 					w.WriteHeader(404)
 					return
 				}
 				if callCount == 2 && strings.Contains(tt.name, "tag") {
-					// Second call (branch) for tag test should not happen
 					t.Error("Should not try branch for tag test")
 				}
 				w.WriteHeader(tt.statusCode)
 				if tt.responseBody != "" {
-					// nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter.no-direct-write-to-responsewriter
-					if _, err := w.Write([]byte(tt.responseBody)); err != nil {
+					if _, err := w.Write([]byte(tt.responseBody)); err != nil { // nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter
 						t.Errorf("failed to write response body: %v", err)
 					}
 				}
 			}))
 			defer server.Close()
 
-			client := &Client{
-				httpClient: server.Client(),
-				token:      "test-token",
-				baseURL:    server.URL,
-			}
-
+			client := newTestClient(server)
 			ctx := context.Background()
 			sha, err := client.GetRefSHA(ctx, tt.ownerRepo, tt.ref)
 
@@ -499,6 +567,41 @@ func TestClient_GetRefSHA(t *testing.T) {
 				t.Errorf("Expected SHA %s, got %s", tt.wantSHA, sha)
 			}
 		})
+	}
+}
+
+func TestClient_GetRefSHA_Caching(t *testing.T) {
+	callCount := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		callCount++
+		w.WriteHeader(200)
+		if _, err := w.Write([]byte(`{"ref":"refs/tags/v1","object":{"sha":"cached-sha","type":"commit"}}`)); err != nil { // nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter
+			t.Errorf("failed to write response body: %v", err)
+		}
+	}))
+	defer server.Close()
+
+	client := newTestClient(server)
+	ctx := context.Background()
+
+	sha1, err := client.GetRefSHA(ctx, "owner/repo", "v1")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if sha1 != "cached-sha" {
+		t.Errorf("Expected SHA cached-sha, got %s", sha1)
+	}
+
+	sha2, err := client.GetRefSHA(ctx, "owner/repo", "v1")
+	if err != nil {
+		t.Fatalf("Unexpected error on cached call: %v", err)
+	}
+	if sha2 != "cached-sha" {
+		t.Errorf("Expected SHA cached-sha from cache, got %s", sha2)
+	}
+
+	if callCount != 1 {
+		t.Errorf("Expected 1 API call (second should be cached), got %d", callCount)
 	}
 }
 
@@ -571,20 +674,14 @@ func TestClient_CompareRefSHAs(t *testing.T) {
 							"type": "commit"
 						}
 					}`, resp.path, resp.sha)
-					// nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter.no-direct-write-to-responsewriter
-					if _, err := w.Write([]byte(responseBody)); err != nil {
+					if _, err := w.Write([]byte(responseBody)); err != nil { // nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter
 						t.Errorf("failed to write response body: %v", err)
 					}
 				}
 			}))
 			defer server.Close()
 
-			client := &Client{
-				httpClient: server.Client(),
-				token:      "test-token",
-				baseURL:    server.URL,
-			}
-
+			client := newTestClient(server)
 			ctx := context.Background()
 			same, sha1, sha2, err := client.CompareRefSHAs(ctx, tt.ownerRepo, tt.ref1, tt.ref2)
 
@@ -605,6 +702,148 @@ func TestClient_CompareRefSHAs(t *testing.T) {
 				if sha2 != tt.wantSHA2 {
 					t.Errorf("Expected SHA2 %s, got %s", tt.wantSHA2, sha2)
 				}
+			}
+		})
+	}
+}
+
+func TestClient_CheckMultipleStale(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "error") {
+			w.WriteHeader(500)
+			return
+		}
+		if strings.Contains(r.URL.Path, "stale-repo") {
+			w.WriteHeader(200)
+			if _, err := w.Write([]byte(`{
+				"name": "repo",
+				"full_name": "owner/stale-repo",
+				"archived": false,
+				"updated_at": "2020-01-01T00:00:00Z"
+			}`)); err != nil { // nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter
+				t.Errorf("failed to write response body: %v", err)
+			}
+			return
+		}
+		if strings.Contains(r.URL.Path, "fresh-repo") {
+			w.WriteHeader(200)
+			if _, err := w.Write([]byte(`{
+				"name": "repo",
+				"full_name": "owner/fresh-repo",
+				"archived": false,
+				"updated_at": "2099-01-01T00:00:00Z"
+			}`)); err != nil { // nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter
+				t.Errorf("failed to write response body: %v", err)
+			}
+			return
+		}
+		w.WriteHeader(200)
+		if _, err := w.Write([]byte(`{"archived": false, "updated_at": "2025-01-01T00:00:00Z"}`)); err != nil { // nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter
+			t.Errorf("failed to write response body: %v", err)
+		}
+	}))
+	defer server.Close()
+
+	client := newTestClient(server)
+	ctx := context.Background()
+
+	staleThreshold := 365 * 24 * time.Hour
+	results, errors := client.CheckMultipleStale(ctx, []string{"owner/stale-repo", "owner/fresh-repo", "owner/error"}, staleThreshold)
+
+	if len(errors) != 1 {
+		t.Errorf("Expected 1 error result, got %d", len(errors))
+	}
+	if _, ok := errors["owner/error"]; !ok {
+		t.Error("Expected error for owner/error")
+	}
+
+	if len(results) != 1 {
+		t.Errorf("Expected 1 stale result (stale-repo), got %d", len(results))
+	}
+	if _, ok := results["owner/stale-repo"]; !ok {
+		t.Error("Expected stale result for owner/stale-repo")
+	}
+	if results["owner/stale-repo"] != nil && !results["owner/stale-repo"].StaleByAge {
+		t.Error("Expected stale-repo to be flagged as stale by age")
+	}
+}
+
+func TestClient_LogRateLimits(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		if _, err := w.Write([]byte(`{
+		"resources": {
+			"core": {
+				"limit": 5000,
+				"remaining": 4999,
+				"used": 1,
+				"reset": 1640995200,
+				"resource": "core"
+			},
+			"search": {
+				"limit": 30,
+				"remaining": 30,
+				"used": 0,
+				"reset": 1640995200,
+				"resource": "search"
+			}
+		}
+	}`)); err != nil { // nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter
+			t.Errorf("failed to write response body: %v", err)
+		}
+	}))
+	defer server.Close()
+
+	client := newTestClient(server)
+	ctx := context.Background()
+
+	info, err := client.GetRateLimits(ctx)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if info.Limit != 5000 {
+		t.Errorf("Expected limit 5000, got %d", info.Limit)
+	}
+	if info.Remaining != 4999 {
+		t.Errorf("Expected remaining 4999, got %d", info.Remaining)
+	}
+}
+
+func TestClient_HandleRateLimit_429(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-RateLimit-Reset", "1640995200")
+		w.WriteHeader(429)
+	}))
+	defer server.Close()
+
+	client := newTestClient(server)
+	ctx := context.Background()
+
+	_, err := client.GetLatestRelease(ctx, "owner/repo")
+	if err == nil {
+		t.Error("Expected rate limit error for 429")
+	}
+	if !strings.Contains(err.Error(), "rate limited") {
+		t.Errorf("Expected rate limit error message, got: %v", err)
+	}
+}
+
+func TestCleanOwnerRepo(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"owner/repo", "owner/repo"},
+		{"owner/repo@v1", "owner/repo"},
+		{"https://github.com/owner/repo", "owner/repo"},
+		{"  owner/repo  ", "owner/repo"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			result := cleanOwnerRepo(tt.input)
+			if result != tt.expected {
+				t.Errorf("Expected %q, got %q", tt.expected, result)
 			}
 		})
 	}

@@ -1,8 +1,3 @@
-// Package github provides functionality for interacting with the GitHub API
-// to check if repositories are archived.
-//
-// This package handles GitHub API authentication, repository information retrieval,
-// and archived status checking for GitHub Actions used in workflows.
 package github
 
 import (
@@ -12,29 +7,41 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 )
 
-// Client represents a GitHub API client.
+const maxConcurrency = 10
+
 type Client struct {
 	httpClient *http.Client
 	token      string
 	baseURL    string
+
+	archivedCache map[string]bool
+	releaseCache  map[string]*ReleaseInfo
+	refSHACache   map[string]string
+	repoInfoCache map[string]*RepoInfo
+	cacheMu       sync.RWMutex
 }
 
-// RepoInfo represents the information returned by the GitHub API for a repository.
 type RepoInfo struct {
-	Name     string `json:"name"`
-	FullName string `json:"full_name"`
-	Archived bool   `json:"archived"`
-	Private  bool   `json:"private"`
-	HTMLURL  string `json:"html_url"`
-	Owner    Owner  `json:"owner"`
+	Name           string `json:"name"`
+	FullName       string `json:"full_name"`
+	Archived       bool   `json:"archived"`
+	Private        bool   `json:"private"`
+	HTMLURL        string `json:"html_url"`
+	Owner          Owner  `json:"owner"`
+	CreatedAt      string `json:"created_at"`
+	UpdatedAt      string `json:"updated_at"`
+	PushedAt       string `json:"pushed_at"`
+	Deprecated     bool   `json:"deprecated"`
+	DeprecationMsg string `json:"deprecation_warning_message"`
 }
 
-// ReleaseInfo represents a GitHub release.
 type ReleaseInfo struct {
 	TagName     string `json:"tag_name"`
 	Name        string `json:"name"`
@@ -44,13 +51,19 @@ type ReleaseInfo struct {
 	PublishedAt string `json:"published_at"`
 }
 
-// Owner represents the owner of a GitHub repository.
 type Owner struct {
 	Login string `json:"login"`
 	Type  string `json:"type"`
 }
 
-// NewClient creates a new GitHub API client with the provided token.
+type RateLimitInfo struct {
+	Limit     int
+	Remaining int
+	Used      int
+	Reset     time.Time
+	Resource  string
+}
+
 func NewClient(token string) *Client {
 	ctx := context.Background()
 	ts := oauth2.StaticTokenSource(
@@ -59,43 +72,142 @@ func NewClient(token string) *Client {
 	tc := oauth2.NewClient(ctx, ts)
 
 	return &Client{
-		httpClient: tc,
-		token:      token,
-		baseURL:    "https://api.github.com",
+		httpClient:    tc,
+		token:         token,
+		baseURL:       "https://api.github.com",
+		archivedCache: make(map[string]bool),
+		releaseCache:  make(map[string]*ReleaseInfo),
+		refSHACache:   make(map[string]string),
+		repoInfoCache: make(map[string]*RepoInfo),
 	}
 }
 
-// IsRepoArchived checks if a GitHub repository is archived.
-// It takes an owner/repo string and returns whether it's archived, the full repo info, and any error.
-func (c *Client) IsRepoArchived(ctx context.Context, ownerRepo string) (bool, *RepoInfo, error) {
-	// Clean the owner/repo string
-	ownerRepo = strings.TrimSpace(ownerRepo)
-	if ownerRepo == "" {
-		return false, nil, fmt.Errorf("empty owner/repo string")
+func (c *Client) logRateLimits(resp *http.Response) {
+	if resp == nil {
+		return
+	}
+	limit := resp.Header.Get("X-RateLimit-Limit")
+	remaining := resp.Header.Get("X-RateLimit-Remaining")
+	used := resp.Header.Get("X-RateLimit-Used")
+	reset := resp.Header.Get("X-RateLimit-Reset")
+	resource := resp.Header.Get("X-RateLimit-Resource")
+
+	resetTime := ""
+	if reset != "" {
+		if resetUnix, err := strconv.ParseInt(reset, 10, 64); err == nil {
+			resetTime = time.Unix(resetUnix, 0).Format(time.RFC3339)
+		}
 	}
 
-	// Remove any leading "https://github.com/"
-	ownerRepo = strings.TrimPrefix(ownerRepo, "https://github.com/")
+	log.Debugf("Rate limit info: resource=%s limit=%s remaining=%s used=%s reset=%s",
+		resource, limit, remaining, used, resetTime)
+}
 
-	// Remove any @ref suffix to get clean owner/repo
+func (c *Client) handleRateLimit(resp *http.Response) error {
+	c.logRateLimits(resp)
+
+	remaining := resp.Header.Get("X-RateLimit-Remaining")
+	if remaining == "0" || resp.StatusCode == 403 || resp.StatusCode == 429 {
+		resetTime := resp.Header.Get("X-RateLimit-Reset")
+		if resetTime != "" {
+			if resetUnix, err := strconv.ParseInt(resetTime, 10, 64); err == nil {
+				reset := time.Unix(resetUnix, 0)
+				return fmt.Errorf("rate limited, resets at %s", reset.Format(time.RFC3339))
+			}
+		}
+		return fmt.Errorf("rate limited by GitHub API")
+	}
+	return nil
+}
+
+func (c *Client) getCachedArchived(ownerRepo string) (bool, *RepoInfo, bool) {
+	c.cacheMu.RLock()
+	defer c.cacheMu.RUnlock()
+	cleanRepo := cleanOwnerRepo(ownerRepo)
+	if archived, ok := c.archivedCache[cleanRepo]; ok {
+		info := c.repoInfoCache[cleanRepo]
+		return archived, info, true
+	}
+	return false, nil, false
+}
+
+func (c *Client) setCachedArchived(ownerRepo string, archived bool, info *RepoInfo) {
+	c.cacheMu.Lock()
+	defer c.cacheMu.Unlock()
+	cleanRepo := cleanOwnerRepo(ownerRepo)
+	c.archivedCache[cleanRepo] = archived
+	if info != nil {
+		c.repoInfoCache[cleanRepo] = info
+	}
+}
+
+func (c *Client) getCachedRelease(ownerRepo string) (*ReleaseInfo, bool) {
+	c.cacheMu.RLock()
+	defer c.cacheMu.RUnlock()
+	cleanRepo := cleanOwnerRepo(ownerRepo)
+	if release, ok := c.releaseCache[cleanRepo]; ok {
+		return release, true
+	}
+	return nil, false
+}
+
+func (c *Client) setCachedRelease(ownerRepo string, release *ReleaseInfo) {
+	c.cacheMu.Lock()
+	defer c.cacheMu.Unlock()
+	cleanRepo := cleanOwnerRepo(ownerRepo)
+	c.releaseCache[cleanRepo] = release
+}
+
+func (c *Client) getCachedRefSHA(ownerRepo, ref string) (string, bool) {
+	c.cacheMu.RLock()
+	defer c.cacheMu.RUnlock()
+	key := cleanOwnerRepo(ownerRepo) + "@" + ref
+	if sha, ok := c.refSHACache[key]; ok {
+		return sha, true
+	}
+	return "", false
+}
+
+func (c *Client) setCachedRefSHA(ownerRepo, ref, sha string) {
+	c.cacheMu.Lock()
+	defer c.cacheMu.Unlock()
+	key := cleanOwnerRepo(ownerRepo) + "@" + ref
+	c.refSHACache[key] = sha
+}
+
+func cleanOwnerRepo(ownerRepo string) string {
+	ownerRepo = strings.TrimSpace(ownerRepo)
+	ownerRepo = strings.TrimPrefix(ownerRepo, "https://github.com/")
 	if idx := strings.Index(ownerRepo, "@"); idx != -1 {
 		ownerRepo = ownerRepo[:idx]
 	}
+	return ownerRepo
+}
 
-	// Split into owner and repo
+func parseOwnerRepo(ownerRepo string) (string, string, error) {
+	ownerRepo = cleanOwnerRepo(ownerRepo)
 	parts := strings.Split(ownerRepo, "/")
 	if len(parts) != 2 {
-		return false, nil, fmt.Errorf("invalid owner/repo format: %s", ownerRepo)
+		return "", "", fmt.Errorf("invalid owner/repo format: %s", ownerRepo)
 	}
-	owner, repo := parts[0], parts[1]
+	return parts[0], parts[1], nil
+}
 
-	// Make API request
+func (c *Client) IsRepoArchived(ctx context.Context, ownerRepo string) (bool, *RepoInfo, error) {
+	if archived, info, ok := c.getCachedArchived(ownerRepo); ok {
+		return archived, info, nil
+	}
+
+	owner, repo, err := parseOwnerRepo(ownerRepo)
+	if err != nil {
+		return false, nil, err
+	}
+
 	url := fmt.Sprintf("%s/repos/%s/%s", c.baseURL, owner, repo)
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return false, nil, fmt.Errorf("failed to create request: %w", err)
 	}
-
 	req.Header.Set("Accept", "application/vnd.github.v3+json")
 	req.Header.Set("User-Agent", "go-find-archived-gh-actions")
 
@@ -105,16 +217,10 @@ func (c *Client) IsRepoArchived(ctx context.Context, ownerRepo string) (bool, *R
 	}
 	defer resp.Body.Close()
 
-	// Check for rate limiting
-	if resp.StatusCode == 403 {
-		resetTime := resp.Header.Get("X-RateLimit-Reset")
-		if resetTime != "" {
-			if resetUnix, err := strconv.ParseInt(resetTime, 10, 64); err == nil {
-				reset := time.Unix(resetUnix, 0)
-				return false, nil, fmt.Errorf("rate limited, resets at %s", reset.Format(time.RFC3339))
-			}
-		}
-		return false, nil, fmt.Errorf("rate limited by GitHub API")
+	c.logRateLimits(resp)
+
+	if err := c.handleRateLimit(resp); err != nil {
+		return false, nil, err
 	}
 
 	if resp.StatusCode == 404 {
@@ -125,64 +231,60 @@ func (c *Client) IsRepoArchived(ctx context.Context, ownerRepo string) (bool, *R
 		return false, nil, fmt.Errorf("GitHub API returned status %d", resp.StatusCode)
 	}
 
-	// Parse response
 	var repoInfo RepoInfo
 	if err := json.NewDecoder(resp.Body).Decode(&repoInfo); err != nil {
 		return false, nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
+	c.setCachedArchived(ownerRepo, repoInfo.Archived, &repoInfo)
 	return repoInfo.Archived, &repoInfo, nil
 }
 
-// CheckMultipleRepos checks multiple repositories for archived status.
-// It returns a map of owner/repo to archived status and any errors encountered.
 func (c *Client) CheckMultipleRepos(ctx context.Context, repos []string) (map[string]bool, map[string]error) {
 	archived := make(map[string]bool)
 	errors := make(map[string]error)
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+
+	sem := make(chan struct{}, maxConcurrency)
 
 	for _, repo := range repos {
-		isArchived, _, err := c.IsRepoArchived(ctx, repo)
-		if err != nil {
-			errors[repo] = err
-			continue
-		}
-		archived[repo] = isArchived
+		wg.Add(1)
+		go func(repo string) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
 
-		// Add small delay to avoid rate limiting
-		time.Sleep(100 * time.Millisecond)
+			isArchived, _, err := c.IsRepoArchived(ctx, repo)
+			mu.Lock()
+			defer mu.Unlock()
+			if err != nil {
+				errors[repo] = err
+				return
+			}
+			archived[repo] = isArchived
+		}(repo)
 	}
 
+	wg.Wait()
 	return archived, errors
 }
 
-// GetLatestRelease fetches the latest release for a repository.
-// It returns the release info or an error if the repository has no releases.
 func (c *Client) GetLatestRelease(ctx context.Context, ownerRepo string) (*ReleaseInfo, error) {
-	// Clean the owner/repo string
-	ownerRepo = strings.TrimSpace(ownerRepo)
-	if ownerRepo == "" {
-		return nil, fmt.Errorf("empty owner/repo string")
+	if release, ok := c.getCachedRelease(ownerRepo); ok {
+		return release, nil
 	}
 
-	// Remove any @ref suffix to get clean owner/repo
-	if idx := strings.Index(ownerRepo, "@"); idx != -1 {
-		ownerRepo = ownerRepo[:idx]
+	owner, repo, err := parseOwnerRepo(ownerRepo)
+	if err != nil {
+		return nil, err
 	}
 
-	// Split into owner and repo
-	parts := strings.Split(ownerRepo, "/")
-	if len(parts) != 2 {
-		return nil, fmt.Errorf("invalid owner/repo format: %s", ownerRepo)
-	}
-	owner, repo := parts[0], parts[1]
-
-	// Make API request
 	url := fmt.Sprintf("%s/repos/%s/%s/releases/latest", c.baseURL, owner, repo)
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
-
 	req.Header.Set("Accept", "application/vnd.github.v3+json")
 	req.Header.Set("User-Agent", "go-find-archived-gh-actions")
 
@@ -192,16 +294,10 @@ func (c *Client) GetLatestRelease(ctx context.Context, ownerRepo string) (*Relea
 	}
 	defer resp.Body.Close()
 
-	// Check for rate limiting
-	if resp.StatusCode == 403 {
-		resetTime := resp.Header.Get("X-RateLimit-Reset")
-		if resetTime != "" {
-			if resetUnix, err := strconv.ParseInt(resetTime, 10, 64); err == nil {
-				reset := time.Unix(resetUnix, 0)
-				return nil, fmt.Errorf("rate limited, resets at %s", reset.Format(time.RFC3339))
-			}
-		}
-		return nil, fmt.Errorf("rate limited by GitHub API")
+	c.logRateLimits(resp)
+
+	if err := c.handleRateLimit(resp); err != nil {
+		return nil, err
 	}
 
 	if resp.StatusCode == 404 {
@@ -212,44 +308,45 @@ func (c *Client) GetLatestRelease(ctx context.Context, ownerRepo string) (*Relea
 		return nil, fmt.Errorf("GitHub API returned status %d", resp.StatusCode)
 	}
 
-	// Parse response
 	var release ReleaseInfo
 	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
+	c.setCachedRelease(ownerRepo, &release)
 	return &release, nil
 }
 
-// CheckMultipleReleases fetches the latest releases for multiple repositories.
-// It returns a map of owner/repo to release info and any errors encountered.
 func (c *Client) CheckMultipleReleases(ctx context.Context, repos []string) (map[string]*ReleaseInfo, map[string]error) {
 	releases := make(map[string]*ReleaseInfo)
 	errors := make(map[string]error)
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+
+	sem := make(chan struct{}, maxConcurrency)
 
 	for _, repo := range repos {
-		release, err := c.GetLatestRelease(ctx, repo)
-		if err != nil {
-			errors[repo] = err
-			continue
-		}
-		releases[repo] = release
+		wg.Add(1)
+		go func(repo string) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
 
-		// Add small delay to avoid rate limiting
-		time.Sleep(100 * time.Millisecond)
+			release, err := c.GetLatestRelease(ctx, repo)
+			mu.Lock()
+			defer mu.Unlock()
+			if err != nil {
+				errors[repo] = err
+				return
+			}
+			releases[repo] = release
+		}(repo)
 	}
 
+	wg.Wait()
 	return releases, errors
 }
 
-// TagInfo represents information about a Git tag.
-type TagInfo struct {
-	Name      string `json:"name"`
-	CommitSHA string `json:"sha"`
-	CommitURL string `json:"url"`
-}
-
-// RefInfo represents information about a Git ref (branch, tag, or commit).
 type RefInfo struct {
 	Ref    string `json:"ref"`
 	Object struct {
@@ -259,31 +356,21 @@ type RefInfo struct {
 	} `json:"object"`
 }
 
-// GetRefSHA fetches the commit SHA for a given ref (tag, branch, or commit) in a repository.
 func (c *Client) GetRefSHA(ctx context.Context, ownerRepo, ref string) (string, error) {
-	ownerRepo = strings.TrimSpace(ownerRepo)
-	if ownerRepo == "" {
-		return "", fmt.Errorf("empty owner/repo string")
+	if sha, ok := c.getCachedRefSHA(ownerRepo, ref); ok {
+		return sha, nil
 	}
 
-	// Remove any @ref suffix from ownerRepo
-	if idx := strings.Index(ownerRepo, "@"); idx != -1 {
-		ownerRepo = ownerRepo[:idx]
+	owner, repo, err := parseOwnerRepo(ownerRepo)
+	if err != nil {
+		return "", err
 	}
 
-	parts := strings.Split(ownerRepo, "/")
-	if len(parts) != 2 {
-		return "", fmt.Errorf("invalid owner/repo format: %s", ownerRepo)
-	}
-	owner, repo := parts[0], parts[1]
-
-	// Try as a tag first (refs/tags/v1)
 	url := fmt.Sprintf("%s/repos/%s/%s/git/refs/tags/%s", c.baseURL, owner, repo, ref)
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}
-
 	req.Header.Set("Accept", "application/vnd.github.v3+json")
 	req.Header.Set("User-Agent", "go-find-archived-gh-actions")
 
@@ -298,16 +385,19 @@ func (c *Client) GetRefSHA(ctx context.Context, ownerRepo, ref string) (string, 
 		if err := json.NewDecoder(resp.Body).Decode(&refInfo); err != nil {
 			return "", fmt.Errorf("failed to decode response: %w", err)
 		}
+		c.setCachedRefSHA(ownerRepo, ref, refInfo.Object.SHA)
 		return refInfo.Object.SHA, nil
 	}
 
-	// Try as a branch (refs/heads/main)
+	if err := resp.Body.Close(); err != nil {
+		return "", fmt.Errorf("failed to close response body: %w", err)
+	}
+
 	url = fmt.Sprintf("%s/repos/%s/%s/git/refs/heads/%s", c.baseURL, owner, repo, ref)
 	req, err = http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}
-
 	req.Header.Set("Accept", "application/vnd.github.v3+json")
 	req.Header.Set("User-Agent", "go-find-archived-gh-actions")
 
@@ -317,39 +407,29 @@ func (c *Client) GetRefSHA(ctx context.Context, ownerRepo, ref string) (string, 
 	}
 	defer resp.Body.Close()
 
+	c.logRateLimits(resp)
+
 	if resp.StatusCode == 200 {
 		var refInfo RefInfo
 		if err := json.NewDecoder(resp.Body).Decode(&refInfo); err != nil {
 			return "", fmt.Errorf("failed to decode response: %w", err)
 		}
+		c.setCachedRefSHA(ownerRepo, ref, refInfo.Object.SHA)
 		return refInfo.Object.SHA, nil
 	}
 
-	// Handle rate limiting
-	if resp.StatusCode == 403 {
-		resetTime := resp.Header.Get("X-RateLimit-Reset")
-		if resetTime != "" {
-			if resetUnix, err := strconv.ParseInt(resetTime, 10, 64); err == nil {
-				reset := time.Unix(resetUnix, 0)
-				return "", fmt.Errorf("rate limited, resets at %s", reset.Format(time.RFC3339))
-			}
-		}
-		return "", fmt.Errorf("rate limited by GitHub API")
+	if err := c.handleRateLimit(resp); err != nil {
+		return "", err
 	}
 
 	return "", fmt.Errorf("ref %s not found in %s/%s", ref, owner, repo)
 }
 
-// CompareRefSHAs compares the commit SHAs of two refs in the same repository.
-// Returns true if the SHAs are identical, false if different.
 func (c *Client) CompareRefSHAs(ctx context.Context, ownerRepo, ref1, ref2 string) (bool, string, string, error) {
 	sha1, err := c.GetRefSHA(ctx, ownerRepo, ref1)
 	if err != nil {
 		return false, "", "", fmt.Errorf("failed to get SHA for ref %s: %w", ref1, err)
 	}
-
-	// Add small delay to avoid rate limiting
-	time.Sleep(100 * time.Millisecond)
 
 	sha2, err := c.GetRefSHA(ctx, ownerRepo, ref2)
 	if err != nil {
@@ -357,4 +437,135 @@ func (c *Client) CompareRefSHAs(ctx context.Context, ownerRepo, ref1, ref2 strin
 	}
 
 	return sha1 == sha2, sha1, sha2, nil
+}
+
+func (c *Client) GetRepoInfo(ctx context.Context, ownerRepo string) (*RepoInfo, error) {
+	if _, info, ok := c.getCachedArchived(ownerRepo); ok && info != nil {
+		return info, nil
+	}
+
+	_, info, err := c.IsRepoArchived(ctx, ownerRepo)
+	if err != nil {
+		return nil, err
+	}
+	return info, nil
+}
+
+func (c *Client) CheckMultipleStale(ctx context.Context, repos []string, staleThreshold time.Duration) (map[string]*StaleInfo, map[string]error) {
+	results := make(map[string]*StaleInfo)
+	errors := make(map[string]error)
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+
+	sem := make(chan struct{}, maxConcurrency)
+
+	for _, repo := range repos {
+		wg.Add(1)
+		go func(repo string) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			info, err := c.GetRepoInfo(ctx, repo)
+			mu.Lock()
+			defer mu.Unlock()
+			if err != nil {
+				errors[repo] = err
+				return
+			}
+
+			staleInfo := &StaleInfo{Repo: repo}
+
+			if info.Deprecated {
+				staleInfo.Deprecated = true
+				staleInfo.DeprecationMessage = info.DeprecationMsg
+			}
+
+			if info.UpdatedAt != "" {
+				updated, err := time.Parse(time.RFC3339, info.UpdatedAt)
+				if err == nil {
+					staleInfo.LastUpdated = updated
+					if time.Since(updated) > staleThreshold {
+						staleInfo.StaleByAge = true
+					}
+				}
+			}
+
+			if staleInfo.Deprecated || staleInfo.StaleByAge {
+				results[repo] = staleInfo
+			}
+		}(repo)
+	}
+
+	wg.Wait()
+	return results, errors
+}
+
+type StaleInfo struct {
+	Repo               string
+	Deprecated         bool
+	DeprecationMessage string
+	LastUpdated        time.Time
+	StaleByAge         bool
+}
+
+func (c *Client) GetRateLimits(ctx context.Context) (*RateLimitInfo, error) {
+	url := fmt.Sprintf("%s/rate_limit", c.baseURL)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Accept", "application/vnd.github.v3+json")
+	req.Header.Set("User-Agent", "go-find-archived-gh-actions")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to make request: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("GitHub API returned status %d", resp.StatusCode)
+	}
+
+	var rateLimitResponse struct {
+		Resources struct {
+			Core struct {
+				Limit     int    `json:"limit"`
+				Remaining int    `json:"remaining"`
+				Used      int    `json:"used"`
+				Reset     int64  `json:"reset"`
+				Resource  string `json:"resource"`
+			} `json:"core"`
+			Search struct {
+				Limit     int    `json:"limit"`
+				Remaining int    `json:"remaining"`
+				Used      int    `json:"used"`
+				Reset     int64  `json:"reset"`
+				Resource  string `json:"resource"`
+			} `json:"search"`
+		} `json:"resources"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&rateLimitResponse); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	core := rateLimitResponse.Resources.Core
+	return &RateLimitInfo{
+		Limit:     core.Limit,
+		Remaining: core.Remaining,
+		Used:      core.Used,
+		Reset:     time.Unix(core.Reset, 0),
+		Resource:  core.Resource,
+	}, nil
+}
+
+func (c *Client) LogRateLimits(ctx context.Context) {
+	info, err := c.GetRateLimits(ctx)
+	if err != nil {
+		log.Debugf("Failed to get rate limit info: %v", err)
+		return
+	}
+	log.Debugf("GitHub API rate limit: limit=%d remaining=%d used=%d reset=%s resource=%s",
+		info.Limit, info.Remaining, info.Used, info.Reset.Format(time.RFC3339), info.Resource)
 }
