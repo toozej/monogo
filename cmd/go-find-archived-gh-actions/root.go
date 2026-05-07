@@ -457,7 +457,7 @@ func checkOutdatedActions(ctx context.Context, ghClient *github.Client, workflow
 					same, _, _, err := ghClient.CompareRefSHAs(ctx, ref.OwnerRepo, ref.Version, release.TagName)
 					if err != nil {
 						if verbose {
-							fmt.Printf(" Cannot compare SHAs for %s@%s vs %s: %v\n", ref.OwnerRepo, ref.Version, release.TagName, err)
+							fmt.Printf("  Cannot compare SHAs for %s@%s vs %s: %v\n", ref.OwnerRepo, ref.Version, release.TagName, err)
 						}
 						seenOutdated[cacheKey] = true
 						continue

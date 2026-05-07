@@ -210,6 +210,8 @@ pre-commit-install: ## Install pre-commit hooks and necessary binaries
 	go install github.com/air-verse/air@latest
 	# graphviz for dot
 	command -v dot || brew install graphviz || sudo apt install -y graphviz || sudo dnf install -y graphviz
+	# semgrep
+	command -v semgrep || brew install semgrep || python3 -m pip install --break-system-packages --upgrade semgrep
 	# install and update pre-commits
 	# determine if on Debian 12 and if so use pip to install more modern pre-commit version
 	grep --silent "VERSION=\"12 (bookworm)\"" /etc/os-release && apt install -y --no-install-recommends python3-pip && python3 -m pip install --break-system-packages --upgrade pre-commit || echo "OS is not Debian 12 bookworm"

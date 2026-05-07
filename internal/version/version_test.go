@@ -228,6 +228,7 @@ func TestIsMajorVersionTag(t *testing.T) {
 		{"v1", true},
 		{"v2", true},
 		{"v10", true},
+		{"v0", true},
 		{"v1.0", false},
 		{"v1.2.3", false},
 		{"main", false},

@@ -58,7 +58,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
 
-      - uses: sigstore/cosign-installer@v3 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
+      - uses: sigstore/cosign-installer@v4.1.1 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
 
       - uses: anchore/sbom-action/download-syft@v0 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
 
@@ -83,7 +83,7 @@ jobs:
           password: ${{ secrets.QUAY_TOKEN }}
 
       - name: Run GoReleaser Docker refresh
-        uses: goreleaser/goreleaser-action@v7.1.0 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
+        uses: goreleaser/goreleaser-action@v7.2.1 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
         with:
           distribution: goreleaser
           version: latest

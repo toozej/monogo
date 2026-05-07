@@ -64,6 +64,18 @@ type RateLimitInfo struct {
 	Resource  string
 }
 
+func NewClientWithHTTP(baseURL string, httpClient *http.Client) *Client {
+	return &Client{
+		httpClient:    httpClient,
+		token:         "",
+		baseURL:       baseURL,
+		archivedCache: make(map[string]bool),
+		releaseCache:  make(map[string]*ReleaseInfo),
+		refSHACache:   make(map[string]string),
+		repoInfoCache: make(map[string]*RepoInfo),
+	}
+}
+
 func NewClient(token string) *Client {
 	ctx := context.Background()
 	ts := oauth2.StaticTokenSource(
@@ -366,7 +378,21 @@ func (c *Client) GetRefSHA(ctx context.Context, ownerRepo, ref string) (string, 
 		return "", err
 	}
 
-	url := fmt.Sprintf("%s/repos/%s/%s/git/refs/tags/%s", c.baseURL, owner, repo, ref)
+	sha, err := c.getRefSHA(ctx, owner, repo, "tags", ref)
+	if err == nil {
+		return sha, nil
+	}
+
+	sha, err = c.getRefSHA(ctx, owner, repo, "heads", ref)
+	if err == nil {
+		return sha, nil
+	}
+
+	return "", fmt.Errorf("ref %s not found in %s/%s", ref, owner, repo)
+}
+
+func (c *Client) getRefSHA(ctx context.Context, owner, repo, refType, ref string) (string, error) {
+	url := fmt.Sprintf("%s/repos/%s/%s/git/refs/%s/%s", c.baseURL, owner, repo, refType, ref)
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to create request: %w", err)
@@ -380,49 +406,62 @@ func (c *Client) GetRefSHA(ctx context.Context, ownerRepo, ref string) (string, 
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == 200 {
-		var refInfo RefInfo
-		if err := json.NewDecoder(resp.Body).Decode(&refInfo); err != nil {
-			return "", fmt.Errorf("failed to decode response: %w", err)
+	c.logRateLimits(resp)
+
+	if resp.StatusCode != 200 {
+		if err := c.handleRateLimit(resp); err != nil {
+			return "", err
 		}
-		c.setCachedRefSHA(ownerRepo, ref, refInfo.Object.SHA)
-		return refInfo.Object.SHA, nil
+		return "", fmt.Errorf("ref %s/%s not found in %s/%s", refType, ref, owner, repo)
 	}
 
-	if err := resp.Body.Close(); err != nil {
-		return "", fmt.Errorf("failed to close response body: %w", err)
+	var refInfo RefInfo
+	if err := json.NewDecoder(resp.Body).Decode(&refInfo); err != nil {
+		return "", fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	url = fmt.Sprintf("%s/repos/%s/%s/git/refs/heads/%s", c.baseURL, owner, repo, ref)
-	req, err = http.NewRequestWithContext(ctx, "GET", url, nil)
+	sha := refInfo.Object.SHA
+	if refInfo.Object.Type == "tag" {
+		sha, err = c.dereferenceTag(ctx, owner, repo, sha)
+		if err != nil {
+			return "", fmt.Errorf("failed to dereference tag object %s: %w", refInfo.Object.SHA, err)
+		}
+	}
+
+	c.setCachedRefSHA(owner+"/"+repo, ref, sha)
+	return sha, nil
+}
+
+func (c *Client) dereferenceTag(ctx context.Context, owner, repo, tagObjectSHA string) (string, error) {
+	url := fmt.Sprintf("%s/repos/%s/%s/git/tags/%s", c.baseURL, owner, repo, tagObjectSHA)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}
 	req.Header.Set("Accept", "application/vnd.github.v3+json")
 	req.Header.Set("User-Agent", "go-find-archived-gh-actions")
 
-	resp, err = c.httpClient.Do(req)
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("failed to make request: %w", err)
 	}
 	defer resp.Body.Close()
 
-	c.logRateLimits(resp)
-
-	if resp.StatusCode == 200 {
-		var refInfo RefInfo
-		if err := json.NewDecoder(resp.Body).Decode(&refInfo); err != nil {
-			return "", fmt.Errorf("failed to decode response: %w", err)
-		}
-		c.setCachedRefSHA(ownerRepo, ref, refInfo.Object.SHA)
-		return refInfo.Object.SHA, nil
+	if resp.StatusCode != 200 {
+		return "", fmt.Errorf("tag object %s not found in %s/%s", tagObjectSHA, owner, repo)
 	}
 
-	if err := c.handleRateLimit(resp); err != nil {
-		return "", err
+	var tagObj struct {
+		Object struct {
+			SHA  string `json:"sha"`
+			Type string `json:"type"`
+		} `json:"object"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&tagObj); err != nil {
+		return "", fmt.Errorf("failed to decode tag object response: %w", err)
 	}
 
-	return "", fmt.Errorf("ref %s not found in %s/%s", ref, owner, repo)
+	return tagObj.Object.SHA, nil
 }
 
 func (c *Client) CompareRefSHAs(ctx context.Context, ownerRepo, ref1, ref2 string) (bool, string, string, error) {
