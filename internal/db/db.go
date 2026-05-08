@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"os"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -13,9 +14,16 @@ import (
 
 var DB *sql.DB
 
-func InitDB() {
+func InitDB(path ...string) {
 	var err error
-	DB, err = sql.Open("sqlite", "./tooted_posts.db")
+	dbPath := "./tooted_posts.db"
+	if len(path) > 0 && path[0] != "" {
+		dbPath = path[0]
+	} else if p := os.Getenv("DB_PATH"); p != "" {
+		dbPath = p
+	}
+	log.Debugf("Opening database at %s", dbPath)
+	DB, err = sql.Open("sqlite", dbPath)
 	if err != nil {
 		log.Fatal("Failed to open database:", err)
 	}
@@ -64,7 +72,7 @@ func CloseDB() {
 }
 
 func StoreTootedPost(link string, content string, startupTime string) error {
-	query := `INSERT OR REPLACE INTO tooted_posts(link, content_hash, timestamp, startup_time, mastodon_posted, bluesky_posted, threads_posted) VALUES (?, ?, ?, ?, 0, 0, 0)`
+	query := `INSERT INTO tooted_posts(link, content_hash, timestamp, startup_time, mastodon_posted, bluesky_posted, threads_posted) VALUES (?, ?, ?, ?, 0, 0, 0) ON CONFLICT(link) DO UPDATE SET content_hash = excluded.content_hash, timestamp = excluded.timestamp, startup_time = excluded.startup_time`
 	contentHash := rss.HashContent(content)
 	_, err := DB.Exec(query, link, fmt.Sprintf("%x", contentHash), time.Now().Format(time.RFC3339), startupTime)
 	return err

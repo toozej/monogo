@@ -150,6 +150,8 @@ func init() {
 
 	// Dedup flags
 	rootCmd.Flags().BoolVar(&conf.PostNewEntriesOnly, "post-new-entries-only", conf.PostNewEntriesOnly, "Only post entries that appear after first startup (skip existing feed entries)")
+	rootCmd.Flags().BoolVar(&conf.ShortRun, "short-run", conf.ShortRun, "Short run mode: only process the 3 most recent RSS feed items")
+	rootCmd.Flags().StringVar(&conf.DBPath, "db-path", conf.DBPath, "Path to SQLite database file")
 
 	// add sub-commands
 	rootCmd.AddCommand(

@@ -40,8 +40,9 @@ builds:
     flags:
       - -trimpath
     ldflags:
-      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{ .CommitDate
-        }} -X main.builtBy=goreleaser
+      - -s -w -X github.com/toozej/rss2socials/pkg/version.Version={{.Version}} -X github.com/toozej/rss2socials/pkg/version.Commit={{.Commit}}
+        -X github.com/toozej/rss2socials/pkg/version.Branch={{.Branch}} -X github.com/toozej/rss2socials/pkg/version.BuiltAt={{
+        .CommitDate }} -X github.com/toozej/rss2socials/pkg/version.Builder=goreleaser
     main: ./
     binary: rss2socials
 
@@ -102,7 +103,7 @@ dockers_v2:
       "io.artifacthub.package.maintainers": "[{\"name\":\"toozej\"}]"
       "io.artifacthub.package.license": "GPLv3"
       "org.opencontainers.image.description": "Watches a RSS feed for new posts, then announces\
-        \ them on Mastodon"
+        \ them on social sites"
       "org.opencontainers.image.created": "{{.Date}}"
       "org.opencontainers.image.name": "{{.ProjectName}}"
       "org.opencontainers.image.revision": "{{.FullCommit}}"
@@ -117,7 +118,7 @@ dockers_v2:
       "index,manifest:org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
       "index,manifest:org.opencontainers.image.created": "{{.Date}}"
       "index,manifest:org.opencontainers.image.description": "Watches a RSS feed for new posts,\
-        \ then announces them on Mastodon"
+        \ then announces them on social sites"
       "index,manifest:org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/rss2socials/main/README.md"
       "index,manifest:org.opencontainers.image.licenses": "GPL-3.0-only"
       "index,manifest:org.opencontainers.image.revision": "{{.FullCommit}}"
@@ -149,7 +150,7 @@ nfpms:
     id: packages
     homepage: https://github.com/toozej/rss2socials
     description: |-
-      Watches a RSS feed for new posts, then announces them on Mastodon
+      Watches a RSS feed for new posts, then announces them on social sites
     maintainer: toozej
     license: GPLv3
     vendor: rss2socials
@@ -192,7 +193,7 @@ nfpms:
 homebrew_casks:
   - name: rss2socials
     homepage: https://github.com/toozej/rss2socials
-    description: "Watches a RSS feed for new posts, then announces them on Mastodon"
+    description: "Watches a RSS feed for new posts, then announces them on social sites"
     license: GPLv3
     repository:
       owner: toozej
@@ -218,14 +219,13 @@ sboms:
 
 signs:
   - cmd: cosign
-    stdin: '{{ .Env.COSIGN_PASSWORD }}'
     output: true
+    signature: "${artifact}.sigstore.json"
     args:
       - 'sign-blob'
-      - '--key=env://COSIGN_PRIVATE_KEY'
-      - '--yes'
-      - '--output-signature=${signature}'
+      - '--bundle=${signature}'
       - '${artifact}'
+      - '--yes'
     artifacts: all
 
 docker_signs:

@@ -104,6 +104,14 @@ type Config struct {
 	// When true (default), only entries that appear after the first successful
 	// feed check are posted. Existing entries are stored in the DB but not posted.
 	PostNewEntriesOnly bool `env:"POST_NEW_ENTRIES_ONLY" envDefault:"true"`
+
+	// ShortRun enables a short run mode that only processes the 3 most recent
+	// RSS feed items instead of all items in the feed.
+	ShortRun bool `env:"SHORT_RUN"`
+
+	// DBPath is the filesystem path for the SQLite database.
+	// Defaults to "./tooted_posts.db" when empty.
+	DBPath string `env:"DB_PATH" envDefault:"./tooted_posts.db"`
 }
 
 // GetEnvVars loads and returns the application configuration from environment

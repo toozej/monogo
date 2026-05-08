@@ -60,6 +60,9 @@ THREADS_REDIRECT_URI=https://yourapp.com/callback
 # General
 FEED_URL=https://example.com/rss
 POST_NEW_ENTRIES_ONLY=true
+
+# Database
+DB_PATH=/data/db/sqlite.db
 ```
 
     Alternatively, you can provide parameters as command-line flags.
@@ -145,6 +148,8 @@ See the [Threads API documentation](https://developers.facebook.com/docs/threads
 
 ### Database Management (internal/db/db.go)
 - Manages an SQLite database to store and check previously posted items.
+- Database path defaults to `./tooted_posts.db`; override with the `DB_PATH` environment variable.
+- When running via Docker, mount the database file as a volume: `./data/db/sqlite.db:/data/db/sqlite.db` and set `DB_PATH=/data/db/sqlite.db`.
 - Tracks `startup_time` per post to support the PostNewEntriesOnly dedup behavior.
 - On first startup with `POST_NEW_ENTRIES_ONLY=true`, existing feed entries are stored in the DB but not posted to any social site. Only new entries appearing in subsequent feed checks are posted.
 

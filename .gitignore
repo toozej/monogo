@@ -13,6 +13,7 @@ cosign.key
 *.so
 *.dylib
 out/
+rss2socials.tar
 
 # Test binary, built with `go test -c`
 *.test
@@ -22,6 +23,10 @@ out/
 
 # Dependency directories (remove the comment below to include it)
 vendor/
+
+# SQLite database
+tooted_posts.db
+data/db/
 
 # Generated directories
 completions/

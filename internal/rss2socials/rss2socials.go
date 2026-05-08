@@ -48,7 +48,7 @@ func Run(conf config.Config) {
 		conf.Interval = 60
 	}
 
-	db.InitDB()
+	db.InitDB(conf.DBPath)
 	defer db.CloseDB()
 
 	var startupTime string
@@ -69,6 +69,11 @@ func Run(conf config.Config) {
 			firstCycle = false
 		}
 
+		if conf.ShortRun && len(posts) > 3 {
+			log.Info("Short run mode: processing only the 3 most recent items")
+			posts = posts[:3]
+		}
+
 		for _, post := range posts {
 			if shouldSkipPost(post, conf.SkipPrefixCategories) {
 				log.Debugf("Skipping post %s: matches skip prefix category", post.Title)
@@ -86,6 +91,12 @@ func Run(conf config.Config) {
 			skipIfExisting := conf.PostNewEntriesOnly && db.IsFirstCycle()
 			handlePost(post, &conf, startupTime, skipIfExisting)
 		}
+
+		if conf.ShortRun {
+			log.Info("Short run mode complete, exiting")
+			return
+		}
+
 		time.Sleep(time.Duration(conf.Interval) * time.Minute)
 	}
 }
@@ -108,19 +119,11 @@ func handlePost(post rss.RSSItem, conf *config.Config, startupTime string, skipI
 	switch {
 	case exists && updated:
 		log.Printf("Post has been updated: %s", post.Title)
-		tootContent = fmt.Sprintf("Blog post has been updated: %s", post.Link)
+		tootContent = fmt.Sprintf("Updated post: %s", post.Link)
 		isUpdate = true
-		if err := db.StoreTootedPost(post.Link, post.Content, startupTime); err != nil {
-			log.Error("Storing updated post in database failed: ", err)
-			return
-		}
 	case !exists:
 		tootContent = mastodon.GetTootContent(post)
 		isUpdate = false
-		if err := db.StoreTootedPost(post.Link, post.Content, startupTime); err != nil {
-			log.Error("Storing new post in database failed: ", err)
-			return
-		}
 	case exists && !updated:
 		if sitePosted, err := db.IsSitePosted(post.Link, "mastodon"); err != nil || sitePosted {
 			if sitePosted, err := db.IsSitePosted(post.Link, "bluesky"); err != nil || sitePosted {
@@ -132,6 +135,11 @@ func handlePost(post rss.RSSItem, conf *config.Config, startupTime string, skipI
 		tootContent = mastodon.GetTootContent(post)
 		isUpdate = false
 	default:
+		return
+	}
+
+	if err := db.StoreTootedPost(post.Link, post.Content, startupTime); err != nil {
+		log.Error("Storing post in database failed: ", err)
 		return
 	}
 

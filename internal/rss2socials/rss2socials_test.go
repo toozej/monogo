@@ -2,13 +2,17 @@ package rss2socials
 
 import (
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -366,7 +370,10 @@ func TestHandlePost_UpdatedPostReposts(t *testing.T) {
 	handlePost(post, conf, "2026-01-01T00:00:00Z", false)
 	assert.Equal(t, 1, postCount, "Should post for new post")
 
-	// Content updated
+	posted, err := db.IsSitePosted(post.Link, "mastodon")
+	assert.NoError(t, err)
+	assert.True(t, posted, "Mastodon should be marked posted after first post")
+
 	post.Content = "updated content"
 	handlePost(post, conf, "2026-01-01T00:00:00Z", false)
 	assert.Equal(t, 2, postCount, "Should post again for updated content")
@@ -764,4 +771,343 @@ func TestHandlePost_FirstCycleSkipOnlyExistingUnchanged(t *testing.T) {
 	updatedPost.Content = "updated content"
 	handlePost(updatedPost, conf, "2026-01-01T00:00:00Z", true)
 	assert.Equal(t, 1, postCount, "Should post updated entry even when skipIfExisting=true")
+}
+
+// shortRunTestServers builds a test RSS feed server with `numItems` items and
+// a mastodon-compatible HTTP server that increments `mastodonCalls` on every
+// successful POST. Both servers must be Close()'d by the caller via t.Cleanup.
+func shortRunTestServers(t *testing.T, numItems int, mastodonCalls *int32) (rssURL, mastodonURL string) {
+	t.Helper()
+
+	feed := rss.RSSFeed{}
+	feed.Channel.Title = "Test"
+	for i := 0; i < numItems; i++ {
+		feed.Channel.Items = append(feed.Channel.Items, rss.RSSItem{
+			Title:   fmt.Sprintf("Post %d", i),
+			Link:    fmt.Sprintf("https://example.com/post-%d", i),
+			Content: fmt.Sprintf("Content %d", i),
+		})
+	}
+
+	rssServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/rss+xml")
+		if err := xml.NewEncoder(w).Encode(feed); err != nil {
+			t.Logf("failed to encode rss feed: %v", err)
+		}
+	}))
+	t.Cleanup(rssServer.Close)
+
+	mastodonServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			atomic.AddInt32(mastodonCalls, 1)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			if err := json.NewEncoder(w).Encode(map[string]string{"id": "1"}); err != nil {
+				t.Logf("failed to encode mastodon response: %v", err)
+			}
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	t.Cleanup(mastodonServer.Close)
+
+	return rssServer.URL, mastodonServer.URL
+}
+
+// setupRunTestDB sets DB_PATH to an isolated temp file per test so that
+// Run()'s internal db.InitDB() does not collide with other tests.
+// It returns the db file path so callers can pass it to db.InitDB or
+// set conf.DBPath.
+func setupRunTestDB(t *testing.T) string {
+	t.Helper()
+	dbFile := filepath.Join(t.TempDir(), "tooted_posts.db")
+	t.Setenv("DB_PATH", dbFile)
+	t.Cleanup(func() {
+		// Run() defers db.CloseDB(); ensure DB is closed before cleanup
+		// in case the test bailed out early. Best-effort.
+		if db.DB != nil {
+			_ = db.DB.Close()
+			db.DB = nil
+		}
+	})
+	return dbFile
+}
+
+func TestRun_ShortRunPostsThreeMostRecent(t *testing.T) {
+	dbFile := setupRunTestDB(t)
+
+	var mastodonCalls int32
+	rssURL, mastodonURL := shortRunTestServers(t, 10, &mastodonCalls)
+
+	conf := config.Config{
+		FeedURL:              rssURL,
+		Interval:             60,
+		ShortRun:             true,
+		PostNewEntriesOnly:   true,
+		DBPath:               dbFile,
+		MastodonURL:          mastodonURL,
+		MastodonClientKey:    "key",
+		MastodonClientSecret: "secret",
+		MastodonAccessToken:  "token",
+	}
+
+	done := make(chan struct{})
+	go func() {
+		Run(conf)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Run() did not exit within 5s; SHORT_RUN should not sleep before exit")
+	}
+
+	assert.Equal(t, int32(3), atomic.LoadInt32(&mastodonCalls),
+		"SHORT_RUN with empty DB should post the 3 most recent items")
+}
+
+func TestRun_ShortRunWithFewerThanThreeItems(t *testing.T) {
+	dbFile := setupRunTestDB(t)
+
+	var mastodonCalls int32
+	rssURL, mastodonURL := shortRunTestServers(t, 2, &mastodonCalls)
+
+	conf := config.Config{
+		FeedURL:              rssURL,
+		Interval:             60,
+		ShortRun:             true,
+		PostNewEntriesOnly:   true,
+		DBPath:               dbFile,
+		MastodonURL:          mastodonURL,
+		MastodonClientKey:    "key",
+		MastodonClientSecret: "secret",
+		MastodonAccessToken:  "token",
+	}
+
+	done := make(chan struct{})
+	go func() {
+		Run(conf)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Run() did not exit within 5s")
+	}
+
+	assert.Equal(t, int32(2), atomic.LoadInt32(&mastodonCalls),
+		"SHORT_RUN should post all available items when fewer than 3")
+}
+
+func TestRun_ShortRunWithExactlyThreeItems(t *testing.T) {
+	dbFile := setupRunTestDB(t)
+
+	var mastodonCalls int32
+	rssURL, mastodonURL := shortRunTestServers(t, 3, &mastodonCalls)
+
+	conf := config.Config{
+		FeedURL:              rssURL,
+		Interval:             60,
+		ShortRun:             true,
+		PostNewEntriesOnly:   true,
+		DBPath:               dbFile,
+		MastodonURL:          mastodonURL,
+		MastodonClientKey:    "key",
+		MastodonClientSecret: "secret",
+		MastodonAccessToken:  "token",
+	}
+
+	done := make(chan struct{})
+	go func() {
+		Run(conf)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Run() did not exit within 5s")
+	}
+
+	assert.Equal(t, int32(3), atomic.LoadInt32(&mastodonCalls),
+		"SHORT_RUN should post all 3 items when feed has exactly 3")
+}
+
+// TestRun_ShortRunExitsWithoutSleeping verifies that Run() returns quickly
+// when SHORT_RUN=true, without waiting for the configured Interval.
+// This regression-tests a bug where the sleep happened before the SHORT_RUN
+// exit check, causing the app to hang for `Interval` minutes after processing.
+func TestRun_ShortRunExitsWithoutSleeping(t *testing.T) {
+	dbFile := setupRunTestDB(t)
+
+	var mastodonCalls int32
+	rssURL, mastodonURL := shortRunTestServers(t, 5, &mastodonCalls)
+
+	// Use a deliberately large Interval so that, if the sleep happened
+	// before the exit, the test would time out instead of completing.
+	conf := config.Config{
+		FeedURL:              rssURL,
+		Interval:             60, // 60 minutes
+		ShortRun:             true,
+		PostNewEntriesOnly:   true,
+		DBPath:               dbFile,
+		MastodonURL:          mastodonURL,
+		MastodonClientKey:    "key",
+		MastodonClientSecret: "secret",
+		MastodonAccessToken:  "token",
+	}
+
+	start := time.Now()
+	done := make(chan struct{})
+	go func() {
+		Run(conf)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Run() did not exit within 5s; it should not sleep for Interval before exiting in SHORT_RUN mode")
+	}
+
+	elapsed := time.Since(start)
+	assert.Less(t, elapsed, 5*time.Second,
+		"SHORT_RUN should exit promptly, well under the configured Interval")
+	assert.Equal(t, int32(3), atomic.LoadInt32(&mastodonCalls),
+		"SHORT_RUN should still post the 3 most recent items before exiting")
+}
+
+func TestRun_ShortRunSkipsAlreadyPostedItems(t *testing.T) {
+	dbFile := setupRunTestDB(t)
+
+	// Pre-seed the DB with the most recent post (post-0) marked as
+	// already posted to mastodon. SHORT_RUN should skip it and post
+	// only the next two items (post-1, post-2).
+	db.InitDB(dbFile)
+	if err := db.StoreTootedPost("https://example.com/post-0", "Content 0", "2025-01-01T00:00:00Z"); err != nil {
+		t.Fatalf("seed StoreTootedPost failed: %v", err)
+	}
+	if err := db.MarkSitePosted("https://example.com/post-0", "mastodon"); err != nil {
+		t.Fatalf("seed MarkSitePosted failed: %v", err)
+	}
+	db.CloseDB()
+
+	var mastodonCalls int32
+	rssURL, mastodonURL := shortRunTestServers(t, 10, &mastodonCalls)
+
+	conf := config.Config{
+		FeedURL:              rssURL,
+		Interval:             60,
+		ShortRun:             true,
+		PostNewEntriesOnly:   true,
+		DBPath:               dbFile,
+		MastodonURL:          mastodonURL,
+		MastodonClientKey:    "key",
+		MastodonClientSecret: "secret",
+		MastodonAccessToken:  "token",
+	}
+
+	done := make(chan struct{})
+	go func() {
+		Run(conf)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Run() did not exit within 5s")
+	}
+
+	assert.Equal(t, int32(2), atomic.LoadInt32(&mastodonCalls),
+		"SHORT_RUN should skip already-posted items and post the next two new items")
+}
+
+func TestRun_ShortRunSecondCycleDoesNotRepost(t *testing.T) {
+	dbFile := setupRunTestDB(t)
+
+	var mastodonCalls int32
+	rssURL, mastodonURL := shortRunTestServers(t, 10, &mastodonCalls)
+
+	conf := config.Config{
+		FeedURL:              rssURL,
+		Interval:             60,
+		ShortRun:             true,
+		PostNewEntriesOnly:   true,
+		DBPath:               dbFile,
+		MastodonURL:          mastodonURL,
+		MastodonClientKey:    "key",
+		MastodonClientSecret: "secret",
+		MastodonAccessToken:  "token",
+	}
+
+	done := make(chan struct{})
+	go func() {
+		Run(conf)
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("First Run() did not exit within 5s")
+	}
+	firstRunCalls := atomic.LoadInt32(&mastodonCalls)
+	assert.Equal(t, int32(3), firstRunCalls, "First cycle should post 3 items")
+
+	db.CloseDB()
+
+	done2 := make(chan struct{})
+	go func() {
+		Run(conf)
+		close(done2)
+	}()
+	select {
+	case <-done2:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Second Run() did not exit within 5s")
+	}
+	secondRunCalls := atomic.LoadInt32(&mastodonCalls) - firstRunCalls
+	assert.Equal(t, int32(0), secondRunCalls,
+		"Second cycle should NOT re-post items that were already posted in the first cycle")
+}
+
+func TestRun_ShortRunPostsToAllConfiguredSites(t *testing.T) {
+	dbFile := setupRunTestDB(t)
+
+	var mastodonCalls int32
+	rssURL, mastodonURL := shortRunTestServers(t, 10, &mastodonCalls)
+
+	// Configure SocialSites explicitly so EnabledSites() returns only the
+	// sites we mock-test (mastodon). Adding bluesky/threads here would
+	// require live credentials and is gated by their handlePost checks.
+	conf := config.Config{
+		FeedURL:              rssURL,
+		Interval:             60,
+		ShortRun:             true,
+		PostNewEntriesOnly:   true,
+		DBPath:               dbFile,
+		SocialSites:          []string{"mastodon"},
+		MastodonURL:          mastodonURL,
+		MastodonClientKey:    "key",
+		MastodonClientSecret: "secret",
+		MastodonAccessToken:  "token",
+	}
+
+	done := make(chan struct{})
+	go func() {
+		Run(conf)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Run() did not exit within 5s")
+	}
+
+	// Expect 3 RSS items × 1 site = 3 mastodon posts.
+	assert.Equal(t, int32(3), atomic.LoadInt32(&mastodonCalls),
+		"Each enabled site should receive a post per RSS item processed")
 }

@@ -13,12 +13,10 @@ import (
 )
 
 // GetTootContent constructs the toot message for the given RSS item.
-// Posts with content use the "Content - Link" format; others use "New blog post: Link".
+// Only the link is included to avoid posting large content that may exceed
+// social site API limits or render poorly.
 func GetTootContent(post rss.RSSItem) string {
-	if post.Content != "" {
-		return fmt.Sprintf("%s - %s", post.Content, post.Link)
-	}
-	return fmt.Sprintf("New blog post: %s", post.Link)
+	return fmt.Sprintf("New post: %s", post.Link)
 }
 
 // NewClient creates a new Mastodon API client from the given configuration.

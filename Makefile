@@ -59,7 +59,13 @@ test: ## Run `go test` with race detection in Docker
 	docker build --progress=plain --target test -f $(CURDIR)/Dockerfile -t $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG) .
 
 build: ## Build Docker image, including running tests
-	docker build -f $(CURDIR)/Dockerfile -t $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG) .
+	docker build -f $(CURDIR)/Dockerfile \
+		--build-arg VERSION=$(or $(VERSION),unknown) \
+		--build-arg COMMIT=$(or $(COMMIT),unknown) \
+		--build-arg BRANCH=$(or $(BRANCH),unknown) \
+		--build-arg BUILT_AT=$(NOW) \
+		--build-arg BUILDER=$(BUILDER) \
+		-t $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG) .
 
 get-cosign-pub-key: ## Get rss2socials Cosign public key from GitHub
 	test -f $(CURDIR)/rss2socials.pub || curl --silent https://raw.githubusercontent.com/toozej/rss2socials/main/rss2socials.pub -O
@@ -197,7 +203,7 @@ pre-commit-install: ## Install pre-commit hooks and necessary binaries
 	# syft
 	command -v syft || curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
 	# cosign
-	go install github.com/sigstore/cosign/cmd/cosign@latest
+	command -v cosign || brew install cosign || go install github.com/sigstore/cosign/v3/cmd/cosign@latest
 	# go-licenses
 	go install github.com/google/go-licenses@latest
 	# go vuln check
@@ -243,10 +249,10 @@ mutation-test: ## Run mutation testing using go-gremlins
 
 test-changed: ## Run tests only for packages with changes since last commit
 	@echo "Running tests for changed packages..."
-	@CHANGED_PACKAGES=$(git diff --name-only HEAD~1 | grep '\.go$' | xargs -I {} dirname {} | sort -u | xargs -I {} go list ./{}... 2>/dev/null | grep -v 'no Go files'); \
-	if [ -n "$CHANGED_PACKAGES" ]; then \
-		echo "Testing packages: $CHANGED_PACKAGES"; \
-		go test -race -v $CHANGED_PACKAGES; \
+	@CHANGED_PACKAGES=$$(git diff --name-only HEAD~1 | grep '\.go$$' | xargs -I {} dirname {} | sort -u | xargs -I {} go list ./{}... 2>/dev/null | grep -v 'no Go files'); \
+	if [ -n "$$CHANGED_PACKAGES" ]; then \
+		echo "Testing packages: $$CHANGED_PACKAGES"; \
+		go test -race -v $$CHANGED_PACKAGES; \
 	else \
 		echo "No changed Go packages found"; \
 	fi
@@ -254,12 +260,12 @@ test-changed: ## Run tests only for packages with changes since last commit
 watch-test: ## Watch for file changes and run tests for changed packages
 	@echo "Watching for changes and running tests..."
 	@while true; do \
-		CHANGED_PACKAGES=$(git diff --name-only HEAD | grep '\.go$' | xargs -I {} dirname {} | sort -u | xargs -I {} go list ./{}... 2>/dev/null | grep -v 'no Go files'); \
-		if [ -n "$CHANGED_PACKAGES" ]; then \
-			echo "Changed packages detected: $CHANGED_PACKAGES"; \
-			go test -race -v $CHANGED_PACKAGES; \
-		fi; \
-		sleep 2; \
+	CHANGED_PACKAGES=$$(git diff --name-only HEAD | grep '\.go$$' | xargs -I {} dirname {} | sort -u | xargs -I {} go list ./{}... 2>/dev/null | grep -v 'no Go files'); \
+	if [ -n "$$CHANGED_PACKAGES" ]; then \
+		echo "Changed packages detected: $$CHANGED_PACKAGES"; \
+		go test -race -v $$CHANGED_PACKAGES; \
+	fi; \
+	sleep 2; \
 	done
 
 profile-cpu: ## Generate CPU performance profile

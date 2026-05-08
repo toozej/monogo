@@ -204,7 +204,7 @@ func TestMarkSitePosted_Independence(t *testing.T) {
 	}
 }
 
-func TestStoreTootedPost_ResetsSiteFlags(t *testing.T) {
+func TestStoreTootedPost_PreservesSiteFlagsOnConflict(t *testing.T) {
 	InitDB()
 	defer CloseDB()
 	defer os.Remove("./tooted_posts.db")
@@ -236,8 +236,8 @@ func TestStoreTootedPost_ResetsSiteFlags(t *testing.T) {
 	if err != nil {
 		t.Fatalf("IsSitePosted after re-store failed: %v", err)
 	}
-	if mastodonPosted {
-		t.Error("Expected mastodon_posted to be reset to 0 after StoreTootedPost with updated content")
+	if !mastodonPosted {
+		t.Error("Expected mastodon_posted to be preserved after StoreTootedPost with updated content")
 	}
 }
 

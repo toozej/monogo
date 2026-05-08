@@ -16,7 +16,7 @@ func TestGetTootContent_WithContent(t *testing.T) {
 		Content: "Go is a great language",
 		Link:    "https://example.com/thoughts",
 	}
-	expected := "Go is a great language - https://example.com/thoughts"
+	expected := "New post: https://example.com/thoughts"
 	result := GetTootContent(post)
 	if result != expected {
 		t.Errorf("Expected '%s', got '%s'", expected, result)
@@ -28,7 +28,7 @@ func TestGetTootContent_WithoutContent(t *testing.T) {
 		Title: "New Blog Post",
 		Link:  "https://example.com/blog",
 	}
-	expected := "New blog post: https://example.com/blog"
+	expected := "New post: https://example.com/blog"
 	result := GetTootContent(post)
 	if result != expected {
 		t.Errorf("Expected '%s', got '%s'", expected, result)
