@@ -605,6 +605,142 @@ func TestClient_GetRefSHA_Caching(t *testing.T) {
 	}
 }
 
+func TestClient_GetRefSHA_AnnotatedTag(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/git/tags/tagobj123") {
+			w.WriteHeader(200)
+			if _, err := w.Write([]byte(`{"object":{"sha":"commitSHA456","type":"commit"}}`)); err != nil { // nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter
+				t.Errorf("failed to write response body: %v", err)
+			}
+			return
+		}
+		if strings.Contains(r.URL.Path, "/git/refs/tags/v2") {
+			w.WriteHeader(200)
+			if _, err := w.Write([]byte(`{"ref":"refs/tags/v2","object":{"sha":"tagobj123","type":"tag","url":"https://api.github.com/repos/owner/repo/git/tags/tagobj123"}}`)); err != nil { // nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter
+				t.Errorf("failed to write response body: %v", err)
+			}
+			return
+		}
+		w.WriteHeader(404)
+	}))
+	defer server.Close()
+
+	client := newTestClient(server)
+	ctx := context.Background()
+
+	sha, err := client.GetRefSHA(ctx, "owner/repo", "v2")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if sha != "commitSHA456" {
+		t.Errorf("Expected dereferenced commit SHA commitSHA456, got %s", sha)
+	}
+}
+
+func TestClient_GetRefSHA_AnnotatedTagDereferenceFailure(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/git/tags/tagobj123") {
+			w.WriteHeader(404)
+			return
+		}
+		if strings.Contains(r.URL.Path, "/git/refs/tags/v2") {
+			w.WriteHeader(200)
+			if _, err := w.Write([]byte(`{"ref":"refs/tags/v2","object":{"sha":"tagobj123","type":"tag","url":"https://api.github.com/repos/owner/repo/git/tags/tagobj123"}}`)); err != nil { // nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter
+				t.Errorf("failed to write response body: %v", err)
+			}
+			return
+		}
+		w.WriteHeader(404)
+	}))
+	defer server.Close()
+
+	client := newTestClient(server)
+	ctx := context.Background()
+
+	_, err := client.GetRefSHA(ctx, "owner/repo", "v2")
+	if err == nil {
+		t.Error("Expected error when tag object dereference fails")
+	}
+}
+
+func TestClient_CompareRefSHAs_AnnotatedVsLightweight(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.Contains(r.URL.Path, "/git/refs/tags/v2.3.9"):
+			w.WriteHeader(200)
+			if _, err := w.Write([]byte(`{"ref":"refs/tags/v2.3.9","object":{"sha":"sameCommitSHA","type":"commit"}}`)); err != nil { // nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter
+				t.Errorf("failed to write response body: %v", err)
+			}
+		case strings.Contains(r.URL.Path, "/git/refs/tags/v2"):
+			w.WriteHeader(200)
+			if _, err := w.Write([]byte(`{"ref":"refs/tags/v2","object":{"sha":"tagobjAAA","type":"tag","url":"https://api.github.com/repos/owner/repo/git/tags/tagobjAAA"}}`)); err != nil { // nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter
+				t.Errorf("failed to write response body: %v", err)
+			}
+		case strings.Contains(r.URL.Path, "/git/tags/tagobjAAA"):
+			w.WriteHeader(200)
+			if _, err := w.Write([]byte(`{"object":{"sha":"sameCommitSHA","type":"commit"}}`)); err != nil { // nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter
+				t.Errorf("failed to write response body: %v", err)
+			}
+		default:
+			w.WriteHeader(404)
+		}
+	}))
+	defer server.Close()
+
+	client := newTestClient(server)
+	ctx := context.Background()
+
+	same, sha1, sha2, err := client.CompareRefSHAs(ctx, "owner/repo", "v2", "v2.3.9")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if !same {
+		t.Errorf("Expected SHAs to match (annotated v2 dereferences to same commit as lightweight v2.3.9), got %s vs %s", sha1, sha2)
+	}
+}
+
+func TestClient_CompareRefSHAs_AnnotatedVsLightweight_Different(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.Contains(r.URL.Path, "/git/refs/tags/v2.3.9"):
+			w.WriteHeader(200)
+			if _, err := w.Write([]byte(`{"ref":"refs/tags/v2.3.9","object":{"sha":"newCommitSHA","type":"commit"}}`)); err != nil { // nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter
+				t.Errorf("failed to write response body: %v", err)
+			}
+		case strings.Contains(r.URL.Path, "/git/refs/tags/v2"):
+			w.WriteHeader(200)
+			if _, err := w.Write([]byte(`{"ref":"refs/tags/v2","object":{"sha":"tagobjAAA","type":"tag","url":"https://api.github.com/repos/owner/repo/git/tags/tagobjAAA"}}`)); err != nil { // nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter
+				t.Errorf("failed to write response body: %v", err)
+			}
+		case strings.Contains(r.URL.Path, "/git/tags/tagobjAAA"):
+			w.WriteHeader(200)
+			if _, err := w.Write([]byte(`{"object":{"sha":"oldCommitSHA","type":"commit"}}`)); err != nil { // nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter
+				t.Errorf("failed to write response body: %v", err)
+			}
+		default:
+			w.WriteHeader(404)
+		}
+	}))
+	defer server.Close()
+
+	client := newTestClient(server)
+	ctx := context.Background()
+
+	same, sha1, sha2, err := client.CompareRefSHAs(ctx, "owner/repo", "v2", "v2.3.9")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if same {
+		t.Errorf("Expected SHAs to differ (v2 points to old commit, v2.3.9 points to new), got %s == %s", sha1, sha2)
+	}
+	if sha1 != "oldCommitSHA" {
+		t.Errorf("Expected sha1=oldCommitSHA, got %s", sha1)
+	}
+	if sha2 != "newCommitSHA" {
+		t.Errorf("Expected sha2=newCommitSHA, got %s", sha2)
+	}
+}
+
 func TestClient_CompareRefSHAs(t *testing.T) {
 	tests := []struct {
 		name      string

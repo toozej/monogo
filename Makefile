@@ -201,7 +201,7 @@ pre-commit-install: ## Install pre-commit hooks and necessary binaries
 	# syft
 	command -v syft || curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
 	# cosign
-	go install github.com/sigstore/cosign/cmd/cosign@latest
+	command -v cosign || brew install cosign || go install github.com/sigstore/cosign/v3/cmd/cosign@latest
 	# go-licenses
 	go install github.com/google/go-licenses@latest
 	# go vuln check
@@ -210,6 +210,8 @@ pre-commit-install: ## Install pre-commit hooks and necessary binaries
 	go install github.com/air-verse/air@latest
 	# graphviz for dot
 	command -v dot || brew install graphviz || sudo apt install -y graphviz || sudo dnf install -y graphviz
+	# semgrep
+	command -v semgrep || brew install semgrep || python3 -m pip install --break-system-packages --upgrade semgrep
 	# install and update pre-commits
 	# determine if on Debian 12 and if so use pip to install more modern pre-commit version
 	grep --silent "VERSION=\"12 (bookworm)\"" /etc/os-release && apt install -y --no-install-recommends python3-pip && python3 -m pip install --break-system-packages --upgrade pre-commit || echo "OS is not Debian 12 bookworm"
