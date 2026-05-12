@@ -51,7 +51,8 @@ func Run(conf config.Config) {
 	db.InitDB(conf.DBPath)
 	defer db.CloseDB()
 
-	var startupTime string
+	var startupTimeStr string
+	var startupTime time.Time
 	firstCycle := true
 
 	for {
@@ -62,7 +63,8 @@ func Run(conf config.Config) {
 		}
 
 		if firstCycle {
-			startupTime = time.Now().Format(time.RFC3339)
+			startupTime = time.Now()
+			startupTimeStr = startupTime.Format(time.RFC3339)
 			if conf.PostNewEntriesOnly && !db.IsFirstCycle() {
 				log.Info("PostNewEntriesOnly enabled: skipping posts already in DB from first cycle")
 			}
@@ -88,8 +90,18 @@ func Run(conf config.Config) {
 				}
 			}
 
+			if conf.PostNewEntriesOnly && post.PubDate != "" {
+				pubTime, err := post.ParsePubDate()
+				if err != nil {
+					log.Warnf("Could not parse pubDate %q for %s: %v", post.PubDate, post.Link, err)
+				} else if pubTime.Before(startupTime) {
+					log.Infof("Skipping post %s: pubDate %s (%s) is before startup time %s", post.Link, post.PubDate, pubTime, startupTimeStr)
+					continue
+				}
+			}
+
 			skipIfExisting := conf.PostNewEntriesOnly && db.IsFirstCycle()
-			handlePost(post, &conf, startupTime, skipIfExisting)
+			handlePost(post, &conf, startupTimeStr, skipIfExisting)
 		}
 
 		if conf.ShortRun {

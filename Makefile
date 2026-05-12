@@ -48,7 +48,7 @@ endif
 .PHONY: all vet test build verify run up down build-distroless run-distroless install local local-vet local-test local-cover local-run local-kill local-iterate local-release-test local-release local-sign local-verify local-release-verify local-install get-cosign-pub-key docker-login pre-commit-install pre-commit-run pre-commit pre-reqs update-golang-version upload-secrets-to-gh upload-secrets-envfile-to-1pass docs diagrams mutation-test test-changed watch-test profile-cpu profile-mem profile-all benchmark clean help
 
 all: vet pre-commit clean test build verify run ## Run default workflow via Docker
-local: local-update-deps local-vendor local-vet pre-commit clean local-test local-cover local-build local-sign local-verify local-kill local-run ## Run default workflow using locally installed Golang toolchain
+local: clean local-update-deps local-vendor local-vet pre-commit local-test local-cover local-build ## Run default workflow using locally installed Golang toolchain
 local-release-verify: local-release local-sign local-verify ## Release and verify using locally installed Golang toolchain
 pre-reqs: pre-commit-install ## Install pre-commit hooks and necessary binaries
 
@@ -237,8 +237,8 @@ docs: ## Serve Go documentation
 diagrams: ## Generate architectural diagrams using go-diagrams
 	@echo "Generating architectural diagrams..."
 	go run cmd/diagrams/main.go
-	cd ./docs/diagrams/go-diagrams && for i in $(find . -name '*.dot'); do \
-		dot -Tpng $i > ${i%.dot}.png; \
+	cd ./docs/diagrams/go-diagrams && for i in $$(find . -name '*.dot'); do \
+		dot -Tpng $$i > $${i%.dot}.png; \
 	done
 	@echo "Diagram PNGs generated in ./docs/diagrams/go-diagrams/"
 

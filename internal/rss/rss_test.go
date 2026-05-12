@@ -137,6 +137,99 @@ func TestHashContent(t *testing.T) {
 	assert.Equal(t, expectedHash[:], actualHash[:])
 }
 
+func TestParsePubDate(t *testing.T) {
+	tests := []struct {
+		name        string
+		pubDate     string
+		expectError bool
+		expectYear  int
+	}{
+		{
+			name:        "RFC 1123 format with numeric timezone",
+			pubDate:     "Wed, 31 Jul 2024 21:06:33 +0000",
+			expectError: false,
+			expectYear:  2024,
+		},
+		{
+			name:        "RFC 1123 format with named timezone",
+			pubDate:     "Wed, 31 Jul 2024 21:06:33 UTC",
+			expectError: false,
+			expectYear:  2024,
+		},
+		{
+			name:        "RFC 1123Z format",
+			pubDate:     "Wed, 31 Jul 2024 21:06:33 -0700",
+			expectError: false,
+			expectYear:  2024,
+		},
+		{
+			name:        "Single-digit day",
+			pubDate:     "Wed, 2 Aug 2024 21:06:33 +0000",
+			expectError: false,
+			expectYear:  2024,
+		},
+		{
+			name:        "Empty pubDate",
+			pubDate:     "",
+			expectError: true,
+		},
+		{
+			name:        "Invalid date string",
+			pubDate:     "not-a-date",
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			item := RSSItem{PubDate: tt.pubDate}
+			parsed, err := item.ParsePubDate()
+			if tt.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectYear, parsed.Year())
+			}
+		})
+	}
+}
+
+func TestCheckRSSFeedWithPubDate(t *testing.T) {
+	xmlContent := `
+<rss>
+<channel>
+<title>Test Blog</title>
+<item>
+<title>Post One</title>
+<link>https://example.com/post-1</link>
+<description>Content 1</description>
+<pubDate>Wed, 31 Jul 2024 21:06:33 +0000</pubDate>
+</item>
+<item>
+<title>Post Two</title>
+<link>https://example.com/post-2</link>
+<description>Content 2</description>
+<pubDate>Thu, 01 Aug 2024 12:00:00 +0000</pubDate>
+</item>
+<item>
+<title>Post Without Date</title>
+<link>https://example.com/post-3</link>
+<description>Content 3</description>
+</item>
+</channel>
+</rss>`
+
+	server := mockHTTPServer(xmlContent, 200)
+	defer server.Close()
+
+	posts, err := CheckRSSFeed(server.URL)
+	assert.NoError(t, err)
+	assert.Equal(t, 3, len(posts))
+	assert.Equal(t, "Wed, 31 Jul 2024 21:06:33 +0000", posts[0].PubDate)
+	assert.Equal(t, "Thu, 01 Aug 2024 12:00:00 +0000", posts[1].PubDate)
+	assert.Equal(t, "", posts[2].PubDate)
+}
+
 // Helper function to mock an HTTP server
 func mockHTTPServer(response string, status int) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

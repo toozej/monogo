@@ -19,10 +19,35 @@ type RSSFeed struct {
 }
 
 type RSSItem struct {
-	// RSSItem represents a single item from an RSS feed, containing title, link, and content.
+	// RSSItem represents a single item from an RSS feed, containing title, link, content, and pubDate.
 	Title   string `xml:"title"`
 	Link    string `xml:"link"`
 	Content string `xml:"description"`
+	PubDate string `xml:"pubDate"`
+}
+
+// ParsePubDate attempts to parse the item's PubDate field into a time.Time value.
+// It tries common RSS date formats including RFC 822 (with and without timezone)
+// and RFC 1123. Returns the zero time and an error if parsing fails.
+func (item RSSItem) ParsePubDate() (time.Time, error) {
+	if item.PubDate == "" {
+		return time.Time{}, fmt.Errorf("pubDate is empty")
+	}
+	formats := []string{
+		time.RFC1123Z,
+		time.RFC1123,
+		"Mon, _2 Jan 2006 15:04:05 -0700",
+		"Mon, _2 Jan 2006 15:04:05 MST",
+		"2 Jan 2006 15:04:05 -0700",
+		"2 Jan 2006 15:04:05 MST",
+		time.RFC850,
+	}
+	for _, format := range formats {
+		if t, err := time.Parse(format, item.PubDate); err == nil {
+			return t, nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("failed to parse pubDate: %q", item.PubDate)
 }
 
 // CheckRSSFeed fetches and parses the RSS feed from the provided URL

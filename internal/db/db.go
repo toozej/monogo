@@ -1,18 +1,29 @@
 package db
 
 import (
-	"database/sql"
 	"fmt"
 	"os"
 	"time"
 
+	"github.com/glebarez/sqlite"
 	log "github.com/sirupsen/logrus"
-
-	_ "github.com/glebarez/sqlite"
 	"github.com/toozej/rss2socials/internal/rss"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
+	"gorm.io/gorm/logger"
 )
 
-var DB *sql.DB
+type TootedPost struct {
+	Link           string `gorm:"primaryKey"`
+	ContentHash    string
+	Timestamp      string
+	StartupTime    string
+	MastodonPosted bool `gorm:"default:false"`
+	BlueskyPosted  bool `gorm:"default:false"`
+	ThreadsPosted  bool `gorm:"default:false"`
+}
+
+var DB *gorm.DB
 
 func InitDB(path ...string) {
 	var err error
@@ -22,125 +33,116 @@ func InitDB(path ...string) {
 	} else if p := os.Getenv("DB_PATH"); p != "" {
 		dbPath = p
 	}
+
 	log.Debugf("Opening database at %s", dbPath)
-	DB, err = sql.Open("sqlite", dbPath)
+	DB, err = gorm.Open(sqlite.Open(dbPath), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
 	if err != nil {
 		log.Fatal("Failed to open database:", err)
 	}
 
-	query := `CREATE TABLE IF NOT EXISTS tooted_posts (
-		link TEXT PRIMARY KEY,
-		content_hash TEXT,
-		timestamp TEXT,
-		startup_time TEXT,
-		mastodon_posted INTEGER DEFAULT 0,
-		bluesky_posted INTEGER DEFAULT 0,
-		threads_posted INTEGER DEFAULT 0
-	)`
-	_, err = DB.Exec(query)
+	err = DB.AutoMigrate(&TootedPost{})
 	if err != nil {
-		log.Fatal("Failed to create table:", err)
-	}
-
-	migrateDB()
-}
-
-func migrateDB() {
-	type migration struct {
-		query string
-		name  string
-	}
-	migrations := []migration{
-		{"ALTER TABLE tooted_posts ADD COLUMN mastodon_posted INTEGER DEFAULT 0", "mastodon_posted"},
-		{"ALTER TABLE tooted_posts ADD COLUMN bluesky_posted INTEGER DEFAULT 0", "bluesky_posted"},
-		{"ALTER TABLE tooted_posts ADD COLUMN threads_posted INTEGER DEFAULT 0", "threads_posted"},
-		{"ALTER TABLE tooted_posts ADD COLUMN startup_time TEXT", "startup_time"},
-	}
-	for _, m := range migrations {
-		_, err := DB.Exec(m.query)
-		if err != nil {
-			log.Debugf("Column %s already exists: %v", m.name, err)
-		}
+		log.Fatal("Failed to auto-migrate database:", err)
 	}
 }
 
 func CloseDB() {
-	err := DB.Close()
+	sqlDB, err := DB.DB()
+	if err != nil {
+		log.Error("Error getting underlying sql.DB: ", err)
+		return
+	}
+	err = sqlDB.Close()
 	if err != nil {
 		log.Error("Error closing SQLite database connection: ", err)
 	}
 }
 
 func StoreTootedPost(link string, content string, startupTime string) error {
-	query := `INSERT INTO tooted_posts(link, content_hash, timestamp, startup_time, mastodon_posted, bluesky_posted, threads_posted) VALUES (?, ?, ?, ?, 0, 0, 0) ON CONFLICT(link) DO UPDATE SET content_hash = excluded.content_hash, timestamp = excluded.timestamp, startup_time = excluded.startup_time`
-	contentHash := rss.HashContent(content)
-	_, err := DB.Exec(query, link, fmt.Sprintf("%x", contentHash), time.Now().Format(time.RFC3339), startupTime)
-	return err
+	contentHash := fmt.Sprintf("%x", rss.HashContent(content))
+	post := TootedPost{
+		Link:        link,
+		ContentHash: contentHash,
+		Timestamp:   time.Now().Format(time.RFC3339),
+		StartupTime: startupTime,
+	}
+	result := DB.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "link"}},
+		DoUpdates: clause.AssignmentColumns([]string{"content_hash", "timestamp", "startup_time"}),
+	}).Create(&post)
+	return result.Error
+}
+
+var validSites = map[string]string{
+	"mastodon": "mastodon_posted",
+	"bluesky":  "bluesky_posted",
+	"threads":  "threads_posted",
 }
 
 func MarkSitePosted(link string, site string) error {
-	switch site {
-	case "mastodon":
-		_, err := DB.Exec("UPDATE tooted_posts SET mastodon_posted = 1 WHERE link = ?", link)
-		return err
-	case "bluesky":
-		_, err := DB.Exec("UPDATE tooted_posts SET bluesky_posted = 1 WHERE link = ?", link)
-		return err
-	case "threads":
-		_, err := DB.Exec("UPDATE tooted_posts SET threads_posted = 1 WHERE link = ?", link)
-		return err
-	default:
+	column, ok := validSites[site]
+	if !ok {
 		return fmt.Errorf("unknown site: %s", site)
 	}
+	result := DB.Model(&TootedPost{}).Where("link = ?", link).Update(column, true)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("no post found with link: %s", link)
+	}
+	return nil
 }
 
 func IsSitePosted(link string, site string) (bool, error) {
-	var row *sql.Row
-	switch site {
-	case "mastodon":
-		row = DB.QueryRow("SELECT mastodon_posted FROM tooted_posts WHERE link = ?", link)
-	case "bluesky":
-		row = DB.QueryRow("SELECT bluesky_posted FROM tooted_posts WHERE link = ?", link)
-	case "threads":
-		row = DB.QueryRow("SELECT threads_posted FROM tooted_posts WHERE link = ?", link)
-	default:
+	column, ok := validSites[site]
+	if !ok {
 		return false, fmt.Errorf("unknown site: %s", site)
 	}
-	var posted int
-	err := row.Scan(&posted)
-	if err == sql.ErrNoRows {
+	var post TootedPost
+	result := DB.Select(column).Where("link = ?", link).First(&post)
+	if result.Error == gorm.ErrRecordNotFound {
 		return false, nil
-	} else if err != nil {
-		return false, err
 	}
-	return posted == 1, nil
+	if result.Error != nil {
+		return false, result.Error
+	}
+
+	switch site {
+	case "mastodon":
+		return post.MastodonPosted, nil
+	case "bluesky":
+		return post.BlueskyPosted, nil
+	case "threads":
+		return post.ThreadsPosted, nil
+	}
+	return false, fmt.Errorf("unknown site: %s", site)
 }
 
 func HasPostChanged(link string, content string) (exists bool, updated bool, err error) {
-	query := `SELECT content_hash FROM tooted_posts WHERE link = ?`
-	row := DB.QueryRow(query, link)
-
-	var storedHash string
-	err = row.Scan(&storedHash)
-	if err == sql.ErrNoRows {
+	var post TootedPost
+	result := DB.Select("content_hash").Where("link = ?", link).First(&post)
+	if result.Error == gorm.ErrRecordNotFound {
 		return false, false, nil
-	} else if err != nil {
-		return false, false, err
+	}
+	if result.Error != nil {
+		return false, false, result.Error
 	}
 
 	newHash := fmt.Sprintf("%x", rss.HashContent(content))
-	if storedHash != newHash {
+	if post.ContentHash != newHash {
 		return true, true, nil
 	}
-
 	return true, false, nil
 }
 
 func IsFirstCycle() bool {
-	var count int
-	err := DB.QueryRow("SELECT COUNT(*) FROM tooted_posts").Scan(&count)
-	if err != nil {
-		return true
+	var count int64
+	if err := DB.Model(&TootedPost{}).Count(&count).Error; err != nil {
+		log.Errorf("Error counting posts: %v", err)
+		return false
 	}
 	return count == 0
 }

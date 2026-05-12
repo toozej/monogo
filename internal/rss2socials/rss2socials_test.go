@@ -826,7 +826,8 @@ func setupRunTestDB(t *testing.T) string {
 		// Run() defers db.CloseDB(); ensure DB is closed before cleanup
 		// in case the test bailed out early. Best-effort.
 		if db.DB != nil {
-			_ = db.DB.Close()
+			sqlDB, _ := db.DB.DB()
+			_ = sqlDB.Close()
 			db.DB = nil
 		}
 	})
@@ -1108,6 +1109,210 @@ func TestRun_ShortRunPostsToAllConfiguredSites(t *testing.T) {
 	}
 
 	// Expect 3 RSS items × 1 site = 3 mastodon posts.
-	assert.Equal(t, int32(3), atomic.LoadInt32(&mastodonCalls),
-		"Each enabled site should receive a post per RSS item processed")
+	assert.Equal(t, int32(3), atomic.LoadInt32(&mastodonCalls), "Each enabled site should receive a post per RSS item processed")
+}
+
+// pubDateTestServers builds a test RSS feed server with items that have
+// specific pubDate values and a mastodon-compatible HTTP server.
+func pubDateTestServers(t *testing.T, items []rss.RSSItem, mastodonCalls *int32) (rssURL, mastodonURL string) {
+	t.Helper()
+
+	feed := rss.RSSFeed{}
+	feed.Channel.Title = "Test"
+	feed.Channel.Items = items
+
+	rssServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/rss+xml")
+		if err := xml.NewEncoder(w).Encode(feed); err != nil {
+			t.Logf("failed to encode rss feed: %v", err)
+		}
+	}))
+	t.Cleanup(rssServer.Close)
+
+	mastodonServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			atomic.AddInt32(mastodonCalls, 1)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			if err := json.NewEncoder(w).Encode(map[string]string{"id": "1"}); err != nil {
+				t.Logf("failed to encode mastodon response: %v", err)
+			}
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	t.Cleanup(mastodonServer.Close)
+
+	return rssServer.URL, mastodonServer.URL
+}
+
+func TestRun_PostNewEntriesOnly_SkipsOldPubDates(t *testing.T) {
+	dbFile := setupRunTestDB(t)
+
+	var mastodonCalls int32
+
+	now := time.Now().UTC()
+	oldTime := now.Add(-48 * time.Hour).Format("Mon, 02 Jan 2006 15:04:05 -0700")
+	recentTime := now.Add(1 * time.Hour).Format("Mon, 02 Jan 2006 15:04:05 -0700")
+
+	items := []rss.RSSItem{
+		{Title: "Old Post", Link: "https://example.com/old-post", Content: "old content", PubDate: oldTime},
+		{Title: "New Post", Link: "https://example.com/new-post", Content: "new content", PubDate: recentTime},
+	}
+
+	rssURL, mastodonURL := pubDateTestServers(t, items, &mastodonCalls)
+
+	conf := config.Config{
+		FeedURL:              rssURL,
+		Interval:             60,
+		ShortRun:             true,
+		PostNewEntriesOnly:   true,
+		DBPath:               dbFile,
+		SocialSites:          []string{"mastodon"},
+		MastodonURL:          mastodonURL,
+		MastodonClientKey:    "key",
+		MastodonClientSecret: "secret",
+		MastodonAccessToken:  "token",
+	}
+
+	done := make(chan struct{})
+	go func() {
+		Run(conf)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Run() did not exit within 5s")
+	}
+
+	assert.Equal(t, int32(1), atomic.LoadInt32(&mastodonCalls),
+		"PostNewEntriesOnly should skip posts with pubDate older than startup time")
+}
+
+func TestRun_PostNewEntriesOnly_AllowsNewPubDates(t *testing.T) {
+	dbFile := setupRunTestDB(t)
+
+	var mastodonCalls int32
+
+	now := time.Now().UTC()
+	futureTime := now.Add(1 * time.Hour).Format("Mon, 02 Jan 2006 15:04:05 -0700")
+
+	items := []rss.RSSItem{
+		{Title: "Future Post", Link: "https://example.com/future-post", Content: "future content", PubDate: futureTime},
+	}
+
+	rssURL, mastodonURL := pubDateTestServers(t, items, &mastodonCalls)
+
+	conf := config.Config{
+		FeedURL:              rssURL,
+		Interval:             60,
+		ShortRun:             true,
+		PostNewEntriesOnly:   true,
+		DBPath:               dbFile,
+		SocialSites:          []string{"mastodon"},
+		MastodonURL:          mastodonURL,
+		MastodonClientKey:    "key",
+		MastodonClientSecret: "secret",
+		MastodonAccessToken:  "token",
+	}
+
+	done := make(chan struct{})
+	go func() {
+		Run(conf)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Run() did not exit within 5s")
+	}
+
+	assert.Equal(t, int32(1), atomic.LoadInt32(&mastodonCalls),
+		"PostNewEntriesOnly should allow posts with pubDate newer than startup time")
+}
+
+func TestRun_PostNewEntriesOnly_NoPubDatePostsAll(t *testing.T) {
+	dbFile := setupRunTestDB(t)
+
+	var mastodonCalls int32
+
+	items := []rss.RSSItem{
+		{Title: "No Date Post", Link: "https://example.com/no-date-post", Content: "content"},
+	}
+
+	rssURL, mastodonURL := pubDateTestServers(t, items, &mastodonCalls)
+
+	conf := config.Config{
+		FeedURL:              rssURL,
+		Interval:             60,
+		ShortRun:             true,
+		PostNewEntriesOnly:   true,
+		DBPath:               dbFile,
+		SocialSites:          []string{"mastodon"},
+		MastodonURL:          mastodonURL,
+		MastodonClientKey:    "key",
+		MastodonClientSecret: "secret",
+		MastodonAccessToken:  "token",
+	}
+
+	done := make(chan struct{})
+	go func() {
+		Run(conf)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Run() did not exit within 5s")
+	}
+
+	assert.Equal(t, int32(1), atomic.LoadInt32(&mastodonCalls),
+		"PostNewEntriesOnly should post items without pubDate (backward compatible)")
+}
+
+func TestRun_PostNewEntriesOnlyDisabled_PostsAllRegardlessOfPubDate(t *testing.T) {
+	dbFile := setupRunTestDB(t)
+
+	var mastodonCalls int32
+
+	now := time.Now().UTC()
+	oldTime := now.Add(-48 * time.Hour).Format("Mon, 02 Jan 2006 15:04:05 -0700")
+
+	items := []rss.RSSItem{
+		{Title: "Old Post", Link: "https://example.com/old-post-dis", Content: "old content", PubDate: oldTime},
+	}
+
+	rssURL, mastodonURL := pubDateTestServers(t, items, &mastodonCalls)
+
+	conf := config.Config{
+		FeedURL:              rssURL,
+		Interval:             60,
+		ShortRun:             true,
+		PostNewEntriesOnly:   false,
+		DBPath:               dbFile,
+		SocialSites:          []string{"mastodon"},
+		MastodonURL:          mastodonURL,
+		MastodonClientKey:    "key",
+		MastodonClientSecret: "secret",
+		MastodonAccessToken:  "token",
+	}
+
+	done := make(chan struct{})
+	go func() {
+		Run(conf)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Run() did not exit within 5s")
+	}
+
+	assert.Equal(t, int32(1), atomic.LoadInt32(&mastodonCalls),
+		"When PostNewEntriesOnly is disabled, posts should not be filtered by pubDate")
 }
