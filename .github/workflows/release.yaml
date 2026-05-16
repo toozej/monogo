@@ -37,7 +37,7 @@ jobs:
           check-latest: true
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
-      - uses: sigstore/cosign-installer@v4.1.1 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
+      - uses: sigstore/cosign-installer@v4.1.2 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
       - uses: anchore/sbom-action/download-syft@v0 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
       - name: Login to DockerHub
         uses: docker/login-action@v4 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
@@ -91,7 +91,7 @@ jobs:
         extension: ['', '.exe']
     steps:
       - name: Install Cosign
-        uses: sigstore/cosign-installer@v4.1.1 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
+        uses: sigstore/cosign-installer@v4.1.2 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
       - name: Get public cosign key
         run: |
           curl --silent https://raw.githubusercontent.com/toozej/go-find-archived-gh-actions/main/go-find-archived-gh-actions.pub -O
@@ -116,7 +116,7 @@ jobs:
         extension: ['tar.gz', 'zip']
     steps:
       - name: Install Cosign
-        uses: sigstore/cosign-installer@v4.1.1 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
+        uses: sigstore/cosign-installer@v4.1.2 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
       - name: Get public cosign key
         run: |
           curl --silent https://raw.githubusercontent.com/toozej/go-find-archived-gh-actions/main/go-find-archived-gh-actions.pub -O
@@ -155,7 +155,7 @@ jobs:
         tag: ['latest']
     steps:
       - name: Install Cosign
-        uses: sigstore/cosign-installer@v4.1.1 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
+        uses: sigstore/cosign-installer@v4.1.2 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
       - name: Get public cosign key for go-find-archived-gh-actions project from GitHub
         run: |
           curl --silent https://raw.githubusercontent.com/toozej/go-find-archived-gh-actions/main/go-find-archived-gh-actions.pub -O

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -439,5 +440,159 @@ func TestCheckOutdatedActions_FloatingMajorTagStaleAnnotatedTag(t *testing.T) {
 	}
 	if result[0].LatestTag != "v2.3.9" {
 		t.Errorf("expected latest tag v2.3.9, got %s", result[0].LatestTag)
+	}
+}
+
+func TestReplaceUsesLine(t *testing.T) {
+	tests := []struct {
+		name     string
+		content  string
+		oldUse   string
+		newUse   string
+		expected string
+	}{
+		{
+			name:     "standard - uses: format",
+			content:  "      - uses: actions/checkout@v3\n",
+			oldUse:   "actions/checkout@v3",
+			newUse:   "actions/checkout@abc123 # v3",
+			expected: "      - uses: actions/checkout@abc123 # v3\n",
+		},
+		{
+			name:     "indented uses: format",
+			content:  "        uses: actions/setup-go@v4\n",
+			oldUse:   "actions/setup-go@v4",
+			newUse:   "actions/setup-go@def456 # v4",
+			expected: "        uses: actions/setup-go@def456 # v4\n",
+		},
+		{
+			name:     "multiple lines with match",
+			content:  "      - uses: actions/checkout@v3\n      - uses: actions/setup-go@v4\n",
+			oldUse:   "actions/setup-go@v4",
+			newUse:   "actions/setup-go@def456 # v4",
+			expected: "      - uses: actions/checkout@v3\n      - uses: actions/setup-go@def456 # v4\n",
+		},
+		{
+			name: "same action used multiple times",
+			content: " - uses: actions/checkout@v3\n - uses: actions/setup-go@v4\n - uses: actions/checkout@v3\n",
+			oldUse: "actions/checkout@v3",
+			newUse: "actions/checkout@abc123 # v3",
+			expected: " - uses: actions/checkout@abc123 # v3\n - uses: actions/setup-go@v4\n - uses: actions/checkout@abc123 # v3\n",
+		},
+		{
+			name: "no match",
+			content:  "      - uses: actions/checkout@v3\n",
+			oldUse:   "actions/setup-go@v4",
+			newUse:   "actions/setup-go@def456 # v4",
+			expected: "      - uses: actions/checkout@v3\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := replaceUsesLine([]byte(tt.content), tt.oldUse, tt.newUse)
+			if string(result) != tt.expected {
+				t.Errorf("replaceUsesLine() = %q, want %q", string(result), tt.expected)
+			}
+		})
+	}
+}
+
+func TestApplyUpdatesToFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	content := "name: CI\non: push\njobs:\n  test:\n    steps:\n      - uses: actions/checkout@v3\n      - uses: actions/setup-go@v4\n"
+	filePath := filepath.Join(tmpDir, "ci.yaml")
+	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	updates := []fileUpdate{
+		{oldUse: "actions/checkout@v3", newUse: "actions/checkout@abc123def # v3"},
+		{oldUse: "actions/setup-go@v4", newUse: "actions/setup-go@def456abc # v4"},
+	}
+
+	if err := applyUpdatesToFile(filePath, updates); err != nil {
+		t.Fatalf("applyUpdatesToFile failed: %v", err)
+	}
+
+	result, err := os.ReadFile(filePath)
+	if err != nil {
+		t.Fatalf("Failed to read updated file: %v", err)
+	}
+
+	resultStr := string(result)
+	if !strings.Contains(resultStr, "actions/checkout@abc123def # v3") {
+		t.Errorf("Expected checkout to be pinned to SHA, got: %s", resultStr)
+	}
+	if !strings.Contains(resultStr, "actions/setup-go@def456abc # v4") {
+		t.Errorf("Expected setup-go to be pinned to SHA, got: %s", resultStr)
+	}
+	if strings.Contains(resultStr, "actions/checkout@v3") {
+		t.Errorf("Expected old ref to be replaced, got: %s", resultStr)
+	}
+}
+
+func TestWriteOutdatedActions(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/repos/owner/repo/releases/latest":
+			w.WriteHeader(200)
+			if err := json.NewEncoder(w).Encode(gh.ReleaseInfo{
+				TagName: "v4.1.2",
+				HTMLURL: "https://github.com/owner/repo/releases/tag/v4.1.2",
+			}); err != nil {
+				t.Errorf("failed to encode release info: %v", err)
+			}
+		case r.URL.Path == "/repos/owner/repo/git/refs/tags/v4.1.2":
+			w.WriteHeader(200)
+			if _, err := w.Write([]byte(`{"ref":"refs/tags/v4.1.2","object":{"sha":"abc123def456","type":"commit"}}`)); err != nil {
+				t.Errorf("failed to write response: %v", err)
+			}
+		default:
+			w.WriteHeader(404)
+		}
+	}))
+	defer server.Close()
+
+	client := newTestGithubClient(server)
+	ctx := context.Background()
+
+	tmpDir := t.TempDir()
+	content := "name: CI\non: push\njobs:\n  test:\n    steps:\n      - uses: owner/repo@v3\n"
+	filePath := filepath.Join(tmpDir, "ci.yaml")
+	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	wf := &workflow.WorkflowFile{
+		Path: filePath,
+		UsesWithVersions: []workflow.ActionRef{
+			{OwnerRepo: "owner/repo", Version: "v3", FullRef: "owner/repo@v3"},
+		},
+	}
+
+	outdated := []OutdatedActionInfo{
+		{OwnerRepo: "owner/repo", CurrentRef: "v3", LatestTag: "v4.1.2", Workflow: "ci.yaml", FullRef: "owner/repo@v3"},
+	}
+
+	releases := map[string]*gh.ReleaseInfo{
+		"owner/repo": {TagName: "v4.1.2", HTMLURL: "https://github.com/owner/repo/releases/tag/v4.1.2"},
+	}
+
+	if err := writeOutdatedActions(ctx, client, []*workflow.WorkflowFile{wf}, outdated, releases); err != nil {
+		t.Fatalf("writeOutdatedActions failed: %v", err)
+	}
+
+	result, err := os.ReadFile(filePath)
+	if err != nil {
+		t.Fatalf("Failed to read updated file: %v", err)
+	}
+
+	resultStr := string(result)
+	if !strings.Contains(resultStr, "owner/repo@abc123def456 # v4.1.2") {
+		t.Errorf("Expected action to be pinned to SHA with semver comment, got: %s", resultStr)
+	}
+	if strings.Contains(resultStr, "owner/repo@v3") {
+		t.Errorf("Expected old ref to be replaced, got: %s", resultStr)
 	}
 }

@@ -40,8 +40,10 @@ builds:
     flags:
       - -trimpath
     ldflags:
-      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{ .CommitDate
-        }} -X main.builtBy=goreleaser
+      - -s -w -X github.com/toozej/go-find-archived-gh-actions/pkg/version.Version={{.Version}}
+        -X github.com/toozej/go-find-archived-gh-actions/pkg/version.Commit={{.Commit}} -X
+        github.com/toozej/go-find-archived-gh-actions/pkg/version.Branch={{.Branch}} -X github.com/toozej/go-find-archived-gh-actions/pkg/version.BuiltAt={{.CommitDate}}
+        -X github.com/toozej/go-find-archived-gh-actions/pkg/version.Builder=goreleaser
     main: ./
     binary: go-find-archived-gh-actions
 
@@ -226,13 +228,10 @@ signs:
 docker_signs:
   - cmd: cosign
     artifacts: all
-    stdin: '{{ .Env.COSIGN_PASSWORD }}'
-    output: true
     args:
       - 'sign'
-      - '--key=env://COSIGN_PRIVATE_KEY'
-      - '--yes'
       - '${artifact}'
+      - '--yes'
 
 milestones:
   - close: true

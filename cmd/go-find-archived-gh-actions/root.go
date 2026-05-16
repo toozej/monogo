@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -22,18 +24,19 @@ import (
 )
 
 var (
-	conf          config.Config
-	debug         bool
-	verbose       bool
-	workflowPath  string
-	workflowsDir  string
-	reposDir      string
-	githubToken   string
-	notify        bool
-	createIssue   bool
+	conf config.Config
+	debug bool
+	verbose bool
+	workflowPath string
+	workflowsDir string
+	reposDir string
+	githubToken string
+	notify bool
+	createIssue bool
 	checkOutdated bool
-	checkStale    bool
-	staleDays     int
+	checkStale bool
+	staleDays int
+	write bool
 )
 
 const defaultStaleDays = 365
@@ -71,6 +74,10 @@ func rootCmdRun(cmd *cobra.Command, args []string) {
 	}
 	if token == "" {
 		log.Fatal("GitHub token not provided. Set GH_TOKEN or GITHUB_TOKEN environment variable, or use --token flag")
+	}
+
+	if write && !checkOutdated {
+		log.Fatal("--write requires --check-outdated to be set")
 	}
 
 	parser := workflow.NewParser()
@@ -226,6 +233,7 @@ func processWorkflows(ctx context.Context, parser *workflow.WorkflowParser, ghCl
 
 	var archivedActions []issue.ArchivedActionInfo
 	var archivedRepos []string
+	var releases map[string]*github.ReleaseInfo
 
 	for _, wf := range workflowFiles {
 		for _, ref := range wf.UsesWithVersions {
@@ -254,7 +262,8 @@ func processWorkflows(ctx context.Context, parser *workflow.WorkflowParser, ghCl
 
 		if len(nonArchivedRepos) > 0 {
 			fmt.Printf("Checking %d non-archived action repositories for latest versions...\n", len(nonArchivedRepos))
-			releases, releaseErrors := ghClient.CheckMultipleReleases(ctx, nonArchivedRepos)
+			var releaseErrors map[string]error
+			releases, releaseErrors = ghClient.CheckMultipleReleases(ctx, nonArchivedRepos)
 
 			if debug {
 				ghClient.LogRateLimits(ctx)
@@ -397,13 +406,19 @@ func processWorkflows(ctx context.Context, parser *workflow.WorkflowParser, ghCl
 		var notificationActions []notification.ArchivedActionInfo
 		for _, action := range archivedActions {
 			notificationActions = append(notificationActions, notification.ArchivedActionInfo{
-				Repo:     action.Repo,
+				Repo: action.Repo,
 				Workflow: action.Workflow,
-				Uses:     action.Uses,
+				Uses: action.Uses,
 			})
 		}
 		if err := notifier.NotifyArchivedActions(ctx, notificationActions, repoName); err != nil {
 			log.Errorf("Failed to send notifications: %v", err)
+		}
+	}
+
+	if write && len(outdatedActions) > 0 {
+		if err := writeOutdatedActions(ctx, ghClient, workflowFiles, outdatedActions, releases); err != nil {
+			log.Errorf("Failed to write outdated action updates: %v", err)
 		}
 	}
 
@@ -505,6 +520,129 @@ func checkOutdatedActions(ctx context.Context, ghClient *github.Client, workflow
 	return outdatedActions
 }
 
+func writeOutdatedActions(ctx context.Context, ghClient *github.Client, workflowFiles []*workflow.WorkflowFile, outdatedActions []OutdatedActionInfo, releases map[string]*github.ReleaseInfo) error {
+	if len(outdatedActions) == 0 {
+		fmt.Println("No outdated actions to write.")
+		return nil
+	}
+
+	type update struct {
+		ownerRepo string
+		latestTag string
+		sha       string
+	}
+
+	uniqueUpdates := make(map[string]update)
+	for _, action := range outdatedActions {
+		if _, exists := uniqueUpdates[action.OwnerRepo+"@"+action.LatestTag]; exists {
+			continue
+		}
+		uniqueUpdates[action.OwnerRepo+"@"+action.LatestTag] = update{
+			ownerRepo: action.OwnerRepo,
+			latestTag: action.LatestTag,
+		}
+	}
+
+	shaCache := make(map[string]string)
+	for key, upd := range uniqueUpdates {
+		sha, err := ghClient.GetRefSHA(ctx, upd.ownerRepo, upd.latestTag)
+		if err != nil {
+			log.Warnf("Failed to get SHA for %s@%s: %v", upd.ownerRepo, upd.latestTag, err)
+			continue
+		}
+		shaCache[key] = sha
+		if verbose {
+			fmt.Printf("  Resolved %s@%s -> %s\n", upd.ownerRepo, upd.latestTag, sha)
+		}
+	}
+
+	updatesByFile := make(map[string][]fileUpdate)
+	for _, action := range outdatedActions {
+		key := action.OwnerRepo + "@" + action.LatestTag
+		sha, ok := shaCache[key]
+		if !ok {
+			continue
+		}
+
+		for _, wf := range workflowFiles {
+			if filepath.Base(wf.Path) == action.Workflow || wf.Path == action.Workflow {
+				updatesByFile[wf.Path] = append(updatesByFile[wf.Path], fileUpdate{
+					oldUse: action.FullRef,
+					newUse: fmt.Sprintf("%s@%s # %s", action.OwnerRepo, sha, action.LatestTag),
+				})
+			}
+		}
+	}
+
+	for filePath, updates := range updatesByFile {
+		if err := applyUpdatesToFile(filePath, updates); err != nil {
+			log.Errorf("Failed to write updates to %s: %v", filePath, err)
+			continue
+		}
+		fmt.Printf("Updated %s with %d action(s)\n", filePath, len(updates))
+	}
+
+	return nil
+}
+
+type fileUpdate struct {
+	oldUse string
+	newUse string
+}
+
+func applyUpdatesToFile(filePath string, updates []fileUpdate) error {
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to read file: %w", err)
+	}
+
+	result := content
+	for _, upd := range updates {
+		result = replaceUsesLine(result, upd.oldUse, upd.newUse)
+	}
+
+	info, err := os.Stat(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to stat file: %w", err)
+	}
+
+	if err := os.WriteFile(filePath, result, info.Mode()); err != nil {
+		return fmt.Errorf("failed to write file: %w", err)
+	}
+
+	return nil
+}
+
+func replaceUsesLine(content []byte, oldUse, newUse string) []byte {
+	oldLine := "- uses: " + oldUse
+	newLine := "- uses: " + newUse
+
+	if bytes.Contains(content, []byte(oldLine)) {
+		return bytes.Replace(content, []byte(oldLine), []byte(newLine), -1)
+	}
+
+	scanner := bufio.NewScanner(bytes.NewReader(content))
+	var buf bytes.Buffer
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.Contains(line, "uses: "+oldUse) {
+			indent := ""
+			idx := strings.Index(line, "uses:")
+			if idx > 0 {
+				indent = line[:idx]
+			}
+			line = indent + "uses: " + newUse
+		}
+		buf.WriteString(line)
+		buf.WriteByte('\n')
+	}
+	if err := scanner.Err(); err != nil {
+		return content
+	}
+
+	return buf.Bytes()
+}
+
 type OutdatedActionInfo struct {
 	OwnerRepo  string
 	CurrentRef string
@@ -552,6 +690,7 @@ func init() {
 	rootCmd.Flags().BoolVar(&checkOutdated, "check-outdated", false, "Check for outdated action versions")
 	rootCmd.Flags().BoolVar(&checkStale, "stale", false, "Check for stale/deprecated actions (not updated in over a year or marked with deprecation warning)")
 	rootCmd.Flags().IntVar(&staleDays, "stale-days", defaultStaleDays, "Number of days after which an action is considered stale (default 365)")
+	rootCmd.Flags().BoolVarP(&write, "write", "W", false, "Write updates to workflow files, pinning outdated actions to latest version SHA with semver comment (requires --check-outdated)")
 
 	rootCmd.AddCommand(
 		man.NewManCmd(),

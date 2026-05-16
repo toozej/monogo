@@ -28,6 +28,14 @@ inputs:
   notification-endpoints:
     description: 'Comma-separated list of notification endpoints (required if notify=true)'
     required: false
+  check-outdated:
+    description: 'Check for outdated action versions'
+    required: false
+    default: 'false'
+  write:
+    description: 'Write updates to workflow files, pinning outdated actions to latest version SHA with semver comment (requires check-outdated=true)'
+    required: false
+    default: 'false'
 outputs:
   archived-count:
     description: 'Number of archived actions found'
@@ -39,11 +47,13 @@ runs:
   using: 'docker'
   image: 'docker://ghcr.io/toozej/go-find-archived-gh-actions:latest'
   args:
-    - ${{ inputs.verbose == 'true' && '--verbose' || '' }}
-    - ${{ inputs.debug == 'true' && '--debug' || '' }}
-    - ${{ inputs.workflow && format('--workflow={0}', inputs.workflow) || '' }}
-    - ${{ inputs.notify == 'true' && '--notify' || '' }}
-    - ${{ inputs.create-issue == 'true' && '--create-issue' || '' }}
+  - ${{ inputs.verbose == 'true' && '--verbose' || '' }}
+  - ${{ inputs.debug == 'true' && '--debug' || '' }}
+  - ${{ inputs.workflow && format('--workflow={0}', inputs.workflow) || '' }}
+  - ${{ inputs.notify == 'true' && '--notify' || '' }}
+  - ${{ inputs.create-issue == 'true' && '--create-issue' || '' }}
+  - ${{ inputs.check-outdated == 'true' && '--check-outdated' || '' }}
+  - ${{ inputs.write == 'true' && '--write' || '' }}
   env:
     GH_TOKEN: ${{ inputs.token }}
     GITHUB_REPOSITORY: ${{ github.repository }}
