@@ -40,8 +40,13 @@ builds:
     flags:
       - -trimpath
     ldflags:
-      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{ .CommitDate
-        }} -X main.builtBy=goreleaser
+      - >-
+        -s -w
+        -X github.com/toozej/kmhd2spotify/pkg/version.Version={{.Version}}
+        -X github.com/toozej/kmhd2spotify/pkg/version.Commit={{.Commit}}
+        -X github.com/toozej/kmhd2spotify/pkg/version.Branch={{.Branch}}
+        -X github.com/toozej/kmhd2spotify/pkg/version.BuiltAt={{.CommitDate}}
+        -X github.com/toozej/kmhd2spotify/pkg/version.Builder=goreleaser
     main: ./
     binary: kmhd2spotify
 
@@ -91,12 +96,47 @@ dockers_v2:
       - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ .Version
         }}{{ end }}'
       - "latest"
+    dockerfile: Dockerfile.goreleaser
+    labels:
+      "io.artifacthub.package.readme-url": "https://raw.githubusercontent.com/toozej/kmhd2spotify/main/README.md"
+      "io.artifacthub.package.maintainers": "[{\"name\":\"toozej\"}]"
+      "io.artifacthub.package.license": "GPLv3"
+      "org.opencontainers.image.description": "Golang starter template"
+      "org.opencontainers.image.created": "{{.Date}}"
+      "org.opencontainers.image.name": "{{.ProjectName}}"
+      "org.opencontainers.image.revision": "{{.FullCommit}}"
+      "org.opencontainers.image.version": "{{.Version}}"
+      "org.opencontainers.image.source": "{{.GitURL}}"
+      "org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
+      "org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/kmhd2spotify/main/README.md"
+      "org.opencontainers.image.licenses": "GPL-3.0-only"
+      "org.opencontainers.image.title": "{{.ProjectName}}"
+      "org.opencontainers.image.vendor": "James Tooze"
+    annotations:
+      "index,manifest:org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
+      "index,manifest:org.opencontainers.image.created": "{{.Date}}"
+      "index,manifest:org.opencontainers.image.description": "Golang starter template"
+      "index,manifest:org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/kmhd2spotify/main/README.md"
+      "index,manifest:org.opencontainers.image.licenses": "GPL-3.0-only"
+      "index,manifest:org.opencontainers.image.revision": "{{.FullCommit}}"
+      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/kmhd2spotify"
+      "index,manifest:org.opencontainers.image.title": "{{.ProjectName}}"
+      "index,manifest:org.opencontainers.image.vendor": "James Tooze"
+      "index,manifest:org.opencontainers.image.version": "{{.Version}}"
+    extra_files:
+      - scripts/goreleaser_entrypoint.sh
+  - id: kmhd2spotify-distroless
+    images:
+      - 'toozej/kmhd2spotify'
+      - 'ghcr.io/toozej/kmhd2spotify'
+      - 'quay.io/toozej/kmhd2spotify'
+    tags:
       - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}v{{ .Version
         }}-distroless{{ end }}'
       - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ .Version
         }}-distroless{{ end }}'
       - "distroless"
-    dockerfile: Dockerfile.goreleaser
+    dockerfile: Dockerfile.goreleaser.distroless
     labels:
       "io.artifacthub.package.readme-url": "https://raw.githubusercontent.com/toozej/kmhd2spotify/main/README.md"
       "io.artifacthub.package.maintainers": "[{\"name\":\"toozej\"}]"
@@ -216,14 +256,13 @@ sboms:
 
 signs:
   - cmd: cosign
-    stdin: '{{ .Env.COSIGN_PASSWORD }}'
     output: true
+    signature: "${artifact}.sigstore.json"
     args:
       - 'sign-blob'
-      - '--key=env://COSIGN_PRIVATE_KEY'
-      - '--yes'
-      - '--output-signature=${signature}'
+      - '--bundle=${signature}'
       - '${artifact}'
+      - '--yes'
     artifacts: all
 
 docker_signs:
