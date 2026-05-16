@@ -40,8 +40,9 @@ builds:
     flags:
       - -trimpath
     ldflags:
-      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{ .CommitDate
-        }} -X main.builtBy=goreleaser
+      - -s -w -X github.com/toozej/ghreleases2rss/pkg/version.Version={{.Version}} -X github.com/toozej/ghreleases2rss/pkg/version.Commit={{.Commit}}
+        -X github.com/toozej/ghreleases2rss/pkg/version.Branch={{.Branch}} -X github.com/toozej/ghreleases2rss/pkg/version.BuiltAt={{
+        .CommitDate }} -X github.com/toozej/ghreleases2rss/pkg/version.Builder=goreleaser
     main: ./
     binary: ghreleases2rss
 
@@ -111,8 +112,8 @@ dockers_v2:
     annotations:
       "index,manifest:org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
       "index,manifest:org.opencontainers.image.created": "{{.Date}}"
-      "index,manifest:org.opencontainers.image.description": "Find liquor stores and their\
-        \ inventory"
+      "index,manifest:org.opencontainers.image.description": "Subscribe to GitHub projects’\
+        \ releases in RSS reader"
       "index,manifest:org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/ghreleases2rss/main/README.md"
       "index,manifest:org.opencontainers.image.licenses": "GPL-3.0-only"
       "index,manifest:org.opencontainers.image.revision": "{{.FullCommit}}"
@@ -153,8 +154,8 @@ dockers_v2:
     annotations:
       "index,manifest:org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
       "index,manifest:org.opencontainers.image.created": "{{.Date}}"
-      "index,manifest:org.opencontainers.image.description": "Find liquor stores and their\
-        \ inventory"
+      "index,manifest:org.opencontainers.image.description": "Subscribe to GitHub projects’\
+        \ releases in RSS reader"
       "index,manifest:org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/ghreleases2rss/main/README.md"
       "index,manifest:org.opencontainers.image.licenses": "GPL-3.0-only"
       "index,manifest:org.opencontainers.image.revision": "{{.FullCommit}}"
