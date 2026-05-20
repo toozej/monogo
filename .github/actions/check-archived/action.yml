@@ -1,7 +1,6 @@
 ---
-name: 'Find Archived GitHub Actions'
-description: 'Detect archived GitHub Actions in repository workflows (same as check-archived
-  action)'
+name: 'Check Archived GitHub Actions'
+description: 'Check for archived GitHub Actions with optional notifications and issue creation'
 author: 'toozej'
 inputs:
   token:
@@ -26,7 +25,7 @@ inputs:
     description: 'Path to base directory containing multiple repos to scan (optional)'
     required: false
   notify:
-    description: 'Send notifications to configured endpoints'
+    description: 'Send notifications to configured endpoints when archived actions are found'
     required: false
     default: 'false'
   create-issue:
@@ -54,37 +53,35 @@ outputs:
     description: 'Whether any stale/deprecated actions were found (true/false)'
     value: ${{ steps.check.outputs.has-stale }}
 runs:
-  using: 'composite'
-  steps:
-    - id: check
-  uses: toozej/go-find-archived-gh-actions/check-archived@main
-  with:
-  token: ${{ inputs.token }}
-  verbose: ${{ inputs.verbose }}
-  debug: ${{ inputs.debug }}
-  workflow: ${{ inputs.workflow }}
-  workflows-dir: ${{ inputs.workflows-dir }}
-  repos-dir: ${{ inputs.repos-dir }}
-  notify: ${{ inputs.notify }}
-  create-issue: ${{ inputs.create-issue }}
-  notification-endpoints: ${{ inputs.notification-endpoints }}
-  stale-days: ${{ inputs.stale-days }}
-
-# NOTE: This composite action references check-archived@main. When using this
-# action via a version tag (e.g., @v2), the delegate will still resolve to @main.
-# This is a known limitation of GitHub composite actions. If you need strict
-# version pinning, use the check-archived action directly with a specific ref.
+  using: 'docker'
+  image: 'docker://ghcr.io/toozej/go-find-archived-gh-actions:latest'
+  args:
+    - archived
+    - ${{ inputs.verbose == 'true' && '--verbose' || '' }}
+    - ${{ inputs.debug == 'true' && '--debug' || '' }}
+    - ${{ inputs.workflow && format('--workflow={0}', inputs.workflow) || '' }}
+    - ${{ inputs.workflows-dir && format('--workflows-dir={0}', inputs.workflows-dir) || ''
+      }}
+    - ${{ inputs.repos-dir && format('--repos-dir={0}', inputs.repos-dir) || '' }}
+    - ${{ inputs.notify == 'true' && '--notify' || '' }}
+    - ${{ inputs.create-issue == 'true' && '--create-issue' || '' }}
+    - ${{ inputs.stale-days && format('--stale-days={0}', inputs.stale-days) || '' }}
+  env:
+    GH_TOKEN: ${{ inputs.token }}
+    GITHUB_REPOSITORY: ${{ github.repository }}
+    NOTIFICATION_ENDPOINTS: ${{ inputs.notification-endpoints }}
+    CREATE_ISSUES: ${{ inputs.create-issue }}
 
 # Example usage in a workflow:
 #
-# name: Check for Archived Actions
+# name: Check Archived Actions and Notify
 # on:
 #   schedule:
 #   - cron: '0 0 * * 0' # Weekly on Sundays
 #   workflow_dispatch:
 #
 # jobs:
-#   check-archived-actions:
+#   check-archived:
 #     runs-on: ubuntu-latest
 #     steps:
 #     - name: Checkout code
@@ -92,10 +89,11 @@ runs:
 #
 #     - name: Check for archived GitHub Actions
 #       id: check
-#       uses: toozej/go-find-archived-gh-actions@main
+#       uses: toozej/go-find-archived-gh-actions/check-archived@main
 #       with:
 #         token: ${{ secrets.GITHUB_TOKEN }}
 #         verbose: true
+#         notify: true
 #         create-issue: true
 #
 #     - name: Fail if archived actions found
@@ -103,7 +101,3 @@ runs:
 #       run: |
 #         echo "Archived GitHub Actions detected. Please replace them."
 #         exit 1
-#
-# NOTE: The create-issue input creates a repository-level issue.
-# For PR-specific comments during pull request review, use the actions/github-script
-# action with steps.check.outputs.has-archived and steps.check.outputs.archived-count.

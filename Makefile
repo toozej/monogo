@@ -43,10 +43,10 @@ else
 	OPENER=open
 endif
 
-.PHONY: all vet test build verify run up down distroless-build distroless-run install local local-vet local-test local-cover local-run local-kill local-iterate local-release-test local-release local-sign local-verify local-release-verify local-install get-cosign-pub-key docker-login pre-commit-install pre-commit-run pre-commit pre-reqs update-golang-version upload-secrets-to-gh upload-secrets-envfile-to-1pass docs diagrams mutation-test test-changed watch-test profile-cpu profile-mem profile-all benchmark clean demo help
+.PHONY: all vet test build verify run up down install local local-vet local-test local-cover local-run local-kill local-iterate local-release-test local-release local-sign local-verify local-release-verify local-install get-cosign-pub-key docker-login pre-commit-install pre-commit-run pre-commit pre-reqs update-golang-version upload-secrets-to-gh upload-secrets-envfile-to-1pass docs diagrams mutation-test test-changed watch-test profile-cpu profile-mem profile-all benchmark clean demo help
 
 all: vet pre-commit clean test build verify run ## Run default workflow via Docker
-local: local-update-deps local-vendor local-vet pre-commit clean local-test local-cover local-build local-sign local-verify local-kill local-run ## Run default workflow using locally installed Golang toolchain
+local: local-update-deps local-vendor local-vet pre-commit clean local-test local-cover local-build local-release-test ## Run default workflow using locally installed Golang toolchain
 local-release-verify: local-release local-sign local-verify ## Release and verify using locally installed Golang toolchain
 pre-reqs: pre-commit-install ## Install pre-commit hooks and necessary binaries
 
@@ -76,12 +76,6 @@ up: test build ## Run Docker Compose project with build Docker image
 
 down: ## Stop running Docker Compose project
 	docker compose -f docker-compose.yml down --remove-orphans
-
-distroless-build: ## Build Docker image using distroless as final base
-	docker build -f $(CURDIR)/Dockerfile.distroless -t $(IMAGE_AUTHOR)/$(IMAGE_NAME):distroless . 
-
-distroless-run: ## Run built Docker image using distroless as final base
-	docker run --rm --name go-find-archived-gh-actions -v $(CURDIR)/config:/config $(IMAGE_AUTHOR)/$(IMAGE_NAME):distroless
 
 install: ## Install go-find-archived-gh-actions from latest GitHub release
 	if command -v go; then \
@@ -144,14 +138,14 @@ local-release: local-test docker-login ## Release assets using locally installed
 
 local-sign: local-test ## Sign locally installed golang toolchain and cosign
 	if test -e $(CURDIR)/go-find-archived-gh-actions.key && test -e $(CURDIR)/.env; then \
-		export `cat $(CURDIR)/.env | xargs` && cosign sign-blob --key=$(CURDIR)/go-find-archived-gh-actions.key --output-signature=$(CURDIR)/go-find-archived-gh-actions.sig $(CURDIR)/out/go-find-archived-gh-actions; \
+		export `cat $(CURDIR)/.env | xargs` && cosign sign-blob --key=$(CURDIR)/go-find-archived-gh-actions.key --bundle=$(CURDIR)/go-find-archived-gh-actions.bundle $(CURDIR)/out/go-find-archived-gh-actions; \
 	else \
 		echo "no cosign private key found at $(CURDIR)/go-find-archived-gh-actions.key. Cannot release."; \
 	fi
 
 local-verify: get-cosign-pub-key ## Verify locally compiled binary
 	# cosign here assumes you're using Linux AMD64 binary
-	cosign verify-blob --key $(CURDIR)/go-find-archived-gh-actions.pub --signature $(CURDIR)/go-find-archived-gh-actions.sig $(CURDIR)/out/go-find-archived-gh-actions
+	cosign verify-blob --key $(CURDIR)/go-find-archived-gh-actions.pub --bundle $(CURDIR)/go-find-archived-gh-actions.bundle $(CURDIR)/out/go-find-archived-gh-actions
 
 local-install: local-build local-verify ## Install compiled binary to local machine
 	sudo cp $(CURDIR)/out/go-find-archived-gh-actions /usr/local/bin/go-find-archived-gh-actions
@@ -294,16 +288,14 @@ clean: ## Remove any locally compiled binaries, profiles, demo output, and built
 	@rm -rf $(CURDIR)/profiles/
 	@rm -rf $(CURDIR)/dist/
 	@rm -rf $(CURDIR)/c.out
+	@rm -rf $(CURDIR)/*.bundle
 	@rm -rf $(CURDIR)/manpages/
 	@rm -rf $(CURDIR)/completions/
 	@rm -rf $(DEMO_DIR)
 	-docker image rm $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG)
 
-.PHONY: example-demo
-example-demo: demo ## Alias for demo target
-
 demo: local-build ## Run the built binary against example workflow to demo functionality
-	-$(CURDIR)/out/go-find-archived-gh-actions --workflow $(CURDIR)/example/workflows/example-archived-actions.yaml --verbose --check-outdated
+	-$(CURDIR)/out/go-find-archived-gh-actions check --workflow $(CURDIR)/example/workflows/example-archived-actions.yaml --verbose
 
 help: ## Display help text
 	@grep -E '^[a-zA-Z_-]+ ?:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'

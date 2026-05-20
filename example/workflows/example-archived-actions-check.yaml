@@ -1,12 +1,12 @@
 ---
-name: Check for Archived GitHub Actions
+name: Example - Check Archived Actions
 on:
   schedule:
     - cron: '0 0 * * 0'
   workflow_dispatch:
 
 jobs:
-  check-archived-actions:
+  check-archived:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -14,10 +14,11 @@ jobs:
 
       - name: Check for archived GitHub Actions
         id: check
-        uses: toozej/go-find-archived-gh-actions@main
+        uses: toozej/go-find-archived-gh-actions/check-archived@main
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           verbose: true
+          notify: true
           create-issue: true
 
       - name: Fail if archived actions found

@@ -50,40 +50,64 @@ docker run --rm -v $(pwd):/workspace -w /workspace ghcr.io/toozej/go-find-archiv
 docker run --rm -v $(pwd):/workspace -w /workspace -e GH_TOKEN=your_token ghcr.io/toozej/go-find-archived-gh-actions:latest
 
 # With verbose output and outdated checking
-docker run --rm -v $(pwd):/workspace -w /workspace -e GH_TOKEN=your_token ghcr.io/toozej/go-find-archived-gh-actions:latest --verbose --check-outdated
+docker run --rm -v $(pwd):/workspace -w /workspace -e GH_TOKEN=your_token ghcr.io/toozej/go-find-archived-gh-actions:latest outdated --verbose
 ```
 
 ## Usage
 
+### Sub-commands
+
+The tool provides several sub-commands for different check types:
+
+```bash
+# Check for archived actions
+go-find-archived-gh-actions archived
+
+# Check for outdated actions (not archived, but not latest version)
+go-find-archived-gh-actions outdated
+
+# Check for EOL/stale/deprecated actions
+go-find-archived-gh-actions eol
+
+# Run all checks (archived + EOL + outdated)
+go-find-archived-gh-actions check
+```
+
 ### Basic Usage
 
 ```bash
-# Check all workflows in current repository
-go-find-archived-gh-actions
+# Check all workflows in current repository for archived actions
+go-find-archived-gh-actions archived
 
 # Check a specific workflow file
-go-find-archived-gh-actions --workflow .github/workflows/ci.yml
+go-find-archived-gh-actions archived --workflow .github/workflows/ci.yml
 
 # Check a specific directory of workflow files
-go-find-archived-gh-actions --workflows-dir ~/src/github/username/repo/.github/workflows
+go-find-archived-gh-actions archived --workflows-dir ~/src/github/username/repo/.github/workflows
 
 # Check multiple repos in a base directory (bulk scanning)
-go-find-archived-gh-actions --repos-dir ~/src/github
+go-find-archived-gh-actions archived --repos-dir ~/src/github
 
 # Verbose output
-go-find-archived-gh-actions --verbose
+go-find-archived-gh-actions archived --verbose
 
 # Debug logging (includes rate limit info)
-go-find-archived-gh-actions --debug
+go-find-archived-gh-actions archived --debug
 
-# Check for outdated actions (not archived, but not latest version)
-go-find-archived-gh-actions --check-outdated
+# Check for outdated actions with auto-update (pin to SHA)
+go-find-archived-gh-actions outdated --update --pin
 
-# Check for stale/deprecated actions
-go-find-archived-gh-actions --stale
+# Check for outdated actions with semver version strings
+go-find-archived-gh-actions outdated --update --semver
 
-# Check for stale actions with custom threshold (180 days instead of default 365)
-go-find-archived-gh-actions --stale --stale-days 180
+# Check for EOL/stale/deprecated actions
+go-find-archived-gh-actions eol
+
+# Check for EOL actions with custom stale threshold (180 days instead of default 365)
+go-find-archived-gh-actions eol --stale-days 180
+
+# Run all checks and auto-update EOL + outdated actions
+go-find-archived-gh-actions check --write
 ```
 
 ### Path Expansion
@@ -149,9 +173,19 @@ SLACK_CHANNEL_ID=C12345678
 CREATE_ISSUES=true
 ```
 
-### GitHub Action
+### GitHub Actions
 
-Use the provided GitHub Action in your workflows:
+This repository provides multiple composite actions (similar to [actions/cache](https://github.com/actions/cache)):
+
+| Action | Description |
+|--------|-------------|
+| `toozej/go-find-archived-gh-actions@main` | Check for archived actions (default/root action) |
+| `toozej/go-find-archived-gh-actions/check-archived@main` | Check for archived actions with notifications and issue creation |
+| `toozej/go-find-archived-gh-actions/check-outdated@main` | Check for outdated action versions with optional auto-update |
+| `toozej/go-find-archived-gh-actions/eol@main` | Check for EOL/stale/deprecated actions |
+| `toozej/go-find-archived-gh-actions/check@main` | Run all checks (archived + EOL + outdated) |
+
+#### Check Archived Actions
 
 ```yaml
 name: Check for Archived Actions
@@ -180,6 +214,132 @@ jobs:
       run: exit 1
 ```
 
+#### Check Archived Actions with Notifications
+
+```yaml
+name: Check Archived Actions and Notify
+on:
+  schedule:
+  - cron: '0 0 * * 0' # Weekly
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Check archived actions
+      id: check
+      uses: toozej/go-find-archived-gh-actions/check-archived@main
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        verbose: true
+        notify: true
+        create-issue: true
+
+    - name: Fail if archived actions found
+      if: steps.check.outputs.has-archived == 'true'
+      run: exit 1
+```
+
+#### Check Outdated Actions
+
+```yaml
+name: Check for Outdated Actions
+on:
+  schedule:
+  - cron: '0 0 * * 0' # Weekly
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Check outdated actions
+      id: check
+      uses: toozej/go-find-archived-gh-actions/check-outdated@main
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        verbose: true
+
+    - name: Fail if outdated actions found
+      if: steps.check.outputs.has-outdated == 'true'
+      run: exit 1
+```
+
+#### Auto-Update Outdated Actions (Pin to SHA)
+
+```yaml
+name: Auto-Update Outdated Actions
+on:
+  schedule:
+  - cron: '0 0 * * 0' # Weekly
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Update outdated actions
+      id: update
+      uses: toozej/go-find-archived-gh-actions/check-outdated@main
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        verbose: true
+        update: true
+        pin: true
+
+    - name: Commit updated workflows
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git add ".github/workflows/**.yml" ".github/workflows/**.yaml"
+        git diff --cached --quiet || git commit -m "chore(deps): pin outdated GitHub Actions to SHA references"
+        git push
+```
+
+#### Run All Checks
+
+```yaml
+name: Check All GitHub Actions
+on:
+  schedule:
+  - cron: '0 0 * * 0' # Weekly
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Run all checks
+      id: check
+      uses: toozej/go-find-archived-gh-actions/check@main
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        verbose: true
+        notify: true
+        create-issue: true
+
+    - name: Fail if issues found
+      if: steps.check.outputs.has-archived == 'true' || steps.check.outputs.has-outdated == 'true' || steps.check.outputs.has-eol == 'true'
+      run: exit 1
+```
+
 ### Pre-commit Hook
 
 Add to your `.pre-commit-config.yaml`:
@@ -204,7 +364,7 @@ repos:
 ### Archived Actions Only
 
 ```
-$ go-find-archived-gh-actions --verbose
+$ go-find-archived-gh-actions archived --verbose
 
 Found 3 workflow files
 - .github/workflows/ci.yml (2 uses)
@@ -227,7 +387,7 @@ Checking 3 action repositories for archived status...
 ### With Outdated Checking
 
 ```
-$ go-find-archived-gh-actions --verbose --check-outdated
+$ go-find-archived-gh-actions check --verbose
 
 Found 1 workflow files
 - example/workflows/example-archived-actions.yaml (9 uses)
@@ -259,7 +419,7 @@ Checking 5 non-archived action repositories for latest versions...
 ### With Stale Checking
 
 ```
-$ go-find-archived-gh-actions --verbose --stale
+$ go-find-archived-gh-actions eol --verbose
 
 Checking 5 non-archived action repositories for stale/deprecated status...
 
@@ -274,7 +434,7 @@ Checking 5 non-archived action repositories for stale/deprecated status...
 
 ### Major Version Tag Handling
 
-When using `--check-outdated`, the tool intelligently handles major version tags (e.g., `v2`):
+When using the `outdated` sub-command, the tool intelligently handles major version tags (e.g., `v2`):
 
 - If you're using `action@v2` and the latest release is `v2.3.3`, the tool compares the commit SHAs
 - If the major version tag (`v2`) points to the same commit as the latest version (`v2.3.3`), it's **not** marked as outdated
@@ -291,7 +451,7 @@ When using `--check-outdated`, the tool intelligently handles major version tags
 When running with `--debug`, the tool logs GitHub API rate limit information:
 
 ```
-$ go-find-archived-gh-actions --debug
+$ go-find-archived-gh-actions archived --debug
 DEBU[0000] GitHub API rate limit: limit=5000 remaining=4998 used=2 reset=2026-05-04T22:00:00Z resource=core
 ```
 
@@ -299,21 +459,23 @@ DEBU[0000] GitHub API rate limit: limit=5000 remaining=4998 used=2 reset=2026-05
 
 ### Core Settings
 
-| Environment Variable | CLI Flag | Description |
-|---------------------|----------|-------------|
-| `GH_TOKEN` | `--token`, `-t` | GitHub API token (preferred) |
-| `GITHUB_TOKEN` | `--token`, `-t` | GitHub API token (fallback) |
-| `CREATE_ISSUES` | `--create-issue` | Create GitHub issues (true/false) |
-| `NOTIFY_CONDENSE` | - | Condense multiple notifications into one (true/false) |
-| - | `--notify` | Enable notifications to configured endpoints |
-| - | `--workflow`, `-w` | Path to specific workflow file to check |
-| - | `--workflows-dir` | Path to directory containing workflow yaml files |
-| - | `--repos-dir` | Path to base directory containing multiple repos to scan |
-| - | `--check-outdated` | Check for outdated action versions |
-| - | `--stale` | Check for stale/deprecated actions |
-| - | `--stale-days` | Days before an action is considered stale (default 365) |
-| - | `--verbose`, `-v` | Show detailed output |
-| - | `--debug`, `-d` | Enable debug-level logging (includes rate limit info) |
+| Environment Variable | CLI Flag | Sub-command(s) | Description |
+|---------------------|----------|----------------|-------------|
+| `GH_TOKEN` | `--token`, `-t` | all | GitHub API token (preferred) |
+| `GITHUB_TOKEN` | `--token`, `-t` | all | GitHub API token (fallback) |
+| `CREATE_ISSUES` | `--create-issue` | archived, check | Create GitHub issues (true/false) |
+| `NOTIFY_CONDENSE` | - | all (with `--notify`) | Condense multiple notifications into one (true/false) |
+| - | `--notify` | archived, eol, check | Enable notifications to configured endpoints |
+| - | `--workflow` | all | Path to specific workflow file to check |
+| - | `--workflows-dir` | all | Path to directory containing workflow yaml files |
+| - | `--repos-dir` | all | Path to base directory containing multiple repos to scan |
+| - | `--update` | outdated, eol | Write updated versions to affected workflow files |
+| - | `--pin` | outdated | Pin actions to SHAs instead of semver version strings |
+| - | `--semver` | outdated | Use semver version strings instead of SHAs when updating |
+| - | `--write`, `-w` | check | Auto-apply updates for EOL and outdated actions |
+| - | `--stale-days` | archived, eol, check | Days before an action is considered stale (default 365) |
+| - | `--verbose`, `-v` | all | Show detailed output |
+| - | `--debug`, `-d` | all | Enable debug-level logging (includes rate limit info) |
 
 ### Notification Providers
 
@@ -338,10 +500,16 @@ make demo
 
 # Or run manually after building
 make local-build
-./out/go-find-archived-gh-actions --workflow example/workflows/example-archived-actions.yaml --verbose --check-outdated
+./out/go-find-archived-gh-actions outdated --workflow example/workflows/example-archived-actions.yaml --verbose
+
+# Run archived check
+./out/go-find-archived-gh-actions archived --workflow example/workflows/example-archived-actions.yaml --verbose
+
+# Run all checks
+./out/go-find-archived-gh-actions check --workflow example/workflows/example-archived-actions.yaml --verbose
 
 # Using GitHub CLI for authentication
-./out/go-find-archived-gh-actions --workflow example/workflows/example-archived-actions.yaml --verbose --check-outdated --token $(gh auth token)
+./out/go-find-archived-gh-actions outdated --workflow example/workflows/example-archived-actions.yaml --verbose --token $(gh auth token)
 ```
 
 The example workflow at `example/workflows/example-archived-actions.yaml` contains:

@@ -1,0 +1,26 @@
+---
+name: Example - Check Outdated Actions
+on:
+  schedule:
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+
+jobs:
+  check-outdated:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for outdated GitHub Actions
+        id: check
+        uses: toozej/go-find-archived-gh-actions/check-outdated@main
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          verbose: true
+
+      - name: Fail if outdated actions found
+        if: steps.check.outputs.has-outdated == 'true'
+        run: |
+          echo "Outdated GitHub Actions detected. Please update them."
+          exit 1

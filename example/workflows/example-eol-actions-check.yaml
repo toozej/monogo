@@ -1,0 +1,27 @@
+---
+name: Example - Check EOL Actions
+on:
+  schedule:
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+
+jobs:
+  check-eol:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for EOL GitHub Actions
+        id: check
+        uses: toozej/go-find-archived-gh-actions/eol@main
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          verbose: true
+          notify: true
+
+      - name: Fail if EOL actions found
+        if: steps.check.outputs.has-eol == 'true'
+        run: |
+          echo "EOL GitHub Actions detected. Please update or replace them."
+          exit 1

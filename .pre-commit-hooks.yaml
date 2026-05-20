@@ -1,8 +1,68 @@
 ---
   - id: go-find-archived-gh-actions
     name: Check for archived GitHub Actions
-    description: Detect archived GitHub Actions in repository workflows
-    entry: go-find-archived-gh-actions
+    description: Detect archived and stale GitHub Actions in repository workflows
+    entry: go-find-archived-gh-actions archived
     language: golang
-    files: \.(yml|yaml)$
+    files: ^\.github/workflows/.*\.(yml|yaml)$
     pass_filenames: false
+    require_serial: true
+  - id: go-find-archived-gh-actions-eol
+    name: Check for EOL GitHub Actions
+    description: Detect GitHub Actions using end-of-life languages and runtimes
+    entry: go-find-archived-gh-actions eol
+    language: golang
+    files: ^\.github/workflows/.*\.(yml|yaml)$
+    pass_filenames: false
+    require_serial: true
+  - id: go-find-archived-gh-actions-outdated
+    name: Check for outdated GitHub Actions
+    description: Detect outdated GitHub Actions versions compared to the latest release
+    entry: go-find-archived-gh-actions outdated
+    language: golang
+    files: ^\.github/workflows/.*\.(yml|yaml)$
+    pass_filenames: false
+    require_serial: true
+  - id: go-find-archived-gh-actions-check
+    name: Check all GitHub Actions
+    description: Run all checks (archived, EOL, and outdated) on GitHub Actions in workflow
+      files
+    entry: go-find-archived-gh-actions check
+    language: golang
+    files: ^\.github/workflows/.*\.(yml|yaml)$
+    pass_filenames: false
+    require_serial: true
+  - id: go-find-archived-gh-actions-docker
+    name: Check for archived GitHub Actions (Docker)
+    description: Detect archived and stale GitHub Actions in repository workflows using Docker
+      image
+    entry: ghcr.io/toozej/go-find-archived-gh-actions:latest archived
+    language: docker_image
+    files: ^\.github/workflows/.*\.(yml|yaml)$
+    pass_filenames: false
+    require_serial: true
+  - id: go-find-archived-gh-actions-eol-docker
+    name: Check for EOL GitHub Actions (Docker)
+    description: Detect GitHub Actions using end-of-life languages and runtimes using Docker
+      image
+    entry: ghcr.io/toozej/go-find-archived-gh-actions:latest eol
+    language: docker_image
+    files: ^\.github/workflows/.*\.(yml|yaml)$
+    pass_filenames: false
+    require_serial: true
+  - id: go-find-archived-gh-actions-outdated-docker
+    name: Check for outdated GitHub Actions (Docker)
+    description: Detect outdated GitHub Actions versions using Docker image
+    entry: ghcr.io/toozej/go-find-archived-gh-actions:latest outdated
+    language: docker_image
+    files: ^\.github/workflows/.*\.(yml|yaml)$
+    pass_filenames: false
+    require_serial: true
+  - id: go-find-archived-gh-actions-check-docker
+    name: Check all GitHub Actions (Docker)
+    description: Run all checks (archived, EOL, outdated) on GitHub Actions using Docker image
+    entry: ghcr.io/toozej/go-find-archived-gh-actions:latest check
+    language: docker_image
+    files: ^\.github/workflows/.*\.(yml|yaml)$
+    pass_filenames: false
+    require_serial: true

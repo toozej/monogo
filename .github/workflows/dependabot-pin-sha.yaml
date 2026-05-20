@@ -25,17 +25,14 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref }}
           token: ${{ secrets.GH_TOKEN }}
 
-      - name: Build go-find-archived-gh-actions
-        run: |
-          go build -o ./out/go-find-archived-gh-actions .
-
       - name: Pin outdated actions to SHA
-        run: |
-          ./out/go-find-archived-gh-actions \
-            --check-outdated \
-            --write \
-            --verbose \
-            --token ${{ secrets.GH_TOKEN }} || true
+        id: pin
+        uses: toozej/go-find-archived-gh-actions/check-outdated@main
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+          verbose: true
+          update: true
+          pin: true
 
       - name: Check for changes
         id: check-changes

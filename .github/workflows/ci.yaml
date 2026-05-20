@@ -60,35 +60,39 @@ jobs:
         run: make local-build
       - name: Demo - check archived actions
         run: |
-          ./out/go-find-archived-gh-actions \
-            --workflow example/workflows/example-archived-actions.yaml \
-            --verbose \
-            --token ${{ secrets.GH_TOKEN }} || true
-      - name: Demo - check archived + outdated actions
+          ./out/go-find-archived-gh-actions archived \
+          --workflow example/workflows/example-archived-actions.yaml \
+          --verbose \
+          --token ${{ secrets.GH_TOKEN }} || true
+      - name: Demo - check outdated actions
         run: |
-          ./out/go-find-archived-gh-actions \
-            --workflow example/workflows/example-archived-actions.yaml \
-            --verbose \
-            --check-outdated \
-            --token ${{ secrets.GH_TOKEN }} || true
-      - name: Demo - check archived + outdated + stale actions
+          ./out/go-find-archived-gh-actions outdated \
+          --workflow example/workflows/example-archived-actions.yaml \
+          --verbose \
+          --token ${{ secrets.GH_TOKEN }} || true
+      - name: Demo - check EOL actions
         run: |
-          ./out/go-find-archived-gh-actions \
-            --workflow example/workflows/example-archived-actions.yaml \
-            --verbose \
-            --check-outdated \
-            --stale \
-            --token ${{ secrets.GH_TOKEN }} || true
+          ./out/go-find-archived-gh-actions eol \
+          --workflow example/workflows/example-archived-actions.yaml \
+          --verbose \
+          --stale-days 365 \
+          --token ${{ secrets.GH_TOKEN }} || true
+      - name: Demo - check all (archived + EOL + outdated)
+        run: |
+          ./out/go-find-archived-gh-actions check \
+          --workflow example/workflows/example-archived-actions.yaml \
+          --verbose \
+          --stale-days 365 \
+          --token ${{ secrets.GH_TOKEN }} || true
       - name: Demo - Slack notification
         if: env.SLACK_TOKEN != ''
         run: |
-          ./out/go-find-archived-gh-actions \
-            --workflow example/workflows/example-archived-actions.yaml \
-            --verbose \
-            --check-outdated \
-            --stale \
-            --notify \
-            --token ${{ secrets.GH_TOKEN }} || true
+          ./out/go-find-archived-gh-actions check \
+          --workflow example/workflows/example-archived-actions.yaml \
+          --verbose \
+          --stale-days 365 \
+          --notify \
+          --token ${{ secrets.GH_TOKEN }} || true
         env:
           SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
           SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
@@ -122,9 +126,9 @@ jobs:
         run: make local-build
       - name: E2E - verify archived actions are detected
         run: |
-          output=$(./out/go-find-archived-gh-actions \
-            --workflow example/workflows/example-archived-actions.yaml \
-            --token ${{ secrets.GH_TOKEN }} 2>&1) || true
+          output=$(./out/go-find-archived-gh-actions archived \
+          --workflow example/workflows/example-archived-actions.yaml \
+          --token ${{ secrets.GH_TOKEN }} 2>&1) || true
           echo "$output"
           if ! echo "$output" | grep -q "actions-rs"; then
             echo "FAIL: Expected archived actions-rs actions to be detected"
@@ -133,31 +137,31 @@ jobs:
           echo "PASS: Archived actions detected correctly"
       - name: E2E - verify debug mode shows rate limit info
         run: |
-          output=$(./out/go-find-archived-gh-actions \
-            --workflow example/workflows/example-archived-actions.yaml \
-            --debug \
-            --token ${{ secrets.GH_TOKEN }} 2>&1) || true
+          output=$(./out/go-find-archived-gh-actions archived \
+          --workflow example/workflows/example-archived-actions.yaml \
+          --debug \
+          --token ${{ secrets.GH_TOKEN }} 2>&1) || true
           echo "$output"
           if ! echo "$output" | grep -qi "rate limit"; then
             echo "WARN: Rate limit info not found in debug output (may not be available for all token types)"
           fi
           echo "PASS: Debug mode executed successfully"
-      - name: E2E - verify stale flag works
+      - name: E2E - verify EOL/stale check works
         run: |
-          output=$(./out/go-find-archived-gh-actions \
-            --workflow example/workflows/example-archived-actions.yaml \
-            --stale \
-            --token ${{ secrets.GH_TOKEN }} 2>&1) || true
+          output=$(./out/go-find-archived-gh-actions eol \
+          --workflow example/workflows/example-archived-actions.yaml \
+          --stale-days 365 \
+          --token ${{ secrets.GH_TOKEN }} 2>&1) || true
           echo "$output"
-          echo "PASS: Stale flag executed successfully"
+          echo "PASS: EOL/stale check executed successfully"
       - name: E2E - Slack notification
         if: env.SLACK_TOKEN != ''
         run: |
-          ./out/go-find-archived-gh-actions \
-            --workflow example/workflows/example-archived-actions.yaml \
-            --verbose \
-            --notify \
-            --token ${{ secrets.GH_TOKEN }} || true
+          ./out/go-find-archived-gh-actions archived \
+          --workflow example/workflows/example-archived-actions.yaml \
+          --verbose \
+          --notify \
+          --token ${{ secrets.GH_TOKEN }} || true
         env:
           SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
           SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}

@@ -1,0 +1,96 @@
+---
+name: 'Check EOL GitHub Actions'
+description: 'Detect GitHub Actions using end-of-life languages and runtimes with optional
+  auto-update'
+author: 'toozej'
+inputs:
+  token:
+    description: 'GitHub token for API access'
+    required: true
+  verbose:
+    description: 'Enable verbose output'
+    required: false
+    default: 'false'
+  debug:
+    description: 'Enable debug logging'
+    required: false
+    default: 'false'
+  workflow:
+    description: 'Path to specific workflow file to check (optional, checks all if not specified)'
+    required: false
+  workflows-dir:
+    description: 'Path to directory containing workflow yaml files (optional, checks all if
+      not specified)'
+    required: false
+  repos-dir:
+    description: 'Path to base directory containing multiple repos to scan (optional)'
+    required: false
+  notify:
+    description: 'Send notifications to configured endpoints when EOL actions are found'
+    required: false
+    default: 'false'
+  update:
+    description: 'Write updated versions to affected workflow files'
+    required: false
+    default: 'false'
+  notification-endpoints:
+    description: 'Comma-separated list of notification endpoints (required if notify=true)'
+    required: false
+  stale-days:
+    description: 'Number of days after which an action is considered stale (default 365)'
+    required: false
+    default: '365'
+outputs:
+  eol-count:
+    description: 'Number of EOL/stale/deprecated actions found'
+    value: ${{ steps.check.outputs.eol-count }}
+  has-eol:
+    description: 'Whether any EOL actions were found (true/false)'
+    value: ${{ steps.check.outputs.has-eol }}
+runs:
+  using: 'docker'
+  image: 'docker://ghcr.io/toozej/go-find-archived-gh-actions:latest'
+  args:
+    - eol
+    - ${{ inputs.verbose == 'true' && '--verbose' || '' }}
+    - ${{ inputs.debug == 'true' && '--debug' || '' }}
+    - ${{ inputs.workflow && format('--workflow={0}', inputs.workflow) || '' }}
+    - ${{ inputs.workflows-dir && format('--workflows-dir={0}', inputs.workflows-dir) || ''
+      }}
+    - ${{ inputs.repos-dir && format('--repos-dir={0}', inputs.repos-dir) || '' }}
+    - ${{ inputs.notify == 'true' && '--notify' || '' }}
+    - ${{ inputs.update == 'true' && '--update' || '' }}
+    - ${{ inputs.stale-days && format('--stale-days={0}', inputs.stale-days) || '' }}
+  env:
+    GH_TOKEN: ${{ inputs.token }}
+    GITHUB_REPOSITORY: ${{ github.repository }}
+    NOTIFICATION_ENDPOINTS: ${{ inputs.notification-endpoints }}
+
+# Example usage in a workflow:
+#
+# name: Check EOL Actions
+# on:
+#   schedule:
+#   - cron: '0 0 * * 0' # Weekly on Sundays
+#   workflow_dispatch:
+#
+# jobs:
+#   check-eol:
+#     runs-on: ubuntu-latest
+#     steps:
+#     - name: Checkout code
+#       uses: actions/checkout@v4
+#
+#     - name: Check for EOL GitHub Actions
+#       id: check
+#       uses: toozej/go-find-archived-gh-actions/eol@main
+#       with:
+#         token: ${{ secrets.GITHUB_TOKEN }}
+#         verbose: true
+#         notify: true
+#
+#     - name: Fail if EOL actions found
+#       if: steps.check.outputs.has-eol == 'true'
+#       run: |
+#         echo "EOL GitHub Actions detected. Please update or replace them."
+#         exit 1
