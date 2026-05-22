@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 
@@ -65,33 +64,6 @@ func WriteActionOutput(key, value string) {
 		log.Warnf("Failed to write to GITHUB_OUTPUT file: %v", err)
 	}
 }
-
-type OutdatedActionInfo struct {
-	OwnerRepo  string
-	CurrentRef string
-	LatestTag  string
-	LatestURL  string
-	Workflow   string
-	FullRef    string
-}
-
-type StaleActionInfo struct {
-	OwnerRepo          string
-	FullRef            string
-	Workflow           string
-	Deprecated         bool
-	DeprecationMessage string
-	LastUpdated        time.Time
-	StaleByAge         bool
-}
-
-type FileUpdate struct {
-	OldUse string
-	NewUse string
-}
-
-const DefaultStaleDays = 365
-const MaxStaleDays = 3650
 
 func SanitizeStaleDays(days int) int {
 	if days <= 0 {

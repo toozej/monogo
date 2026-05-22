@@ -2,12 +2,17 @@ package github
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/toozej/go-find-archived-gh-actions/internal/runtime"
+	"github.com/toozej/go-find-archived-gh-actions/internal/workflow"
 )
 
 func newTestClient(server *httptest.Server) *Client {
@@ -15,10 +20,207 @@ func newTestClient(server *httptest.Server) *Client {
 		httpClient:    server.Client(),
 		token:         "test-token",
 		baseURL:       server.URL,
+		eolClient:     runtime.NewEOLClient(server.Client()),
 		archivedCache: make(map[string]bool),
 		releaseCache:  make(map[string]*ReleaseInfo),
 		refSHACache:   make(map[string]string),
 		repoInfoCache: make(map[string]*RepoInfo),
+	}
+}
+
+func TestClient_GetActionYML(t *testing.T) {
+	actionContent := `name: Test Action
+description: A test action
+runs:
+  using: node20
+  main: dist/index.js
+`
+	encoded := base64.StdEncoding.EncodeToString([]byte(actionContent))
+
+	tests := []struct {
+		name         string
+		ownerRepo    string
+		ref          string
+		responseBody string
+		statusCode   int
+		wantUsing    string
+		wantError    bool
+	}{
+		{
+			name:         "action.yml found with node20",
+			ownerRepo:    "owner/repo",
+			ref:          "v2",
+			responseBody: fmt.Sprintf(`{"content": "%s"}`, encoded),
+			statusCode:   200,
+			wantUsing:    "node20",
+			wantError:    false,
+		},
+		{
+			name:       "action.yml not found",
+			ownerRepo:  "owner/repo",
+			ref:        "v1",
+			statusCode: 404,
+			wantError:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if strings.Contains(r.URL.Path, "action.yml") || strings.Contains(r.URL.Path, "action.yaml") {
+					w.WriteHeader(tt.statusCode)
+					if tt.responseBody != "" {
+						if _, err := w.Write([]byte(tt.responseBody)); err != nil {
+							t.Errorf("failed to write response body: %v", err)
+						}
+					}
+					return
+				}
+				w.WriteHeader(404)
+			}))
+			defer server.Close()
+
+			client := newTestClient(server)
+			ctx := context.Background()
+			content, err := client.GetActionYML(ctx, tt.ownerRepo, tt.ref)
+
+			if tt.wantError && err == nil {
+				t.Error("Expected error but got none")
+			}
+			if !tt.wantError && err != nil {
+				t.Errorf("Unexpected error: %v", err)
+			}
+			if !tt.wantError {
+				using, parseErr := ParseActionYML(content)
+				if parseErr != nil {
+					t.Errorf("Failed to parse action.yml: %v", parseErr)
+				}
+				if using != tt.wantUsing {
+					t.Errorf("Expected using=%s, got %s", tt.wantUsing, using)
+				}
+			}
+		})
+	}
+}
+
+func TestClient_CheckMultipleRuntimeEOL(t *testing.T) {
+	actionContent := `name: Test Action
+runs:
+  using: node20
+  main: dist/index.js
+`
+	encoded := base64.StdEncoding.EncodeToString([]byte(actionContent))
+
+	eolServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/products/nodejs/releases/20") {
+			eolFrom := "2026-04-30"
+			resp := runtime.ProductReleaseResponse{
+				SchemaVersion: "1.0.0",
+				Result: runtime.ProductRelease{
+					Name:    "20",
+					IsEol:   true,
+					EolFrom: &eolFrom,
+				},
+			}
+			w.WriteHeader(200)
+			body, _ := json.Marshal(resp)
+			if _, err := w.Write(body); err != nil {
+				t.Errorf("failed to write response body: %v", err)
+			}
+			return
+		}
+		w.WriteHeader(404)
+	}))
+	defer eolServer.Close()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "action.yml") || strings.Contains(r.URL.Path, "action.yaml") {
+			if strings.Contains(r.URL.Path, "eol-action") {
+				w.WriteHeader(200)
+				if _, err := w.Write([]byte(fmt.Sprintf(`{"content": "%s"}`, encoded))); err != nil {
+					t.Errorf("failed to write response body: %v", err)
+				}
+				return
+			}
+			w.WriteHeader(404)
+			return
+		}
+		w.WriteHeader(404)
+	}))
+	defer server.Close()
+
+	client := newTestClient(server)
+	client.eolClient = runtime.NewEOLClientWithHTTP(eolServer.URL, eolServer.Client())
+	ctx := context.Background()
+
+	refs := []workflow.ActionRef{
+		{OwnerRepo: "owner/eol-action", Version: "v2"},
+		{OwnerRepo: "owner/nonexistent", Version: "v1"},
+	}
+
+	results, errors := client.CheckMultipleRuntimeEOL(ctx, refs)
+
+	if len(errors) != 1 {
+		t.Errorf("Expected 1 error, got %d", len(errors))
+	}
+	if len(results) != 1 {
+		t.Errorf("Expected 1 result, got %d", len(results))
+	}
+	if result, ok := results["owner/eol-action@v2"]; ok {
+		if result.Version != "20" {
+			t.Errorf("Expected version 20, got %s", result.Version)
+		}
+		if !result.IsEOL {
+			t.Error("Expected IsEOL to be true")
+		}
+	}
+}
+
+func TestParseActionYML(t *testing.T) {
+	tests := []struct {
+		name      string
+		content   string
+		wantUsing string
+		wantError bool
+	}{
+		{
+			name:      "node20 runtime",
+			content:   "name: Test\nruns:\n  using: node20\n  main: index.js\n",
+			wantUsing: "node20",
+			wantError: false,
+		},
+		{
+			name:      "docker runtime",
+			content:   "name: Test\nruns:\n  using: docker\n  image: Dockerfile\n",
+			wantUsing: "docker",
+			wantError: false,
+		},
+		{
+			name:      "composite action",
+			content:   "name: Test\nruns:\n  using: composite\n  steps:\n    - run: echo hello\n      shell: bash\n",
+			wantUsing: "composite",
+			wantError: false,
+		},
+		{
+			name:      "invalid yaml",
+			content:   "{{invalid",
+			wantError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			using, err := ParseActionYML(tt.content)
+			if tt.wantError && err == nil {
+				t.Error("Expected error but got none")
+			}
+			if !tt.wantError && err != nil {
+				t.Errorf("Unexpected error: %v", err)
+			}
+			if !tt.wantError && using != tt.wantUsing {
+				t.Errorf("Expected using=%s, got %s", tt.wantUsing, using)
+			}
+		})
 	}
 }
 
@@ -299,6 +501,9 @@ func TestNewClient(t *testing.T) {
 	}
 	if client.refSHACache == nil {
 		t.Error("Expected refSHACache to be initialized")
+	}
+	if client.eolClient == nil {
+		t.Error("Expected eolClient to be initialized")
 	}
 }
 

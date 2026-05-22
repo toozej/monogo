@@ -2,8 +2,10 @@ package github
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -12,63 +14,20 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
+	"gopkg.in/yaml.v3"
+
+	"github.com/toozej/go-find-archived-gh-actions/internal/runtime"
+	"github.com/toozej/go-find-archived-gh-actions/internal/workflow"
 )
 
 const maxConcurrency = 10
-
-type Client struct {
-	httpClient *http.Client
-	token      string
-	baseURL    string
-
-	archivedCache map[string]bool
-	releaseCache  map[string]*ReleaseInfo
-	refSHACache   map[string]string
-	repoInfoCache map[string]*RepoInfo
-	cacheMu       sync.RWMutex
-}
-
-type RepoInfo struct {
-	Name           string `json:"name"`
-	FullName       string `json:"full_name"`
-	Archived       bool   `json:"archived"`
-	Private        bool   `json:"private"`
-	HTMLURL        string `json:"html_url"`
-	Owner          Owner  `json:"owner"`
-	CreatedAt      string `json:"created_at"`
-	UpdatedAt      string `json:"updated_at"`
-	PushedAt       string `json:"pushed_at"`
-	Deprecated     bool   `json:"deprecated"`
-	DeprecationMsg string `json:"deprecation_warning_message"`
-}
-
-type ReleaseInfo struct {
-	TagName     string `json:"tag_name"`
-	Name        string `json:"name"`
-	Draft       bool   `json:"draft"`
-	Prerelease  bool   `json:"prerelease"`
-	HTMLURL     string `json:"html_url"`
-	PublishedAt string `json:"published_at"`
-}
-
-type Owner struct {
-	Login string `json:"login"`
-	Type  string `json:"type"`
-}
-
-type RateLimitInfo struct {
-	Limit     int
-	Remaining int
-	Used      int
-	Reset     time.Time
-	Resource  string
-}
 
 func NewClientWithHTTP(baseURL string, httpClient *http.Client) *Client {
 	return &Client{
 		httpClient:    httpClient,
 		token:         "",
 		baseURL:       baseURL,
+		eolClient:     runtime.NewEOLClient(httpClient),
 		archivedCache: make(map[string]bool),
 		releaseCache:  make(map[string]*ReleaseInfo),
 		refSHACache:   make(map[string]string),
@@ -87,6 +46,7 @@ func NewClient(token string) *Client {
 		httpClient:    tc,
 		token:         token,
 		baseURL:       "https://api.github.com",
+		eolClient:     runtime.NewEOLClient(tc),
 		archivedCache: make(map[string]bool),
 		releaseCache:  make(map[string]*ReleaseInfo),
 		refSHACache:   make(map[string]string),
@@ -359,15 +319,6 @@ func (c *Client) CheckMultipleReleases(ctx context.Context, repos []string) (map
 	return releases, errors
 }
 
-type RefInfo struct {
-	Ref    string `json:"ref"`
-	Object struct {
-		SHA  string `json:"sha"`
-		URL  string `json:"url"`
-		Type string `json:"type"`
-	} `json:"object"`
-}
-
 func (c *Client) GetRefSHA(ctx context.Context, ownerRepo, ref string) (string, error) {
 	if sha, ok := c.getCachedRefSHA(ownerRepo, ref); ok {
 		return sha, nil
@@ -540,12 +491,171 @@ func (c *Client) CheckMultipleStale(ctx context.Context, repos []string, staleTh
 	return results, errors
 }
 
-type StaleInfo struct {
-	Repo               string
-	Deprecated         bool
-	DeprecationMessage string
-	LastUpdated        time.Time
-	StaleByAge         bool
+func (c *Client) GetActionYML(ctx context.Context, ownerRepo, ref string) (string, error) {
+	owner, repo, err := parseOwnerRepo(ownerRepo)
+	if err != nil {
+		return "", err
+	}
+
+	for _, filename := range []string{"action.yml", "action.yaml"} {
+		url := fmt.Sprintf("%s/repos/%s/%s/contents/%s?ref=%s", c.baseURL, owner, repo, filename, ref)
+		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+		if err != nil {
+			return "", fmt.Errorf("failed to create request: %w", err)
+		}
+		req.Header.Set("Accept", "application/vnd.github.v3+json")
+		req.Header.Set("User-Agent", "go-find-archived-gh-actions")
+
+		resp, err := c.httpClient.Do(req)
+		if err != nil {
+			return "", fmt.Errorf("failed to make request: %w", err)
+		}
+
+		c.logRateLimits(resp)
+
+		if err := c.handleRateLimit(resp); err != nil {
+			_ = resp.Body.Close()
+			return "", err
+		}
+
+		if resp.StatusCode == 404 {
+			_ = resp.Body.Close()
+			continue
+		}
+
+		if resp.StatusCode != 200 {
+			_ = resp.Body.Close()
+			return "", fmt.Errorf("GitHub API returned status %d for %s", resp.StatusCode, filename)
+		}
+
+		var contentResp struct {
+			Content string `json:"content"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&contentResp); err != nil {
+			_ = resp.Body.Close()
+			return "", fmt.Errorf("failed to decode response: %w", err)
+		}
+		_ = resp.Body.Close()
+
+		decoded, err := base64.StdEncoding.DecodeString(contentResp.Content)
+		if err != nil {
+			return "", fmt.Errorf("failed to decode base64 content: %w", err)
+		}
+		return string(decoded), nil
+	}
+
+	return "", fmt.Errorf("no action.yml or action.yaml found in %s@%s", ownerRepo, ref)
+}
+
+func (c *Client) GetRawActionYML(ctx context.Context, ownerRepo, ref string) (string, error) {
+	owner, repo, err := parseOwnerRepo(ownerRepo)
+	if err != nil {
+		return "", err
+	}
+
+	for _, filename := range []string{"action.yml", "action.yaml"} {
+		url := fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s/%s", owner, repo, ref, filename)
+		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+		if err != nil {
+			return "", fmt.Errorf("failed to create request: %w", err)
+		}
+		if c.token != "" {
+			req.Header.Set("Authorization", "token "+c.token)
+		}
+		req.Header.Set("User-Agent", "go-find-archived-gh-actions")
+
+		resp, err := c.httpClient.Do(req)
+		if err != nil {
+			return "", fmt.Errorf("failed to make request: %w", err)
+		}
+
+		if resp.StatusCode == 404 {
+			_ = resp.Body.Close()
+			continue
+		}
+
+		if resp.StatusCode != 200 {
+			_ = resp.Body.Close()
+			return "", fmt.Errorf("raw content API returned status %d for %s", resp.StatusCode, filename)
+		}
+
+		body, err := io.ReadAll(resp.Body)
+		_ = resp.Body.Close()
+		if err != nil {
+			return "", fmt.Errorf("failed to read response body: %w", err)
+		}
+		return string(body), nil
+	}
+
+	return "", fmt.Errorf("no action.yml or action.yaml found in %s@%s", ownerRepo, ref)
+}
+
+func ParseActionYML(content string) (string, error) {
+	var action actionYML
+	if err := yaml.Unmarshal([]byte(content), &action); err != nil {
+		return "", fmt.Errorf("failed to parse action.yml: %w", err)
+	}
+	return action.Runs.Using, nil
+}
+
+func (c *Client) CheckMultipleRuntimeEOL(ctx context.Context, refs []workflow.ActionRef) (map[string]*RuntimeEOLResult, map[string]error) {
+	results := make(map[string]*RuntimeEOLResult)
+	errors := make(map[string]error)
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+
+	sem := make(chan struct{}, maxConcurrency)
+
+	for _, ref := range refs {
+		wg.Add(1)
+		go func(ref workflow.ActionRef) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			actionContent, err := c.GetActionYML(ctx, ref.OwnerRepo, ref.Version)
+			if err != nil {
+				actionContent, err = c.GetRawActionYML(ctx, ref.OwnerRepo, ref.Version)
+				if err != nil {
+					mu.Lock()
+					errors[ref.OwnerRepo+"@"+ref.Version] = err
+					mu.Unlock()
+					return
+				}
+			}
+
+			using, err := ParseActionYML(actionContent)
+			if err != nil {
+				mu.Lock()
+				errors[ref.OwnerRepo+"@"+ref.Version] = err
+				mu.Unlock()
+				return
+			}
+
+			eolInfo, eolErr := c.eolClient.CheckRunsUsing(ctx, using)
+			if eolErr != nil {
+				mu.Lock()
+				errors[ref.OwnerRepo+"@"+ref.Version] = eolErr
+				mu.Unlock()
+				return
+			}
+			if eolInfo != nil && eolInfo.IsEOL {
+				mu.Lock()
+				key := ref.OwnerRepo + "@" + ref.Version
+				results[key] = &RuntimeEOLResult{
+					OwnerRepo: ref.OwnerRepo,
+					Runtime:   eolInfo.Runtime,
+					Version:   eolInfo.Version,
+					EOLDate:   eolInfo.EOLDate,
+					IsEOL:     eolInfo.IsEOL,
+				}
+				mu.Unlock()
+			}
+		}(ref)
+	}
+
+	wg.Wait()
+	return results, errors
 }
 
 func (c *Client) GetRateLimits(ctx context.Context) (*RateLimitInfo, error) {

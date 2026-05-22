@@ -1,0 +1,46 @@
+package checkrunner
+
+import (
+	"context"
+	"os"
+
+	log "github.com/sirupsen/logrus"
+
+	"github.com/toozej/go-find-archived-gh-actions/internal/github"
+	"github.com/toozej/go-find-archived-gh-actions/internal/issue"
+	"github.com/toozej/go-find-archived-gh-actions/internal/notification"
+	"github.com/toozej/go-find-archived-gh-actions/internal/workflow"
+	"github.com/toozej/go-find-archived-gh-actions/pkg/config"
+)
+
+func NewRunContext(token string, conf config.Config, initNotifier, initIssueCreator bool) *RunContext {
+	ctx := context.Background()
+	workDir, err := os.Getwd()
+	if err != nil {
+		log.Fatalf("Failed to get working directory: %v", err)
+	}
+
+	parser := workflow.NewParser()
+	ghClient := github.NewClient(token)
+
+	rc := &RunContext{
+		Ctx:      ctx,
+		WorkDir:  workDir,
+		Parser:   parser,
+		GHClient: ghClient,
+	}
+
+	if initNotifier {
+		manager, nerr := notification.NewNotificationManager(conf.Notification)
+		if nerr != nil {
+			log.Fatalf("Failed to initialize notification manager: %v", nerr)
+		}
+		rc.Notifier = manager
+	}
+
+	if initIssueCreator {
+		rc.IssueCreator = issue.NewIssueCreator(token)
+	}
+
+	return rc
+}

@@ -7,9 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
 
-	"github.com/nikoksr/notify"
 	"github.com/nikoksr/notify/service/discord"
 	"github.com/nikoksr/notify/service/pushbullet"
 	"github.com/nikoksr/notify/service/pushover"
@@ -20,35 +18,6 @@ import (
 	"github.com/toozej/go-find-archived-gh-actions/pkg/config"
 )
 
-// ArchivedActionInfo represents information about an archived action.
-type ArchivedActionInfo struct {
-	Repo     string `json:"repo"`
-	Workflow string `json:"workflow"`
-	Uses     string `json:"uses"`
-}
-
-// Notifier is an interface for sending notifications
-type Notifier interface {
-	Notify(ctx context.Context, subject, message string) error
-}
-
-// GotifyNotifier implements direct Gotify API integration
-type GotifyNotifier struct {
-	endpoint string
-	token    string
-	client   *http.Client
-}
-
-// NewGotifyNotifier creates a new Gotify notifier
-func NewGotifyNotifier(endpoint, token string) *GotifyNotifier {
-	return &GotifyNotifier{
-		endpoint: strings.TrimSuffix(endpoint, "/"),
-		token:    token,
-		client:   &http.Client{Timeout: 10 * time.Second},
-	}
-}
-
-// Notify sends a notification to Gotify
 func (g *GotifyNotifier) Notify(ctx context.Context, subject, message string) error {
 	url := fmt.Sprintf("%s/message?token=%s", g.endpoint, g.token)
 
@@ -83,26 +52,12 @@ func (g *GotifyNotifier) Notify(ctx context.Context, subject, message string) er
 	return nil
 }
 
-// NikoksrNotifier uses the nikoksr/notify library for other notification services
-type NikoksrNotifier struct {
-	notifier *notify.Notify
-}
-
-// NewNikoksrNotifier creates a new notifier using nikoksr/notify
-func NewNikoksrNotifier() *NikoksrNotifier {
-	return &NikoksrNotifier{
-		notifier: notify.New(),
-	}
-}
-
-// AddSlack adds Slack notification service
 func (n *NikoksrNotifier) AddSlack(token string, channelID string) {
 	service := slack.New(token)
 	service.AddReceivers(channelID)
 	n.notifier.UseServices(service)
 }
 
-// AddTelegram adds Telegram notification service
 func (n *NikoksrNotifier) AddTelegram(token string, chatID int64) error {
 	service, err := telegram.New(token)
 	if err != nil {
@@ -113,7 +68,6 @@ func (n *NikoksrNotifier) AddTelegram(token string, chatID int64) error {
 	return nil
 }
 
-// AddDiscord adds Discord notification service
 func (n *NikoksrNotifier) AddDiscord(token string, channelID string) {
 	service := discord.New()
 	defer func() {
@@ -126,33 +80,22 @@ func (n *NikoksrNotifier) AddDiscord(token string, channelID string) {
 	n.notifier.UseServices(service)
 }
 
-// AddPushover adds Pushover notification service
 func (n *NikoksrNotifier) AddPushover(token string, recipientID string) {
 	service := pushover.New(token)
 	service.AddReceivers(recipientID)
 	n.notifier.UseServices(service)
 }
 
-// AddPushbullet adds Pushbullet notification service
 func (n *NikoksrNotifier) AddPushbullet(token string, deviceNickname string) {
 	service := pushbullet.New(token)
 	service.AddReceivers(deviceNickname)
 	n.notifier.UseServices(service)
 }
 
-// Notify sends a notification using nikoksr/notify
 func (n *NikoksrNotifier) Notify(ctx context.Context, subject, message string) error {
 	return n.notifier.Send(ctx, subject, message)
 }
 
-// NotificationManager manages multiple notification providers
-type NotificationManager struct {
-	notifiers []Notifier
-	condense  bool
-}
-
-// NewNotificationManager creates a notification manager from a flat NotificationConfig.
-// Each provider is enabled when its required credentials are present in the config.
 func NewNotificationManager(nc config.NotificationConfig) (*NotificationManager, error) {
 	manager := &NotificationManager{
 		condense: nc.Condense,
@@ -161,7 +104,6 @@ func NewNotificationManager(nc config.NotificationConfig) (*NotificationManager,
 	nikoksrNotifier := NewNikoksrNotifier()
 	nikoksrAdded := false
 
-	// Gotify: requires endpoint and token
 	if nc.GotifyEndpoint != "" || nc.GotifyToken != "" {
 		if nc.GotifyEndpoint == "" {
 			return nil, fmt.Errorf("gotify requires GOTIFY_ENDPOINT to be set")
@@ -172,7 +114,6 @@ func NewNotificationManager(nc config.NotificationConfig) (*NotificationManager,
 		manager.notifiers = append(manager.notifiers, NewGotifyNotifier(nc.GotifyEndpoint, nc.GotifyToken))
 	}
 
-	// Slack: requires token and channel ID
 	if nc.SlackToken != "" || nc.SlackChannelID != "" {
 		if nc.SlackToken == "" {
 			return nil, fmt.Errorf("slack requires SLACK_TOKEN to be set")
@@ -184,7 +125,6 @@ func NewNotificationManager(nc config.NotificationConfig) (*NotificationManager,
 		nikoksrAdded = true
 	}
 
-	// Telegram: requires token and chat ID
 	if nc.TelegramToken != "" || nc.TelegramChatID != 0 {
 		if nc.TelegramToken == "" {
 			return nil, fmt.Errorf("telegram requires TELEGRAM_TOKEN to be set")
@@ -198,7 +138,6 @@ func NewNotificationManager(nc config.NotificationConfig) (*NotificationManager,
 		nikoksrAdded = true
 	}
 
-	// Discord: requires token and channel ID
 	if nc.DiscordToken != "" || nc.DiscordChannelID != "" {
 		if nc.DiscordToken == "" {
 			return nil, fmt.Errorf("discord requires DISCORD_TOKEN to be set")
@@ -210,7 +149,6 @@ func NewNotificationManager(nc config.NotificationConfig) (*NotificationManager,
 		nikoksrAdded = true
 	}
 
-	// Pushover: requires token and recipient ID
 	if nc.PushoverToken != "" || nc.PushoverRecipientID != "" {
 		if nc.PushoverToken == "" {
 			return nil, fmt.Errorf("pushover requires PUSHOVER_TOKEN to be set")
@@ -222,7 +160,6 @@ func NewNotificationManager(nc config.NotificationConfig) (*NotificationManager,
 		nikoksrAdded = true
 	}
 
-	// Pushbullet: requires token and device nickname
 	if nc.PushbulletToken != "" || nc.PushbulletDeviceNickname != "" {
 		if nc.PushbulletToken == "" {
 			return nil, fmt.Errorf("pushbullet requires PUSHBULLET_TOKEN to be set")
@@ -241,7 +178,6 @@ func NewNotificationManager(nc config.NotificationConfig) (*NotificationManager,
 	return manager, nil
 }
 
-// NotifyArchivedActions sends notifications for multiple found archived actions
 func (m *NotificationManager) NotifyArchivedActions(ctx context.Context, actions []ArchivedActionInfo, repoName string) error {
 	if len(actions) == 0 {
 		return nil
@@ -260,7 +196,6 @@ func (m *NotificationManager) NotifyArchivedActions(ctx context.Context, actions
 	return lastErr
 }
 
-// notifySingleAction creates and sends a single notification for one archived action
 func (m *NotificationManager) notifySingleAction(ctx context.Context, action ArchivedActionInfo, repoName string) error {
 	subject := fmt.Sprintf("Archived GitHub Action found in %s", repoName)
 	message := fmt.Sprintf("Found archived GitHub Action in repository %s:\n\n%s (used in %s)\n\nThis action should be replaced with an actively maintained alternative.",
@@ -282,7 +217,6 @@ func (m *NotificationManager) notifySingleAction(ctx context.Context, action Arc
 	return lastErr
 }
 
-// sendCondensedNotification creates and sends a single notification for multiple actions
 func (m *NotificationManager) sendCondensedNotification(ctx context.Context, actions []ArchivedActionInfo, repoName string) error {
 	if len(actions) == 0 {
 		return nil

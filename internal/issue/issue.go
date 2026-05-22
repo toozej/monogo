@@ -1,8 +1,3 @@
-// Package issue provides functionality for creating GitHub issues
-// when archived actions are detected in workflows.
-//
-// This package handles creating GitHub issues in repositories to notify
-// maintainers about archived GitHub Actions that need replacement.
 package issue
 
 import (
@@ -16,15 +11,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// IssueCreator handles creating GitHub issues.
-type IssueCreator struct {
-	token    string
-	client   *github.Client
-	isTest   bool
-	testImpl func(ctx context.Context, owner, repo string, archivedActions []ArchivedActionInfo) error
-}
-
-// NewIssueCreator creates a new IssueCreator with the provided GitHub token.
 func NewIssueCreator(token string) *IssueCreator {
 	ctx := context.Background()
 	ts := oauth2.StaticTokenSource(
@@ -38,7 +24,6 @@ func NewIssueCreator(token string) *IssueCreator {
 	}
 }
 
-// CreateArchivedActionIssue creates a GitHub issue about archived actions.
 func (ic *IssueCreator) CreateArchivedActionIssue(ctx context.Context, owner, repo string, archivedActions []ArchivedActionInfo) error {
 	if len(archivedActions) == 0 {
 		return nil
@@ -76,14 +61,6 @@ func (ic *IssueCreator) CreateArchivedActionIssue(ctx context.Context, owner, re
 	return nil
 }
 
-// ArchivedActionInfo represents information about an archived action.
-type ArchivedActionInfo struct {
-	Repo     string
-	Workflow string
-	Uses     string
-}
-
-// buildIssueBody creates the body content for the GitHub issue.
 func (ic *IssueCreator) buildIssueBody(actions []ArchivedActionInfo) string {
 	var body strings.Builder
 
