@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/toozej/go-find-archived-gh-actions/internal/actioninfo"
+	"github.com/toozej/go-find-archived-gh-actions/internal/output"
 	"github.com/toozej/go-find-archived-gh-actions/internal/workflow"
 	"github.com/toozej/go-find-archived-gh-actions/pkg/config"
 	"github.com/toozej/go-find-archived-gh-actions/pkg/man"
@@ -24,6 +25,7 @@ var (
 	githubToken  string
 	notify       bool
 	createIssue  bool
+	outputFormat string
 )
 
 var rootCmd = &cobra.Command{
@@ -64,6 +66,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&workflowPath, "workflow", "", "Path to specific workflow file to check")
 	rootCmd.PersistentFlags().StringVar(&workflowsDir, "workflows-dir", "", "Path to directory containing workflow yaml files")
 	rootCmd.PersistentFlags().StringVar(&reposDir, "repos-dir", "", "Path to base directory containing multiple repos to scan")
+	rootCmd.PersistentFlags().StringVarP(&outputFormat, "output-format", "o", "text", "Output format: text or json")
 
 	rootCmd.AddCommand(
 		newArchivedCmd(),
@@ -87,6 +90,14 @@ func resolveToken() string {
 		log.Fatal("GitHub token not provided. Set GH_TOKEN or GITHUB_TOKEN environment variable, or use --token flag")
 	}
 	return token
+}
+
+func resolveOutputFormat() output.Format {
+	f, err := output.ParseFormat(outputFormat)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+	return f
 }
 
 func resolveWorkflowFiles(parser *workflow.WorkflowParser, workDir string) ([]*workflow.WorkflowFile, []workflow.ActionRef) {

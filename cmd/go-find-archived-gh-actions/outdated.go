@@ -42,7 +42,8 @@ Use --pin to swap from semver version strings to SHAs.`,
 
 func runOutdated(update bool, useSemver bool) {
 	token := resolveToken()
-	rc := checkrunner.NewRunContext(token, conf, notify, createIssue)
+	of := resolveOutputFormat()
+	rc := checkrunner.NewRunContext(token, conf, notify, createIssue, of)
 	rc.Verbose = verbose
 	rc.Debug = debug
 
@@ -83,11 +84,9 @@ func processOutdated(rc *checkrunner.RunContext, workflowFiles []*workflow.Workf
 	actioninfo.WriteActionOutput("has-outdated", fmt.Sprintf("%v", len(outdatedActions) > 0))
 
 	if !hasIssues {
-		fmt.Println(actioninfo.Emoji("✅ ", "[OK] ") + "No outdated GitHub Actions found!")
+		checkrunner.WriteResult(rc.OutputWriter, nil, nil, nil, nil, nil, false, "", actioninfo.Emoji("✅ ", "[OK] ")+"No outdated GitHub Actions found!")
 		return false
 	}
-
-	checkrunner.PrintOutdated(outdatedActions)
 
 	if update && len(outdatedActions) > 0 {
 		if err := actioninfo.WriteOutdatedActions(rc.Ctx, rc.GHClient, workflowFiles, outdatedActions, releases, useSemver, rc.Verbose); err != nil {
@@ -95,6 +94,9 @@ func processOutdated(rc *checkrunner.RunContext, workflowFiles []*workflow.Workf
 		}
 	}
 
-	fmt.Println("\n" + actioninfo.Emoji("⚠️ ", "[WARN] ") + "Outdated actions detected. Consider updating to the latest versions.")
-	return true
+	summary := "\n" + actioninfo.Emoji("⚠️ ", "[WARN] ") + "Outdated actions detected. Consider updating to the latest versions."
+
+	checkrunner.WriteResult(rc.OutputWriter, nil, nil, nil, nil, outdatedActions, hasIssues, summary, "")
+
+	return hasIssues
 }

@@ -35,7 +35,8 @@ Use --write/-w to automatically apply updates: runs archived check, then eol wit
 
 func runCheck(writeFlag bool, staleDays int) {
 	token := resolveToken()
-	rc := checkrunner.NewRunContext(token, conf, notify, createIssue)
+	of := resolveOutputFormat()
+	rc := checkrunner.NewRunContext(token, conf, notify, createIssue, of)
 	rc.Verbose = verbose
 	rc.Debug = debug
 
@@ -83,14 +84,9 @@ func processCheck(rc *checkrunner.RunContext, workflowFiles []*workflow.Workflow
 	actioninfo.WriteActionOutput("has-eol", fmt.Sprintf("%v", totalEOL > 0))
 
 	if !hasIssues {
-		fmt.Println(actioninfo.Emoji("✅ ", "[OK] ") + "No archived, outdated, or stale GitHub Actions found!")
+		checkrunner.WriteResult(rc.OutputWriter, nil, nil, nil, nil, nil, false, "", actioninfo.Emoji("✅ ", "[OK] ")+"No archived, outdated, or stale GitHub Actions found!")
 		return false
 	}
-
-	checkrunner.PrintArchived(result.ArchivedActions, result.ArchivedRepos)
-	checkrunner.PrintStale(staleActions)
-	checkrunner.PrintOutdated(outdatedActions)
-	checkrunner.PrintRuntimeEOL(runtimeEOLActions)
 
 	checkrunner.SendArchivedNotifications(rc, result.ArchivedActions)
 
@@ -104,20 +100,19 @@ func processCheck(rc *checkrunner.RunContext, workflowFiles []*workflow.Workflow
 
 	checkrunner.CreateArchivedIssues(rc, result.ArchivedActions)
 
+	var summary string
 	switch {
 	case len(result.ArchivedActions) > 0:
-		fmt.Println("\n" + actioninfo.Emoji("❌ ", "[X] ") + "Archived actions detected. Please replace them with actively maintained alternatives.")
-		return true
+		summary = "\n" + actioninfo.Emoji("❌ ", "[X] ") + "Archived actions detected. Please replace them with actively maintained alternatives."
 	case len(outdatedActions) > 0:
-		fmt.Println("\n" + actioninfo.Emoji("⚠️ ", "[WARN] ") + "Outdated actions detected. Consider updating to the latest versions.")
-		return true
+		summary = "\n" + actioninfo.Emoji("⚠️ ", "[WARN] ") + "Outdated actions detected. Consider updating to the latest versions."
 	case len(staleActions) > 0:
-		fmt.Println("\n" + actioninfo.Emoji("⏳ ", "[STALE] ") + "Stale or deprecated actions detected. Consider replacing them with actively maintained alternatives.")
-		return true
+		summary = "\n" + actioninfo.Emoji("⏳ ", "[STALE] ") + "Stale or deprecated actions detected. Consider replacing them with actively maintained alternatives."
 	case len(runtimeEOLActions) > 0:
-		fmt.Println("\n" + actioninfo.Emoji("🖥️ ", "[RUNTIME] ") + "Actions using EOL runtimes detected. Consider updating to actions that use supported runtime versions.")
-		return true
+		summary = "\n" + actioninfo.Emoji("🖥️ ", "[RUNTIME] ") + "Actions using EOL runtimes detected. Consider updating to actions that use supported runtime versions."
 	}
 
-	return false
+	checkrunner.WriteResult(rc.OutputWriter, result.ArchivedActions, result.ArchivedRepos, staleActions, runtimeEOLActions, outdatedActions, hasIssues, summary, "")
+
+	return hasIssues
 }

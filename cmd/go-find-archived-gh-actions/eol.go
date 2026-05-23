@@ -34,7 +34,8 @@ func newEOLCmd() *cobra.Command {
 
 func runEOL(update bool, staleDays int) {
 	token := resolveToken()
-	rc := checkrunner.NewRunContext(token, conf, notify, createIssue)
+	of := resolveOutputFormat()
+	rc := checkrunner.NewRunContext(token, conf, notify, createIssue, of)
 	rc.Verbose = verbose
 	rc.Debug = debug
 
@@ -77,15 +78,12 @@ func processEOL(rc *checkrunner.RunContext, workflowFiles []*workflow.WorkflowFi
 	actioninfo.WriteActionOutput("has-eol", fmt.Sprintf("%v", totalEOL > 0))
 
 	if !hasIssues {
-		fmt.Println(actioninfo.Emoji("✅ ", "[OK] ") + "No EOL GitHub Actions found!")
+		checkrunner.WriteResult(rc.OutputWriter, nil, nil, nil, nil, nil, false, "", actioninfo.Emoji("✅ ", "[OK] ")+"No EOL GitHub Actions found!")
 		return false
 	}
 
-	checkrunner.PrintArchived(result.ArchivedActions, result.ArchivedRepos)
-	checkrunner.PrintStale(staleActions)
-	checkrunner.PrintRuntimeEOL(runtimeEOLActions)
-
 	checkrunner.SendArchivedNotifications(rc, result.ArchivedActions)
+	checkrunner.CreateArchivedIssues(rc, result.ArchivedActions)
 
 	if update && len(staleActions) > 0 {
 		fmt.Println("\n" + actioninfo.Emoji("⚠️ ", "[WARN] ") + "EOL actions detected. Writing updates for stale/deprecated actions...")
@@ -105,11 +103,14 @@ func processEOL(rc *checkrunner.RunContext, workflowFiles []*workflow.WorkflowFi
 		}
 	}
 
+	var summary string
 	if len(result.ArchivedActions) > 0 {
-		fmt.Println("\n" + actioninfo.Emoji("❌ ", "[X] ") + "Archived actions detected. Please replace them with actively maintained alternatives.")
-		return true
+		summary = "\n" + actioninfo.Emoji("❌ ", "[X] ") + "Archived actions detected. Please replace them with actively maintained alternatives."
+	} else {
+		summary = "\n" + actioninfo.Emoji("⏳ ", "[STALE] ") + "EOL actions detected. Consider replacing them with actively maintained alternatives."
 	}
 
-	fmt.Println("\n" + actioninfo.Emoji("⏳ ", "[STALE] ") + "EOL actions detected. Consider replacing them with actively maintained alternatives.")
-	return true
+	checkrunner.WriteResult(rc.OutputWriter, result.ArchivedActions, result.ArchivedRepos, staleActions, runtimeEOLActions, nil, hasIssues, summary, "")
+
+	return hasIssues
 }

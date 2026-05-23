@@ -7,6 +7,7 @@ import (
 	"github.com/toozej/go-find-archived-gh-actions/internal/github"
 	"github.com/toozej/go-find-archived-gh-actions/internal/issue"
 	"github.com/toozej/go-find-archived-gh-actions/internal/notification"
+	"github.com/toozej/go-find-archived-gh-actions/internal/output"
 	"github.com/toozej/go-find-archived-gh-actions/internal/workflow"
 )
 
@@ -28,6 +29,7 @@ type RunContext struct {
 	GHClient     *github.Client
 	Notifier     *notification.NotificationManager
 	IssueCreator *issue.IssueCreator
+	OutputWriter *output.Writer
 	Verbose      bool
 	Debug        bool
 }

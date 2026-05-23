@@ -9,11 +9,12 @@ import (
 	"github.com/toozej/go-find-archived-gh-actions/internal/github"
 	"github.com/toozej/go-find-archived-gh-actions/internal/issue"
 	"github.com/toozej/go-find-archived-gh-actions/internal/notification"
+	"github.com/toozej/go-find-archived-gh-actions/internal/output"
 	"github.com/toozej/go-find-archived-gh-actions/internal/workflow"
 	"github.com/toozej/go-find-archived-gh-actions/pkg/config"
 )
 
-func NewRunContext(token string, conf config.Config, initNotifier, initIssueCreator bool) *RunContext {
+func NewRunContext(token string, conf config.Config, initNotifier, initIssueCreator bool, outputFormat output.Format) *RunContext {
 	ctx := context.Background()
 	workDir, err := os.Getwd()
 	if err != nil {
@@ -24,10 +25,11 @@ func NewRunContext(token string, conf config.Config, initNotifier, initIssueCrea
 	ghClient := github.NewClient(token)
 
 	rc := &RunContext{
-		Ctx:      ctx,
-		WorkDir:  workDir,
-		Parser:   parser,
-		GHClient: ghClient,
+		Ctx:          ctx,
+		WorkDir:      workDir,
+		Parser:       parser,
+		GHClient:     ghClient,
+		OutputWriter: output.NewWriter(outputFormat),
 	}
 
 	if initNotifier {

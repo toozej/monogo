@@ -22,7 +22,7 @@ func TestCommandStructure(t *testing.T) {
 }
 
 func TestGlobalFlags(t *testing.T) {
-	expectedPersistentFlags := []string{"debug", "verbose", "token", "notify", "create-issue", "workflow", "workflows-dir", "repos-dir"}
+	expectedPersistentFlags := []string{"debug", "verbose", "token", "notify", "create-issue", "workflow", "workflows-dir", "repos-dir", "output-format"}
 	for _, flagName := range expectedPersistentFlags {
 		if rootCmd.PersistentFlags().Lookup(flagName) == nil {
 			t.Errorf("Expected persistent flag --%s on root command", flagName)

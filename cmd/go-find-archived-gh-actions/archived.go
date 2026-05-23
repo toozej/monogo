@@ -31,7 +31,8 @@ func newArchivedCmd() *cobra.Command {
 
 func runArchived(staleDays int) {
 	token := resolveToken()
-	rc := checkrunner.NewRunContext(token, conf, notify, createIssue)
+	of := resolveOutputFormat()
+	rc := checkrunner.NewRunContext(token, conf, notify, createIssue, of)
 	rc.Verbose = verbose
 	rc.Debug = debug
 
@@ -74,21 +75,21 @@ func processArchived(rc *checkrunner.RunContext, workflowFiles []*workflow.Workf
 	actioninfo.WriteActionOutput("has-stale", fmt.Sprintf("%v", len(staleActions) > 0))
 
 	if !hasIssues {
-		fmt.Println(actioninfo.Emoji("✅ ", "[OK] ") + "No archived or stale GitHub Actions found!")
+		checkrunner.WriteResult(rc.OutputWriter, nil, nil, nil, nil, nil, false, "", actioninfo.Emoji("✅ ", "[OK] ")+"No archived or stale GitHub Actions found!")
 		return false
 	}
-
-	checkrunner.PrintArchived(result.ArchivedActions, result.ArchivedRepos)
-	checkrunner.PrintStale(staleActions)
 
 	checkrunner.SendArchivedNotifications(rc, result.ArchivedActions)
 	checkrunner.CreateArchivedIssues(rc, result.ArchivedActions)
 
+	var summary string
 	if len(result.ArchivedActions) > 0 {
-		fmt.Println("\n" + actioninfo.Emoji("❌ ", "[X] ") + "Archived actions detected. Please replace them with actively maintained alternatives.")
-		return true
+		summary = "\n" + actioninfo.Emoji("❌ ", "[X] ") + "Archived actions detected. Please replace them with actively maintained alternatives."
+	} else {
+		summary = "\n" + actioninfo.Emoji("⏳ ", "[STALE] ") + "Stale or deprecated actions detected. Consider replacing them with actively maintained alternatives."
 	}
 
-	fmt.Println("\n" + actioninfo.Emoji("⏳ ", "[STALE] ") + "Stale or deprecated actions detected. Consider replacing them with actively maintained alternatives.")
-	return true
+	checkrunner.WriteResult(rc.OutputWriter, result.ArchivedActions, result.ArchivedRepos, staleActions, nil, nil, hasIssues, summary, "")
+
+	return hasIssues
 }

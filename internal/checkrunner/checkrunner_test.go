@@ -14,6 +14,7 @@ import (
 	"github.com/toozej/go-find-archived-gh-actions/internal/actioninfo"
 	"github.com/toozej/go-find-archived-gh-actions/internal/github"
 	"github.com/toozej/go-find-archived-gh-actions/internal/issue"
+	"github.com/toozej/go-find-archived-gh-actions/internal/output"
 	"github.com/toozej/go-find-archived-gh-actions/internal/workflow"
 )
 
@@ -463,7 +464,7 @@ func TestPrintArchived_Empty(t *testing.T) {
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	PrintArchived([]issue.ArchivedActionInfo{}, []string{})
+	output.PrintArchivedText([]issue.ArchivedActionInfo{}, []string{})
 
 	w.Close()
 	os.Stdout = oldStdout
@@ -484,19 +485,19 @@ func TestPrintArchived_WithActions(t *testing.T) {
 	}
 	repos := []string{"actions/checkout"}
 
-	PrintArchived(actions, repos)
+	output.PrintArchivedText(actions, repos)
 
 	w.Close()
 	os.Stdout = oldStdout
 	var buf bytes.Buffer
 	_, _ = buf.ReadFrom(r)
 
-	output := buf.String()
-	if !strings.Contains(output, "actions/checkout@v3") {
-		t.Errorf("Expected output to contain 'actions/checkout@v3', got %q", output)
+	out := buf.String()
+	if !strings.Contains(out, "actions/checkout@v3") {
+		t.Errorf("Expected output to contain 'actions/checkout@v3', got %q", out)
 	}
-	if !strings.Contains(output, "ci.yml") {
-		t.Errorf("Expected output to contain 'ci.yml', got %q", output)
+	if !strings.Contains(out, "ci.yml") {
+		t.Errorf("Expected output to contain 'ci.yml', got %q", out)
 	}
 }
 
@@ -505,7 +506,7 @@ func TestPrintStale_Empty(t *testing.T) {
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	PrintStale([]actioninfo.StaleActionInfo{})
+	output.PrintStaleText([]actioninfo.StaleActionInfo{})
 
 	w.Close()
 	os.Stdout = oldStdout
@@ -532,19 +533,19 @@ func TestPrintStale_WithActions(t *testing.T) {
 		},
 	}
 
-	PrintStale(actions)
+	output.PrintStaleText(actions)
 
 	w.Close()
 	os.Stdout = oldStdout
 	var buf bytes.Buffer
 	_, _ = buf.ReadFrom(r)
 
-	output := buf.String()
-	if !strings.Contains(output, "DEPRECATED") {
-		t.Errorf("Expected output to contain 'DEPRECATED', got %q", output)
+	out := buf.String()
+	if !strings.Contains(out, "DEPRECATED") {
+		t.Errorf("Expected output to contain 'DEPRECATED', got %q", out)
 	}
-	if !strings.Contains(output, "Use v4 instead") {
-		t.Errorf("Expected output to contain deprecation message, got %q", output)
+	if !strings.Contains(out, "Use v4 instead") {
+		t.Errorf("Expected output to contain deprecation message, got %q", out)
 	}
 }
 
@@ -563,16 +564,16 @@ func TestPrintStale_StaleByAge(t *testing.T) {
 		},
 	}
 
-	PrintStale(actions)
+	output.PrintStaleText(actions)
 
 	w.Close()
 	os.Stdout = oldStdout
 	var buf bytes.Buffer
 	_, _ = buf.ReadFrom(r)
 
-	output := buf.String()
-	if !strings.Contains(output, "not updated since") {
-		t.Errorf("Expected output to contain 'not updated since', got %q", output)
+	out := buf.String()
+	if !strings.Contains(out, "not updated since") {
+		t.Errorf("Expected output to contain 'not updated since', got %q", out)
 	}
 }
 
@@ -581,7 +582,7 @@ func TestPrintRuntimeEOL_Empty(t *testing.T) {
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	PrintRuntimeEOL([]actioninfo.RuntimeEOLActionInfo{})
+	output.PrintRuntimeEOLText([]actioninfo.RuntimeEOLActionInfo{})
 
 	w.Close()
 	os.Stdout = oldStdout
@@ -609,19 +610,19 @@ func TestPrintRuntimeEOL_WithActions(t *testing.T) {
 		},
 	}
 
-	PrintRuntimeEOL(actions)
+	output.PrintRuntimeEOLText(actions)
 
 	w.Close()
 	os.Stdout = oldStdout
 	var buf bytes.Buffer
 	_, _ = buf.ReadFrom(r)
 
-	output := buf.String()
-	if !strings.Contains(output, "nodejs16") {
-		t.Errorf("Expected output to contain 'nodejs16', got %q", output)
+	out := buf.String()
+	if !strings.Contains(out, "nodejs16") {
+		t.Errorf("Expected output to contain 'nodejs16', got %q", out)
 	}
-	if !strings.Contains(output, "2023-09-11") {
-		t.Errorf("Expected output to contain EOL date, got %q", output)
+	if !strings.Contains(out, "2023-09-11") {
+		t.Errorf("Expected output to contain EOL date, got %q", out)
 	}
 }
 
@@ -641,16 +642,16 @@ func TestPrintRuntimeEOL_ZeroEOLDate(t *testing.T) {
 		},
 	}
 
-	PrintRuntimeEOL(actions)
+	output.PrintRuntimeEOLText(actions)
 
 	w.Close()
 	os.Stdout = oldStdout
 	var buf bytes.Buffer
 	_, _ = buf.ReadFrom(r)
 
-	output := buf.String()
-	if !strings.Contains(output, "unknown") {
-		t.Errorf("Expected output to contain 'unknown' for zero EOL date, got %q", output)
+	out := buf.String()
+	if !strings.Contains(out, "unknown") {
+		t.Errorf("Expected output to contain 'unknown' for zero EOL date, got %q", out)
 	}
 }
 
@@ -659,7 +660,7 @@ func TestPrintOutdated_Empty(t *testing.T) {
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	PrintOutdated([]actioninfo.OutdatedActionInfo{})
+	output.PrintOutdatedText([]actioninfo.OutdatedActionInfo{})
 
 	w.Close()
 	os.Stdout = oldStdout
@@ -687,19 +688,19 @@ func TestPrintOutdated_WithActions(t *testing.T) {
 		},
 	}
 
-	PrintOutdated(actions)
+	output.PrintOutdatedText(actions)
 
 	w.Close()
 	os.Stdout = oldStdout
 	var buf bytes.Buffer
 	_, _ = buf.ReadFrom(r)
 
-	output := buf.String()
-	if !strings.Contains(output, "actions/checkout@v3") {
-		t.Errorf("Expected output to contain 'actions/checkout@v3', got %q", output)
+	out := buf.String()
+	if !strings.Contains(out, "actions/checkout@v3") {
+		t.Errorf("Expected output to contain 'actions/checkout@v3', got %q", out)
 	}
-	if !strings.Contains(output, "v4") {
-		t.Errorf("Expected output to contain latest tag 'v4', got %q", output)
+	if !strings.Contains(out, "v4") {
+		t.Errorf("Expected output to contain latest tag 'v4', got %q", out)
 	}
 }
 
