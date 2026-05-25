@@ -88,7 +88,7 @@ jobs:
           distribution: goreleaser
           version: latest
           args: release --clean --skip=announce,archive,before,homebrew,nfpm,sbom,sign,validate
-          workdir: '/home/runner/work/go-find-archived-gh-actions/go-find-archived-gh-actions'
+          workdir: '/home/runner/work/go-sort-out-gh-actions/go-sort-out-gh-actions'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}

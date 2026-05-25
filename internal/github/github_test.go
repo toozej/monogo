@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/toozej/go-find-archived-gh-actions/internal/runtime"
-	"github.com/toozej/go-find-archived-gh-actions/internal/workflow"
+	"github.com/toozej/go-sort-out-gh-actions/internal/runtime"
+	"github.com/toozej/go-sort-out-gh-actions/internal/workflow"
 )
 
 func newTestClient(server *httptest.Server) *Client {

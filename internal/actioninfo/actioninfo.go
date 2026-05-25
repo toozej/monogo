@@ -11,9 +11,9 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/toozej/go-find-archived-gh-actions/internal/github"
-	ver "github.com/toozej/go-find-archived-gh-actions/internal/version"
-	"github.com/toozej/go-find-archived-gh-actions/internal/workflow"
+	"github.com/toozej/go-sort-out-gh-actions/internal/github"
+	ver "github.com/toozej/go-sort-out-gh-actions/internal/version"
+	"github.com/toozej/go-sort-out-gh-actions/internal/workflow"
 )
 
 var IsTTY = checkTTY()

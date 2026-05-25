@@ -7,12 +7,12 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/toozej/go-find-archived-gh-actions/internal/actioninfo"
-	"github.com/toozej/go-find-archived-gh-actions/internal/output"
-	"github.com/toozej/go-find-archived-gh-actions/internal/workflow"
-	"github.com/toozej/go-find-archived-gh-actions/pkg/config"
-	"github.com/toozej/go-find-archived-gh-actions/pkg/man"
-	"github.com/toozej/go-find-archived-gh-actions/pkg/version"
+	"github.com/toozej/go-sort-out-gh-actions/internal/actioninfo"
+	"github.com/toozej/go-sort-out-gh-actions/internal/output"
+	"github.com/toozej/go-sort-out-gh-actions/internal/workflow"
+	"github.com/toozej/go-sort-out-gh-actions/pkg/config"
+	"github.com/toozej/go-sort-out-gh-actions/pkg/man"
+	"github.com/toozej/go-sort-out-gh-actions/pkg/version"
 )
 
 var (
@@ -29,7 +29,7 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "go-find-archived-gh-actions",
+	Use:   "go-sort-out-gh-actions",
 	Short: "Detect archived GitHub Actions in repository workflows",
 	Long: `A tool to detect if GitHub Actions used in repository workflows have been archived upstream.
 

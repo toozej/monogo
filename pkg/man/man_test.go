@@ -12,7 +12,7 @@ func TestNewManCmd(t *testing.T) {
 		t.Errorf("Unexpected command use text: got %q, expected %q", NewManCmd().Use, expectedUse)
 	}
 
-	expectedShort := "Generates go-find-archived-gh-actions's command line manpages"
+	expectedShort := "Generates go-sort-out-gh-actions's command line manpages"
 	if NewManCmd().Short != expectedShort {
 		t.Errorf("Unexpected command short text: got %q, expected %q", NewManCmd().Short, expectedShort)
 	}

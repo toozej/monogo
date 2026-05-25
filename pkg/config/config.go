@@ -1,4 +1,4 @@
-// Package config provides secure configuration management for the go-find-archived-gh-actions application.
+// Package config provides secure configuration management for the go-sort-out-gh-actions application.
 //
 // This package handles loading configuration from environment variables and .env files
 // with built-in security measures to prevent path traversal attacks. It uses the
@@ -17,7 +17,7 @@
 //
 // Example usage:
 //
-//	import "github.com/toozej/go-find-archived-gh-actions/pkg/config"
+//	import "github.com/toozej/go-sort-out-gh-actions/pkg/config"
 //
 //	func main() {
 //		conf := config.GetEnvVars()
@@ -37,7 +37,7 @@ import (
 
 // Config represents the application configuration structure.
 //
-// This struct defines all configurable parameters for the go-find-archived-gh-actions
+// This struct defines all configurable parameters for the go-sort-out-gh-actions
 // application. Fields are tagged with struct tags that correspond to
 // environment variable names for automatic parsing.
 //

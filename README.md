@@ -1,12 +1,14 @@
-# go-find-archived-gh-actions
+# go-sort-out-gh-actions
 
-![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/toozej/go-find-archived-gh-actions)
-[![Go Report Card](https://goreportcard.com/badge/github/toozej/go-find-archived-gh-actions)](https://goreportcard.com/report/github/toozej/go-find-archived-gh-actions)
-![GitHub Actions CI Workflow Status](https://img.shields.io/github/actions/workflow/status/toozej/go-find-archived-gh-actions/ci.yaml)
-![GitHub Actions Release Workflow Status](https://img.shields.io/github/actions/workflow/status/toozej/go-find-archived-gh-actions/release.yaml)
-![GitHub Actions Weekly Docker Refresh Workflow Status](https://img.shields.io/github/actions/workflow/status/toozej/go-find-archived-gh-actions/weekly-docker-refresh.yaml)
-![Docker Pulls](https://img.shields.io/docker/pulls/toozej/go-find-archived-gh-actions)
-![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/toozej/go-find-archived-gh-actions/total)
+![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/toozej/go-sort-out-gh-actions)
+[![Go Report Card](https://goreportcard.com/badge/github/toozej/go-sort-out-gh-actions)](https://goreportcard.com/report/github/toozej/go-sort-out-gh-actions)
+![GitHub Actions CI Workflow Status](https://img.shields.io/github/actions/workflow/status/toozej/go-sort-out-gh-actions/ci.yaml)
+![GitHub Actions Release Workflow Status](https://img.shields.io/github/actions/workflow/status/toozej/go-sort-out-gh-actions/release.yaml)
+![GitHub Actions Weekly Docker Refresh Workflow Status](https://img.shields.io/github/actions/workflow/status/toozej/go-sort-out-gh-actions/weekly-docker-refresh.yaml)
+![Docker Pulls](https://img.shields.io/docker/pulls/toozej/go-sort-out-gh-actions)
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/toozej/go-sort-out-gh-actions/total)
+
+<img src="img/avatar.png" alt="go-sort-out-gh-actions avatar"/>
 
 A tool to detect archived GitHub Actions in repository workflows.
 
@@ -32,25 +34,25 @@ This tool scans your GitHub Actions workflows (`.github/workflows/**/*.yml` and 
 
 ### From GitHub Releases
 
-Download the latest release from [GitHub Releases](https://github.com/toozej/go-find-archived-gh-actions/releases).
+Download the latest release from [GitHub Releases](https://github.com/toozej/go-sort-out-gh-actions/releases).
 
 ### Using Go
 
 ```bash
-go install github.com/toozej/go-find-archived-gh-actions@latest
+go install github.com/toozej/go-sort-out-gh-actions@latest
 ```
 
 ### Docker
 
 ```bash
 # Mount your current working directory so the tool can scan your workflows
-docker run --rm -v $(pwd):/workspace -w /workspace ghcr.io/toozej/go-find-archived-gh-actions:latest
+docker run --rm -v $(pwd):/workspace -w /workspace ghcr.io/toozej/go-sort-out-gh-actions:latest
 
 # With a GitHub token
-docker run --rm -v $(pwd):/workspace -w /workspace -e GH_TOKEN=your_token ghcr.io/toozej/go-find-archived-gh-actions:latest
+docker run --rm -v $(pwd):/workspace -w /workspace -e GH_TOKEN=your_token ghcr.io/toozej/go-sort-out-gh-actions:latest
 
 # With verbose output and outdated checking
-docker run --rm -v $(pwd):/workspace -w /workspace -e GH_TOKEN=your_token ghcr.io/toozej/go-find-archived-gh-actions:latest outdated --verbose
+docker run --rm -v $(pwd):/workspace -w /workspace -e GH_TOKEN=your_token ghcr.io/toozej/go-sort-out-gh-actions:latest outdated --verbose
 ```
 
 ## Usage
@@ -61,53 +63,53 @@ The tool provides several sub-commands for different check types:
 
 ```bash
 # Check for archived actions
-go-find-archived-gh-actions archived
+go-sort-out-gh-actions archived
 
 # Check for outdated actions (not archived, but not latest version)
-go-find-archived-gh-actions outdated
+go-sort-out-gh-actions outdated
 
 # Check for EOL/stale/deprecated actions
-go-find-archived-gh-actions eol
+go-sort-out-gh-actions eol
 
 # Run all checks (archived + EOL + outdated)
-go-find-archived-gh-actions check
+go-sort-out-gh-actions check
 ```
 
 ### Basic Usage
 
 ```bash
 # Check all workflows in current repository for archived actions
-go-find-archived-gh-actions archived
+go-sort-out-gh-actions archived
 
 # Check a specific workflow file
-go-find-archived-gh-actions archived --workflow .github/workflows/ci.yml
+go-sort-out-gh-actions archived --workflow .github/workflows/ci.yml
 
 # Check a specific directory of workflow files
-go-find-archived-gh-actions archived --workflows-dir ~/src/github/username/repo/.github/workflows
+go-sort-out-gh-actions archived --workflows-dir ~/src/github/username/repo/.github/workflows
 
 # Check multiple repos in a base directory (bulk scanning)
-go-find-archived-gh-actions archived --repos-dir ~/src/github
+go-sort-out-gh-actions archived --repos-dir ~/src/github
 
 # Verbose output
-go-find-archived-gh-actions archived --verbose
+go-sort-out-gh-actions archived --verbose
 
 # Debug logging (includes rate limit info)
-go-find-archived-gh-actions archived --debug
+go-sort-out-gh-actions archived --debug
 
 # Check for outdated actions with auto-update (pin to SHA)
-go-find-archived-gh-actions outdated --update --pin
+go-sort-out-gh-actions outdated --update --pin
 
 # Check for outdated actions with semver version strings
-go-find-archived-gh-actions outdated --update --semver
+go-sort-out-gh-actions outdated --update --semver
 
 # Check for EOL/stale/deprecated actions
-go-find-archived-gh-actions eol
+go-sort-out-gh-actions eol
 
 # Check for EOL actions with custom stale threshold (180 days instead of default 365)
-go-find-archived-gh-actions eol --stale-days 180
+go-sort-out-gh-actions eol --stale-days 180
 
 # Run all checks and auto-update EOL + outdated actions
-go-find-archived-gh-actions check --write
+go-sort-out-gh-actions check --write
 ```
 
 ### Path Expansion
@@ -115,8 +117,8 @@ go-find-archived-gh-actions check --write
 All path inputs support `~` expansion to your home directory:
 
 ```bash
-go-find-archived-gh-actions --workflows-dir ~/src/github/repo/.github/workflows
-go-find-archived-gh-actions --repos-dir ~/src/github
+go-sort-out-gh-actions --workflows-dir ~/src/github/repo/.github/workflows
+go-sort-out-gh-actions --repos-dir ~/src/github
 ```
 
 ### Authentication
@@ -130,17 +132,17 @@ Set your GitHub token using one of these methods (in order of priority):
 ```bash
 # Using environment variable
 export GH_TOKEN=your_github_token_here
-go-find-archived-gh-actions
+go-sort-out-gh-actions
 
 # Using CLI flag
-go-find-archived-gh-actions --token your_github_token_here
+go-sort-out-gh-actions --token your_github_token_here
 
 # Using GitHub CLI (gh) to get a token automatically
 export GH_TOKEN=$(gh auth token)
-go-find-archived-gh-actions
+go-sort-out-gh-actions
 
 # Or inline
-go-find-archived-gh-actions --token $(gh auth token)
+go-sort-out-gh-actions --token $(gh auth token)
 ```
 
 ### Notifications
@@ -151,7 +153,7 @@ Configure one or more notification providers and enable them with the `--notify`
 # Example: Configuring Slack
 export SLACK_TOKEN=xoxb-...
 export SLACK_CHANNEL_ID=C12345678
-go-find-archived-gh-actions --notify
+go-sort-out-gh-actions --notify
 ```
 
 ### Issue Creation
@@ -159,7 +161,7 @@ go-find-archived-gh-actions --notify
 Automatically create GitHub issues when archived actions are found:
 
 ```bash
-go-find-archived-gh-actions --create-issue
+go-sort-out-gh-actions --create-issue
 ```
 
 ### Configuration File
@@ -179,11 +181,11 @@ This repository provides multiple composite actions (similar to [actions/cache](
 
 | Action | Description |
 |--------|-------------|
-| `toozej/go-find-archived-gh-actions@main` | Check for archived actions (default/root action) |
-| `toozej/go-find-archived-gh-actions/check-archived@main` | Check for archived actions with notifications and issue creation |
-| `toozej/go-find-archived-gh-actions/check-outdated@main` | Check for outdated action versions with optional auto-update |
-| `toozej/go-find-archived-gh-actions/eol@main` | Check for EOL/stale/deprecated actions |
-| `toozej/go-find-archived-gh-actions/check@main` | Run all checks (archived + EOL + outdated) |
+| `toozej/go-sort-out-gh-actions@main` | Check for archived actions (default/root action) |
+| `toozej/go-sort-out-gh-actions/check-archived@main` | Check for archived actions with notifications and issue creation |
+| `toozej/go-sort-out-gh-actions/check-outdated@main` | Check for outdated action versions with optional auto-update |
+| `toozej/go-sort-out-gh-actions/eol@main` | Check for EOL/stale/deprecated actions |
+| `toozej/go-sort-out-gh-actions/check@main` | Run all checks (archived + EOL + outdated) |
 
 #### Check Archived Actions
 
@@ -203,7 +205,7 @@ jobs:
 
     - name: Check archived actions
       id: check
-      uses: toozej/go-find-archived-gh-actions@main
+      uses: toozej/go-sort-out-gh-actions@main
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         verbose: true
@@ -232,7 +234,7 @@ jobs:
 
     - name: Check archived actions
       id: check
-      uses: toozej/go-find-archived-gh-actions/check-archived@main
+      uses: toozej/go-sort-out-gh-actions/check-archived@main
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         verbose: true
@@ -262,7 +264,7 @@ jobs:
 
     - name: Check outdated actions
       id: check
-      uses: toozej/go-find-archived-gh-actions/check-outdated@main
+      uses: toozej/go-sort-out-gh-actions/check-outdated@main
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         verbose: true
@@ -294,7 +296,7 @@ jobs:
 
     - name: Update outdated actions
       id: update
-      uses: toozej/go-find-archived-gh-actions/check-outdated@main
+      uses: toozej/go-sort-out-gh-actions/check-outdated@main
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         verbose: true
@@ -328,7 +330,7 @@ jobs:
 
     - name: Run all checks
       id: check
-      uses: toozej/go-find-archived-gh-actions/check@main
+      uses: toozej/go-sort-out-gh-actions/check@main
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         verbose: true
@@ -346,10 +348,10 @@ Add to your `.pre-commit-config.yaml`:
 
 ```yaml
 repos:
-- repo: https://github.com/toozej/go-find-archived-gh-actions
+- repo: https://github.com/toozej/go-sort-out-gh-actions
   rev: main
   hooks:
-  - id: go-find-archived-gh-actions
+  - id: go-sort-out-gh-actions
     name: Check for archived GitHub Actions
     args: [--verbose]
 ```
@@ -364,7 +366,7 @@ repos:
 ### Archived Actions Only
 
 ```
-$ go-find-archived-gh-actions archived --verbose
+$ go-sort-out-gh-actions archived --verbose
 
 Found 3 workflow files
 - .github/workflows/ci.yml (2 uses)
@@ -387,7 +389,7 @@ Checking 3 action repositories for archived status...
 ### With Outdated Checking
 
 ```
-$ go-find-archived-gh-actions check --verbose
+$ go-sort-out-gh-actions check --verbose
 
 Found 1 workflow files
 - example/workflows/example-archived-actions.yaml (9 uses)
@@ -419,7 +421,7 @@ Checking 5 non-archived action repositories for latest versions...
 ### With Stale Checking
 
 ```
-$ go-find-archived-gh-actions eol --verbose
+$ go-sort-out-gh-actions eol --verbose
 
 Checking 5 non-archived action repositories for stale/deprecated status...
 
@@ -451,7 +453,7 @@ When using the `outdated` sub-command, the tool intelligently handles major vers
 When running with `--debug`, the tool logs GitHub API rate limit information:
 
 ```
-$ go-find-archived-gh-actions archived --debug
+$ go-sort-out-gh-actions archived --debug
 DEBU[0000] GitHub API rate limit: limit=5000 remaining=4998 used=2 reset=2026-05-04T22:00:00Z resource=core
 ```
 
@@ -500,16 +502,16 @@ make demo
 
 # Or run manually after building
 make local-build
-./out/go-find-archived-gh-actions outdated --workflow example/workflows/example-archived-actions.yaml --verbose
+./out/go-sort-out-gh-actions outdated --workflow example/workflows/example-archived-actions.yaml --verbose
 
 # Run archived check
-./out/go-find-archived-gh-actions archived --workflow example/workflows/example-archived-actions.yaml --verbose
+./out/go-sort-out-gh-actions archived --workflow example/workflows/example-archived-actions.yaml --verbose
 
 # Run all checks
-./out/go-find-archived-gh-actions check --workflow example/workflows/example-archived-actions.yaml --verbose
+./out/go-sort-out-gh-actions check --workflow example/workflows/example-archived-actions.yaml --verbose
 
 # Using GitHub CLI for authentication
-./out/go-find-archived-gh-actions outdated --workflow example/workflows/example-archived-actions.yaml --verbose --token $(gh auth token)
+./out/go-sort-out-gh-actions outdated --workflow example/workflows/example-archived-actions.yaml --verbose --token $(gh auth token)
 ```
 
 The example workflow at `example/workflows/example-archived-actions.yaml` contains:

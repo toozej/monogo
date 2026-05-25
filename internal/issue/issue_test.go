@@ -95,7 +95,7 @@ func TestIssueCreator_buildIssueBody(t *testing.T) {
 		"## What does this mean?",
 		"## Recommended Actions",
 		"## Resources",
-		"go-find-archived-gh-actions",
+		"go-sort-out-gh-actions",
 	}
 
 	for _, content := range expectedContent {

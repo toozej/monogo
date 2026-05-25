@@ -48,7 +48,7 @@ outputs:
     value: ${{ steps.check.outputs.has-outdated }}
 runs:
   using: 'docker'
-  image: 'docker://ghcr.io/toozej/go-find-archived-gh-actions:latest'
+  image: 'docker://ghcr.io/toozej/go-sort-out-gh-actions:latest'
   args:
     - outdated
     - ${{ inputs.verbose == 'true' && '--verbose' || '' }}
@@ -81,7 +81,7 @@ runs:
 #
 #     - name: Check for outdated GitHub Actions
 #       id: check
-#       uses: toozej/go-find-archived-gh-actions/check-outdated@main
+#       uses: toozej/go-sort-out-gh-actions/check-outdated@main
 #       with:
 #         token: ${{ secrets.GITHUB_TOKEN }}
 #         verbose: true
@@ -96,7 +96,7 @@ runs:
 #
 #     - name: Update outdated GitHub Actions
 #       id: update
-#       uses: toozej/go-find-archived-gh-actions/check-outdated@main
+#       uses: toozej/go-sort-out-gh-actions/check-outdated@main
 #       with:
 #         token: ${{ secrets.GITHUB_TOKEN }}
 #         verbose: true

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/toozej/go-find-archived-gh-actions/pkg/config"
+	"github.com/toozej/go-sort-out-gh-actions/pkg/config"
 )
 
 // MockNotifier implements the Notifier interface for testing

@@ -14,7 +14,7 @@ jobs:
 
       - name: Check for EOL GitHub Actions
         id: check
-        uses: toozej/go-find-archived-gh-actions/eol@main
+        uses: toozej/go-sort-out-gh-actions/eol@main
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           verbose: true

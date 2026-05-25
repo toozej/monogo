@@ -65,7 +65,7 @@ jobs:
           distribution: goreleaser
           version: latest
           args: release --clean
-          workdir: '/home/runner/work/go-find-archived-gh-actions/go-find-archived-gh-actions'
+          workdir: '/home/runner/work/go-sort-out-gh-actions/go-sort-out-gh-actions'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
@@ -94,13 +94,13 @@ jobs:
         uses: sigstore/cosign-installer@v4.1.2 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
       - name: Get public cosign key
         run: |
-          curl --silent https://raw.githubusercontent.com/toozej/go-find-archived-gh-actions/main/go-find-archived-gh-actions.pub -O
+          curl --silent https://raw.githubusercontent.com/toozej/go-sort-out-gh-actions/main/go-sort-out-gh-actions.pub -O
       - name: Verify signatures of binaries
         run: |
-          FILE=./dist/go-find-archived-gh-actions_${{ matrix.platform }}_${{ matrix.arch }}/go-find-archived-gh-actions${{ matrix.extension }}
+          FILE=./dist/go-sort-out-gh-actions_${{ matrix.platform }}_${{ matrix.arch }}/go-sort-out-gh-actions${{ matrix.extension }}
           if test -f "${FILE}"; then
             echo "verifying binary: ${FILE}"
-            cosign verify --key go-find-archived-gh-actions.pub --signature "${FILE}.sig" "${FILE}"
+            cosign verify --key go-sort-out-gh-actions.pub --signature "${FILE}.sig" "${FILE}"
           else
             echo "skipping verifying non-existant binary: ${FILE}"
           fi
@@ -119,13 +119,13 @@ jobs:
         uses: sigstore/cosign-installer@v4.1.2 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
       - name: Get public cosign key
         run: |
-          curl --silent https://raw.githubusercontent.com/toozej/go-find-archived-gh-actions/main/go-find-archived-gh-actions.pub -O
+          curl --silent https://raw.githubusercontent.com/toozej/go-sort-out-gh-actions/main/go-sort-out-gh-actions.pub -O
       - name: Verify signatures of archives
         run: |
-          FILE=./dist/go-find-archived-gh-actions_${{ matrix.platform }}_${{ matrix.arch }}.${{ matrix.extension }}
+          FILE=./dist/go-sort-out-gh-actions_${{ matrix.platform }}_${{ matrix.arch }}.${{ matrix.extension }}
           if test -f "${FILE}"; then
             echo "verifying archive: ${FILE}"
-            cosign verify --key go-find-archived-gh-actions.pub --signature "${FILE}.sig" "${FILE}"
+            cosign verify --key go-sort-out-gh-actions.pub --signature "${FILE}.sig" "${FILE}"
           else
             echo "skipping verifying non-existant archive: ${FILE}"
           fi
@@ -138,7 +138,7 @@ jobs:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
         with:
-          image-ref: 'ghcr.io/toozej/go-find-archived-gh-actions:latest'
+          image-ref: 'ghcr.io/toozej/go-sort-out-gh-actions:latest'
           format: 'table'
           exit-code: '1'
           ignore-unfixed: true
@@ -156,10 +156,10 @@ jobs:
     steps:
       - name: Install Cosign
         uses: sigstore/cosign-installer@v4.1.2 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
-      - name: Get public cosign key for go-find-archived-gh-actions project from GitHub
+      - name: Get public cosign key for go-sort-out-gh-actions project from GitHub
         run: |
-          curl --silent https://raw.githubusercontent.com/toozej/go-find-archived-gh-actions/main/go-find-archived-gh-actions.pub -O
+          curl --silent https://raw.githubusercontent.com/toozej/go-sort-out-gh-actions/main/go-sort-out-gh-actions.pub -O
       - name: Verify signatures of Docker images
         run: |
-          cosign verify --key go-find-archived-gh-actions.pub \
-            ${{ matrix.registry }}toozej/go-find-archived-gh-actions:${{ matrix.tag }}
+          cosign verify --key go-sort-out-gh-actions.pub \
+            ${{ matrix.registry }}toozej/go-sort-out-gh-actions:${{ matrix.tag }}

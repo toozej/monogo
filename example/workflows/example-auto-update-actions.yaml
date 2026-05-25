@@ -18,7 +18,7 @@ jobs:
 
       - name: Check and update outdated GitHub Actions
         id: update
-        uses: toozej/go-find-archived-gh-actions/check-outdated@main
+        uses: toozej/go-sort-out-gh-actions/check-outdated@main
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           verbose: true

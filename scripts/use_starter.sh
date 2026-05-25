@@ -113,7 +113,7 @@ if [[ $# -lt 1 ]]; then
     handle_error "Usage: $0 <new_project_name> [github_username]"
 fi
 
-OLD_PROJECT_NAME="go-find-archived-gh-actions"
+OLD_PROJECT_NAME="go-sort-out-gh-actions"
 NEW_PROJECT_NAME="${1}"
 GITHUB_USERNAME="${2:-toozej}"
 
@@ -131,7 +131,7 @@ EOF
 echo "Updating project from ${OLD_PROJECT_NAME} to ${NEW_PROJECT_NAME}..."
 
 # Truncate existing CREDITS.md file and replace its contents with link to template repo's CREDITS.md file
-echo -e "# Credits and Acknowledgements\n\n- https://raw.githubusercontent.com/toozej/go-find-archived-gh-actions/main/CREDITS.md" > CREDITS.md
+echo -e "# Credits and Acknowledgements\n\n- https://raw.githubusercontent.com/toozej/go-sort-out-gh-actions/main/CREDITS.md" > CREDITS.md
 
 # Remove old public key if it exists
 rm -f "./${OLD_PROJECT_NAME}.pub" || handle_error "Failed to remove ${OLD_PROJECT_NAME}.pub"

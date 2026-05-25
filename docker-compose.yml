@@ -1,8 +1,8 @@
 ---
 services:
-  go-find-archived-gh-actions:
-    container_name: go-find-archived-gh-actions
-    image: toozej/go-find-archived-gh-actions:latest
+  go-sort-out-gh-actions:
+    container_name: go-sort-out-gh-actions
+    image: toozej/go-sort-out-gh-actions:latest
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -11,11 +11,11 @@ services:
       - "traefik.enable=false"
       # labels below for publishing as web service
       # - "traefik.docker.network=traefik"
-      # - "traefik.http.routers.go-find-archived-gh-actions.rule=Host(`go-find-archived-gh-actions.test`)"
-      # - "traefik.http.routers.go-find-archived-gh-actions.middlewares=http-redirect-https@file,headers@file"
-      # - "traefik.http.routers.go-find-archived-gh-actions-secure.entrypoints=https"
-      # - "traefik.http.routers.go-find-archived-gh-actions-secure.rule=Host(`go-find-archived-gh-actions.test`)"
-      # - "traefik.http.routers.go-find-archived-gh-actions-secure.middlewares=headers@file"
-      # - "traefik.http.routers.go-find-archived-gh-actions-secure.tls=true"
+      # - "traefik.http.routers.go-sort-out-gh-actions.rule=Host(`go-sort-out-gh-actions.test`)"
+      # - "traefik.http.routers.go-sort-out-gh-actions.middlewares=http-redirect-https@file,headers@file"
+      # - "traefik.http.routers.go-sort-out-gh-actions-secure.entrypoints=https"
+      # - "traefik.http.routers.go-sort-out-gh-actions-secure.rule=Host(`go-sort-out-gh-actions.test`)"
+      # - "traefik.http.routers.go-sort-out-gh-actions-secure.middlewares=headers@file"
+      # - "traefik.http.routers.go-sort-out-gh-actions-secure.tls=true"
     # networks:
       # - traefik

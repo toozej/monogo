@@ -16,8 +16,8 @@ import (
 	"golang.org/x/oauth2"
 	"gopkg.in/yaml.v3"
 
-	"github.com/toozej/go-find-archived-gh-actions/internal/runtime"
-	"github.com/toozej/go-find-archived-gh-actions/internal/workflow"
+	"github.com/toozej/go-sort-out-gh-actions/internal/runtime"
+	"github.com/toozej/go-sort-out-gh-actions/internal/workflow"
 )
 
 const maxConcurrency = 10
@@ -181,7 +181,7 @@ func (c *Client) IsRepoArchived(ctx context.Context, ownerRepo string) (bool, *R
 		return false, nil, fmt.Errorf("failed to create request: %w", err)
 	}
 	req.Header.Set("Accept", "application/vnd.github.v3+json")
-	req.Header.Set("User-Agent", "go-find-archived-gh-actions")
+	req.Header.Set("User-Agent", "go-sort-out-gh-actions")
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -258,7 +258,7 @@ func (c *Client) GetLatestRelease(ctx context.Context, ownerRepo string) (*Relea
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 	req.Header.Set("Accept", "application/vnd.github.v3+json")
-	req.Header.Set("User-Agent", "go-find-archived-gh-actions")
+	req.Header.Set("User-Agent", "go-sort-out-gh-actions")
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -349,7 +349,7 @@ func (c *Client) getRefSHA(ctx context.Context, owner, repo, refType, ref string
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}
 	req.Header.Set("Accept", "application/vnd.github.v3+json")
-	req.Header.Set("User-Agent", "go-find-archived-gh-actions")
+	req.Header.Set("User-Agent", "go-sort-out-gh-actions")
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -390,7 +390,7 @@ func (c *Client) dereferenceTag(ctx context.Context, owner, repo, tagObjectSHA s
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}
 	req.Header.Set("Accept", "application/vnd.github.v3+json")
-	req.Header.Set("User-Agent", "go-find-archived-gh-actions")
+	req.Header.Set("User-Agent", "go-sort-out-gh-actions")
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -504,7 +504,7 @@ func (c *Client) GetActionYML(ctx context.Context, ownerRepo, ref string) (strin
 			return "", fmt.Errorf("failed to create request: %w", err)
 		}
 		req.Header.Set("Accept", "application/vnd.github.v3+json")
-		req.Header.Set("User-Agent", "go-find-archived-gh-actions")
+		req.Header.Set("User-Agent", "go-sort-out-gh-actions")
 
 		resp, err := c.httpClient.Do(req)
 		if err != nil {
@@ -562,7 +562,7 @@ func (c *Client) GetRawActionYML(ctx context.Context, ownerRepo, ref string) (st
 		if c.token != "" {
 			req.Header.Set("Authorization", "token "+c.token)
 		}
-		req.Header.Set("User-Agent", "go-find-archived-gh-actions")
+		req.Header.Set("User-Agent", "go-sort-out-gh-actions")
 
 		resp, err := c.httpClient.Do(req)
 		if err != nil {
@@ -665,7 +665,7 @@ func (c *Client) GetRateLimits(ctx context.Context) (*RateLimitInfo, error) {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 	req.Header.Set("Accept", "application/vnd.github.v3+json")
-	req.Header.Set("User-Agent", "go-find-archived-gh-actions")
+	req.Header.Set("User-Agent", "go-sort-out-gh-actions")
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {

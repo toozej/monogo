@@ -1,7 +1,7 @@
 ---
 version: 2
 
-project_name: go-find-archived-gh-actions
+project_name: go-sort-out-gh-actions
 
 env:
   - GO111MODULE=on
@@ -40,12 +40,12 @@ builds:
     flags:
       - -trimpath
     ldflags:
-      - -s -w -X github.com/toozej/go-find-archived-gh-actions/pkg/version.Version={{.Version}}
-        -X github.com/toozej/go-find-archived-gh-actions/pkg/version.Commit={{.Commit}} -X
-        github.com/toozej/go-find-archived-gh-actions/pkg/version.Branch={{.Branch}} -X github.com/toozej/go-find-archived-gh-actions/pkg/version.BuiltAt={{.CommitDate}}
-        -X github.com/toozej/go-find-archived-gh-actions/pkg/version.Builder=goreleaser
+      - -s -w -X github.com/toozej/go-sort-out-gh-actions/pkg/version.Version={{.Version}}
+        -X github.com/toozej/go-sort-out-gh-actions/pkg/version.Commit={{.Commit}} -X github.com/toozej/go-sort-out-gh-actions/pkg/version.Branch={{.Branch}}
+        -X github.com/toozej/go-sort-out-gh-actions/pkg/version.BuiltAt={{.CommitDate}} -X
+        github.com/toozej/go-sort-out-gh-actions/pkg/version.Builder=goreleaser
     main: ./
-    binary: go-find-archived-gh-actions
+    binary: go-sort-out-gh-actions
 
 universal_binaries:
   - replace: false
@@ -82,11 +82,11 @@ changelog:
       order: 9999
 
 dockers_v2:
-  - id: go-find-archived-gh-actions
+  - id: go-sort-out-gh-actions
     images:
-      - 'toozej/go-find-archived-gh-actions'
-      - 'ghcr.io/toozej/go-find-archived-gh-actions'
-      - 'quay.io/toozej/go-find-archived-gh-actions'
+      - 'toozej/go-sort-out-gh-actions'
+      - 'ghcr.io/toozej/go-sort-out-gh-actions'
+      - 'quay.io/toozej/go-sort-out-gh-actions'
     tags:
       - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}v{{ .Version
         }}{{ end }}'
@@ -95,7 +95,7 @@ dockers_v2:
       - "latest"
     dockerfile: Dockerfile.goreleaser
     labels:
-      "io.artifacthub.package.readme-url": "https://raw.githubusercontent.com/toozej/go-find-archived-gh-actions/main/README.md"
+      "io.artifacthub.package.readme-url": "https://raw.githubusercontent.com/toozej/go-sort-out-gh-actions/main/README.md"
       "io.artifacthub.package.maintainers": "[{\"name\":\"toozej\"}]"
       "io.artifacthub.package.license": "GPLv3"
       "org.opencontainers.image.description": "Find archived GitHub Actions in use in GHA\
@@ -106,7 +106,7 @@ dockers_v2:
       "org.opencontainers.image.version": "{{.Version}}"
       "org.opencontainers.image.source": "{{.GitURL}}"
       "org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
-      "org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/go-find-archived-gh-actions/main/README.md"
+      "org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/go-sort-out-gh-actions/main/README.md"
       "org.opencontainers.image.licenses": "GPL-3.0-only"
       "org.opencontainers.image.title": "{{.ProjectName}}"
       "org.opencontainers.image.vendor": "James Tooze"
@@ -115,10 +115,10 @@ dockers_v2:
       "index,manifest:org.opencontainers.image.created": "{{.Date}}"
       "index,manifest:org.opencontainers.image.description": "Find archived GitHub Actions\
         \ in use in GHA Workflows with optional notifications and GH Issue creation"
-      "index,manifest:org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/go-find-archived-gh-actions/main/README.md"
+      "index,manifest:org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/go-sort-out-gh-actions/main/README.md"
       "index,manifest:org.opencontainers.image.licenses": "GPL-3.0-only"
       "index,manifest:org.opencontainers.image.revision": "{{.FullCommit}}"
-      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/go-find-archived-gh-actions"
+      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/go-sort-out-gh-actions"
       "index,manifest:org.opencontainers.image.title": "{{.ProjectName}}"
       "index,manifest:org.opencontainers.image.vendor": "James Tooze"
       "index,manifest:org.opencontainers.image.version": "{{.Version}}"
@@ -144,33 +144,33 @@ archives:
 nfpms:
   - file_name_template: '{{ .ConventionalFileName }}'
     id: packages
-    homepage: https://github.com/toozej/go-find-archived-gh-actions
+    homepage: https://github.com/toozej/go-sort-out-gh-actions
     description: |-
       Find archived GitHub Actions in use in GHA Workflows with optional notifications and GH Issue creation
     maintainer: toozej
     license: GPLv3
-    vendor: go-find-archived-gh-actions
+    vendor: go-sort-out-gh-actions
     bindir: /usr/bin
     section: utils
     contents:
-      - src: ./completions/go-find-archived-gh-actions.bash
-        dst: /usr/share/bash-completion/completions/go-find-archived-gh-actions
+      - src: ./completions/go-sort-out-gh-actions.bash
+        dst: /usr/share/bash-completion/completions/go-sort-out-gh-actions
         file_info:
           mode: 0644
-      - src: ./completions/go-find-archived-gh-actions.fish
-        dst: /usr/share/fish/completions/go-find-archived-gh-actions.fish
+      - src: ./completions/go-sort-out-gh-actions.fish
+        dst: /usr/share/fish/completions/go-sort-out-gh-actions.fish
         file_info:
           mode: 0644
-      - src: ./completions/go-find-archived-gh-actions.zsh
-        dst: /usr/share/zsh/vendor-completions/_go-find-archived-gh-actions
+      - src: ./completions/go-sort-out-gh-actions.zsh
+        dst: /usr/share/zsh/vendor-completions/_go-sort-out-gh-actions
         file_info:
           mode: 0644
-      - src: ./manpages/go-find-archived-gh-actions.1.gz
-        dst: /usr/share/man/man1/go-find-archived-gh-actions.1.gz
+      - src: ./manpages/go-sort-out-gh-actions.1.gz
+        dst: /usr/share/man/man1/go-sort-out-gh-actions.1.gz
         file_info:
           mode: 0644
       - src: ./LICENSE
-        dst: /usr/share/doc/go-find-archived-gh-actions/copyright
+        dst: /usr/share/doc/go-sort-out-gh-actions/copyright
         file_info:
           mode: 0644
     formats:
@@ -187,8 +187,8 @@ nfpms:
         - changelog-file-missing-in-native-package
 
 homebrew_casks:
-  - name: go-find-archived-gh-actions
-    homepage: https://github.com/toozej/go-find-archived-gh-actions
+  - name: go-sort-out-gh-actions
+    homepage: https://github.com/toozej/go-sort-out-gh-actions
     description: "Find archived GitHub Actions in use in GHA Workflows with optional notifications\
       \ and GH Issue creation"
     license: GPLv3
@@ -197,18 +197,18 @@ homebrew_casks:
       name: homebrew-tap
       token: "{{ .Env.TAP_GITHUB_TOKEN }}"
     manpages:
-      - "manpages/go-find-archived-gh-actions.1.gz"
+      - "manpages/go-sort-out-gh-actions.1.gz"
     completions:
-      bash: "completions/go-find-archived-gh-actions.bash"
-      zsh: "completions/go-find-archived-gh-actions.zsh"
-      fish: "completions/go-find-archived-gh-actions.fish"
+      bash: "completions/go-sort-out-gh-actions.bash"
+      zsh: "completions/go-sort-out-gh-actions.zsh"
+      fish: "completions/go-sort-out-gh-actions.fish"
     url:
-      verified: "github.com/toozej/go-find-archived-gh-actions/releases/download"
+      verified: "github.com/toozej/go-sort-out-gh-actions/releases/download"
     hooks:
       post:
         install: |
           if OS.mac?
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/go-find-archived-gh-actions"]
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/go-sort-out-gh-actions"]
           end
 
 sboms:
@@ -239,4 +239,4 @@ milestones:
 release:
   disable: '{{ eq (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}'
   footer: |
-    **Full Changelog**: https://github.com/toozej/go-find-archived-gh-actions/compare/{{ .PreviousTag }}...{{ .Tag }}
+    **Full Changelog**: https://github.com/toozej/go-sort-out-gh-actions/compare/{{ .PreviousTag }}...{{ .Tag }}

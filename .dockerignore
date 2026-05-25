@@ -17,5 +17,5 @@ checkmake.ini
 Makefile
 Dockerfile*
 docker-compose.yml
-go-find-archived-gh-actions
-go-find-archived-gh-actions.key
+go-sort-out-gh-actions
+go-sort-out-gh-actions.key

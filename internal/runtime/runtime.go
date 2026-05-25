@@ -62,7 +62,7 @@ func (c *EOLClient) FetchReleaseEOL(ctx context.Context, product, version string
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
-	req.Header.Set("User-Agent", "go-find-archived-gh-actions")
+	req.Header.Set("User-Agent", "go-sort-out-gh-actions")
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {

@@ -7,9 +7,9 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/toozej/go-find-archived-gh-actions/internal/actioninfo"
-	"github.com/toozej/go-find-archived-gh-actions/internal/checkrunner"
-	"github.com/toozej/go-find-archived-gh-actions/internal/workflow"
+	"github.com/toozej/go-sort-out-gh-actions/internal/actioninfo"
+	"github.com/toozej/go-sort-out-gh-actions/internal/checkrunner"
+	"github.com/toozej/go-sort-out-gh-actions/internal/workflow"
 )
 
 func newEOLCmd() *cobra.Command {

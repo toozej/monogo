@@ -4,13 +4,13 @@ minimum_pre_commit_version: "1.15"
 
 repos:
   # check for archived GitHub Actions in workflows
-  - repo: https://github.com/toozej/go-find-archived-gh-actions
+  - repo: https://github.com/toozej/go-sort-out-gh-actions
     rev: main
     hooks:
-      - id: go-find-archived-gh-actions
+      - id: go-sort-out-gh-actions
         name: Check for archived GitHub Actions
         description: Detect archived GitHub Actions in repository workflows
-        entry: go-find-archived-gh-actions
+        entry: go-sort-out-gh-actions
         language: golang
         files: \.(yml|yaml)$
         pass_filenames: false

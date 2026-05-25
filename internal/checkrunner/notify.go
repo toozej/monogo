@@ -5,9 +5,9 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/toozej/go-find-archived-gh-actions/internal/actioninfo"
-	"github.com/toozej/go-find-archived-gh-actions/internal/issue"
-	"github.com/toozej/go-find-archived-gh-actions/internal/notification"
+	"github.com/toozej/go-sort-out-gh-actions/internal/actioninfo"
+	"github.com/toozej/go-sort-out-gh-actions/internal/issue"
+	"github.com/toozej/go-sort-out-gh-actions/internal/notification"
 )
 
 func SendArchivedNotifications(rc *RunContext, actions []issue.ArchivedActionInfo) {

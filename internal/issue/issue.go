@@ -87,7 +87,7 @@ func (ic *IssueCreator) buildIssueBody(actions []ArchivedActionInfo) string {
 	body.WriteString("- [Awesome Actions](https://github.com/sdras/awesome-actions)\n\n")
 
 	body.WriteString("---\n\n")
-	body.WriteString("*This issue was automatically created by [go-find-archived-gh-actions](https://github.com/toozej/go-find-archived-gh-actions)*\n")
+	body.WriteString("*This issue was automatically created by [go-sort-out-gh-actions](https://github.com/toozej/go-sort-out-gh-actions)*\n")
 
 	return body.String()
 }

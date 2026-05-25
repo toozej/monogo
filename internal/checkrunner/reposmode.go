@@ -6,7 +6,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/toozej/go-find-archived-gh-actions/internal/actioninfo"
+	"github.com/toozej/go-sort-out-gh-actions/internal/actioninfo"
 )
 
 func RunReposMode(rc *RunContext, reposDir string, processFunc ProcessFunc) bool {

@@ -49,7 +49,7 @@ outputs:
     value: ${{ steps.check.outputs.has-eol }}
 runs:
   using: 'docker'
-  image: 'docker://ghcr.io/toozej/go-find-archived-gh-actions:latest'
+  image: 'docker://ghcr.io/toozej/go-sort-out-gh-actions:latest'
   args:
     - eol
     - ${{ inputs.verbose == 'true' && '--verbose' || '' }}
@@ -83,7 +83,7 @@ runs:
 #
 #     - name: Check for EOL GitHub Actions
 #       id: check
-#       uses: toozej/go-find-archived-gh-actions/eol@main
+#       uses: toozej/go-sort-out-gh-actions/eol@main
 #       with:
 #         token: ${{ secrets.GITHUB_TOKEN }}
 #         verbose: true

@@ -1,6 +1,6 @@
-// Package main provides diagram generation utilities for the go-find-archived-gh-actions project.
+// Package main provides diagram generation utilities for the go-sort-out-gh-actions project.
 //
-// This application generates architectural and component diagrams for the go-find-archived-gh-actions
+// This application generates architectural and component diagrams for the go-sort-out-gh-actions
 // project using the go-diagrams library. It creates visual representations of the
 // project structure and component relationships to aid in documentation and understanding.
 //
@@ -61,7 +61,7 @@ func main() {
 }
 
 // generateArchitectureDiagram creates a high-level architecture diagram showing
-// the end-to-end flow of the go-find-archived-gh-actions tool.
+// the end-to-end flow of the go-sort-out-gh-actions tool.
 //
 // The diagram illustrates:
 //   - User invoking the CLI application
@@ -78,7 +78,7 @@ func main() {
 func generateArchitectureDiagram() {
 	d, err := diagram.New(
 		diagram.Filename("architecture"),
-		diagram.Label("go-find-archived-gh-actions Architecture"),
+		diagram.Label("go-sort-out-gh-actions Architecture"),
 		diagram.Direction("TB"),
 	)
 	if err != nil {
@@ -92,7 +92,7 @@ func generateArchitectureDiagram() {
 	githubIssues := generic.Blank.Blank(diagram.NodeLabel("GitHub Issues\n(target repository)"))
 
 	// Application components
-	cli := programming.Language.Go(diagram.NodeLabel("CLI Application\n(cmd/go-find-archived-gh-actions)"))
+	cli := programming.Language.Go(diagram.NodeLabel("CLI Application\n(cmd/go-sort-out-gh-actions)"))
 	config := programming.Language.Go(diagram.NodeLabel("Configuration\n(pkg/config)\nenv / .env file"))
 	workflowParser := programming.Language.Go(diagram.NodeLabel("Workflow Parser\n(internal/workflow)\nfinds & parses .github/workflows/**/*.yml"))
 	ghClient := programming.Language.Go(diagram.NodeLabel("GitHub Client\n(internal/github)\nchecks archived status"))
@@ -126,11 +126,11 @@ func generateArchitectureDiagram() {
 }
 
 // generateComponentDiagram creates a detailed component diagram showing the
-// package-level relationships and dependencies within the go-find-archived-gh-actions project.
+// package-level relationships and dependencies within the go-sort-out-gh-actions project.
 //
 // The diagram illustrates:
 //   - main.go as the binary entry point
-//   - cmd/go-find-archived-gh-actions/root.go — cobra CLI root command, orchestration logic
+//   - cmd/go-sort-out-gh-actions/root.go — cobra CLI root command, orchestration logic
 //   - pkg/config/config.go         — environment-variable / .env configuration loading
 //   - pkg/version/version.go       — version sub-command
 //   - pkg/man/man.go               — man-page sub-command
@@ -146,7 +146,7 @@ func generateArchitectureDiagram() {
 func generateComponentDiagram() {
 	d, err := diagram.New(
 		diagram.Filename("components"),
-		diagram.Label("go-find-archived-gh-actions Components"),
+		diagram.Label("go-sort-out-gh-actions Components"),
 		diagram.Direction("LR"),
 	)
 	if err != nil {
@@ -157,7 +157,7 @@ func generateComponentDiagram() {
 	main := programming.Language.Go(diagram.NodeLabel("main.go"))
 
 	// CLI layer
-	rootCmd := programming.Language.Go(diagram.NodeLabel("cmd/go-find-archived-gh-actions\nroot.go"))
+	rootCmd := programming.Language.Go(diagram.NodeLabel("cmd/go-sort-out-gh-actions\nroot.go"))
 
 	// pkg layer
 	config := programming.Language.Go(diagram.NodeLabel("pkg/config\nconfig.go"))

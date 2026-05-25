@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	gh "github.com/toozej/go-find-archived-gh-actions/internal/github"
-	"github.com/toozej/go-find-archived-gh-actions/internal/workflow"
+	gh "github.com/toozej/go-sort-out-gh-actions/internal/github"
+	"github.com/toozej/go-sort-out-gh-actions/internal/workflow"
 )
 
 func TestRemoveDuplicates(t *testing.T) {

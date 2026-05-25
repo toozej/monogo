@@ -60,26 +60,26 @@ jobs:
         run: make local-build
       - name: Demo - check archived actions
         run: |
-          ./out/go-find-archived-gh-actions archived \
+          ./out/go-sort-out-gh-actions archived \
           --workflow example/workflows/example-archived-actions.yaml \
           --verbose \
           --token ${{ secrets.GH_TOKEN }} || true
       - name: Demo - check outdated actions
         run: |
-          ./out/go-find-archived-gh-actions outdated \
+          ./out/go-sort-out-gh-actions outdated \
           --workflow example/workflows/example-archived-actions.yaml \
           --verbose \
           --token ${{ secrets.GH_TOKEN }} || true
       - name: Demo - check EOL actions
         run: |
-          ./out/go-find-archived-gh-actions eol \
+          ./out/go-sort-out-gh-actions eol \
           --workflow example/workflows/example-archived-actions.yaml \
           --verbose \
           --stale-days 365 \
           --token ${{ secrets.GH_TOKEN }} || true
       - name: Demo - check all (archived + EOL + outdated)
         run: |
-          ./out/go-find-archived-gh-actions check \
+          ./out/go-sort-out-gh-actions check \
           --workflow example/workflows/example-archived-actions.yaml \
           --verbose \
           --stale-days 365 \
@@ -87,7 +87,7 @@ jobs:
       - name: Demo - Slack notification
         if: env.SLACK_TOKEN != ''
         run: |
-          ./out/go-find-archived-gh-actions check \
+          ./out/go-sort-out-gh-actions check \
           --workflow example/workflows/example-archived-actions.yaml \
           --verbose \
           --stale-days 365 \
@@ -126,7 +126,7 @@ jobs:
         run: make local-build
       - name: E2E - verify archived actions are detected
         run: |
-          output=$(./out/go-find-archived-gh-actions archived \
+          output=$(./out/go-sort-out-gh-actions archived \
           --workflow example/workflows/example-archived-actions.yaml \
           --token ${{ secrets.GH_TOKEN }} 2>&1) || true
           echo "$output"
@@ -137,7 +137,7 @@ jobs:
           echo "PASS: Archived actions detected correctly"
       - name: E2E - verify debug mode shows rate limit info
         run: |
-          output=$(./out/go-find-archived-gh-actions archived \
+          output=$(./out/go-sort-out-gh-actions archived \
           --workflow example/workflows/example-archived-actions.yaml \
           --debug \
           --token ${{ secrets.GH_TOKEN }} 2>&1) || true
@@ -148,7 +148,7 @@ jobs:
           echo "PASS: Debug mode executed successfully"
       - name: E2E - verify EOL/stale check works
         run: |
-          output=$(./out/go-find-archived-gh-actions eol \
+          output=$(./out/go-sort-out-gh-actions eol \
           --workflow example/workflows/example-archived-actions.yaml \
           --stale-days 365 \
           --token ${{ secrets.GH_TOKEN }} 2>&1) || true
@@ -157,7 +157,7 @@ jobs:
       - name: E2E - Slack notification
         if: env.SLACK_TOKEN != ''
         run: |
-          ./out/go-find-archived-gh-actions archived \
+          ./out/go-sort-out-gh-actions archived \
           --workflow example/workflows/example-archived-actions.yaml \
           --verbose \
           --notify \

@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/toozej/go-find-archived-gh-actions/internal/runtime"
+	"github.com/toozej/go-sort-out-gh-actions/internal/runtime"
 )
 
 type Client struct {

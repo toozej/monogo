@@ -1,6 +1,6 @@
-// Package man provides manual page generation functionality for the go-find-archived-gh-actions application.
+// Package man provides manual page generation functionality for the go-sort-out-gh-actions application.
 //
-// This package creates Unix manual pages (man pages) for the go-find-archived-gh-actions CLI
+// This package creates Unix manual pages (man pages) for the go-sort-out-gh-actions CLI
 // application using the mango-cobra library. It generates properly formatted
 // man pages that can be viewed with the standard `man` command on Unix systems.
 //
@@ -16,13 +16,13 @@
 //
 // Example usage:
 //
-//	import "github.com/toozej/go-find-archived-gh-actions/pkg/man"
+//	import "github.com/toozej/go-sort-out-gh-actions/pkg/man"
 //
 //	// Add man command to root command
 //	rootCmd.AddCommand(man.NewManCmd())
 //
 //	// Generate man pages:
-//	// ./go-find-archived-gh-actions man > go-find-archived-gh-actions.1
+//	// ./go-sort-out-gh-actions man > go-sort-out-gh-actions.1
 package man
 
 import (
@@ -37,7 +37,7 @@ import (
 // NewManCmd creates and returns a new cobra command for generating manual pages.
 //
 // This function constructs a hidden cobra command that generates Unix manual pages
-// for the go-find-archived-gh-actions application. The command traverses the root command tree
+// for the go-sort-out-gh-actions application. The command traverses the root command tree
 // and creates comprehensive documentation in standard roff format.
 //
 // Command characteristics:
@@ -67,12 +67,12 @@ import (
 //	rootCmd.AddCommand(manCmd)
 //
 //	// Usage from command line:
-//	// ./go-find-archived-gh-actions man > go-find-archived-gh-actions.1
-//	// man ./go-find-archived-gh-actions.1
+//	// ./go-sort-out-gh-actions man > go-sort-out-gh-actions.1
+//	// man ./go-sort-out-gh-actions.1
 func NewManCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:                   "man",
-		Short:                 "Generates go-find-archived-gh-actions's command line manpages",
+		Short:                 "Generates go-sort-out-gh-actions's command line manpages",
 		SilenceUsage:          true,
 		DisableFlagsInUseLine: true,
 		Hidden:                true,

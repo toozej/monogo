@@ -27,15 +27,15 @@ LDFLAGS = -s -w \
 	-X $(VER).Builder=$(BUILDER)
 	
 # Define the repository URL
-REPO_URL := https://github.com/toozej/go-find-archived-gh-actions
+REPO_URL := https://github.com/toozej/go-sort-out-gh-actions
 IMAGE_AUTHOR = toozej
-IMAGE_NAME = go-find-archived-gh-actions
+IMAGE_NAME = go-sort-out-gh-actions
 IMAGE_TAG = latest
 
 # Detect the OS and architecture
 OS := $(shell uname -s)
 ARCH := $(shell uname -m)
-LATEST_RELEASE_URL := $(REPO_URL)/releases/latest/download/go-find-archived-gh-actions_$(OS)_$(ARCH).tar.gz
+LATEST_RELEASE_URL := $(REPO_URL)/releases/latest/download/go-sort-out-gh-actions_$(OS)_$(ARCH).tar.gz
 
 ifeq ($(OS), Linux)
 	OPENER=xdg-open
@@ -65,11 +65,11 @@ build: ## Build Docker image, including running tests
 		--build-arg BUILDER=$(BUILDER) \
 		-t $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG) .
 
-get-cosign-pub-key: ## Get go-find-archived-gh-actions Cosign public key from GitHub
-	test -f $(CURDIR)/go-find-archived-gh-actions.pub || curl --silent https://raw.githubusercontent.com/toozej/go-find-archived-gh-actions/main/go-find-archived-gh-actions.pub -O
+get-cosign-pub-key: ## Get go-sort-out-gh-actions Cosign public key from GitHub
+	test -f $(CURDIR)/go-sort-out-gh-actions.pub || curl --silent https://raw.githubusercontent.com/toozej/go-sort-out-gh-actions/main/go-sort-out-gh-actions.pub -O
 
 verify: get-cosign-pub-key ## Verify Docker image with Cosign
-	cosign verify --key $(CURDIR)/go-find-archived-gh-actions.pub $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG)
+	cosign verify --key $(CURDIR)/go-sort-out-gh-actions.pub $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG)
 
 run: ## Run built Docker image
 	-docker kill $(IMAGE_NAME)
@@ -83,16 +83,16 @@ up: test build ## Run Docker Compose project with build Docker image
 down: ## Stop running Docker Compose project
 	docker compose -f docker-compose.yml down --remove-orphans
 
-install: ## Install go-find-archived-gh-actions from latest GitHub release
+install: ## Install go-sort-out-gh-actions from latest GitHub release
 	if command -v go; then \
-			go install github.com/toozej/go-find-archived-gh-actions@latest ; \
+			go install github.com/toozej/go-sort-out-gh-actions@latest ; \
 	else \
-			echo "Downloading go-find-archived-gh-actions binary for $(OS)-$(ARCH)..."; \
+			echo "Downloading go-sort-out-gh-actions binary for $(OS)-$(ARCH)..."; \
 			mkdir -p $(CURDIR)/tmp; \
-			curl --silent -L -o $(CURDIR)/tmp/go-find-archived-gh-actions.tgz $(LATEST_RELEASE_URL); \
-			tar -xzf $(CURDIR)/tmp/go-find-archived-gh-actions.tgz -C $(CURDIR)/tmp/; \
-			chmod +x $(CURDIR)/tmp/go-find-archived-gh-actions; \
-			sudo mv $(CURDIR)/tmp/go-find-archived-gh-actions /usr/local/bin/go-find-archived-gh-actions; \
+			curl --silent -L -o $(CURDIR)/tmp/go-sort-out-gh-actions.tgz $(LATEST_RELEASE_URL); \
+			tar -xzf $(CURDIR)/tmp/go-sort-out-gh-actions.tgz -C $(CURDIR)/tmp/; \
+			chmod +x $(CURDIR)/tmp/go-sort-out-gh-actions; \
+			sudo mv $(CURDIR)/tmp/go-sort-out-gh-actions /usr/local/bin/go-sort-out-gh-actions; \
 			rm -rf $(CURDIR)/tmp; \
 	fi
 
@@ -120,13 +120,13 @@ local-build: ## Run `go build` using locally installed golang toolchain
 
 local-run: ## Run locally built binary
 	if test -e $(CURDIR)/.env; then \
-		export `cat $(CURDIR)/.env | xargs` && $(CURDIR)/out/go-find-archived-gh-actions; \
+		export `cat $(CURDIR)/.env | xargs` && $(CURDIR)/out/go-sort-out-gh-actions; \
 	else \
 		echo "No environment variables found at $(CURDIR)/.env. Cannot run."; \
 	fi
 
 local-kill: ## Kill any currently running locally built binary
-	-pkill -f '$(CURDIR)/out/go-find-archived-gh-actions'
+	-pkill -f '$(CURDIR)/out/go-sort-out-gh-actions'
 
 local-iterate: ## Run `make local-build local-run` via `air` any time a .go or .tmpl file changes
 	air -c $(CURDIR)/.air.toml
@@ -136,33 +136,33 @@ local-release-test: ## Build assets and test goreleaser config using locally ins
 	goreleaser build --clean --snapshot
 
 local-release: local-test docker-login ## Release assets using locally installed golang toolchain and goreleaser
-	if test -e $(CURDIR)/go-find-archived-gh-actions.key && test -e $(CURDIR)/.env; then \
+	if test -e $(CURDIR)/go-sort-out-gh-actions.key && test -e $(CURDIR)/.env; then \
 		export `cat $(CURDIR)/.env | xargs` && goreleaser release --clean; \
 	else \
-		echo "no cosign private key found at $(CURDIR)/go-find-archived-gh-actions.key. Cannot release."; \
+		echo "no cosign private key found at $(CURDIR)/go-sort-out-gh-actions.key. Cannot release."; \
 	fi
 
 local-sign: local-test ## Sign locally installed golang toolchain and cosign
-	if test -e $(CURDIR)/go-find-archived-gh-actions.key && test -e $(CURDIR)/.env; then \
-		export `cat $(CURDIR)/.env | xargs` && cosign sign-blob --key=$(CURDIR)/go-find-archived-gh-actions.key --bundle=$(CURDIR)/go-find-archived-gh-actions.bundle $(CURDIR)/out/go-find-archived-gh-actions; \
+	if test -e $(CURDIR)/go-sort-out-gh-actions.key && test -e $(CURDIR)/.env; then \
+		export `cat $(CURDIR)/.env | xargs` && cosign sign-blob --key=$(CURDIR)/go-sort-out-gh-actions.key --bundle=$(CURDIR)/go-sort-out-gh-actions.bundle $(CURDIR)/out/go-sort-out-gh-actions; \
 	else \
-		echo "no cosign private key found at $(CURDIR)/go-find-archived-gh-actions.key. Cannot release."; \
+		echo "no cosign private key found at $(CURDIR)/go-sort-out-gh-actions.key. Cannot release."; \
 	fi
 
 local-verify: get-cosign-pub-key ## Verify locally compiled binary
 	# cosign here assumes you're using Linux AMD64 binary
-	cosign verify-blob --key $(CURDIR)/go-find-archived-gh-actions.pub --bundle $(CURDIR)/go-find-archived-gh-actions.bundle $(CURDIR)/out/go-find-archived-gh-actions
+	cosign verify-blob --key $(CURDIR)/go-sort-out-gh-actions.pub --bundle $(CURDIR)/go-sort-out-gh-actions.bundle $(CURDIR)/out/go-sort-out-gh-actions
 
 local-install: local-build local-verify ## Install compiled binary to local machine
-	sudo cp $(CURDIR)/out/go-find-archived-gh-actions /usr/local/bin/go-find-archived-gh-actions
-	sudo chmod 0755 /usr/local/bin/go-find-archived-gh-actions
+	sudo cp $(CURDIR)/out/go-sort-out-gh-actions /usr/local/bin/go-sort-out-gh-actions
+	sudo chmod 0755 /usr/local/bin/go-sort-out-gh-actions
 
 upload-secrets-to-gh: ## Upload secrets from .env file to GitHub Actions Secrets + Dependabot
-	$(CURDIR)/scripts/upload_secrets_to_github.sh go-find-archived-gh-actions 
+	$(CURDIR)/scripts/upload_secrets_to_github.sh go-sort-out-gh-actions 
 
 upload-secrets-envfile-to-1pass: ## Upload secrets and .env file to 1Password
-	$(CURDIR)/scripts/upload_secrets_to_1password secrets go-find-archived-gh-actions
-	$(CURDIR)/scripts/upload_secrets_to_1password envfile go-find-archived-gh-actions
+	$(CURDIR)/scripts/upload_secrets_to_1password secrets go-sort-out-gh-actions
+	$(CURDIR)/scripts/upload_secrets_to_1password envfile go-sort-out-gh-actions
 
 docker-login: ## Login to Docker registries used to publish images to
 	if test -e $(CURDIR)/.env; then \
@@ -222,7 +222,7 @@ pre-commit-install: ## Install pre-commit hooks and necessary binaries
 pre-commit-run: ## Run pre-commit hooks against all files
 	pre-commit run --all-files
 	# manually run the following checks since their pre-commits aren't working or don't exist
-	go-licenses report github.com/toozej/go-find-archived-gh-actions/cmd/go-find-archived-gh-actions
+	go-licenses report github.com/toozej/go-sort-out-gh-actions/cmd/go-sort-out-gh-actions
 	govulncheck ./...
 
 update-golang-version: ## Update to latest Golang version across the repo
@@ -290,7 +290,7 @@ benchmark: ## Run benchmarks
 
 clean: ## Remove any locally compiled binaries, profiles, demo output, and built Docker image
 	@echo "=== Cleaning up compiled binaries, profiles, demo output, and built Docker image ==="
-	@rm -f $(CURDIR)/out/go-find-archived-gh-actions
+	@rm -f $(CURDIR)/out/go-sort-out-gh-actions
 	@rm -rf $(CURDIR)/profiles/
 	@rm -rf $(CURDIR)/dist/
 	@rm -rf $(CURDIR)/c.out
@@ -300,7 +300,7 @@ clean: ## Remove any locally compiled binaries, profiles, demo output, and built
 	-docker image rm $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG)
 
 demo: local-build ## Run the built binary against example workflow to demo functionality
-	-$(CURDIR)/out/go-find-archived-gh-actions check --workflow $(CURDIR)/example/workflows/example-archived-actions.yaml --verbose
+	-$(CURDIR)/out/go-sort-out-gh-actions check --workflow $(CURDIR)/example/workflows/example-archived-actions.yaml --verbose
 
 help: ## Display help text
 	@grep -E '^[a-zA-Z_-]+ ?:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'

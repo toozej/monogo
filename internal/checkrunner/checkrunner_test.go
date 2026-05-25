@@ -11,11 +11,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/toozej/go-find-archived-gh-actions/internal/actioninfo"
-	"github.com/toozej/go-find-archived-gh-actions/internal/github"
-	"github.com/toozej/go-find-archived-gh-actions/internal/issue"
-	"github.com/toozej/go-find-archived-gh-actions/internal/output"
-	"github.com/toozej/go-find-archived-gh-actions/internal/workflow"
+	"github.com/toozej/go-sort-out-gh-actions/internal/actioninfo"
+	"github.com/toozej/go-sort-out-gh-actions/internal/github"
+	"github.com/toozej/go-sort-out-gh-actions/internal/issue"
+	"github.com/toozej/go-sort-out-gh-actions/internal/output"
+	"github.com/toozej/go-sort-out-gh-actions/internal/workflow"
 )
 
 func newTestRunContext(ghServer *httptest.Server) *RunContext {

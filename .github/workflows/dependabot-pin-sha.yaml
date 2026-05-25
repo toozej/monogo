@@ -27,7 +27,7 @@ jobs:
 
       - name: Pin outdated actions to SHA
         id: pin
-        uses: toozej/go-find-archived-gh-actions/check-outdated@main
+        uses: toozej/go-sort-out-gh-actions/check-outdated@main
         with:
           token: ${{ secrets.GH_TOKEN }}
           verbose: true

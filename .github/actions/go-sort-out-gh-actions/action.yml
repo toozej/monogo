@@ -57,7 +57,7 @@ runs:
   using: 'composite'
   steps:
     - id: check
-  uses: toozej/go-find-archived-gh-actions/check-archived@main
+  uses: toozej/go-sort-out-gh-actions/check-archived@main
   with:
   token: ${{ inputs.token }}
   verbose: ${{ inputs.verbose }}
@@ -92,7 +92,7 @@ runs:
 #
 #     - name: Check for archived GitHub Actions
 #       id: check
-#       uses: toozej/go-find-archived-gh-actions@main
+#       uses: toozej/go-sort-out-gh-actions@main
 #       with:
 #         token: ${{ secrets.GITHUB_TOKEN }}
 #         verbose: true

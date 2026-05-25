@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/toozej/go-find-archived-gh-actions/internal/actioninfo"
-	"github.com/toozej/go-find-archived-gh-actions/internal/issue"
+	"github.com/toozej/go-sort-out-gh-actions/internal/actioninfo"
+	"github.com/toozej/go-sort-out-gh-actions/internal/issue"
 )
 
 func TestParseFormat(t *testing.T) {
