@@ -32,7 +32,7 @@ jobs:
           make test
       - name: Slack notification on failure
         if: failure() && env.SLACK_TOKEN != ''
-        uses: slackapi/slack-github-action@v2.1.0 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
+        uses: slackapi/slack-github-action@v3.0.3 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
         with:
           method: chat.postMessage
           token: ${{ secrets.SLACK_TOKEN }}
@@ -98,7 +98,7 @@ jobs:
           SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
       - name: Slack notification on failure
         if: failure() && env.SLACK_TOKEN != ''
-        uses: slackapi/slack-github-action@v2.1.0 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
+        uses: slackapi/slack-github-action@v3.0.3 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
         with:
           method: chat.postMessage
           token: ${{ secrets.SLACK_TOKEN }}
@@ -167,7 +167,7 @@ jobs:
           SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
       - name: Slack notification on failure
         if: failure() && env.SLACK_TOKEN != ''
-        uses: slackapi/slack-github-action@v2.1.0 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
+        uses: slackapi/slack-github-action@v3.0.3 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
         with:
           method: chat.postMessage
           token: ${{ secrets.SLACK_TOKEN }}
