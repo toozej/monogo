@@ -2,6 +2,7 @@ package workflow
 
 type ActionRef struct {
 	OwnerRepo string
+	Subpath   string
 	Version   string
 	FullRef   string
 }

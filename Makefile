@@ -300,7 +300,11 @@ clean: ## Remove any locally compiled binaries, profiles, demo output, and built
 	-docker image rm $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG)
 
 demo: local-build ## Run the built binary against example workflow to demo functionality
-	-$(CURDIR)/out/go-sort-out-gh-actions check --workflow $(CURDIR)/example/workflows/example-archived-actions.yaml --verbose
+	-$(CURDIR)/out/go-sort-out-gh-actions check --workflow $(CURDIR)/demo/workflows/passing-archived-actions.yaml --verbose
+	@echo -e "\n\n"
+	@printf "%$$(tput cols)s" | tr ' ' '='
+	@echo -e "\n\n"
+	-$(CURDIR)/out/go-sort-out-gh-actions check --workflow $(CURDIR)/demo/workflows/failing-archived-actions.yaml --verbose
 
 help: ## Display help text
 	@grep -E '^[a-zA-Z_-]+ ?:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'

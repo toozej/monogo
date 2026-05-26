@@ -1,0 +1,39 @@
+---
+name: Example - EOL Actions with Auto-Update
+on:
+  schedule:
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+
+jobs:
+  check-eol-update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check for EOL GitHub Actions and update
+        id: check
+        uses: toozej/go-sort-out-gh-actions/eol@main
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          verbose: true
+          update: true
+
+      - name: Commit and push updated workflows
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ".github/workflows/**.yml" ".github/workflows/**.yaml"
+          git diff --cached --quiet || git commit -m "chore(deps): update EOL GitHub Actions to supported versions"
+          git push
+
+      - name: Fail if EOL actions still found
+        if: steps.check.outputs.has-eol == 'true'
+        run: |
+          echo "EOL GitHub Actions detected that could not be auto-updated. Please replace them."
+          exit 1

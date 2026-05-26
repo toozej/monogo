@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -183,6 +184,7 @@ func CheckOutdatedActions(ctx context.Context, ghClient *github.Client, workflow
 					}
 					outdatedActions = append(outdatedActions, OutdatedActionInfo{
 						OwnerRepo:  ref.OwnerRepo,
+						Subpath:    ref.Subpath,
 						CurrentRef: ref.Version,
 						LatestTag:  release.TagName,
 						LatestURL:  release.HTMLURL,
@@ -206,6 +208,7 @@ func CheckOutdatedActions(ctx context.Context, ghClient *github.Client, workflow
 			if isOutdated {
 				outdatedActions = append(outdatedActions, OutdatedActionInfo{
 					OwnerRepo:  ref.OwnerRepo,
+					Subpath:    ref.Subpath,
 					CurrentRef: ref.Version,
 					LatestTag:  release.TagName,
 					LatestURL:  release.HTMLURL,
@@ -263,13 +266,21 @@ func WriteOutdatedActions(ctx context.Context, ghClient *github.Client, workflow
 
 		var newUse string
 		if useSemver {
-			newUse = fmt.Sprintf("%s@%s", action.OwnerRepo, action.LatestTag)
+			if action.Subpath != "" {
+				newUse = fmt.Sprintf("%s/%s@%s", action.OwnerRepo, action.Subpath, action.LatestTag)
+			} else {
+				newUse = fmt.Sprintf("%s@%s", action.OwnerRepo, action.LatestTag)
+			}
 		} else {
 			sha, ok := shaCache[key]
 			if !ok {
 				continue
 			}
-			newUse = fmt.Sprintf("%s@%s # %s", action.OwnerRepo, sha, action.LatestTag)
+			if action.Subpath != "" {
+				newUse = fmt.Sprintf("%s/%s@%s # %s", action.OwnerRepo, action.Subpath, sha, action.LatestTag)
+			} else {
+				newUse = fmt.Sprintf("%s@%s # %s", action.OwnerRepo, sha, action.LatestTag)
+			}
 		}
 
 		for _, wf := range workflowFiles {
@@ -340,25 +351,13 @@ func readAll(f *os.File) ([]byte, error) {
 }
 
 func ReplaceUsesLine(content []byte, oldUse, newUse string) []byte {
-	oldLine := "- uses: " + oldUse
-	newLine := "- uses: " + newUse
-
-	if bytes.Contains(content, []byte(oldLine)) {
-		return bytes.ReplaceAll(content, []byte(oldLine), []byte(newLine))
-	}
-
 	endsWithNewline := len(content) > 0 && content[len(content)-1] == '\n'
 	scanner := bufio.NewScanner(bytes.NewReader(content))
 	var buf bytes.Buffer
 	for scanner.Scan() {
 		line := scanner.Text()
 		if matchesUsesLine(line, oldUse) {
-			indent := ""
-			idx := strings.Index(line, "uses:")
-			if idx > 0 {
-				indent = line[:idx]
-			}
-			line = indent + "uses: " + newUse
+			line = buildReplacementLine(line, oldUse, newUse)
 		}
 		buf.WriteString(line)
 		buf.WriteByte('\n')
@@ -373,6 +372,88 @@ func ReplaceUsesLine(content []byte, oldUse, newUse string) []byte {
 	}
 
 	return result
+}
+
+// parseNewUse separates newUse into the reference portion and an optional
+// semver comment. For SHA mode newUse like "owner/repo@sha # v1.2.3",
+// it returns ("owner/repo@sha", "v1.2.3"). For semver mode newUse like
+// "owner/repo@v1.2.3" (no inline comment), it returns ("owner/repo@v1.2.3", "").
+func parseNewUse(newUse string) (refPart, semverComment string) {
+	if idx := strings.Index(newUse, " # "); idx != -1 {
+		return newUse[:idx], newUse[idx+3:]
+	}
+	return newUse, ""
+}
+
+// buildReplacementLine replaces oldUse with newUse in a matched line,
+// preserving any existing trailing inline comment.
+//
+// It handles three scenarios:
+//  1. Line has no trailing comment → use newUse as-is (e.g. "owner/repo@sha # v1.2.3")
+//  2. Line has an existing semver comment (# vN.N.N from a prior SHA-pin) →
+//     replace it with the new semver comment, preserve other comments
+//  3. Line has a non-semver comment (e.g. # nosemgrep: ...) →
+//     insert the new semver comment before the existing comment
+func buildReplacementLine(line, oldUse, newUse string) string {
+	target := "uses: " + oldUse
+	idx := strings.Index(line, target)
+	indent := ""
+	if idx > 0 {
+		indent = line[:idx]
+	}
+
+	// Extract the trailing part of the line after oldUse.
+	afterIdx := idx + len(target)
+	trailing := ""
+	if afterIdx < len(line) {
+		trailing = line[afterIdx:]
+	}
+
+	refPart, semverComment := parseNewUse(newUse)
+
+	// No trailing content on original line — use newUse as-is.
+	if trailing == "" {
+		return indent + "uses: " + newUse
+	}
+
+	// trailing starts with " #" (guaranteed by matchesUsesLine).
+	// Strip the leading space so commentText starts with "#".
+	commentText := trailing[1:] // e.g. "# nosemgrep: ..." or "# v3 # nosemgrep: ..."
+
+	// If newUse has no semver comment (semver mode like "owner/repo@v4.1.2"),
+	// preserve the existing trailing comment as-is.
+	if semverComment == "" {
+		return indent + "uses: " + refPart + " " + commentText
+	}
+
+	// newUse has a semver comment (SHA mode).
+	// Check if the existing comment starts with a semver pattern like "# v3" or "# v3.2.1"
+	// which would be from a prior SHA-pin operation.
+	semverPattern := regexp.MustCompile(`^# v\S+(?:\s|$)`)
+	if semverPattern.MatchString(commentText) {
+		// Replace the existing semver comment with the new one.
+		// e.g. "# v3 # nosemgrep: ..." → "# v4.1.2 # nosemgrep: ..."
+		// e.g. "# v3" → "# v4.1.2"
+		match := semverPattern.FindStringIndex(commentText)
+		if match == nil {
+			// Should not happen since MatchString returned true, but handle gracefully.
+			return indent + "uses: " + refPart + " # " + semverComment + " " + commentText
+		}
+		endOfOldSemver := match[1]
+		// Skip any trailing whitespace from the match since we'll add our own spacing.
+		rest := strings.TrimLeft(commentText[endOfOldSemver:], " ")
+		if rest == "" {
+			// Entire comment was just the semver annotation (e.g. "# v3") — replace it.
+			return indent + "uses: " + refPart + " # " + semverComment
+		}
+		// There's content after the old semver comment — replace old semver, keep the rest.
+		return indent + "uses: " + refPart + " # " + semverComment + " " + rest
+	}
+
+	// Existing comment is not a semver annotation (e.g. "# nosemgrep: ...").
+	// Insert the new semver comment before the existing comment.
+	// e.g. "# nosemgrep: ..." → "# v4.1.2 # nosemgrep: ..."
+	return indent + "uses: " + refPart + " # " + semverComment + " " + commentText
 }
 
 func matchesUsesLine(line, oldUse string) bool {

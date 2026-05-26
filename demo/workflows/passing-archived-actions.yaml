@@ -1,0 +1,54 @@
+---
+name: Example Passing Workflow without Archived, Outdated, or EOL Runtimes or Languages
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Go (current)
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+
+      - name: Run GoReleaser (current - third-party)
+        uses: goreleaser/goreleaser-action@v7.2.2
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean
+
+      - name: Initialize CodeQL (current - GitHub official)
+        uses: github/codeql-action/init@v4
+        with:
+          languages: go
+
+      - name: Perform CodeQL Analysis (current - GitHub official)
+        uses: github/codeql-action/analyze@v4
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Go (current)
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+
+      - name: Upload artifact (current - GitHub official)
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results
+          path: test-results/
+
+      - name: Download artifact (current - GitHub official)
+        uses: actions/download-artifact@v8
+        with:
+          name: test-results

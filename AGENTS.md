@@ -16,7 +16,7 @@ CLI tool that scans `.github/workflows/` YAML files and detects archived, outdat
 make build                                      # Build binary with ldflags
 make run                                        # Run the built binary
 make local-run                                  # Build and run locally
-make demo                                       # Run with example workflows
+make demo                                       # Run with demo workflows
 ```
 
 ### Test
@@ -53,57 +53,58 @@ make local-iterate                              # Hot-reload via air (.air.toml)
 ## Repository Structure
 
 ```
-main.go                          # Entry point, delegates to cmd.Execute()
-cmd/go-sort-out-gh-actions/      # Cobra CLI subcommands
-  root.go                        # Root command, persistent flags, resolveToken(), resolveWorkflowFiles()
-  archived.go                    # `archived` subcommand
-  outdated.go                    # `outdated` subcommand
-  eol.go                         # `eol` subcommand
-  check.go                       # `check` subcommand (runs all checks)
-  version.go                     # `version` subcommand
-  man.go                         # `man` subcommand
-  completion.go                  # `completion` subcommand
-internal/                        # Core business logic (not importable externally)
-  github/                        # GitHub API client with caching & rate limit logging
-    types.go                     # Client, RepoInfo, ReleaseInfo, RefInfo, StaleInfo
-    github.go                    # API methods, goroutine semaphore
-    github_test.go               # Table-driven tests with httptest mock server
-  workflow/                      # YAML parser for workflow files, finds `uses:` refs
-    types.go                     # ActionRef, WorkflowFile, WorkflowParser
-    workflow.go                  # FindWorkflowFiles, ParseWorkflowFile, GetAllUsesFromRepoWithVersions
+main.go                           # Entry point, delegates to cmd.Execute()
+cmd/go-sort-out-gh-actions/       # Cobra CLI subcommands
+  root.go                         # Root command, persistent flags, resolveToken(), resolveWorkflowFiles()
+  archived.go                     # `archived` subcommand
+  outdated.go                     # `outdated` subcommand
+  eol.go                          # `eol` subcommand
+  check.go                        # `check` subcommand (runs all checks)
+  version.go                      # `version` subcommand
+  man.go                          # `man` subcommand
+  completion.go                   # `completion` subcommand
+internal/                         # Core business logic (not importable externally)
+  github/                         # GitHub API client with caching & rate limit logging
+    types.go                      # Client, RepoInfo, ReleaseInfo, RefInfo, StaleInfo
+    github.go                     # API methods, goroutine semaphore
+    github_test.go                # Table-driven tests with httptest mock server
+  workflow/                       # YAML parser for workflow files, finds `uses:` refs
+    types.go                      # ActionRef, WorkflowFile, WorkflowParser
+    workflow.go                   # FindWorkflowFiles, ParseWorkflowFile, GetAllUsesFromRepoWithVersions
     workflow_test.go
-  actioninfo/                    # Utility funcs
-    types.go                     # OutdatedActionInfo, StaleActionInfo, RuntimeEOLActionInfo, FileUpdate + constants
-    actioninfo.go                # GetOwnerRepos, ExpandPath, SanitizeStaleDays, WriteActionOutput, Emoji
-  checkrunner/                   # Detection logic and orchestration
-    types.go                     # CheckResult, RunContext, ProcessFunc
-    detect.go                    # DetectArchived, DetectStale, DetectRuntimeEOL, DetectOutdated
-    runcontext.go                # NewRunContext constructor
-    notify.go                    # SendArchivedNotifications, CreateArchivedIssues
-    display.go                   # WriteResult helper
-    reposmode.go                 # RunReposMode for scanning multiple repos
-  notification/                  # Multi-provider notifications
-    types.go                     # Notifier interface, NotificationManager, GotifyNotifier, NikoksrNotifier
-    notification.go              # Implementations wrapping nikoksr/notify
-  issue/                         # GitHub issue creation
-    types.go                     # IssueCreator, ArchivedActionInfo
-    issue.go                     # IssueCreator using go-github
-  output/                        # Output formatting
-    format.go                    # Format enum (text/json), Writer, CheckOutput
-  runtime/                       # EOL runtime detection via endoflife.date API
-    types.go                     # RuntimeEOLInfo, EOLClient, ProductRelease
-    runtime.go                   # EOLClient fetching
-  version/                       # Semver logic
-    version.go                   # IsVersionOutdated, IsMajorVersionTag, SameMajorVersion
-pkg/                             # Public packages (importable)
-  config/                        # Configuration from env vars with path traversal protection
-    config.go                    # Config struct with env tags, GetEnvVars, NotificationConfig
-  version/                       # Build metadata vars
-    version.go                   # Version, Commit, Branch, BuiltAt, Builder, Get(), Command()
-  man/                           # Man page generation
-    man.go                       # Man page via mango-cobra/roff
-scripts/                         # Build and utility scripts
-example/workflows/               # Example workflow YAML files for testing
+  actioninfo/                     # Utility funcs
+    types.go                      # OutdatedActionInfo, StaleActionInfo, RuntimeEOLActionInfo, FileUpdate + constants
+    actioninfo.go                 # GetOwnerRepos, ExpandPath, SanitizeStaleDays, WriteActionOutput, Emoji
+  checkrunner/                    # Detection logic and orchestration
+    types.go                      # CheckResult, RunContext, ProcessFunc
+    detect.go                     # DetectArchived, DetectStale, DetectRuntimeEOL, DetectOutdated
+    runcontext.go                 # NewRunContext constructor
+    notify.go                     # SendArchivedNotifications, CreateArchivedIssues
+    display.go                    # WriteResult helper
+    reposmode.go                  # RunReposMode for scanning multiple repos
+  notification/                   # Multi-provider notifications
+    types.go                      # Notifier interface, NotificationManager, GotifyNotifier, NikoksrNotifier
+    notification.go               # Implementations wrapping nikoksr/notify
+  issue/                          # GitHub issue creation
+    types.go                      # IssueCreator, ArchivedActionInfo
+    issue.go                      # IssueCreator using go-github
+  output/                         # Output formatting
+    format.go                     # Format enum (text/json), Writer, CheckOutput
+  runtime/                        # EOL runtime detection via endoflife.date API
+    types.go                      # RuntimeEOLInfo, EOLClient, ProductRelease
+    runtime.go                    # EOLClient fetching
+  version/                        # Semver logic
+    version.go                    # IsVersionOutdated, IsMajorVersionTag, SameMajorVersion
+pkg/                              # Public packages (importable)
+  config/                         # Configuration from env vars with path traversal protection
+    config.go                     # Config struct with env tags, GetEnvVars, NotificationConfig
+  version/                        # Build metadata vars
+    version.go                    # Version, Commit, Branch, BuiltAt, Builder, Get(), Command()
+  man/                            # Man page generation
+    man.go                        # Man page via mango-cobra/roff
+scripts/                          # Build and utility scripts
+examples/workflows/               # Example workflow YAML files
+examples/pre-commit/              # Example pre-commit config file
 ```
 
 ## Tech Stack

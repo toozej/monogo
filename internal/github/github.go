@@ -491,14 +491,18 @@ func (c *Client) CheckMultipleStale(ctx context.Context, repos []string, staleTh
 	return results, errors
 }
 
-func (c *Client) GetActionYML(ctx context.Context, ownerRepo, ref string) (string, error) {
+func (c *Client) GetActionYML(ctx context.Context, ownerRepo, subpath, ref string) (string, error) {
 	owner, repo, err := parseOwnerRepo(ownerRepo)
 	if err != nil {
 		return "", err
 	}
 
 	for _, filename := range []string{"action.yml", "action.yaml"} {
-		url := fmt.Sprintf("%s/repos/%s/%s/contents/%s?ref=%s", c.baseURL, owner, repo, filename, ref)
+		filePath := filename
+		if subpath != "" {
+			filePath = subpath + "/" + filename
+		}
+		url := fmt.Sprintf("%s/repos/%s/%s/contents/%s?ref=%s", c.baseURL, owner, repo, filePath, ref)
 		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 		if err != nil {
 			return "", fmt.Errorf("failed to create request: %w", err)
@@ -547,14 +551,18 @@ func (c *Client) GetActionYML(ctx context.Context, ownerRepo, ref string) (strin
 	return "", fmt.Errorf("no action.yml or action.yaml found in %s@%s", ownerRepo, ref)
 }
 
-func (c *Client) GetRawActionYML(ctx context.Context, ownerRepo, ref string) (string, error) {
+func (c *Client) GetRawActionYML(ctx context.Context, ownerRepo, subpath, ref string) (string, error) {
 	owner, repo, err := parseOwnerRepo(ownerRepo)
 	if err != nil {
 		return "", err
 	}
 
 	for _, filename := range []string{"action.yml", "action.yaml"} {
-		url := fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s/%s", owner, repo, ref, filename)
+		filePath := filename
+		if subpath != "" {
+			filePath = subpath + "/" + filename
+		}
+		url := fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s/%s", owner, repo, ref, filePath)
 		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 		if err != nil {
 			return "", fmt.Errorf("failed to create request: %w", err)
@@ -613,9 +621,9 @@ func (c *Client) CheckMultipleRuntimeEOL(ctx context.Context, refs []workflow.Ac
 			sem <- struct{}{}
 			defer func() { <-sem }()
 
-			actionContent, err := c.GetActionYML(ctx, ref.OwnerRepo, ref.Version)
+			actionContent, err := c.GetActionYML(ctx, ref.OwnerRepo, ref.Subpath, ref.Version)
 			if err != nil {
-				actionContent, err = c.GetRawActionYML(ctx, ref.OwnerRepo, ref.Version)
+				actionContent, err = c.GetRawActionYML(ctx, ref.OwnerRepo, ref.Subpath, ref.Version)
 				if err != nil {
 					mu.Lock()
 					errors[ref.OwnerRepo+"@"+ref.Version] = err

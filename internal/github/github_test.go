@@ -40,7 +40,9 @@ runs:
 	tests := []struct {
 		name         string
 		ownerRepo    string
+		subpath      string
 		ref          string
+		wantPath     string
 		responseBody string
 		statusCode   int
 		wantUsing    string
@@ -49,7 +51,9 @@ runs:
 		{
 			name:         "action.yml found with node20",
 			ownerRepo:    "owner/repo",
+			subpath:      "",
 			ref:          "v2",
+			wantPath:     "/repos/owner/repo/contents/action.yml",
 			responseBody: fmt.Sprintf(`{"content": "%s"}`, encoded),
 			statusCode:   200,
 			wantUsing:    "node20",
@@ -58,16 +62,29 @@ runs:
 		{
 			name:       "action.yml not found",
 			ownerRepo:  "owner/repo",
+			subpath:    "",
 			ref:        "v1",
+			wantPath:   "/repos/owner/repo/contents/action.yml",
 			statusCode: 404,
 			wantError:  true,
+		},
+		{
+			name:         "subpath action.yml found",
+			ownerRepo:    "owner/repo",
+			subpath:      "sub",
+			ref:          "v2",
+			wantPath:     "/repos/owner/repo/contents/sub/action.yml",
+			responseBody: fmt.Sprintf(`{"content": "%s"}`, encoded),
+			statusCode:   200,
+			wantUsing:    "node20",
+			wantError:    false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if strings.Contains(r.URL.Path, "action.yml") || strings.Contains(r.URL.Path, "action.yaml") {
+				if r.URL.Path == tt.wantPath || r.URL.Path == tt.wantPath+".yaml" {
 					w.WriteHeader(tt.statusCode)
 					if tt.responseBody != "" {
 						if _, err := w.Write([]byte(tt.responseBody)); err != nil {
@@ -82,7 +99,7 @@ runs:
 
 			client := newTestClient(server)
 			ctx := context.Background()
-			content, err := client.GetActionYML(ctx, tt.ownerRepo, tt.ref)
+			content, err := client.GetActionYML(ctx, tt.ownerRepo, tt.subpath, tt.ref)
 
 			if tt.wantError && err == nil {
 				t.Error("Expected error but got none")
@@ -173,6 +190,80 @@ runs:
 		if !result.IsEOL {
 			t.Error("Expected IsEOL to be true")
 		}
+	}
+}
+
+func TestClient_CheckMultipleRuntimeEOL_Subpath(t *testing.T) {
+	actionContent := `name: Subpath Action
+runs:
+  using: node16
+  main: dist/index.js
+`
+	encoded := base64.StdEncoding.EncodeToString([]byte(actionContent))
+
+	eolServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/products/nodejs/releases/16") {
+			eolFrom := "2023-09-11"
+			resp := runtime.ProductReleaseResponse{
+				SchemaVersion: "1.0.0",
+				Result: runtime.ProductRelease{
+					Name:    "16",
+					IsEol:   true,
+					EolFrom: &eolFrom,
+				},
+			}
+			w.WriteHeader(200)
+			body, _ := json.Marshal(resp)
+			if _, err := w.Write(body); err != nil {
+				t.Errorf("failed to write response body: %v", err)
+			}
+			return
+		}
+		w.WriteHeader(404)
+	}))
+	defer eolServer.Close()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/repos/owner/eol-action/contents/sub/action.yml" {
+			w.WriteHeader(200)
+			if _, err := w.Write([]byte(fmt.Sprintf(`{"content": "%s"}`, encoded))); err != nil {
+				t.Errorf("failed to write response body: %v", err)
+			}
+			return
+		}
+		if r.URL.Path == "/repos/owner/eol-action/contents/sub/action.yaml" {
+			w.WriteHeader(404)
+			return
+		}
+		w.WriteHeader(404)
+	}))
+	defer server.Close()
+
+	client := newTestClient(server)
+	client.eolClient = runtime.NewEOLClientWithHTTP(eolServer.URL, eolServer.Client())
+	ctx := context.Background()
+
+	refs := []workflow.ActionRef{
+		{OwnerRepo: "owner/eol-action", Subpath: "sub", Version: "v2", FullRef: "owner/eol-action/sub@v2"},
+	}
+
+	results, errors := client.CheckMultipleRuntimeEOL(ctx, refs)
+
+	if len(errors) != 0 {
+		t.Errorf("Expected 0 errors, got %d: %v", len(errors), errors)
+	}
+	if len(results) != 1 {
+		t.Errorf("Expected 1 result, got %d", len(results))
+	}
+	if result, ok := results["owner/eol-action@v2"]; ok {
+		if result.Version != "16" {
+			t.Errorf("Expected version 16, got %s", result.Version)
+		}
+		if !result.IsEOL {
+			t.Error("Expected IsEOL to be true")
+		}
+	} else {
+		t.Error("Expected result for owner/eol-action@v2")
 	}
 }
 

@@ -170,7 +170,7 @@ func (p *WorkflowParser) deduplicateAndClean(uses []string) []string {
 	seen := make(map[string]bool)
 	cleaned := make([]string, 0)
 
-	re := regexp.MustCompile(`^([^/@]+/[^/@]+)@`)
+	re := regexp.MustCompile(`^([^/@]+/[^/@]+)(?:/[^@]+)?@`)
 
 	for _, use := range uses {
 		use = strings.TrimSpace(use)
@@ -196,7 +196,7 @@ func (p *WorkflowParser) deduplicateAndCleanWithVersions(uses []string) []Action
 	seen := make(map[string]bool)
 	actionRefs := make([]ActionRef, 0)
 
-	re := regexp.MustCompile(`^([^/@]+/[^/@]+)@(.+)$`)
+	re := regexp.MustCompile(`^([^/@]+/[^/@]+)(?:/([^@]+))?@(.+)$`)
 
 	for _, use := range uses {
 		use = strings.TrimSpace(use)
@@ -205,14 +205,20 @@ func (p *WorkflowParser) deduplicateAndCleanWithVersions(uses []string) []Action
 		}
 
 		matches := re.FindStringSubmatch(use)
-		if len(matches) > 2 {
+		if len(matches) > 3 {
 			ownerRepo := matches[1]
-			version := matches[2]
+			subpath := matches[2]
+			version := matches[3]
 
-			if !seen[ownerRepo] {
-				seen[ownerRepo] = true
+			key := ownerRepo
+			if subpath != "" {
+				key = ownerRepo + "/" + subpath
+			}
+			if !seen[key] {
+				seen[key] = true
 				actionRefs = append(actionRefs, ActionRef{
 					OwnerRepo: ownerRepo,
+					Subpath:   subpath,
 					Version:   version,
 					FullRef:   use,
 				})
@@ -270,8 +276,12 @@ func (p *WorkflowParser) GetAllUsesFromRepoWithVersions(rootDir string) ([]Actio
 
 	for _, workflow := range workflows {
 		for _, actionRef := range workflow.UsesWithVersions {
-			if !seen[actionRef.OwnerRepo] {
-				seen[actionRef.OwnerRepo] = true
+			key := actionRef.OwnerRepo
+			if actionRef.Subpath != "" {
+				key = actionRef.OwnerRepo + "/" + actionRef.Subpath
+			}
+			if !seen[key] {
+				seen[key] = true
 				allActionRefs = append(allActionRefs, actionRef)
 			}
 		}

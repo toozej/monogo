@@ -1,5 +1,5 @@
 ---
-name: Example - Check Archived Actions
+name: Example - Check Archived Actions (Default Action)
 on:
   schedule:
     - cron: '0 0 * * 0'
@@ -10,16 +10,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Check for archived GitHub Actions
         id: check
-        uses: toozej/go-sort-out-gh-actions/check-archived@main
+        uses: toozej/go-sort-out-gh-actions@main
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           verbose: true
-          notify: true
-          create-issue: true
 
       - name: Fail if archived actions found
         if: steps.check.outputs.has-archived == 'true'

@@ -1,5 +1,5 @@
 ---
-name: Example Workflow with Archived Actions
+name: Example Failing Workflow with Archived Actions
 
 on:
   workflow_dispatch:
@@ -16,12 +16,12 @@ jobs:
         with:
           go-version: '1.26'
 
-      - name: Setup Go (outdated but not archived)
+      - name: Setup Go (outdated, EOL runtime, EOL language version but not archived)
         uses: actions/setup-go@v1
         with:
           go-version: '1.13'
 
-      - name: Checkout (outdated but not archived)
+      - name: Checkout (outdated, EOL runtime but not archived)
         uses: actions/checkout@v2
 
       - name: Setup Rust toolchain (archived - third-party)

@@ -61,26 +61,26 @@ jobs:
       - name: Demo - check archived actions
         run: |
           ./out/go-sort-out-gh-actions archived \
-          --workflow example/workflows/example-archived-actions.yaml \
+          --workflow examples/workflows/example-archived-actions.yaml \
           --verbose \
           --token ${{ secrets.GH_TOKEN }} || true
       - name: Demo - check outdated actions
         run: |
           ./out/go-sort-out-gh-actions outdated \
-          --workflow example/workflows/example-archived-actions.yaml \
+          --workflow examples/workflows/example-archived-actions.yaml \
           --verbose \
           --token ${{ secrets.GH_TOKEN }} || true
       - name: Demo - check EOL actions
         run: |
           ./out/go-sort-out-gh-actions eol \
-          --workflow example/workflows/example-archived-actions.yaml \
+          --workflow examples/workflows/example-archived-actions.yaml \
           --verbose \
           --stale-days 365 \
           --token ${{ secrets.GH_TOKEN }} || true
       - name: Demo - check all (archived + EOL + outdated)
         run: |
           ./out/go-sort-out-gh-actions check \
-          --workflow example/workflows/example-archived-actions.yaml \
+          --workflow examples/workflows/example-archived-actions.yaml \
           --verbose \
           --stale-days 365 \
           --token ${{ secrets.GH_TOKEN }} || true
@@ -88,7 +88,7 @@ jobs:
         if: env.SLACK_TOKEN != ''
         run: |
           ./out/go-sort-out-gh-actions check \
-          --workflow example/workflows/example-archived-actions.yaml \
+          --workflow examples/workflows/example-archived-actions.yaml \
           --verbose \
           --stale-days 365 \
           --notify \
@@ -127,7 +127,7 @@ jobs:
       - name: E2E - verify archived actions are detected
         run: |
           output=$(./out/go-sort-out-gh-actions archived \
-          --workflow example/workflows/example-archived-actions.yaml \
+          --workflow examples/workflows/example-archived-actions.yaml \
           --token ${{ secrets.GH_TOKEN }} 2>&1) || true
           echo "$output"
           if ! echo "$output" | grep -q "actions-rs"; then
@@ -138,7 +138,7 @@ jobs:
       - name: E2E - verify debug mode shows rate limit info
         run: |
           output=$(./out/go-sort-out-gh-actions archived \
-          --workflow example/workflows/example-archived-actions.yaml \
+          --workflow examples/workflows/example-archived-actions.yaml \
           --debug \
           --token ${{ secrets.GH_TOKEN }} 2>&1) || true
           echo "$output"
@@ -149,7 +149,7 @@ jobs:
       - name: E2E - verify EOL/stale check works
         run: |
           output=$(./out/go-sort-out-gh-actions eol \
-          --workflow example/workflows/example-archived-actions.yaml \
+          --workflow examples/workflows/example-archived-actions.yaml \
           --stale-days 365 \
           --token ${{ secrets.GH_TOKEN }} 2>&1) || true
           echo "$output"
@@ -158,7 +158,7 @@ jobs:
         if: env.SLACK_TOKEN != ''
         run: |
           ./out/go-sort-out-gh-actions archived \
-          --workflow example/workflows/example-archived-actions.yaml \
+          --workflow examples/workflows/example-archived-actions.yaml \
           --verbose \
           --notify \
           --token ${{ secrets.GH_TOKEN }} || true

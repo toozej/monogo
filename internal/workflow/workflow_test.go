@@ -72,6 +72,20 @@ func TestWorkflowParser_ParseWorkflowFile(t *testing.T) {
 		hasError bool
 	}{
 		{
+			name: "workflow with subpath uses",
+			content: `name: CI
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: github/codeql-action/init@v4.35.2
+      - uses: github/codeql-action/autobuild@v4.35.4
+      - uses: github/codeql-action/analyze@v4.35.4`,
+			expected: []string{"github/codeql-action"},
+			hasError: false,
+		},
+		{
 			name: "valid workflow with uses",
 			content: `name: CI
 on: push
@@ -217,6 +231,11 @@ func TestWorkflowParser_deduplicateAndClean(t *testing.T) {
 		expected []string
 	}{
 		{
+			name:     "subpath actions extract repo only",
+			input:    []string{"github/codeql-action/init@v4.35.2", "github/codeql-action/autobuild@v4.35.4"},
+			expected: []string{"github/codeql-action"},
+		},
+		{
 			name:     "no duplicates",
 			input:    []string{"actions/checkout@v3", "actions/setup-go@v4"},
 			expected: []string{"actions/checkout", "actions/setup-go"},
@@ -256,6 +275,22 @@ func TestWorkflowParser_deduplicateAndCleanWithVersions(t *testing.T) {
 		input    []string
 		expected []ActionRef
 	}{
+		{
+			name:  "subpath actions",
+			input: []string{"github/codeql-action/init@v4.35.2", "github/codeql-action/autobuild@v4.35.4"},
+			expected: []ActionRef{
+				{OwnerRepo: "github/codeql-action", Subpath: "init", Version: "v4.35.2", FullRef: "github/codeql-action/init@v4.35.2"},
+				{OwnerRepo: "github/codeql-action", Subpath: "autobuild", Version: "v4.35.4", FullRef: "github/codeql-action/autobuild@v4.35.4"},
+			},
+		},
+		{
+			name:  "subpath and plain same repo - both kept",
+			input: []string{"owner/repo@v1", "owner/repo/sub@v2"},
+			expected: []ActionRef{
+				{OwnerRepo: "owner/repo", Subpath: "", Version: "v1", FullRef: "owner/repo@v1"},
+				{OwnerRepo: "owner/repo", Subpath: "sub", Version: "v2", FullRef: "owner/repo/sub@v2"},
+			},
+		},
 		{
 			name:  "no duplicates",
 			input: []string{"actions/checkout@v3", "actions/setup-go@v4"},
@@ -481,5 +516,61 @@ func TestWorkflowParser_FindReposWithWorkflows(t *testing.T) {
 	}
 	if repoPaths[repo3] {
 		t.Errorf("repo3 should not be found as it has no workflows")
+	}
+}
+
+func TestWorkflowParser_GetAllUsesFromRepoWithVersions(t *testing.T) {
+	parser := NewParser()
+
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatalf("Failed to create workflows directory: %v", err)
+	}
+
+	file1 := filepath.Join(workflowsDir, "ci.yml")
+	file2 := filepath.Join(workflowsDir, "security.yml")
+
+	if err := os.WriteFile(file1, []byte("jobs:\n  test:\n    steps:\n      - uses: actions/checkout@v3\n      - uses: github/codeql-action/init@v4.35.2\n"), 0644); err != nil {
+		t.Fatalf("Failed to write file1: %v", err)
+	}
+	if err := os.WriteFile(file2, []byte("jobs:\n  analyze:\n    steps:\n      - uses: github/codeql-action/autobuild@v4.35.4\n      - uses: github/codeql-action/analyze@v4.35.4\n"), 0644); err != nil {
+		t.Fatalf("Failed to write file2: %v", err)
+	}
+
+	actionRefs, files, err := parser.GetAllUsesFromRepoWithVersions(tmpDir)
+
+	if err != nil {
+		t.Fatalf("GetAllUsesFromRepoWithVersions failed: %v", err)
+	}
+
+	if len(files) != 2 {
+		t.Errorf("Expected 2 files, got %d", len(files))
+	}
+
+	if len(actionRefs) != 4 {
+		t.Fatalf("Expected 4 unique action refs, got %d: %v", len(actionRefs), actionRefs)
+	}
+
+	expected := map[string]ActionRef{
+		"actions/checkout":               {OwnerRepo: "actions/checkout", Subpath: "", Version: "v3", FullRef: "actions/checkout@v3"},
+		"github/codeql-action/init":      {OwnerRepo: "github/codeql-action", Subpath: "init", Version: "v4.35.2", FullRef: "github/codeql-action/init@v4.35.2"},
+		"github/codeql-action/autobuild": {OwnerRepo: "github/codeql-action", Subpath: "autobuild", Version: "v4.35.4", FullRef: "github/codeql-action/autobuild@v4.35.4"},
+		"github/codeql-action/analyze":   {OwnerRepo: "github/codeql-action", Subpath: "analyze", Version: "v4.35.4", FullRef: "github/codeql-action/analyze@v4.35.4"},
+	}
+
+	for _, ref := range actionRefs {
+		key := ref.OwnerRepo
+		if ref.Subpath != "" {
+			key = ref.OwnerRepo + "/" + ref.Subpath
+		}
+		exp, ok := expected[key]
+		if !ok {
+			t.Errorf("Unexpected action ref: %v", ref)
+			continue
+		}
+		if ref.OwnerRepo != exp.OwnerRepo || ref.Subpath != exp.Subpath || ref.Version != exp.Version || ref.FullRef != exp.FullRef {
+			t.Errorf("Expected ref %v, got %v", exp, ref)
+		}
 	}
 }

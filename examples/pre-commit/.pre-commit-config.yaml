@@ -1,0 +1,30 @@
+---
+default_language_version: {python: python3}
+minimum_pre_commit_version: "1.15"
+
+repos:
+# check for archived, EOL, outdated, or all GitHub Actions in workflows using local Go toolchain
+  - repo: https://github.com/toozej/go-sort-out-gh-actions
+    rev: main
+    hooks:
+      - id: go-sort-out-gh-actions
+        args: [--verbose]
+      - id: go-sort-out-gh-actions-eol
+        args: [--verbose]
+      - id: go-sort-out-gh-actions-outdated
+        args: [--verbose]
+      - id: go-sort-out-gh-actions-check
+        args: [--verbose]
+
+# check for archived, EOL, outdated, or all GitHub Actions in workflows using Docker image
+  - repo: https://github.com/toozej/go-sort-out-gh-actions
+    rev: main
+    hooks:
+      - id: go-sort-out-gh-actions-docker
+        args: [--verbose]
+      - id: go-sort-out-gh-actions-eol-docker
+        args: [--verbose]
+      - id: go-sort-out-gh-actions-outdated-docker
+        args: [--verbose]
+      - id: go-sort-out-gh-actions-check-docker
+        args: [--verbose]

@@ -1,27 +1,28 @@
 ---
-name: Example - Check EOL Actions
+name: Example - EOL Actions with Custom Stale Threshold
 on:
   schedule:
     - cron: '0 0 * * 0'
   workflow_dispatch:
 
 jobs:
-  check-eol:
+  check-eol-custom-stale:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
-      - name: Check for EOL GitHub Actions
+      - name: Check for EOL GitHub Actions (180-day stale threshold)
         id: check
         uses: toozej/go-sort-out-gh-actions/eol@main
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           verbose: true
+          stale-days: 180
           notify: true
 
       - name: Fail if EOL actions found
         if: steps.check.outputs.has-eol == 'true'
         run: |
-          echo "EOL GitHub Actions detected. Please update or replace them."
+          echo "EOL or stale GitHub Actions detected. Please update or replace them."
           exit 1

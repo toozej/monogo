@@ -1,0 +1,42 @@
+---
+name: Example - Check All Actions with Auto-Write
+on:
+  schedule:
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+
+jobs:
+  check-all-with-write:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run all GitHub Actions checks and auto-write updates
+        id: check
+        uses: toozej/go-sort-out-gh-actions/check@main
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          verbose: true
+          write: true
+          notify: true
+          create-issue: true
+
+      - name: Commit and push updated workflows
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ".github/workflows/**.yml" ".github/workflows/**.yaml"
+          git diff --cached --quiet || git commit -m "chore(deps): auto-update GitHub Actions to latest versions"
+          git push
+
+      - name: Fail if issues found that could not be auto-fixed
+        if: steps.check.outputs.has-archived == 'true'
+        run: |
+          echo "Archived GitHub Actions detected. These must be replaced manually."
+          exit 1

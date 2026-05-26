@@ -467,6 +467,66 @@ func TestCheckOutdatedActions_FloatingMajorTagStaleAnnotatedTag(t *testing.T) {
 	}
 }
 
+func TestCheckOutdatedActions_SubpathAction(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/repos/github/codeql-action/releases/latest":
+			w.WriteHeader(200)
+			if err := json.NewEncoder(w).Encode(gh.ReleaseInfo{
+				TagName: "v4.35.4",
+				HTMLURL: "https://github.com/github/codeql-action/releases/tag/v4.35.4",
+			}); err != nil {
+				t.Errorf("failed to encode release info: %v", err)
+			}
+		case r.URL.Path == "/repos/github/codeql-action/git/refs/tags/v4.35.2":
+			w.WriteHeader(200)
+			if _, err := w.Write([]byte(`{"ref":"refs/tags/v4.35.2","object":{"sha":"oldSHA","type":"commit"}}`)); err != nil {
+				t.Errorf("failed to write response: %v", err)
+			}
+		case r.URL.Path == "/repos/github/codeql-action/git/refs/tags/v4.35.4":
+			w.WriteHeader(200)
+			if _, err := w.Write([]byte(`{"ref":"refs/tags/v4.35.4","object":{"sha":"newSHA","type":"commit"}}`)); err != nil {
+				t.Errorf("failed to write response: %v", err)
+			}
+		default:
+			w.WriteHeader(404)
+		}
+	}))
+	defer server.Close()
+
+	client := newTestGithubClient(server)
+	ctx := context.Background()
+
+	wf := &workflow.WorkflowFile{
+		Path: "ci.yaml",
+		UsesWithVersions: []workflow.ActionRef{
+			{OwnerRepo: "github/codeql-action", Subpath: "init", Version: "v4.35.2", FullRef: "github/codeql-action/init@v4.35.2"},
+		},
+	}
+
+	releases := map[string]*gh.ReleaseInfo{
+		"github/codeql-action": {TagName: "v4.35.4", HTMLURL: "https://github.com/github/codeql-action/releases/tag/v4.35.4"},
+	}
+	archived := map[string]bool{"github/codeql-action": false}
+
+	result := CheckOutdatedActions(ctx, client, []*workflow.WorkflowFile{wf}, archived, releases, false)
+	if len(result) != 1 {
+		t.Fatalf("expected 1 outdated subpath action, got %d", len(result))
+	}
+	if result[0].OwnerRepo != "github/codeql-action" {
+		t.Errorf("expected OwnerRepo github/codeql-action, got %s", result[0].OwnerRepo)
+	}
+	if result[0].Subpath != "init" {
+		t.Errorf("expected Subpath init, got %s", result[0].Subpath)
+	}
+	if result[0].CurrentRef != "v4.35.2" {
+		t.Errorf("expected CurrentRef v4.35.2, got %s", result[0].CurrentRef)
+	}
+	if result[0].LatestTag != "v4.35.4" {
+		t.Errorf("expected LatestTag v4.35.4, got %s", result[0].LatestTag)
+	}
+}
+
 func TestReplaceUsesLine(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -510,6 +570,62 @@ func TestReplaceUsesLine(t *testing.T) {
 			newUse:   "actions/setup-go@def456 # v4",
 			expected: " - uses: actions/checkout@v3\n",
 		},
+		{
+			name:     "SHA pin with nosemgrep comment preserved",
+			content:  "  - uses: gitleaks/gitleaks-action@v2 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha\n",
+			oldUse:   "gitleaks/gitleaks-action@v2",
+			newUse:   "gitleaks/gitleaks-action@abc123def # v2.3.9",
+			expected: "  - uses: gitleaks/gitleaks-action@abc123def # v2.3.9 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha\n",
+		},
+		{
+			name:     "SHA pin with short nosemgrep comment",
+			content:  "  - uses: github/codeql-action/init@v4.35.2 # nosemgrep: some-comment\n",
+			oldUse:   "github/codeql-action/init@v4.35.2",
+			newUse:   "github/codeql-action/init@sha456 # v4.35.4",
+			expected: "  - uses: github/codeql-action/init@sha456 # v4.35.4 # nosemgrep: some-comment\n",
+		},
+		{
+			name:     "semver mode preserves nosemgrep comment",
+			content:  "  - uses: gitleaks/gitleaks-action@v2 # nosemgrep: some-comment\n",
+			oldUse:   "gitleaks/gitleaks-action@v2",
+			newUse:   "gitleaks/gitleaks-action@v2.3.9",
+			expected: "  - uses: gitleaks/gitleaks-action@v2.3.9 # nosemgrep: some-comment\n",
+		},
+		{
+			name:     "re-pin SHA replaces old semver comment only",
+			content:  "  - uses: actions/checkout@oldSHA # v3\n",
+			oldUse:   "actions/checkout@oldSHA",
+			newUse:   "actions/checkout@newSHA # v4",
+			expected: "  - uses: actions/checkout@newSHA # v4\n",
+		},
+		{
+			name:     "re-pin SHA with nosemgrep replaces old semver comment keeps nosemgrep",
+			content:  "  - uses: actions/checkout@oldSHA # v3 # nosemgrep: some-rule\n",
+			oldUse:   "actions/checkout@oldSHA",
+			newUse:   "actions/checkout@newSHA # v4",
+			expected: "  - uses: actions/checkout@newSHA # v4 # nosemgrep: some-rule\n",
+		},
+		{
+			name:     "SHA pin with simple custom comment",
+			content:  "  - uses: actions/checkout@v3 # pin this version\n",
+			oldUse:   "actions/checkout@v3",
+			newUse:   "actions/checkout@sha789 # v3.1.0",
+			expected: "  - uses: actions/checkout@sha789 # v3.1.0 # pin this version\n",
+		},
+		{
+			name:     "SHA pin with comment not starting with semver pattern",
+			content:  "  - uses: actions/checkout@v3 # see: https://example.com\n",
+			oldUse:   "actions/checkout@v3",
+			newUse:   "actions/checkout@sha789 # v3.1.0",
+			expected: "  - uses: actions/checkout@sha789 # v3.1.0 # see: https://example.com\n",
+		},
+		{
+			name:     "indented uses: with trailing comment",
+			content:  "      uses: docker/setup-buildx-action@v4 # nosemgrep: some-comment\n",
+			oldUse:   "docker/setup-buildx-action@v4",
+			newUse:   "docker/setup-buildx-action@newSHA # v4.1.0",
+			expected: "      uses: docker/setup-buildx-action@newSHA # v4.1.0 # nosemgrep: some-comment\n",
+		},
 	}
 
 	for _, tt := range tests {
@@ -517,6 +633,128 @@ func TestReplaceUsesLine(t *testing.T) {
 			result := ReplaceUsesLine([]byte(tt.content), tt.oldUse, tt.newUse)
 			if string(result) != tt.expected {
 				t.Errorf("ReplaceUsesLine() = %q, want %q", string(result), tt.expected)
+			}
+		})
+	}
+}
+
+func TestParseNewUse(t *testing.T) {
+	tests := []struct {
+		name              string
+		newUse            string
+		wantRefPart       string
+		wantSemverComment string
+	}{
+		{
+			name:              "SHA mode with semver comment",
+			newUse:            "actions/checkout@abc123 # v3",
+			wantRefPart:       "actions/checkout@abc123",
+			wantSemverComment: "v3",
+		},
+		{
+			name:              "SHA mode with full semver comment",
+			newUse:            "owner/repo@deadbeef # v4.1.2",
+			wantRefPart:       "owner/repo@deadbeef",
+			wantSemverComment: "v4.1.2",
+		},
+		{
+			name:              "semver mode without comment",
+			newUse:            "actions/checkout@v4.1.2",
+			wantRefPart:       "actions/checkout@v4.1.2",
+			wantSemverComment: "",
+		},
+		{
+			name:              "subpath with SHA and semver comment",
+			newUse:            "github/codeql-action/init@sha123 # v4.35.4",
+			wantRefPart:       "github/codeql-action/init@sha123",
+			wantSemverComment: "v4.35.4",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			refPart, semverComment := parseNewUse(tt.newUse)
+			if refPart != tt.wantRefPart {
+				t.Errorf("parseNewUse() refPart = %q, want %q", refPart, tt.wantRefPart)
+			}
+			if semverComment != tt.wantSemverComment {
+				t.Errorf("parseNewUse() semverComment = %q, want %q", semverComment, tt.wantSemverComment)
+			}
+		})
+	}
+}
+
+func TestBuildReplacementLine(t *testing.T) {
+	tests := []struct {
+		name     string
+		line     string
+		oldUse   string
+		newUse   string
+		expected string
+	}{
+		{
+			name:     "no trailing comment - SHA mode",
+			line:     "  - uses: actions/checkout@v3",
+			oldUse:   "actions/checkout@v3",
+			newUse:   "actions/checkout@sha789 # v3",
+			expected: "  - uses: actions/checkout@sha789 # v3",
+		},
+		{
+			name:     "no trailing comment - semver mode",
+			line:     "  - uses: actions/checkout@v3",
+			oldUse:   "actions/checkout@v3",
+			newUse:   "actions/checkout@v4",
+			expected: "  - uses: actions/checkout@v4",
+		},
+		{
+			name:     "nosemgrep comment preserved - SHA mode",
+			line:     "  - uses: gitleaks/gitleaks-action@v2 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha",
+			oldUse:   "gitleaks/gitleaks-action@v2",
+			newUse:   "gitleaks/gitleaks-action@abc123 # v2.3.9",
+			expected: "  - uses: gitleaks/gitleaks-action@abc123 # v2.3.9 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha",
+		},
+		{
+			name:     "nosemgrep comment preserved - semver mode",
+			line:     "  - uses: gitleaks/gitleaks-action@v2 # nosemgrep: some-comment",
+			oldUse:   "gitleaks/gitleaks-action@v2",
+			newUse:   "gitleaks/gitleaks-action@v2.3.9",
+			expected: "  - uses: gitleaks/gitleaks-action@v2.3.9 # nosemgrep: some-comment",
+		},
+		{
+			name:     "re-pin replaces old semver comment only",
+			line:     "  - uses: actions/checkout@oldSHA # v3",
+			oldUse:   "actions/checkout@oldSHA",
+			newUse:   "actions/checkout@newSHA # v4",
+			expected: "  - uses: actions/checkout@newSHA # v4",
+		},
+		{
+			name:     "re-pin replaces old semver comment and keeps other comment",
+			line:     "  - uses: actions/checkout@oldSHA # v3 # nosemgrep: rule",
+			oldUse:   "actions/checkout@oldSHA",
+			newUse:   "actions/checkout@newSHA # v4",
+			expected: "  - uses: actions/checkout@newSHA # v4 # nosemgrep: rule",
+		},
+		{
+			name:     "non-semver comment gets semver comment prepended",
+			line:     "  - uses: actions/checkout@v3 # see: https://example.com",
+			oldUse:   "actions/checkout@v3",
+			newUse:   "actions/checkout@sha789 # v3.1.0",
+			expected: "  - uses: actions/checkout@sha789 # v3.1.0 # see: https://example.com",
+		},
+		{
+			name:     "subpath with comment preserved",
+			line:     "  - uses: github/codeql-action/init@v4.35.2 # nosemgrep: some-comment",
+			oldUse:   "github/codeql-action/init@v4.35.2",
+			newUse:   "github/codeql-action/init@sha456 # v4.35.4",
+			expected: "  - uses: github/codeql-action/init@sha456 # v4.35.4 # nosemgrep: some-comment",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := buildReplacementLine(tt.line, tt.oldUse, tt.newUse)
+			if result != tt.expected {
+				t.Errorf("buildReplacementLine() = %q, want %q", result, tt.expected)
 			}
 		})
 	}
@@ -553,6 +791,77 @@ func TestApplyUpdatesToFile(t *testing.T) {
 	}
 	if strings.Contains(resultStr, "actions/checkout@v3") {
 		t.Errorf("Expected old ref to be replaced, got: %s", resultStr)
+	}
+}
+
+func TestApplyUpdatesToFile_WithComments(t *testing.T) {
+	tmpDir := t.TempDir()
+	content := "name: CI\non: push\njobs:\n test:\n steps:\n - uses: actions/checkout@v3 # nosemgrep: some-rule\n - uses: gitleaks/gitleaks-action@v2 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha\n"
+	filePath := filepath.Join(tmpDir, "ci.yaml")
+	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	updates := []FileUpdate{
+		{OldUse: "actions/checkout@v3", NewUse: "actions/checkout@abc123def # v4.1.2"},
+		{OldUse: "gitleaks/gitleaks-action@v2", NewUse: "gitleaks/gitleaks-action@def456abc # v2.3.9"},
+	}
+
+	if err := ApplyUpdatesToFile(filePath, updates); err != nil {
+		t.Fatalf("ApplyUpdatesToFile failed: %v", err)
+	}
+
+	result, err := os.ReadFile(filePath)
+	if err != nil {
+		t.Fatalf("Failed to read updated file: %v", err)
+	}
+
+	resultStr := string(result)
+	if !strings.Contains(resultStr, "actions/checkout@abc123def # v4.1.2 # nosemgrep: some-rule") {
+		t.Errorf("Expected checkout SHA pin with semver comment before nosemgrep comment, got: %s", resultStr)
+	}
+	if !strings.Contains(resultStr, "gitleaks/gitleaks-action@def456abc # v2.3.9 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha") {
+		t.Errorf("Expected gitleaks SHA pin with semver comment before nosemgrep comment, got: %s", resultStr)
+	}
+	if strings.Contains(resultStr, "actions/checkout@v3") {
+		t.Errorf("Expected old checkout ref to be replaced, got: %s", resultStr)
+	}
+	if strings.Contains(resultStr, "gitleaks/gitleaks-action@v2") {
+		t.Errorf("Expected old gitleaks ref to be replaced, got: %s", resultStr)
+	}
+}
+
+func TestApplyUpdatesToFile_RePinWithComments(t *testing.T) {
+	tmpDir := t.TempDir()
+	// Simulate a file that was previously pinned with SHA + semver comment + nosemgrep comment
+	content := "name: CI\non: push\njobs:\n test:\n steps:\n - uses: actions/checkout@oldSHA # v3 # nosemgrep: some-rule\n"
+	filePath := filepath.Join(tmpDir, "ci.yaml")
+	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	updates := []FileUpdate{
+		{OldUse: "actions/checkout@oldSHA", NewUse: "actions/checkout@newSHA # v4"},
+	}
+
+	if err := ApplyUpdatesToFile(filePath, updates); err != nil {
+		t.Fatalf("ApplyUpdatesToFile failed: %v", err)
+	}
+
+	result, err := os.ReadFile(filePath)
+	if err != nil {
+		t.Fatalf("Failed to read updated file: %v", err)
+	}
+
+	resultStr := string(result)
+	if !strings.Contains(resultStr, "actions/checkout@newSHA # v4 # nosemgrep: some-rule") {
+		t.Errorf("Expected re-pinned action with updated semver comment and preserved nosemgrep, got: %s", resultStr)
+	}
+	if strings.Contains(resultStr, "# v3") {
+		t.Errorf("Expected old semver comment to be replaced, got: %s", resultStr)
+	}
+	if strings.Contains(resultStr, "oldSHA") {
+		t.Errorf("Expected old SHA to be replaced, got: %s", resultStr)
 	}
 }
 
@@ -681,6 +990,93 @@ func TestWriteOutdatedActions_Semver(t *testing.T) {
 	}
 	if strings.Contains(resultStr, "# v4.1.2") {
 		t.Errorf("Expected no SHA comment with semver mode, got: %s", resultStr)
+	}
+}
+
+func TestWriteOutdatedActions_Subpath(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/repos/github/codeql-action/releases/latest":
+			w.WriteHeader(200)
+			if err := json.NewEncoder(w).Encode(gh.ReleaseInfo{
+				TagName: "v4.35.4",
+				HTMLURL: "https://github.com/github/codeql-action/releases/tag/v4.35.4",
+			}); err != nil {
+				t.Errorf("failed to encode release info: %v", err)
+			}
+		case r.URL.Path == "/repos/github/codeql-action/git/refs/tags/v4.35.4":
+			w.WriteHeader(200)
+			if _, err := w.Write([]byte(`{"ref":"refs/tags/v4.35.4","object":{"sha":"deadbeef1234","type":"commit"}}`)); err != nil {
+				t.Errorf("failed to write response: %v", err)
+			}
+		default:
+			w.WriteHeader(404)
+		}
+	}))
+	defer server.Close()
+
+	client := newTestGithubClient(server)
+	ctx := context.Background()
+
+	tmpDir := t.TempDir()
+	content := "name: CI\non: push\njobs:\n test:\n steps:\n - uses: github/codeql-action/init@v4.35.2\n"
+	filePath := filepath.Join(tmpDir, "ci.yaml")
+	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	wf := &workflow.WorkflowFile{
+		Path: filePath,
+		UsesWithVersions: []workflow.ActionRef{
+			{OwnerRepo: "github/codeql-action", Subpath: "init", Version: "v4.35.2", FullRef: "github/codeql-action/init@v4.35.2"},
+		},
+	}
+
+	outdated := []OutdatedActionInfo{
+		{OwnerRepo: "github/codeql-action", Subpath: "init", CurrentRef: "v4.35.2", LatestTag: "v4.35.4", Workflow: "ci.yaml", FullRef: "github/codeql-action/init@v4.35.2"},
+	}
+
+	releases := map[string]*gh.ReleaseInfo{
+		"github/codeql-action": {TagName: "v4.35.4", HTMLURL: "https://github.com/github/codeql-action/releases/tag/v4.35.4"},
+	}
+
+	// Test SHA mode preserves subpath
+	if err := WriteOutdatedActions(ctx, client, []*workflow.WorkflowFile{wf}, outdated, releases, false, false); err != nil {
+		t.Fatalf("WriteOutdatedActions failed: %v", err)
+	}
+
+	result, err := os.ReadFile(filePath)
+	if err != nil {
+		t.Fatalf("Failed to read updated file: %v", err)
+	}
+
+	resultStr := string(result)
+	if !strings.Contains(resultStr, "github/codeql-action/init@deadbeef1234 # v4.35.4") {
+		t.Errorf("Expected subpath action to be pinned to SHA with semver comment, got: %s", resultStr)
+	}
+	if strings.Contains(resultStr, "github/codeql-action/init@v4.35.2") {
+		t.Errorf("Expected old ref to be replaced, got: %s", resultStr)
+	}
+
+	// Reset file and test semver mode preserves subpath
+	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to reset test file: %v", err)
+	}
+	if err := WriteOutdatedActions(ctx, client, []*workflow.WorkflowFile{wf}, outdated, releases, true, false); err != nil {
+		t.Fatalf("WriteOutdatedActions with semver failed: %v", err)
+	}
+
+	result, err = os.ReadFile(filePath)
+	if err != nil {
+		t.Fatalf("Failed to read updated file: %v", err)
+	}
+
+	resultStr = string(result)
+	if !strings.Contains(resultStr, "github/codeql-action/init@v4.35.4") {
+		t.Errorf("Expected subpath action to use semver version string, got: %s", resultStr)
+	}
+	if strings.Contains(resultStr, "github/codeql-action@v4.35.4") {
+		t.Errorf("Expected subpath to be preserved, got plain repo ref: %s", resultStr)
 	}
 }
 
