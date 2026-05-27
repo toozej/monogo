@@ -1,5 +1,4 @@
 ---
-version: "3"
 services:
   ghreleases2rss:
     container_name: ghreleases2rss
