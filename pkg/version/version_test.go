@@ -31,6 +31,7 @@ func TestGet_Defaults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Get() returned error: %v", err)
 	}
+
 	if info.Version != "local" {
 		t.Errorf("expected Version='local', got '%s'", info.Version)
 	}
@@ -73,6 +74,7 @@ func TestGet_LocalBuild(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Get() returned error: %v", err)
 	}
+
 	if info.Version != "v1.2.3-2-gabcdef" {
 		t.Errorf("expected Version='v1.2.3-2-gabcdef', got '%s'", info.Version)
 	}
@@ -115,6 +117,7 @@ func TestGet_GoReleaserBuild(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Get() returned error: %v", err)
 	}
+
 	if info.Version != "1.2.3" {
 		t.Errorf("expected Version='1.2.3', got '%s'", info.Version)
 	}
@@ -157,6 +160,7 @@ func TestGet_DockerBuild(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Get() returned error: %v", err)
 	}
+
 	if info.Version != "v2.0.0" {
 		t.Errorf("expected Version='v2.0.0', got '%s'", info.Version)
 	}
@@ -196,6 +200,7 @@ func TestGet_PartiallyPopulated(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Get() returned error: %v", err)
 	}
+
 	if info.Version != "v0.1.0" {
 		t.Errorf("expected Version='v0.1.0', got '%s'", info.Version)
 	}
@@ -238,6 +243,7 @@ func TestGet_UnknownValues(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Get() returned error: %v", err)
 	}
+
 	if info.Version != "unknown" {
 		t.Errorf("expected Version='unknown', got '%s'", info.Version)
 	}
@@ -258,6 +264,7 @@ func TestGet_ReturnsNoError(t *testing.T) {
 
 func TestCommand_Structure(t *testing.T) {
 	cmd := Command()
+
 	if cmd.Use != "version" {
 		t.Errorf("expected Use='version', got '%s'", cmd.Use)
 	}
@@ -294,6 +301,7 @@ func TestCommand_JSONOutput(t *testing.T) {
 	}()
 
 	cmd := Command()
+
 	var stdout strings.Builder
 	cmd.SetOut(&stdout)
 	cmd.SetArgs([]string{})
@@ -312,6 +320,7 @@ func TestCommand_JSONOutput(t *testing.T) {
 	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &result); err != nil {
 		t.Fatalf("Command() output is not valid JSON: %v\nOutput: %s", err, output)
 	}
+
 	if result.Version != "1.0.0" {
 		t.Errorf("expected Version='1.0.0' in JSON, got '%s'", result.Version)
 	}
@@ -351,6 +360,7 @@ func TestCommand_JSONOutput_DefaultValues(t *testing.T) {
 	}()
 
 	cmd := Command()
+
 	var stdout strings.Builder
 	cmd.SetOut(&stdout)
 	cmd.SetArgs([]string{})
@@ -361,10 +371,12 @@ func TestCommand_JSONOutput_DefaultValues(t *testing.T) {
 	}
 
 	output := stdout.String()
+
 	var result Info
 	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &result); err != nil {
 		t.Fatalf("Command() output is not valid JSON: %v\nOutput: %s", err, output)
 	}
+
 	if result.Version != "local" {
 		t.Errorf("expected Version='local' in JSON, got '%s'", result.Version)
 	}
@@ -395,6 +407,7 @@ func TestInfo_FieldOrder(t *testing.T) {
 	}()
 
 	info, _ := Get()
+
 	if info.Commit != "c1" {
 		t.Errorf("Info.Commit not populated correctly, got '%s'", info.Commit)
 	}

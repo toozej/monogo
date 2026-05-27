@@ -190,7 +190,6 @@ func Command() *cobra.Command {
 				return err
 			}
 			fmt.Fprintln(cmd.OutOrStdout(), string(jsonBytes))
-
 			return nil
 		},
 	}

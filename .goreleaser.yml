@@ -40,9 +40,13 @@ builds:
     flags:
       - -trimpath
     ldflags:
-      - -s -w -X github.com/toozej/rss2socials/pkg/version.Version={{.Version}} -X github.com/toozej/rss2socials/pkg/version.Commit={{.Commit}}
-        -X github.com/toozej/rss2socials/pkg/version.Branch={{.Branch}} -X github.com/toozej/rss2socials/pkg/version.BuiltAt={{
-        .CommitDate }} -X github.com/toozej/rss2socials/pkg/version.Builder=goreleaser
+      - >-
+        -s -w
+        -X github.com/toozej/rss2socials/pkg/version.Version={{.Version}}
+        -X github.com/toozej/rss2socials/pkg/version.Commit={{.Commit}}
+        -X github.com/toozej/rss2socials/pkg/version.Branch={{.Branch}}
+        -X github.com/toozej/rss2socials/pkg/version.BuiltAt={{.CommitDate}}
+        -X github.com/toozej/rss2socials/pkg/version.Builder=goreleaser
     main: ./
     binary: rss2socials
 
