@@ -45,10 +45,10 @@ else
 	OPENER=open
 endif
 
-.PHONY: all vet test build verify run up down distroless-build distroless-run install local local-vet local-test local-cover local-run local-kill local-iterate local-release-test local-release local-sign local-verify local-release-verify local-install get-cosign-pub-key docker-login pre-commit-install pre-commit-run pre-commit pre-reqs update-golang-version upload-secrets-to-gh upload-secrets-envfile-to-1pass docs diagrams mutation-test test-changed watch-test profile-cpu profile-mem profile-all benchmark clean help
+.PHONY: all vet test build release verify run up down distroless-build distroless-run install local local-vet local-test local-cover local-run local-kill local-iterate local-release-test local-release local-sign local-verify local-release-verify local-install get-cosign-pub-key docker-login pre-commit-install pre-commit-run pre-commit pre-reqs update-golang-version upload-secrets-to-gh upload-secrets-envfile-to-1pass docs diagrams mutation-test test-changed watch-test profile-cpu profile-mem profile-all benchmark clean help
 
-all: vet pre-commit clean test build verify run ## Run default workflow via Docker
-local: local-update-deps local-vendor local-vet pre-commit clean local-test local-cover local-build local-sign local-verify local-kill local-run ## Run default workflow using locally installed Golang toolchain
+all: vet pre-commit clean test build release verify ## Run default workflow via Docker
+local: local-update-deps local-vendor local-vet pre-commit clean local-test local-cover local-build local-release-test ## Run default workflow using locally installed Golang toolchain
 local-release-verify: local-release local-sign local-verify ## Release and verify using locally installed Golang toolchain
 pre-reqs: pre-commit-install ## Install pre-commit hooks and necessary binaries
 
@@ -59,7 +59,26 @@ test: ## Run `go test` with race detection in Docker
 	docker build --progress=plain --target test -f $(CURDIR)/Dockerfile -t $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG) .
 
 build: ## Build Docker image, including running tests
-	docker build -f $(CURDIR)/Dockerfile -t $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG) .
+	docker build -f $(CURDIR)/Dockerfile \
+		--build-arg VERSION=$(or $(VERSION),unknown) \
+		--build-arg COMMIT=$(or $(COMMIT),unknown) \
+		--build-arg BRANCH=$(or $(BRANCH),unknown) \
+		--build-arg BUILT_AT=$(NOW) \
+		--build-arg BUILDER=$(BUILDER) \
+		-t $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG) .
+
+release: ## Build and sign Docker image
+	if test -e $(CURDIR)/.env; then \
+		export `cat $(CURDIR)/.env | xargs`; \
+		export GORELEASER_DOCKER_REFRESH=true; \
+		export GORELEASER_CURRENT_TAG=latest; \
+		export GORELEASER_ATTESTATION_DISABLE=true; \
+		export GORELEASER_DEBUG=true; \
+		export BUILDX_BUILDER=containerd-builder; \
+		goreleaser release --clean --skip=announce,archive,before,homebrew,nfpm,sbom,sign,validate; \
+	else \
+		echo "No environment variables found at $(CURDIR)/.env. Cannot release."; \
+	fi
 
 get-cosign-pub-key: ## Get kmhd2spotify Cosign public key from GitHub
 	test -f $(CURDIR)/kmhd2spotify.pub || curl --silent https://raw.githubusercontent.com/toozej/kmhd2spotify/main/kmhd2spotify.pub -O
@@ -81,7 +100,13 @@ down: ## Stop running Docker Compose project
 	docker compose -f docker-compose.yml down --remove-orphans
 
 distroless-build: ## Build Docker image using distroless as final base
-	docker build -f $(CURDIR)/Dockerfile.distroless -t $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG)-distroless .
+	docker build -f $(CURDIR)/Dockerfile.distroless \
+		--build-arg VERSION=$(or $(VERSION),unknown) \
+		--build-arg COMMIT=$(or $(COMMIT),unknown) \
+		--build-arg BRANCH=$(or $(BRANCH),unknown) \
+		--build-arg BUILT_AT=$(NOW) \
+		--build-arg BUILDER=$(BUILDER) \
+		-t $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG)-distroless .
 
 distroless-run: ## Run built Docker image using distroless as final base
 	docker run --rm --name kmhd2spotify -v $(CURDIR)/config:/config $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG)-distroless
@@ -147,14 +172,14 @@ local-release: local-test docker-login ## Release assets using locally installed
 
 local-sign: local-test ## Sign locally installed golang toolchain and cosign
 	if test -e $(CURDIR)/kmhd2spotify.key && test -e $(CURDIR)/.env; then \
-		export `cat $(CURDIR)/.env | xargs` && cosign sign-blob --key=$(CURDIR)/kmhd2spotify.key --output-signature=$(CURDIR)/kmhd2spotify.sig $(CURDIR)/out/kmhd2spotify; \
+		export `cat $(CURDIR)/.env | xargs` && cosign sign-blob --key=$(CURDIR)/kmhd2spotify.key --bundle=$(CURDIR)/kmhd2spotify.bundle $(CURDIR)/out/kmhd2spotify; \
 	else \
 		echo "no cosign private key found at $(CURDIR)/kmhd2spotify.key. Cannot release."; \
 	fi
 
 local-verify: get-cosign-pub-key ## Verify locally compiled binary
 	# cosign here assumes you're using Linux AMD64 binary
-	cosign verify-blob --key $(CURDIR)/kmhd2spotify.pub --signature $(CURDIR)/kmhd2spotify.sig $(CURDIR)/out/kmhd2spotify
+	cosign verify-blob --key $(CURDIR)/kmhd2spotify.pub --bundle $(CURDIR)/kmhd2spotify.bundle $(CURDIR)/out/kmhd2spotify
 
 local-install: local-build local-verify ## Install compiled binary to local machine
 	sudo cp $(CURDIR)/out/kmhd2spotify /usr/local/bin/kmhd2spotify
@@ -170,9 +195,12 @@ upload-secrets-envfile-to-1pass: ## Upload secrets and .env file to 1Password
 docker-login: ## Login to Docker registries used to publish images to
 	if test -e $(CURDIR)/.env; then \
 		export `cat $(CURDIR)/.env | xargs`; \
-		echo $${DOCKERHUB_TOKEN} | docker login docker.io --username $${DOCKERHUB_USERNAME} --password-stdin; \
-		echo $${QUAY_TOKEN} | docker login quay.io --username $${QUAY_USERNAME} --password-stdin; \
-		echo $${GITHUB_GHCR_TOKEN} | docker login ghcr.io --username $${GITHUB_USERNAME} --password-stdin; \
+		export DOCKER_CONFIG=$$(mktemp -d); \
+		mkdir -p $${DOCKER_CONFIG}; \
+		DOCKERHUB_AUTH=$$(echo -n "$${DOCKERHUB_USERNAME}:$${DOCKERHUB_TOKEN}" | base64); \
+		QUAY_AUTH=$$(echo -n "$${QUAY_USERNAME}:$${QUAY_TOKEN}" | base64); \
+		GHCR_AUTH=$$(echo -n "$${GITHUB_USERNAME}:$${GH_GHCR_TOKEN}" | base64); \
+		printf '{"credsStore":"","credHelpers":{},"auths":{"index.docker.io":{"auth":"%s"},"quay.io":{"auth":"%s"},"ghcr.io":{"auth":"%s"}}}\n' "$$DOCKERHUB_AUTH" "$$QUAY_AUTH" "$$GHCR_AUTH" > $${DOCKER_CONFIG}/config.json; \
 	else \
 		echo "No container registry credentials found, need to add them to ./.env. See README.md for more info"; \
 	fi
@@ -204,7 +232,7 @@ pre-commit-install: ## Install pre-commit hooks and necessary binaries
 	# syft
 	command -v syft || curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
 	# cosign
-	go install github.com/sigstore/cosign/cmd/cosign@latest
+	command -v cosign || brew install cosign || go install github.com/sigstore/cosign/v3/cmd/cosign@latest
 	# go-licenses
 	go install github.com/google/go-licenses@latest
 	# go vuln check
@@ -213,6 +241,8 @@ pre-commit-install: ## Install pre-commit hooks and necessary binaries
 	go install github.com/air-verse/air@latest
 	# graphviz for dot
 	command -v dot || brew install graphviz || sudo apt install -y graphviz || sudo dnf install -y graphviz
+	# semgrep
+	command -v semgrep || brew install semgrep || python3 -m pip install --break-system-packages --upgrade semgrep
 	# install and update pre-commits
 	# determine if on Debian 12 and if so use pip to install more modern pre-commit version
 	grep --silent "VERSION=\"12 (bookworm)\"" /etc/os-release && apt install -y --no-install-recommends python3-pip && python3 -m pip install --break-system-packages --upgrade pre-commit || echo "OS is not Debian 12 bookworm"
@@ -295,6 +325,7 @@ clean: ## Remove any locally compiled binaries, profiles, demo output, and built
 	@rm -rf $(CURDIR)/profiles/
 	@rm -rf $(CURDIR)/dist/
 	@rm -rf $(CURDIR)/c.out
+	@rm -rf $(CURDIR)/*.bundle
 	@rm -rf $(CURDIR)/manpages/
 	@rm -rf $(CURDIR)/completions/
 	-docker image rm $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG)

@@ -1,8 +1,8 @@
 .git
 .github
-.gitignore
 .kiro
 .kilocode
+.gitignore
 .pre-commit-config.yaml
 c.out
 completions

@@ -61,7 +61,7 @@ func TestGetEnvVars(t *testing.T) {
 			}()
 
 			// Clear environment variables first
-			os.Unsetenv("SPOTIFY_CLIENT_ID")
+			_ = os.Unsetenv("SPOTIFY_CLIENT_ID")
 
 			// Create .env file if applicable
 			if tt.mockEnvFile != "" {
@@ -72,7 +72,7 @@ func TestGetEnvVars(t *testing.T) {
 
 			// Set mock environment variables (these should override .env file)
 			for key, value := range tt.mockEnv {
-				os.Setenv(key, value)
+				_ = os.Setenv(key, value)
 			}
 
 			// Test for expected behavior

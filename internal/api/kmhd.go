@@ -158,7 +158,7 @@ func (c *KMHDAPIClient) FetchPlaylist(date time.Time) (*types.SongCollection, er
 		}).Error("API request failed after all retries")
 		return nil, fmt.Errorf("failed to make HTTP request after %d attempts: %w", maxRetries, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Check response status
 	if resp.StatusCode != http.StatusOK {

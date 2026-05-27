@@ -84,7 +84,7 @@ func GetLatestChromeUserAgentForOS(goos string) string {
 		log.WithError(err).Debugf("Failed to fetch Chrome version for %s, using fallback", goos)
 		return fallback
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		log.Debugf("Chrome version API returned status %d for %s, using fallback", resp.StatusCode, goos)
