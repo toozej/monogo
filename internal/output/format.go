@@ -235,7 +235,11 @@ func FprintOutdatedText(w io.Writer, actions []actioninfo.OutdatedActionInfo) {
 		actions := outdatedWorkflowMap[wf]
 		fmt.Fprintf(w, "%s%s:\n", actioninfo.Emoji("📄 ", "[FILE] "), wf)
 		for _, action := range actions {
-			fmt.Fprintf(w, " %s%s@%s (latest: %s)\n", actioninfo.Emoji("⚠️ ", "[WARN] "), action.OwnerRepo, action.CurrentRef, action.LatestTag)
+			refLabel := action.FullRef
+			if refLabel == "" {
+				refLabel = fmt.Sprintf("%s@%s", action.OwnerRepo, action.CurrentRef)
+			}
+			fmt.Fprintf(w, " %s%s (latest: %s)\n", actioninfo.Emoji("⚠️ ", "[WARN] "), refLabel, action.LatestTag)
 		}
 		fmt.Fprintln(w)
 	}

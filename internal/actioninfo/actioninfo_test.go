@@ -467,7 +467,7 @@ func TestCheckOutdatedActions_FloatingMajorTagStaleAnnotatedTag(t *testing.T) {
 	}
 }
 
-func TestCheckOutdatedActions_SubpathAction(t *testing.T) {
+func TestCheckOutdatedActions_ActionPathAction(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.URL.Path == "/repos/github/codeql-action/releases/latest":
@@ -500,7 +500,7 @@ func TestCheckOutdatedActions_SubpathAction(t *testing.T) {
 	wf := &workflow.WorkflowFile{
 		Path: "ci.yaml",
 		UsesWithVersions: []workflow.ActionRef{
-			{OwnerRepo: "github/codeql-action", Subpath: "init", Version: "v4.35.2", FullRef: "github/codeql-action/init@v4.35.2"},
+			{OwnerRepo: "github/codeql-action", ActionPath: "init", Version: "v4.35.2", FullRef: "github/codeql-action/init@v4.35.2"},
 		},
 	}
 
@@ -516,14 +516,64 @@ func TestCheckOutdatedActions_SubpathAction(t *testing.T) {
 	if result[0].OwnerRepo != "github/codeql-action" {
 		t.Errorf("expected OwnerRepo github/codeql-action, got %s", result[0].OwnerRepo)
 	}
-	if result[0].Subpath != "init" {
-		t.Errorf("expected Subpath init, got %s", result[0].Subpath)
+	if result[0].ActionPath != "init" {
+		t.Errorf("expected ActionPath init, got %s", result[0].ActionPath)
 	}
 	if result[0].CurrentRef != "v4.35.2" {
 		t.Errorf("expected CurrentRef v4.35.2, got %s", result[0].CurrentRef)
 	}
 	if result[0].LatestTag != "v4.35.4" {
 		t.Errorf("expected LatestTag v4.35.4, got %s", result[0].LatestTag)
+	}
+}
+
+func TestCheckOutdatedActions_NonSemverReleaseFallback(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/repos/github/codeql-action/releases/latest":
+			w.WriteHeader(200)
+			if err := json.NewEncoder(w).Encode(gh.ReleaseInfo{
+				TagName: "codeql-bundle-v2.25.5",
+				HTMLURL: "https://github.com/github/codeql-action/releases/tag/codeql-bundle-v2.25.5",
+			}); err != nil {
+				t.Errorf("failed to encode release info: %v", err)
+			}
+		case "/repos/github/codeql-action/tags":
+			w.WriteHeader(200)
+			if _, err := w.Write([]byte(`[{"name":"codeql-bundle-v2.25.5"},{"name":"v4.36.0"}]`)); err != nil {
+				t.Errorf("failed to write tags response: %v", err)
+			}
+		default:
+			w.WriteHeader(404)
+		}
+	}))
+	defer server.Close()
+
+	client := newTestGithubClient(server)
+	ctx := context.Background()
+
+	wf := &workflow.WorkflowFile{
+		Path: "ci.yaml",
+		UsesWithVersions: []workflow.ActionRef{
+			{OwnerRepo: "github/codeql-action", ActionPath: "init", Version: "v3", FullRef: "github/codeql-action/init@v3"},
+			{OwnerRepo: "github/codeql-action", ActionPath: "analyze", Version: "v3", FullRef: "github/codeql-action/analyze@v3"},
+		},
+	}
+
+	releases := map[string]*gh.ReleaseInfo{
+		"github/codeql-action": {TagName: "codeql-bundle-v2.25.5", HTMLURL: "https://github.com/github/codeql-action/releases/tag/codeql-bundle-v2.25.5"},
+	}
+	archived := map[string]bool{"github/codeql-action": false}
+
+	result := CheckOutdatedActions(ctx, client, []*workflow.WorkflowFile{wf}, archived, releases, true)
+	if len(result) != 2 {
+		t.Fatalf("expected 2 outdated action entries, got %d", len(result))
+	}
+
+	for _, item := range result {
+		if item.LatestTag != "v4.36.0" {
+			t.Errorf("expected fallback latest tag v4.36.0, got %s", item.LatestTag)
+		}
 	}
 }
 
@@ -993,7 +1043,7 @@ func TestWriteOutdatedActions_Semver(t *testing.T) {
 	}
 }
 
-func TestWriteOutdatedActions_Subpath(t *testing.T) {
+func TestWriteOutdatedActions_ActionPath(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.URL.Path == "/repos/github/codeql-action/releases/latest":
@@ -1028,12 +1078,12 @@ func TestWriteOutdatedActions_Subpath(t *testing.T) {
 	wf := &workflow.WorkflowFile{
 		Path: filePath,
 		UsesWithVersions: []workflow.ActionRef{
-			{OwnerRepo: "github/codeql-action", Subpath: "init", Version: "v4.35.2", FullRef: "github/codeql-action/init@v4.35.2"},
+			{OwnerRepo: "github/codeql-action", ActionPath: "init", Version: "v4.35.2", FullRef: "github/codeql-action/init@v4.35.2"},
 		},
 	}
 
 	outdated := []OutdatedActionInfo{
-		{OwnerRepo: "github/codeql-action", Subpath: "init", CurrentRef: "v4.35.2", LatestTag: "v4.35.4", Workflow: "ci.yaml", FullRef: "github/codeql-action/init@v4.35.2"},
+		{OwnerRepo: "github/codeql-action", ActionPath: "init", CurrentRef: "v4.35.2", LatestTag: "v4.35.4", Workflow: "ci.yaml", FullRef: "github/codeql-action/init@v4.35.2"},
 	}
 
 	releases := map[string]*gh.ReleaseInfo{

@@ -255,6 +255,11 @@ func TestWorkflowParser_deduplicateAndClean(t *testing.T) {
 			input:    []string{"docker/build-push-action@v4", "actions/checkout@v3", "actions/setup-go@v4"},
 			expected: []string{"actions/checkout", "actions/setup-go", "docker/build-push-action"},
 		},
+		{
+			name:     "action subpath references",
+			input:    []string{"github/codeql-action/init@v3", "github/codeql-action/analyze@v3"},
+			expected: []string{"github/codeql-action"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -279,16 +284,16 @@ func TestWorkflowParser_deduplicateAndCleanWithVersions(t *testing.T) {
 			name:  "subpath actions",
 			input: []string{"github/codeql-action/init@v4.35.2", "github/codeql-action/autobuild@v4.35.4"},
 			expected: []ActionRef{
-				{OwnerRepo: "github/codeql-action", Subpath: "init", Version: "v4.35.2", FullRef: "github/codeql-action/init@v4.35.2"},
-				{OwnerRepo: "github/codeql-action", Subpath: "autobuild", Version: "v4.35.4", FullRef: "github/codeql-action/autobuild@v4.35.4"},
+				{OwnerRepo: "github/codeql-action", ActionPath: "autobuild", Version: "v4.35.4", FullRef: "github/codeql-action/autobuild@v4.35.4"},
+				{OwnerRepo: "github/codeql-action", ActionPath: "init", Version: "v4.35.2", FullRef: "github/codeql-action/init@v4.35.2"},
 			},
 		},
 		{
 			name:  "subpath and plain same repo - both kept",
 			input: []string{"owner/repo@v1", "owner/repo/sub@v2"},
 			expected: []ActionRef{
-				{OwnerRepo: "owner/repo", Subpath: "", Version: "v1", FullRef: "owner/repo@v1"},
-				{OwnerRepo: "owner/repo", Subpath: "sub", Version: "v2", FullRef: "owner/repo/sub@v2"},
+				{OwnerRepo: "owner/repo", ActionPath: "", Version: "v1", FullRef: "owner/repo@v1"},
+				{OwnerRepo: "owner/repo", ActionPath: "sub", Version: "v2", FullRef: "owner/repo/sub@v2"},
 			},
 		},
 		{
@@ -300,11 +305,28 @@ func TestWorkflowParser_deduplicateAndCleanWithVersions(t *testing.T) {
 			},
 		},
 		{
-			name:  "with duplicates - keeps first",
-			input: []string{"actions/checkout@v3", "actions/checkout@v2", "actions/setup-go@v4"},
+			name:  "with exact duplicates",
+			input: []string{"actions/checkout@v3", "actions/checkout@v3", "actions/setup-go@v4"},
 			expected: []ActionRef{
 				{OwnerRepo: "actions/checkout", Version: "v3", FullRef: "actions/checkout@v3"},
 				{OwnerRepo: "actions/setup-go", Version: "v4", FullRef: "actions/setup-go@v4"},
+			},
+		},
+		{
+			name:  "same repo different versions are preserved",
+			input: []string{"actions/checkout@v3", "actions/checkout@v2", "actions/setup-go@v4"},
+			expected: []ActionRef{
+				{OwnerRepo: "actions/checkout", Version: "v2", FullRef: "actions/checkout@v2"},
+				{OwnerRepo: "actions/checkout", Version: "v3", FullRef: "actions/checkout@v3"},
+				{OwnerRepo: "actions/setup-go", Version: "v4", FullRef: "actions/setup-go@v4"},
+			},
+		},
+		{
+			name:  "action subpaths are preserved",
+			input: []string{"github/codeql-action/init@v3", "github/codeql-action/analyze@v3"},
+			expected: []ActionRef{
+				{OwnerRepo: "github/codeql-action", ActionPath: "analyze", Version: "v3", FullRef: "github/codeql-action/analyze@v3"},
+				{OwnerRepo: "github/codeql-action", ActionPath: "init", Version: "v3", FullRef: "github/codeql-action/init@v3"},
 			},
 		},
 		{
@@ -553,23 +575,23 @@ func TestWorkflowParser_GetAllUsesFromRepoWithVersions(t *testing.T) {
 	}
 
 	expected := map[string]ActionRef{
-		"actions/checkout":               {OwnerRepo: "actions/checkout", Subpath: "", Version: "v3", FullRef: "actions/checkout@v3"},
-		"github/codeql-action/init":      {OwnerRepo: "github/codeql-action", Subpath: "init", Version: "v4.35.2", FullRef: "github/codeql-action/init@v4.35.2"},
-		"github/codeql-action/autobuild": {OwnerRepo: "github/codeql-action", Subpath: "autobuild", Version: "v4.35.4", FullRef: "github/codeql-action/autobuild@v4.35.4"},
-		"github/codeql-action/analyze":   {OwnerRepo: "github/codeql-action", Subpath: "analyze", Version: "v4.35.4", FullRef: "github/codeql-action/analyze@v4.35.4"},
+		"actions/checkout":               {OwnerRepo: "actions/checkout", ActionPath: "", Version: "v3", FullRef: "actions/checkout@v3"},
+		"github/codeql-action/init":      {OwnerRepo: "github/codeql-action", ActionPath: "init", Version: "v4.35.2", FullRef: "github/codeql-action/init@v4.35.2"},
+		"github/codeql-action/autobuild": {OwnerRepo: "github/codeql-action", ActionPath: "autobuild", Version: "v4.35.4", FullRef: "github/codeql-action/autobuild@v4.35.4"},
+		"github/codeql-action/analyze":   {OwnerRepo: "github/codeql-action", ActionPath: "analyze", Version: "v4.35.4", FullRef: "github/codeql-action/analyze@v4.35.4"},
 	}
 
 	for _, ref := range actionRefs {
 		key := ref.OwnerRepo
-		if ref.Subpath != "" {
-			key = ref.OwnerRepo + "/" + ref.Subpath
+		if ref.ActionPath != "" {
+			key = ref.OwnerRepo + "/" + ref.ActionPath
 		}
 		exp, ok := expected[key]
 		if !ok {
 			t.Errorf("Unexpected action ref: %v", ref)
 			continue
 		}
-		if ref.OwnerRepo != exp.OwnerRepo || ref.Subpath != exp.Subpath || ref.Version != exp.Version || ref.FullRef != exp.FullRef {
+		if ref.OwnerRepo != exp.OwnerRepo || ref.ActionPath != exp.ActionPath || ref.Version != exp.Version || ref.FullRef != exp.FullRef {
 			t.Errorf("Expected ref %v, got %v", exp, ref)
 		}
 	}

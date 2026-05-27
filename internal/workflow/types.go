@@ -1,10 +1,17 @@
 package workflow
 
 type ActionRef struct {
-	OwnerRepo string
-	Subpath   string
-	Version   string
-	FullRef   string
+	OwnerRepo  string
+	ActionPath string
+	Version    string
+	FullRef    string
+}
+
+func (a ActionRef) Key() string {
+	if a.ActionPath == "" {
+		return a.OwnerRepo + "@" + a.Version
+	}
+	return a.OwnerRepo + "/" + a.ActionPath + "@" + a.Version
 }
 
 type WorkflowFile struct {

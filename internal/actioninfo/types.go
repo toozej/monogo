@@ -4,7 +4,7 @@ import "time"
 
 type OutdatedActionInfo struct {
 	OwnerRepo  string
-	Subpath    string
+	ActionPath string
 	CurrentRef string
 	LatestTag  string
 	LatestURL  string

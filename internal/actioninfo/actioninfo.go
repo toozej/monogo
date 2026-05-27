@@ -142,6 +142,10 @@ func LogWorkflowInfo(verbose bool, workflowFiles []*workflow.WorkflowFile, allAc
 		fmt.Printf("Extracted %d unique action references\n", len(allActionRefs))
 		if len(allActionRefs) > 0 {
 			for _, ref := range allActionRefs {
+				if ref.FullRef != "" {
+					fmt.Printf(" - %s\n", ref.FullRef)
+					continue
+				}
 				fmt.Printf(" - %s@%s\n", ref.OwnerRepo, ref.Version)
 			}
 		}
@@ -163,17 +167,31 @@ func CheckOutdatedActions(ctx context.Context, ghClient *github.Client, workflow
 				continue
 			}
 
-			cacheKey := ref.OwnerRepo + "@" + ref.Version + ":" + release.TagName
+			latestTag := release.TagName
+			latestURL := release.HTMLURL
+
+			if _, err := ver.IsVersionOutdated(ref.Version, latestTag); err != nil {
+				fallbackTag, fallbackErr := ghClient.GetLatestSemverTag(ctx, ref.OwnerRepo)
+				if fallbackErr == nil && fallbackTag != "" && fallbackTag != latestTag {
+					if verbose {
+						fmt.Printf(" Using semver tag fallback for %s: %s -> %s\n", ref.OwnerRepo, latestTag, fallbackTag)
+					}
+					latestTag = fallbackTag
+					latestURL = fmt.Sprintf("https://github.com/%s/releases/tag/%s", ref.OwnerRepo, latestTag)
+				}
+			}
+
+			cacheKey := wf.Path + ":" + ref.FullRef + ":" + latestTag
 			if seenOutdated[cacheKey] {
 				continue
 			}
 
 			if ver.IsMajorVersionTag(ref.Version) {
-				if ver.SameMajorVersion(ref.Version, release.TagName) {
-					same, _, _, err := ghClient.CompareRefSHAs(ctx, ref.OwnerRepo, ref.Version, release.TagName)
+				if ver.SameMajorVersion(ref.Version, latestTag) {
+					same, _, _, err := ghClient.CompareRefSHAs(ctx, ref.OwnerRepo, ref.Version, latestTag)
 					if err != nil {
 						if verbose {
-							fmt.Printf(" Cannot compare SHAs for %s@%s vs %s: %v\n", ref.OwnerRepo, ref.Version, release.TagName, err)
+							fmt.Printf(" Cannot compare SHAs for %s@%s vs %s: %v\n", ref.OwnerRepo, ref.Version, latestTag, err)
 						}
 						seenOutdated[cacheKey] = true
 						continue
@@ -184,10 +202,10 @@ func CheckOutdatedActions(ctx context.Context, ghClient *github.Client, workflow
 					}
 					outdatedActions = append(outdatedActions, OutdatedActionInfo{
 						OwnerRepo:  ref.OwnerRepo,
-						Subpath:    ref.Subpath,
+						ActionPath: ref.ActionPath,
 						CurrentRef: ref.Version,
-						LatestTag:  release.TagName,
-						LatestURL:  release.HTMLURL,
+						LatestTag:  latestTag,
+						LatestURL:  latestURL,
 						Workflow:   filepath.Base(wf.Path),
 						FullRef:    ref.FullRef,
 					})
@@ -196,7 +214,7 @@ func CheckOutdatedActions(ctx context.Context, ghClient *github.Client, workflow
 				}
 			}
 
-			isOutdated, err := ver.IsVersionOutdated(ref.Version, release.TagName)
+			isOutdated, err := ver.IsVersionOutdated(ref.Version, latestTag)
 			if err != nil {
 				if verbose {
 					fmt.Printf(" Cannot compare versions for %s: %v\n", ref.OwnerRepo, err)
@@ -208,16 +226,18 @@ func CheckOutdatedActions(ctx context.Context, ghClient *github.Client, workflow
 			if isOutdated {
 				outdatedActions = append(outdatedActions, OutdatedActionInfo{
 					OwnerRepo:  ref.OwnerRepo,
-					Subpath:    ref.Subpath,
+					ActionPath: ref.ActionPath,
 					CurrentRef: ref.Version,
-					LatestTag:  release.TagName,
-					LatestURL:  release.HTMLURL,
+					LatestTag:  latestTag,
+					LatestURL:  latestURL,
 					Workflow:   filepath.Base(wf.Path),
 					FullRef:    ref.FullRef,
 				})
+				seenOutdated[cacheKey] = true
+				continue
 			}
-			seenOutdated[cacheKey] = true
 		}
+
 	}
 
 	return outdatedActions
@@ -266,8 +286,8 @@ func WriteOutdatedActions(ctx context.Context, ghClient *github.Client, workflow
 
 		var newUse string
 		if useSemver {
-			if action.Subpath != "" {
-				newUse = fmt.Sprintf("%s/%s@%s", action.OwnerRepo, action.Subpath, action.LatestTag)
+			if action.ActionPath != "" {
+				newUse = fmt.Sprintf("%s/%s@%s", action.OwnerRepo, action.ActionPath, action.LatestTag)
 			} else {
 				newUse = fmt.Sprintf("%s@%s", action.OwnerRepo, action.LatestTag)
 			}
@@ -276,8 +296,8 @@ func WriteOutdatedActions(ctx context.Context, ghClient *github.Client, workflow
 			if !ok {
 				continue
 			}
-			if action.Subpath != "" {
-				newUse = fmt.Sprintf("%s/%s@%s # %s", action.OwnerRepo, action.Subpath, sha, action.LatestTag)
+			if action.ActionPath != "" {
+				newUse = fmt.Sprintf("%s/%s@%s # %s", action.OwnerRepo, action.ActionPath, sha, action.LatestTag)
 			} else {
 				newUse = fmt.Sprintf("%s@%s # %s", action.OwnerRepo, sha, action.LatestTag)
 			}

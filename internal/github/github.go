@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 	"gopkg.in/yaml.v3"
@@ -285,8 +286,78 @@ func (c *Client) GetLatestRelease(ctx context.Context, ownerRepo string) (*Relea
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
+	if !isSemverTag(release.TagName) {
+		fallbackTag, fallbackErr := c.GetLatestSemverTag(ctx, ownerRepo)
+		if fallbackErr == nil {
+			release.TagName = fallbackTag
+			release.HTMLURL = fmt.Sprintf("https://github.com/%s/%s/releases/tag/%s", owner, repo, fallbackTag)
+		} else {
+			log.WithFields(log.Fields{
+				"repo":          ownerRepo,
+				"release_tag":   release.TagName,
+				"fallbackError": fallbackErr,
+			}).Debug("latest release tag is not semver and semver fallback failed")
+		}
+	}
+
 	c.setCachedRelease(ownerRepo, &release)
 	return &release, nil
+}
+
+func (c *Client) GetLatestSemverTag(ctx context.Context, ownerRepo string) (string, error) {
+	owner, repo, err := parseOwnerRepo(ownerRepo)
+	if err != nil {
+		return "", err
+	}
+
+	url := fmt.Sprintf("%s/repos/%s/%s/tags?per_page=100", c.baseURL, owner, repo)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Accept", "application/vnd.github.v3+json")
+	req.Header.Set("User-Agent", "go-sort-out-gh-actions")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to make request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	c.logRateLimits(resp)
+
+	if err := c.handleRateLimit(resp); err != nil {
+		return "", err
+	}
+
+	if resp.StatusCode == 404 {
+		return "", fmt.Errorf("repository %s/%s not found", owner, repo)
+	}
+
+	if resp.StatusCode != 200 {
+		return "", fmt.Errorf("GitHub API returned status %d", resp.StatusCode)
+	}
+
+	var tags []struct {
+		Name string `json:"name"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&tags); err != nil {
+		return "", fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	for _, tag := range tags {
+		if isSemverTag(tag.Name) {
+			return tag.Name, nil
+		}
+	}
+
+	return "", fmt.Errorf("no semver tags found for %s/%s", owner, repo)
+}
+
+func isSemverTag(tag string) bool {
+	tag = strings.TrimSpace(strings.TrimPrefix(tag, "v"))
+	_, err := semver.NewVersion(tag)
+	return err == nil
 }
 
 func (c *Client) CheckMultipleReleases(ctx context.Context, repos []string) (map[string]*ReleaseInfo, map[string]error) {
@@ -491,18 +562,24 @@ func (c *Client) CheckMultipleStale(ctx context.Context, repos []string, staleTh
 	return results, errors
 }
 
-func (c *Client) GetActionYML(ctx context.Context, ownerRepo, subpath, ref string) (string, error) {
+func actionManifestPaths(actionPath string) []string {
+	paths := make([]string, 0, 4)
+	if actionPath != "" {
+		cleanPath := strings.Trim(actionPath, "/")
+		paths = append(paths, cleanPath+"/action.yml", cleanPath+"/action.yaml")
+	}
+	paths = append(paths, "action.yml", "action.yaml")
+	return paths
+}
+
+func (c *Client) GetActionYML(ctx context.Context, ownerRepo, actionPath, ref string) (string, error) {
 	owner, repo, err := parseOwnerRepo(ownerRepo)
 	if err != nil {
 		return "", err
 	}
 
-	for _, filename := range []string{"action.yml", "action.yaml"} {
-		filePath := filename
-		if subpath != "" {
-			filePath = subpath + "/" + filename
-		}
-		url := fmt.Sprintf("%s/repos/%s/%s/contents/%s?ref=%s", c.baseURL, owner, repo, filePath, ref)
+	for _, manifestPath := range actionManifestPaths(actionPath) {
+		url := fmt.Sprintf("%s/repos/%s/%s/contents/%s?ref=%s", c.baseURL, owner, repo, manifestPath, ref)
 		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 		if err != nil {
 			return "", fmt.Errorf("failed to create request: %w", err)
@@ -529,7 +606,7 @@ func (c *Client) GetActionYML(ctx context.Context, ownerRepo, subpath, ref strin
 
 		if resp.StatusCode != 200 {
 			_ = resp.Body.Close()
-			return "", fmt.Errorf("GitHub API returned status %d for %s", resp.StatusCode, filename)
+			return "", fmt.Errorf("GitHub API returned status %d for %s", resp.StatusCode, manifestPath)
 		}
 
 		var contentResp struct {
@@ -548,21 +625,21 @@ func (c *Client) GetActionYML(ctx context.Context, ownerRepo, subpath, ref strin
 		return string(decoded), nil
 	}
 
+	if actionPath != "" {
+		return "", fmt.Errorf("no action.yml or action.yaml found in %s/%s@%s", ownerRepo, actionPath, ref)
+	}
+
 	return "", fmt.Errorf("no action.yml or action.yaml found in %s@%s", ownerRepo, ref)
 }
 
-func (c *Client) GetRawActionYML(ctx context.Context, ownerRepo, subpath, ref string) (string, error) {
+func (c *Client) GetRawActionYML(ctx context.Context, ownerRepo, actionPath, ref string) (string, error) {
 	owner, repo, err := parseOwnerRepo(ownerRepo)
 	if err != nil {
 		return "", err
 	}
 
-	for _, filename := range []string{"action.yml", "action.yaml"} {
-		filePath := filename
-		if subpath != "" {
-			filePath = subpath + "/" + filename
-		}
-		url := fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s/%s", owner, repo, ref, filePath)
+	for _, manifestPath := range actionManifestPaths(actionPath) {
+		url := fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s/%s", owner, repo, ref, manifestPath)
 		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 		if err != nil {
 			return "", fmt.Errorf("failed to create request: %w", err)
@@ -584,7 +661,7 @@ func (c *Client) GetRawActionYML(ctx context.Context, ownerRepo, subpath, ref st
 
 		if resp.StatusCode != 200 {
 			_ = resp.Body.Close()
-			return "", fmt.Errorf("raw content API returned status %d for %s", resp.StatusCode, filename)
+			return "", fmt.Errorf("raw content API returned status %d for %s", resp.StatusCode, manifestPath)
 		}
 
 		body, err := io.ReadAll(resp.Body)
@@ -593,6 +670,10 @@ func (c *Client) GetRawActionYML(ctx context.Context, ownerRepo, subpath, ref st
 			return "", fmt.Errorf("failed to read response body: %w", err)
 		}
 		return string(body), nil
+	}
+
+	if actionPath != "" {
+		return "", fmt.Errorf("no action.yml or action.yaml found in %s/%s@%s", ownerRepo, actionPath, ref)
 	}
 
 	return "", fmt.Errorf("no action.yml or action.yaml found in %s@%s", ownerRepo, ref)
@@ -621,12 +702,14 @@ func (c *Client) CheckMultipleRuntimeEOL(ctx context.Context, refs []workflow.Ac
 			sem <- struct{}{}
 			defer func() { <-sem }()
 
-			actionContent, err := c.GetActionYML(ctx, ref.OwnerRepo, ref.Subpath, ref.Version)
+			refKey := ref.Key()
+
+			actionContent, err := c.GetActionYML(ctx, ref.OwnerRepo, ref.ActionPath, ref.Version)
 			if err != nil {
-				actionContent, err = c.GetRawActionYML(ctx, ref.OwnerRepo, ref.Subpath, ref.Version)
+				actionContent, err = c.GetRawActionYML(ctx, ref.OwnerRepo, ref.ActionPath, ref.Version)
 				if err != nil {
 					mu.Lock()
-					errors[ref.OwnerRepo+"@"+ref.Version] = err
+					errors[refKey] = err
 					mu.Unlock()
 					return
 				}
@@ -635,7 +718,7 @@ func (c *Client) CheckMultipleRuntimeEOL(ctx context.Context, refs []workflow.Ac
 			using, err := ParseActionYML(actionContent)
 			if err != nil {
 				mu.Lock()
-				errors[ref.OwnerRepo+"@"+ref.Version] = err
+				errors[refKey] = err
 				mu.Unlock()
 				return
 			}
@@ -643,14 +726,13 @@ func (c *Client) CheckMultipleRuntimeEOL(ctx context.Context, refs []workflow.Ac
 			eolInfo, eolErr := c.eolClient.CheckRunsUsing(ctx, using)
 			if eolErr != nil {
 				mu.Lock()
-				errors[ref.OwnerRepo+"@"+ref.Version] = eolErr
+				errors[refKey] = eolErr
 				mu.Unlock()
 				return
 			}
 			if eolInfo != nil && eolInfo.IsEOL {
 				mu.Lock()
-				key := ref.OwnerRepo + "@" + ref.Version
-				results[key] = &RuntimeEOLResult{
+				results[refKey] = &RuntimeEOLResult{
 					OwnerRepo: ref.OwnerRepo,
 					Runtime:   eolInfo.Runtime,
 					Version:   eolInfo.Version,

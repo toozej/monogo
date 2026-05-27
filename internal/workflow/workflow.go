@@ -196,7 +196,7 @@ func (p *WorkflowParser) deduplicateAndCleanWithVersions(uses []string) []Action
 	seen := make(map[string]bool)
 	actionRefs := make([]ActionRef, 0)
 
-	re := regexp.MustCompile(`^([^/@]+/[^/@]+)(?:/([^@]+))?@(.+)$`)
+	re := regexp.MustCompile(`^([^/@]+/[^/@]+)(/[^@]+)?@(.+)$`)
 
 	for _, use := range uses {
 		use = strings.TrimSpace(use)
@@ -207,27 +207,33 @@ func (p *WorkflowParser) deduplicateAndCleanWithVersions(uses []string) []Action
 		matches := re.FindStringSubmatch(use)
 		if len(matches) > 3 {
 			ownerRepo := matches[1]
-			subpath := matches[2]
+			actionPath := strings.TrimPrefix(matches[2], "/")
 			version := matches[3]
+			refKey := ownerRepo + "/" + actionPath + "@" + version
 
-			key := ownerRepo
-			if subpath != "" {
-				key = ownerRepo + "/" + subpath
-			}
-			if !seen[key] {
-				seen[key] = true
+			if !seen[refKey] {
+				seen[refKey] = true
 				actionRefs = append(actionRefs, ActionRef{
-					OwnerRepo: ownerRepo,
-					Subpath:   subpath,
-					Version:   version,
-					FullRef:   use,
+					OwnerRepo:  ownerRepo,
+					ActionPath: actionPath,
+					Version:    version,
+					FullRef:    use,
 				})
 			}
 		}
 	}
 
 	sort.Slice(actionRefs, func(i, j int) bool {
-		return actionRefs[i].OwnerRepo < actionRefs[j].OwnerRepo
+		if actionRefs[i].OwnerRepo != actionRefs[j].OwnerRepo {
+			return actionRefs[i].OwnerRepo < actionRefs[j].OwnerRepo
+		}
+		if actionRefs[i].ActionPath != actionRefs[j].ActionPath {
+			return actionRefs[i].ActionPath < actionRefs[j].ActionPath
+		}
+		if actionRefs[i].Version != actionRefs[j].Version {
+			return actionRefs[i].Version < actionRefs[j].Version
+		}
+		return actionRefs[i].FullRef < actionRefs[j].FullRef
 	})
 
 	return actionRefs
@@ -277,8 +283,8 @@ func (p *WorkflowParser) GetAllUsesFromRepoWithVersions(rootDir string) ([]Actio
 	for _, workflow := range workflows {
 		for _, actionRef := range workflow.UsesWithVersions {
 			key := actionRef.OwnerRepo
-			if actionRef.Subpath != "" {
-				key = actionRef.OwnerRepo + "/" + actionRef.Subpath
+			if actionRef.ActionPath != "" {
+				key = actionRef.OwnerRepo + "/" + actionRef.ActionPath
 			}
 			if !seen[key] {
 				seen[key] = true

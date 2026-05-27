@@ -107,13 +107,14 @@ func DetectRuntimeEOL(rc *RunContext, workflowFiles []*workflow.WorkflowFile, ar
 			if isArchived, exists := archived[ref.OwnerRepo]; exists && isArchived {
 				continue
 			}
-			key := ref.OwnerRepo + "@" + ref.Version
+			key := ref.Key()
 			if !seen[key] {
 				seen[key] = true
 				runtimeRefs = append(runtimeRefs, workflow.ActionRef{
-					OwnerRepo: ref.OwnerRepo,
-					Version:   ref.Version,
-					FullRef:   ref.FullRef,
+					OwnerRepo:  ref.OwnerRepo,
+					ActionPath: ref.ActionPath,
+					Version:    ref.Version,
+					FullRef:    ref.FullRef,
 				})
 			}
 		}
@@ -136,7 +137,7 @@ func DetectRuntimeEOL(rc *RunContext, workflowFiles []*workflow.WorkflowFile, ar
 	var runtimeEOLActions []actioninfo.RuntimeEOLActionInfo
 	for _, wf := range workflowFiles {
 		for _, ref := range wf.UsesWithVersions {
-			key := ref.OwnerRepo + "@" + ref.Version
+			key := ref.Key()
 			if eolResult, exists := runtimeResults[key]; exists {
 				runtimeEOLActions = append(runtimeEOLActions, actioninfo.RuntimeEOLActionInfo{
 					OwnerRepo: ref.OwnerRepo,

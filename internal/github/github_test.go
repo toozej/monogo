@@ -40,7 +40,7 @@ runs:
 	tests := []struct {
 		name         string
 		ownerRepo    string
-		subpath      string
+		actionPath   string
 		ref          string
 		wantPath     string
 		responseBody string
@@ -51,7 +51,7 @@ runs:
 		{
 			name:         "action.yml found with node20",
 			ownerRepo:    "owner/repo",
-			subpath:      "",
+			actionPath:   "",
 			ref:          "v2",
 			wantPath:     "/repos/owner/repo/contents/action.yml",
 			responseBody: fmt.Sprintf(`{"content": "%s"}`, encoded),
@@ -60,18 +60,28 @@ runs:
 			wantError:    false,
 		},
 		{
+			name:         "actionPath action.yml found with node20",
+			ownerRepo:    "owner/repo",
+			actionPath:   "init",
+			ref:          "v3",
+			responseBody: fmt.Sprintf(`{"content": "%s"}`, encoded),
+			statusCode:   200,
+			wantUsing:    "node20",
+			wantError:    false,
+		},
+		{
 			name:       "action.yml not found",
 			ownerRepo:  "owner/repo",
-			subpath:    "",
+			actionPath: "",
 			ref:        "v1",
 			wantPath:   "/repos/owner/repo/contents/action.yml",
 			statusCode: 404,
 			wantError:  true,
 		},
 		{
-			name:         "subpath action.yml found",
+			name:         "actionPath action.yml found",
 			ownerRepo:    "owner/repo",
-			subpath:      "sub",
+			actionPath:   "sub",
 			ref:          "v2",
 			wantPath:     "/repos/owner/repo/contents/sub/action.yml",
 			responseBody: fmt.Sprintf(`{"content": "%s"}`, encoded),
@@ -84,7 +94,14 @@ runs:
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if r.URL.Path == tt.wantPath || r.URL.Path == tt.wantPath+".yaml" {
+				if tt.actionPath != "" {
+					expectedPath := "/repos/owner/repo/contents/" + tt.actionPath + "/action.yml"
+					if r.URL.Path != expectedPath {
+						t.Errorf("expected request path %s, got %s", expectedPath, r.URL.Path)
+					}
+				}
+
+				if strings.Contains(r.URL.Path, "action.yml") || strings.Contains(r.URL.Path, "action.yaml") {
 					w.WriteHeader(tt.statusCode)
 					if tt.responseBody != "" {
 						if _, err := w.Write([]byte(tt.responseBody)); err != nil {
@@ -99,7 +116,7 @@ runs:
 
 			client := newTestClient(server)
 			ctx := context.Background()
-			content, err := client.GetActionYML(ctx, tt.ownerRepo, tt.subpath, tt.ref)
+			content, err := client.GetActionYML(ctx, tt.ownerRepo, tt.actionPath, tt.ref)
 
 			if tt.wantError && err == nil {
 				t.Error("Expected error but got none")
@@ -193,21 +210,17 @@ runs:
 	}
 }
 
-func TestClient_CheckMultipleRuntimeEOL_Subpath(t *testing.T) {
-	actionContent := `name: Subpath Action
-runs:
-  using: node16
-  main: dist/index.js
-`
+func TestClient_CheckMultipleRuntimeEOL_SubpathActions(t *testing.T) {
+	actionContent := "name: Test Action\nruns:\n  using: node20\n  main: dist/index.js\n"
 	encoded := base64.StdEncoding.EncodeToString([]byte(actionContent))
 
 	eolServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.Contains(r.URL.Path, "/products/nodejs/releases/16") {
-			eolFrom := "2023-09-11"
+		if strings.Contains(r.URL.Path, "/products/nodejs/releases/20") {
+			eolFrom := "2026-04-30"
 			resp := runtime.ProductReleaseResponse{
 				SchemaVersion: "1.0.0",
 				Result: runtime.ProductRelease{
-					Name:    "16",
+					Name:    "20",
 					IsEol:   true,
 					EolFrom: &eolFrom,
 				},
@@ -224,14 +237,14 @@ runs:
 	defer eolServer.Close()
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/repos/owner/eol-action/contents/sub/action.yml" {
+		if strings.Contains(r.URL.Path, "/contents/init/action.yml") {
 			w.WriteHeader(200)
 			if _, err := w.Write([]byte(fmt.Sprintf(`{"content": "%s"}`, encoded))); err != nil {
 				t.Errorf("failed to write response body: %v", err)
 			}
 			return
 		}
-		if r.URL.Path == "/repos/owner/eol-action/contents/sub/action.yaml" {
+		if strings.Contains(r.URL.Path, "action.yml") || strings.Contains(r.URL.Path, "action.yaml") {
 			w.WriteHeader(404)
 			return
 		}
@@ -244,26 +257,24 @@ runs:
 	ctx := context.Background()
 
 	refs := []workflow.ActionRef{
-		{OwnerRepo: "owner/eol-action", Subpath: "sub", Version: "v2", FullRef: "owner/eol-action/sub@v2"},
+		{OwnerRepo: "owner/multi-action", ActionPath: "init", Version: "v3", FullRef: "owner/multi-action/init@v3"},
+		{OwnerRepo: "owner/multi-action", ActionPath: "analyze", Version: "v3", FullRef: "owner/multi-action/analyze@v3"},
 	}
 
 	results, errors := client.CheckMultipleRuntimeEOL(ctx, refs)
 
-	if len(errors) != 0 {
-		t.Errorf("Expected 0 errors, got %d: %v", len(errors), errors)
-	}
 	if len(results) != 1 {
-		t.Errorf("Expected 1 result, got %d", len(results))
+		t.Fatalf("Expected 1 result, got %d", len(results))
 	}
-	if result, ok := results["owner/eol-action@v2"]; ok {
-		if result.Version != "16" {
-			t.Errorf("Expected version 16, got %s", result.Version)
-		}
-		if !result.IsEOL {
-			t.Error("Expected IsEOL to be true")
-		}
-	} else {
-		t.Error("Expected result for owner/eol-action@v2")
+	if len(errors) != 1 {
+		t.Fatalf("Expected 1 error, got %d", len(errors))
+	}
+
+	if _, ok := results["owner/multi-action/init@v3"]; !ok {
+		t.Fatalf("Expected runtime result key for init action")
+	}
+	if _, ok := errors["owner/multi-action/analyze@v3"]; !ok {
+		t.Fatalf("Expected error key for analyze action")
 	}
 }
 
@@ -729,6 +740,40 @@ func TestClient_GetLatestRelease_Caching(t *testing.T) {
 
 	if callCount != 1 {
 		t.Errorf("Expected 1 API call (second should be cached), got %d", callCount)
+	}
+}
+
+func TestClient_GetLatestRelease_NonSemverFallbackToTags(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/repos/owner/repo/releases/latest":
+			w.WriteHeader(200)
+			if _, err := w.Write([]byte(`{"tag_name":"codeql-bundle-v2.25.5","html_url":"https://github.com/owner/repo/releases/tag/codeql-bundle-v2.25.5"}`)); err != nil {
+				t.Errorf("failed to write release response: %v", err)
+			}
+		case "/repos/owner/repo/tags":
+			w.WriteHeader(200)
+			if _, err := w.Write([]byte(`[{"name":"codeql-bundle-v2.25.5"},{"name":"v4.36.0"}]`)); err != nil {
+				t.Errorf("failed to write tags response: %v", err)
+			}
+		default:
+			w.WriteHeader(404)
+		}
+	}))
+	defer server.Close()
+
+	client := newTestClient(server)
+	ctx := context.Background()
+
+	release, err := client.GetLatestRelease(ctx, "owner/repo")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if release.TagName != "v4.36.0" {
+		t.Fatalf("Expected fallback semver tag v4.36.0, got %s", release.TagName)
+	}
+	if release.HTMLURL != "https://github.com/owner/repo/releases/tag/v4.36.0" {
+		t.Fatalf("Expected fallback URL for semver tag, got %s", release.HTMLURL)
 	}
 }
 
