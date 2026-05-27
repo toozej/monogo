@@ -1,0 +1,29 @@
+---
+name: Demo - Invalid and Non-Existent Actions
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code (valid current)
+        uses: actions/checkout@v4
+
+      - name: Nonexistent action (invalid owner/repo)
+        uses: nonexistent-org/this-action-does-not-exist@v1
+
+      - name: Another fake action (invalid)
+        uses: fake-company/fake-ci-action@v2
+
+      - name: Invalid typo of popular action
+        uses: actions/chekout@v4
+
+      - name: Setup Go (valid current)
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+
+      - name: Typoed codeql action (invalid)
+        uses: github/codeql-aktion/init@v3

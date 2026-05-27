@@ -1,0 +1,80 @@
+---
+name: Demo - Mixed Archived, Outdated, EOL, and Invalid Actions
+
+on:
+  workflow_dispatch:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code (current)
+        uses: actions/checkout@v4
+
+      - name: Setup Go (current)
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+
+      - name: Run golangci-lint (archived - actions-rs)
+        uses: actions-rs/clippy-check@v1
+
+      - name: Security audit (archived - actions-rs)
+        uses: actions-rs/audit-check@v1
+
+      - name: Cache (outdated v2, EOL runtime)
+        uses: actions/cache@v2
+
+      - name: Nonexistent scanner (invalid)
+        uses: fake-security/scanner-action@v1
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (outdated v2, EOL runtime)
+        uses: actions/checkout@v2
+
+      - name: Setup Go (outdated v1, EOL runtime)
+        uses: actions/setup-go@v1
+        with:
+          go-version: '1.13'
+
+      - name: Run cargo test (archived - actions-rs)
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+
+      - name: Setup Rust toolchain (archived - actions-rs)
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Upload test results (outdated v3, EOL runtime)
+        uses: actions/upload-artifact@v3
+
+      - name: Fake notifier (invalid)
+        uses: nonexistent/notifier-action@latest
+
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (current)
+        uses: actions/checkout@v4
+
+      - name: CodeQL init (current)
+        uses: github/codeql-action/init@v3
+        with:
+          languages: go
+
+      - name: CodeQL analyze (current)
+        uses: github/codeql-action/analyze@v3
+
+      - name: GoReleaser (current third-party)
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean
+
+      - name: Invalid deploy action
+        uses: broken-deploy/invalid-action@v1

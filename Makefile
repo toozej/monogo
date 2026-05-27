@@ -107,8 +107,8 @@ local-vendor: ## Run `go mod tidy & vendor` using locally installed golang toolc
 	go mod tidy
 	go mod vendor
 
-local-test: ## Run `go test` using locally installed golang toolchain
-	go test -race -coverprofile c.out -v $(CURDIR)/...
+local-test: ## Run `go test` (including e2e) using locally installed golang toolchain
+	go test -race -coverprofile c.out -v $(CURDIR)/... $(CURDIR)/testing/e2e/...
 	@echo -e "\nStatements missing coverage"
 	@grep -v -e " 1$$" c.out
 
@@ -299,12 +299,44 @@ clean: ## Remove any locally compiled binaries, profiles, demo output, and built
 	@rm -rf $(CURDIR)/completions/
 	-docker image rm $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG)
 
-demo: local-build ## Run the built binary against example workflow to demo functionality
+demo: local-build ## Run the built binary against demo workflows to demo functionality
+	@echo "=== Demo: Passing (all current) actions ==="
 	-$(CURDIR)/out/go-sort-out-gh-actions check --workflow $(CURDIR)/demo/workflows/passing-archived-actions.yaml --verbose
 	@echo -e "\n\n"
 	@printf "%$$(tput cols)s" | tr ' ' '='
 	@echo -e "\n\n"
+	@echo "=== Demo: Failing (archived, outdated, EOL) actions ==="
 	-$(CURDIR)/out/go-sort-out-gh-actions check --workflow $(CURDIR)/demo/workflows/failing-archived-actions.yaml --verbose
+	@echo -e "\n\n"
+	@printf "%$$(tput cols)s" | tr ' ' '='
+	@echo -e "\n\n"
+	@echo "=== Demo: Current and up-to-date actions ==="
+	-$(CURDIR)/out/go-sort-out-gh-actions check --workflow $(CURDIR)/demo/workflows/current-actions.yaml --verbose
+	@echo -e "\n\n"
+	@printf "%$$(tput cols)s" | tr ' ' '='
+	@echo -e "\n\n"
+	@echo "=== Demo: All archived actions ==="
+	-$(CURDIR)/out/go-sort-out-gh-actions check --workflow $(CURDIR)/demo/workflows/archived-actions.yaml --verbose
+	@echo -e "\n\n"
+	@printf "%$$(tput cols)s" | tr ' ' '='
+	@echo -e "\n\n"
+	@echo "=== Demo: Outdated and EOL runtime actions ==="
+	-$(CURDIR)/out/go-sort-out-gh-actions check --workflow $(CURDIR)/demo/workflows/outdated-eol-actions.yaml --verbose
+	@echo -e "\n\n"
+	@printf "%$$(tput cols)s" | tr ' ' '='
+	@echo -e "\n\n"
+	@echo "=== Demo: Invalid and non-existent actions ==="
+	-$(CURDIR)/out/go-sort-out-gh-actions check --workflow $(CURDIR)/demo/workflows/invalid-actions.yaml --verbose
+	@echo -e "\n\n"
+	@printf "%$$(tput cols)s" | tr ' ' '='
+	@echo -e "\n\n"
+	@echo "=== Demo: Mixed archived, outdated, EOL, and invalid actions ==="
+	-$(CURDIR)/out/go-sort-out-gh-actions check --workflow $(CURDIR)/demo/workflows/mixed-issues.yaml --verbose
+	@echo -e "\n\n"
+	@printf "%$$(tput cols)s" | tr ' ' '='
+	@echo -e "\n\n"
+	@echo "=== Demo: SHA-pinned and version-pinned actions ==="
+	-$(CURDIR)/out/go-sort-out-gh-actions check --workflow $(CURDIR)/demo/workflows/sha-pinned-actions.yaml --verbose
 
 help: ## Display help text
 	@grep -E '^[a-zA-Z_-]+ ?:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
