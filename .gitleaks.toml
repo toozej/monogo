@@ -1,0 +1,8 @@
+[allowlist]
+  description = "Global allowlist for false positives"
+  paths = [
+    '''internal/issue/issue_test\.go''',
+  ]
+  regexes = [
+    '''ghp_abcdef123456''',
+  ]
