@@ -11,6 +11,20 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+type TestIssueFunc func(ctx context.Context, owner, repo string, archivedActions []ArchivedActionInfo) error
+
+type testIssueCreator struct {
+	fn TestIssueFunc
+}
+
+func (t *testIssueCreator) CreateArchivedActionIssue(ctx context.Context, owner, repo string, archivedActions []ArchivedActionInfo) error {
+	return t.fn(ctx, owner, repo, archivedActions)
+}
+
+func NewTestIssueCreator(fn TestIssueFunc) IssueCreatorIface {
+	return &testIssueCreator{fn: fn}
+}
+
 func NewIssueCreator(token string) *IssueCreator {
 	ctx := context.Background()
 	ts := oauth2.StaticTokenSource(
@@ -29,12 +43,8 @@ func (ic *IssueCreator) CreateArchivedActionIssue(ctx context.Context, owner, re
 		return nil
 	}
 
-	if ic.isTest && ic.testImpl != nil {
-		return ic.testImpl(ctx, owner, repo, archivedActions)
-	}
-
 	title := "Replace archived GitHub Actions"
-	body := ic.buildIssueBody(archivedActions)
+	body := BuildIssueBody(archivedActions)
 	labels := []string{"maintenance", "github-actions", "security"}
 
 	issueReq := &github.IssueRequest{
@@ -61,7 +71,7 @@ func (ic *IssueCreator) CreateArchivedActionIssue(ctx context.Context, owner, re
 	return nil
 }
 
-func (ic *IssueCreator) buildIssueBody(actions []ArchivedActionInfo) string {
+func BuildIssueBody(actions []ArchivedActionInfo) string {
 	var body strings.Builder
 
 	body.WriteString("## Archived GitHub Actions Detected\n\n")

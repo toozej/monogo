@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -133,20 +134,20 @@ func GetRepoName(workDir string) string {
 	return "current-repo"
 }
 
-func LogWorkflowInfo(verbose bool, workflowFiles []*workflow.WorkflowFile, allActionRefs []workflow.ActionRef) {
+func LogWorkflowInfo(w io.Writer, verbose bool, workflowFiles []*workflow.WorkflowFile, allActionRefs []workflow.ActionRef) {
 	if verbose {
-		fmt.Printf("Found %d workflow files\n", len(workflowFiles))
+		fmt.Fprintf(w, "Found %d workflow files\n", len(workflowFiles))
 		for _, wf := range workflowFiles {
-			fmt.Printf(" - %s (%d uses)\n", wf.Path, len(wf.UsesWithVersions))
+			fmt.Fprintf(w, " - %s (%d uses)\n", wf.Path, len(wf.UsesWithVersions))
 		}
-		fmt.Printf("Extracted %d unique action references\n", len(allActionRefs))
+		fmt.Fprintf(w, "Extracted %d unique action references\n", len(allActionRefs))
 		if len(allActionRefs) > 0 {
 			for _, ref := range allActionRefs {
 				if ref.FullRef != "" {
-					fmt.Printf(" - %s\n", ref.FullRef)
+					fmt.Fprintf(w, " - %s\n", ref.FullRef)
 					continue
 				}
-				fmt.Printf(" - %s@%s\n", ref.OwnerRepo, ref.Version)
+				fmt.Fprintf(w, " - %s@%s\n", ref.OwnerRepo, ref.Version)
 			}
 		}
 	}

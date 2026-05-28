@@ -23,6 +23,10 @@ import (
 
 const maxConcurrency = 10
 
+func (c *Client) SetEOLClientForTest(baseURL string, httpClient *http.Client) {
+	c.eolClient = runtime.NewEOLClientWithHTTP(baseURL, httpClient)
+}
+
 func NewClientWithHTTP(baseURL string, httpClient *http.Client) *Client {
 	return &Client{
 		httpClient:    httpClient,

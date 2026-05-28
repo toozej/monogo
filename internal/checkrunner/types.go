@@ -28,7 +28,7 @@ type RunContext struct {
 	Parser       *workflow.WorkflowParser
 	GHClient     *github.Client
 	Notifier     *notification.NotificationManager
-	IssueCreator *issue.IssueCreator
+	IssueCreator issue.IssueCreatorIface
 	OutputWriter *output.Writer
 	Verbose      bool
 	Debug        bool

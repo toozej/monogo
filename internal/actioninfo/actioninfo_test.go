@@ -1,6 +1,7 @@
 package actioninfo
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -1164,5 +1165,334 @@ func TestGetNonArchivedRepos(t *testing.T) {
 		if repo == "archived/action" {
 			t.Error("Expected archived/action to be excluded")
 		}
+	}
+}
+
+func TestEmoji(t *testing.T) {
+	original := IsTTY
+	defer func() { IsTTY = original }()
+
+	IsTTY = true
+	if got := Emoji("✅ ", "[OK] "); got != "✅ " {
+		t.Errorf("Emoji() with IsTTY=true = %q, want %q", got, "✅ ")
+	}
+
+	IsTTY = false
+	if got := Emoji("✅ ", "[OK] "); got != "[OK] " {
+		t.Errorf("Emoji() with IsTTY=false = %q, want %q", got, "[OK] ")
+	}
+}
+
+func TestWriteActionOutput_WithEnvVar(t *testing.T) {
+	tmpDir := t.TempDir()
+	outputFile := filepath.Join(tmpDir, "github_output")
+	if err := os.WriteFile(outputFile, []byte{}, 0600); err != nil {
+		t.Fatalf("Failed to create output file: %v", err)
+	}
+
+	origEnv := os.Getenv("GITHUB_OUTPUT")
+	defer os.Setenv("GITHUB_OUTPUT", origEnv)
+
+	os.Setenv("GITHUB_OUTPUT", outputFile)
+	WriteActionOutput("test-key", "test-value")
+
+	data, err := os.ReadFile(outputFile)
+	if err != nil {
+		t.Fatalf("Failed to read output file: %v", err)
+	}
+	expected := "test-key=test-value\n"
+	if string(data) != expected {
+		t.Errorf("WriteActionOutput() wrote %q, want %q", string(data), expected)
+	}
+}
+
+func TestWriteActionOutput_NoEnvVar(t *testing.T) {
+	origEnv := os.Getenv("GITHUB_OUTPUT")
+	defer os.Setenv("GITHUB_OUTPUT", origEnv)
+
+	os.Unsetenv("GITHUB_OUTPUT")
+	WriteActionOutput("key", "value")
+}
+
+func TestLogWorkflowInfo_Verbose(t *testing.T) {
+	var buf bytes.Buffer
+
+	workflows := []*workflow.WorkflowFile{
+		{Path: "ci.yaml", UsesWithVersions: []workflow.ActionRef{
+			{OwnerRepo: "actions/checkout", Version: "v3", FullRef: "actions/checkout@v3"},
+		}},
+	}
+	refs := []workflow.ActionRef{
+		{OwnerRepo: "actions/checkout", Version: "v3", FullRef: "actions/checkout@v3"},
+	}
+
+	LogWorkflowInfo(&buf, true, workflows, refs)
+
+	output := buf.String()
+	if !strings.Contains(output, "Found 1 workflow files") {
+		t.Errorf("Expected output to contain workflow count, got: %q", output)
+	}
+	if !strings.Contains(output, "ci.yaml") {
+		t.Errorf("Expected output to contain workflow path, got: %q", output)
+	}
+	if !strings.Contains(output, "actions/checkout@v3") {
+		t.Errorf("Expected output to contain action ref, got: %q", output)
+	}
+}
+
+func TestLogWorkflowInfo_NotVerbose(t *testing.T) {
+	var buf bytes.Buffer
+
+	workflows := []*workflow.WorkflowFile{
+		{Path: "ci.yaml", UsesWithVersions: []workflow.ActionRef{
+			{OwnerRepo: "actions/checkout", Version: "v3", FullRef: "actions/checkout@v3"},
+		}},
+	}
+	refs := []workflow.ActionRef{
+		{OwnerRepo: "actions/checkout", Version: "v3", FullRef: "actions/checkout@v3"},
+	}
+
+	LogWorkflowInfo(&buf, false, workflows, refs)
+
+	if buf.Len() != 0 {
+		t.Errorf("Expected no output when verbose=false, got: %q", buf.String())
+	}
+}
+
+func TestMatchesUsesLine(t *testing.T) {
+	tests := []struct {
+		name   string
+		line   string
+		oldUse string
+		want   bool
+	}{
+		{name: "standard match", line: "  - uses: actions/checkout@v3", oldUse: "actions/checkout@v3", want: true},
+		{name: "match with trailing comment", line: "  - uses: actions/checkout@v3 # nosemgrep", oldUse: "actions/checkout@v3", want: true},
+		{name: "no match different ref", line: "  - uses: actions/setup-go@v4", oldUse: "actions/checkout@v3", want: false},
+		{name: "partial match is not a match", line: "  - uses: actions/checkout@v3-extra", oldUse: "actions/checkout@v3", want: false},
+		{name: "no uses keyword", line: "  - run: echo hello", oldUse: "actions/checkout@v3", want: false},
+		{name: "empty line", line: "", oldUse: "actions/checkout@v3", want: false},
+		{name: "exact match at end of line", line: "  - uses: actions/checkout@v3", oldUse: "actions/checkout@v3", want: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := matchesUsesLine(tt.line, tt.oldUse)
+			if got != tt.want {
+				t.Errorf("matchesUsesLine(%q, %q) = %v, want %v", tt.line, tt.oldUse, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCheckOutdatedActions_ArchivedExcluded(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(404)
+	}))
+	defer server.Close()
+
+	client := newTestGithubClient(server)
+	ctx := context.Background()
+
+	wf := &workflow.WorkflowFile{
+		Path: "ci.yaml",
+		UsesWithVersions: []workflow.ActionRef{
+			{OwnerRepo: "archived/repo", Version: "v1", FullRef: "archived/repo@v1"},
+		},
+	}
+
+	releases := map[string]*gh.ReleaseInfo{
+		"archived/repo": {TagName: "v2.0.0", HTMLURL: "https://github.com/archived/repo/releases/tag/v2.0.0"},
+	}
+	archived := map[string]bool{"archived/repo": true}
+
+	result := CheckOutdatedActions(ctx, client, []*workflow.WorkflowFile{wf}, archived, releases, false)
+	if len(result) != 0 {
+		t.Errorf("Expected 0 outdated actions for archived repo, got %d: %+v", len(result), result)
+	}
+}
+
+func TestCheckOutdatedActions_NoRelease(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(404)
+	}))
+	defer server.Close()
+
+	client := newTestGithubClient(server)
+	ctx := context.Background()
+
+	wf := &workflow.WorkflowFile{
+		Path: "ci.yaml",
+		UsesWithVersions: []workflow.ActionRef{
+			{OwnerRepo: "owner/repo", Version: "v1", FullRef: "owner/repo@v1"},
+		},
+	}
+
+	releases := map[string]*gh.ReleaseInfo{}
+	archived := map[string]bool{"owner/repo": false}
+
+	result := CheckOutdatedActions(ctx, client, []*workflow.WorkflowFile{wf}, archived, releases, false)
+	if len(result) != 0 {
+		t.Errorf("Expected 0 outdated actions when no release exists, got %d: %+v", len(result), result)
+	}
+}
+
+func TestWriteOutdatedActions_Empty(t *testing.T) {
+	oldStdout := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("Failed to create pipe: %v", err)
+	}
+	os.Stdout = w
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(404)
+	}))
+	defer server.Close()
+
+	client := newTestGithubClient(server)
+	ctx := context.Background()
+
+	err = WriteOutdatedActions(ctx, client, nil, []OutdatedActionInfo{}, nil, false, false)
+
+	w.Close()
+	os.Stdout = oldStdout
+
+	var buf bytes.Buffer
+	if _, err2 := buf.ReadFrom(r); err2 != nil {
+		t.Fatalf("Failed to read from pipe: %v", err2)
+	}
+
+	if err != nil {
+		t.Errorf("WriteOutdatedActions with empty list returned error: %v", err)
+	}
+	if !strings.Contains(buf.String(), "No outdated actions to write.") {
+		t.Errorf("Expected 'No outdated actions to write.' message, got: %q", buf.String())
+	}
+}
+
+func TestReplaceUsesLine_NoTrailingNewline(t *testing.T) {
+	content := []byte("  - uses: actions/checkout@v3")
+	result := ReplaceUsesLine(content, "actions/checkout@v3", "actions/checkout@abc123 # v3")
+	resultStr := string(result)
+	if strings.HasSuffix(resultStr, "\n") {
+		t.Errorf("Expected result without trailing newline, got: %q", resultStr)
+	}
+	if !strings.Contains(resultStr, "actions/checkout@abc123 # v3") {
+		t.Errorf("Expected replacement to occur, got: %q", resultStr)
+	}
+}
+
+func TestRuntimeEOLActionInfo_Fields(t *testing.T) {
+	info := RuntimeEOLActionInfo{
+		OwnerRepo: "actions/runner",
+		FullRef:   "actions/runner@v2",
+		Workflow:  "ci.yaml",
+		Runtime:   "node",
+		Version:   "16",
+		EOLDate:   time.Date(2023, 9, 1, 0, 0, 0, 0, time.UTC),
+	}
+	if info.OwnerRepo != "actions/runner" {
+		t.Errorf("Expected OwnerRepo 'actions/runner', got %s", info.OwnerRepo)
+	}
+	if info.Runtime != "node" {
+		t.Errorf("Expected Runtime 'node', got %s", info.Runtime)
+	}
+	if info.Version != "16" {
+		t.Errorf("Expected Version '16', got %s", info.Version)
+	}
+	if !info.EOLDate.Equal(time.Date(2023, 9, 1, 0, 0, 0, 0, time.UTC)) {
+		t.Errorf("Expected EOLDate 2023-09-01, got %v", info.EOLDate)
+	}
+}
+
+func TestFileUpdate_Fields(t *testing.T) {
+	u := FileUpdate{
+		OldUse: "actions/checkout@v3",
+		NewUse: "actions/checkout@abc123 # v3",
+	}
+	if u.OldUse != "actions/checkout@v3" {
+		t.Errorf("Expected OldUse 'actions/checkout@v3', got %s", u.OldUse)
+	}
+	if u.NewUse != "actions/checkout@abc123 # v3" {
+		t.Errorf("Expected NewUse 'actions/checkout@abc123 # v3', got %s", u.NewUse)
+	}
+}
+
+func TestConstants(t *testing.T) {
+	if DefaultStaleDays != 365 {
+		t.Errorf("Expected DefaultStaleDays = 365, got %d", DefaultStaleDays)
+	}
+	if MaxStaleDays != 3650 {
+		t.Errorf("Expected MaxStaleDays = 3650, got %d", MaxStaleDays)
+	}
+}
+
+func TestApplyUpdatesToFile_NoMatch(t *testing.T) {
+	tmpDir := t.TempDir()
+	content := "name: CI\non: push\njobs:\n  test:\n    steps:\n      - uses: actions/checkout@v3\n"
+	filePath := filepath.Join(tmpDir, "ci.yaml")
+	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	updates := []FileUpdate{
+		{OldUse: "actions/setup-go@v4", NewUse: "actions/setup-go@def456 # v4"},
+	}
+
+	if err := ApplyUpdatesToFile(filePath, updates); err != nil {
+		t.Fatalf("ApplyUpdatesToFile failed: %v", err)
+	}
+
+	result, err := os.ReadFile(filePath)
+	if err != nil {
+		t.Fatalf("Failed to read file: %v", err)
+	}
+	if string(result) != content {
+		t.Errorf("Expected file content unchanged, got: %q", string(result))
+	}
+}
+
+func TestWriteOutdatedActions_SHAFetchFailure(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(404)
+	}))
+	defer server.Close()
+
+	client := newTestGithubClient(server)
+	ctx := context.Background()
+
+	tmpDir := t.TempDir()
+	content := "name: CI\non: push\njobs:\n  test:\n    steps:\n      - uses: owner/repo@v3\n"
+	filePath := filepath.Join(tmpDir, "ci.yaml")
+	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	wf := &workflow.WorkflowFile{
+		Path: filePath,
+		UsesWithVersions: []workflow.ActionRef{
+			{OwnerRepo: "owner/repo", Version: "v3", FullRef: "owner/repo@v3"},
+		},
+	}
+
+	outdated := []OutdatedActionInfo{
+		{OwnerRepo: "owner/repo", CurrentRef: "v3", LatestTag: "v4.0.0", Workflow: "ci.yaml", FullRef: "owner/repo@v3"},
+	}
+
+	releases := map[string]*gh.ReleaseInfo{
+		"owner/repo": {TagName: "v4.0.0", HTMLURL: "https://github.com/owner/repo/releases/tag/v4.0.0"},
+	}
+
+	if err := WriteOutdatedActions(ctx, client, []*workflow.WorkflowFile{wf}, outdated, releases, false, false); err != nil {
+		t.Fatalf("WriteOutdatedActions failed: %v", err)
+	}
+
+	result, err := os.ReadFile(filePath)
+	if err != nil {
+		t.Fatalf("Failed to read file: %v", err)
+	}
+	if string(result) != content {
+		t.Errorf("Expected file content unchanged after SHA fetch failure, got: %q", string(result))
 	}
 }

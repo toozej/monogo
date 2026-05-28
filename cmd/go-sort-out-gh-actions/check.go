@@ -61,7 +61,7 @@ func runCheck(writeFlag bool, staleDays int) {
 }
 
 func processCheck(rc *checkrunner.RunContext, workflowFiles []*workflow.WorkflowFile, allActionRefs []workflow.ActionRef, workDir string, writeFlag bool, staleDays int) bool {
-	actioninfo.LogWorkflowInfo(rc.Verbose, workflowFiles, allActionRefs)
+	actioninfo.LogWorkflowInfo(os.Stdout, rc.Verbose, workflowFiles, allActionRefs)
 
 	if len(allActionRefs) == 0 {
 		fmt.Println("No GitHub Actions found in workflows")

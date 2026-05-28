@@ -6,11 +6,13 @@ import (
 	"github.com/google/go-github/v85/github"
 )
 
+type IssueCreatorIface interface {
+	CreateArchivedActionIssue(ctx context.Context, owner, repo string, archivedActions []ArchivedActionInfo) error
+}
+
 type IssueCreator struct {
-	token    string
-	client   *github.Client
-	isTest   bool
-	testImpl func(ctx context.Context, owner, repo string, archivedActions []ArchivedActionInfo) error
+	token  string
+	client *github.Client
 }
 
 type ArchivedActionInfo struct {

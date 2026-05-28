@@ -3,10 +3,13 @@ package checkrunner
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -14,8 +17,10 @@ import (
 	"github.com/toozej/go-sort-out-gh-actions/internal/actioninfo"
 	"github.com/toozej/go-sort-out-gh-actions/internal/github"
 	"github.com/toozej/go-sort-out-gh-actions/internal/issue"
+	"github.com/toozej/go-sort-out-gh-actions/internal/notification"
 	"github.com/toozej/go-sort-out-gh-actions/internal/output"
 	"github.com/toozej/go-sort-out-gh-actions/internal/workflow"
+	"github.com/toozej/go-sort-out-gh-actions/pkg/config"
 )
 
 func newTestRunContext(ghServer *httptest.Server) *RunContext {
@@ -858,5 +863,686 @@ func TestDetectStale_SanitizesStaleDays(t *testing.T) {
 
 	if len(staleActions) != 0 {
 		t.Errorf("Expected 0 stale actions for recently updated repo with sanitized stale days, got %d", len(staleActions))
+	}
+}
+
+func TestWriteResult_WithIssues(t *testing.T) {
+	var buf bytes.Buffer
+	w := &output.Writer{
+		Format: output.FormatText,
+		Output: &buf,
+	}
+
+	archivedActions := []issue.ArchivedActionInfo{
+		{Repo: "actions/checkout", Workflow: "ci.yml", Uses: "actions/checkout@v3"},
+	}
+	staleActions := []actioninfo.StaleActionInfo{
+		{OwnerRepo: "actions/old-action", FullRef: "actions/old-action@v1", Workflow: "ci.yml", Deprecated: true, DeprecationMessage: "Use v2 instead"},
+	}
+	outdatedActions := []actioninfo.OutdatedActionInfo{
+		{OwnerRepo: "actions/setup-go", CurrentRef: "v3", LatestTag: "v4", LatestURL: "https://github.com/actions/setup-go/releases/tag/v4", Workflow: "ci.yml", FullRef: "actions/setup-go@v3"},
+	}
+
+	WriteResult(w, archivedActions, []string{"actions/checkout"}, staleActions, nil, outdatedActions, true, "Found issues", "")
+
+	out := buf.String()
+	if !strings.Contains(out, "actions/checkout@v3") {
+		t.Errorf("Expected output to contain archived action ref, got %q", out)
+	}
+	if !strings.Contains(out, "actions/old-action@v1") {
+		t.Errorf("Expected output to contain stale action ref, got %q", out)
+	}
+	if !strings.Contains(out, "actions/setup-go@v3") {
+		t.Errorf("Expected output to contain outdated action ref, got %q", out)
+	}
+	if !strings.Contains(out, "Found issues") {
+		t.Errorf("Expected output to contain summary, got %q", out)
+	}
+}
+
+func TestWriteResult_NoIssues(t *testing.T) {
+	var buf bytes.Buffer
+	w := &output.Writer{
+		Format: output.FormatText,
+		Output: &buf,
+	}
+
+	WriteResult(w, nil, nil, nil, nil, nil, false, "", "No issues found!")
+
+	out := buf.String()
+	if !strings.Contains(out, "No issues found!") {
+		t.Errorf("Expected output to contain noIssuesMessage, got %q", out)
+	}
+}
+
+func TestWriteResult_JSON(t *testing.T) {
+	var buf bytes.Buffer
+	w := &output.Writer{
+		Format: output.FormatJSON,
+		Output: &buf,
+	}
+
+	archivedActions := []issue.ArchivedActionInfo{
+		{Repo: "actions/checkout", Workflow: "ci.yml", Uses: "actions/checkout@v3"},
+	}
+
+	WriteResult(w, archivedActions, []string{"actions/checkout"}, nil, nil, nil, true, "", "")
+
+	out := buf.String()
+	if !strings.Contains(out, `"archived_actions"`) {
+		t.Errorf("Expected JSON output to contain archived_actions key, got %q", out)
+	}
+	if !strings.Contains(out, `"has_issues"`) {
+		t.Errorf("Expected JSON output to contain has_issues key, got %q", out)
+	}
+}
+
+func TestDetectRuntimeEOL_WithRuntimeResults(t *testing.T) {
+	actionContent := "name: Test Action\nruns:\n using: node12\n main: dist/index.js\n"
+	encoded := base64.StdEncoding.EncodeToString([]byte(actionContent))
+
+	eolServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/products/nodejs/releases/12") {
+			eolFrom := "2022-04-30"
+			resp := map[string]interface{}{
+				"schema_version": "1.0.0",
+				"result": map[string]interface{}{
+					"name":    "12",
+					"isEol":   true,
+					"eolFrom": eolFrom,
+				},
+			}
+			w.WriteHeader(200)
+			body, _ := json.Marshal(resp)
+			_, _ = w.Write(body)
+			return
+		}
+		w.WriteHeader(404)
+	}))
+	defer eolServer.Close()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "action.yml") || strings.Contains(r.URL.Path, "action.yaml") {
+			w.WriteHeader(200)
+			fmt.Fprintf(w, `{"content": "%s"}`, encoded)
+			return
+		}
+		w.WriteHeader(404)
+	}))
+	defer server.Close()
+
+	client := github.NewClientWithHTTP(server.URL, server.Client())
+	client.SetEOLClientForTest(eolServer.URL, eolServer.Client())
+
+	rc := &RunContext{
+		Ctx:      context.Background(),
+		WorkDir:  "/tmp/test-repo",
+		Parser:   &workflow.WorkflowParser{},
+		GHClient: client,
+	}
+
+	workflowFiles := []*workflow.WorkflowFile{
+		{
+			Path: ".github/workflows/ci.yml",
+			UsesWithVersions: []workflow.ActionRef{
+				{OwnerRepo: "actions/checkout", Version: "v3", FullRef: "actions/checkout@v3"},
+			},
+		},
+	}
+	archived := map[string]bool{"actions/checkout": false}
+	nonArchivedRepos := []string{"actions/checkout"}
+
+	result := DetectRuntimeEOL(rc, workflowFiles, archived, nonArchivedRepos)
+
+	if len(result) != 1 {
+		t.Fatalf("Expected 1 runtime EOL action, got %d", len(result))
+	}
+	if result[0].Runtime != "nodejs" {
+		t.Errorf("Expected runtime nodejs, got %s", result[0].Runtime)
+	}
+	if result[0].Version != "12" {
+		t.Errorf("Expected version 12, got %s", result[0].Version)
+	}
+	if result[0].OwnerRepo != "actions/checkout" {
+		t.Errorf("Expected OwnerRepo actions/checkout, got %s", result[0].OwnerRepo)
+	}
+	if result[0].Workflow != "ci.yml" {
+		t.Errorf("Expected Workflow ci.yml, got %s", result[0].Workflow)
+	}
+	if !strings.Contains(result[0].EOLDate.Format("2006-01-02"), "2022") {
+		t.Errorf("Expected EOLDate year 2022, got %v", result[0].EOLDate)
+	}
+}
+
+func TestDetectOutdated_OutdatedAction(t *testing.T) {
+	releases := map[string]*github.ReleaseInfo{
+		"actions/setup-go": {TagName: "v4.0.0", Name: "v4.0.0", HTMLURL: "https://github.com/actions/setup-go/releases/tag/v4.0.0"},
+	}
+	repoInfo := map[string]*github.RepoInfo{
+		"actions/setup-go": {
+			FullName:  "actions/setup-go",
+			Archived:  false,
+			UpdatedAt: time.Now().Format(time.RFC3339),
+		},
+	}
+	server := makeGHServer(map[string]bool{"actions/setup-go": false}, releases, repoInfo)
+	defer server.Close()
+
+	rc := newTestRunContext(server)
+
+	workflowFiles := []*workflow.WorkflowFile{
+		{
+			Path: ".github/workflows/ci.yml",
+			UsesWithVersions: []workflow.ActionRef{
+				{OwnerRepo: "actions/setup-go", Version: "v3", FullRef: "actions/setup-go@v3"},
+			},
+		},
+	}
+	archived := map[string]bool{"actions/setup-go": false}
+	nonArchivedRepos := []string{"actions/setup-go"}
+
+	outdated, releaseMap := DetectOutdated(rc, workflowFiles, archived, nonArchivedRepos)
+
+	if releaseMap == nil {
+		t.Fatal("Expected non-nil releases map")
+	}
+	if _, ok := releaseMap["actions/setup-go"]; !ok {
+		t.Error("Expected release info for actions/setup-go")
+	}
+
+	if len(outdated) > 0 {
+		if outdated[0].OwnerRepo != "actions/setup-go" {
+			t.Errorf("Expected outdated OwnerRepo actions/setup-go, got %s", outdated[0].OwnerRepo)
+		}
+		if outdated[0].LatestTag != "v4.0.0" {
+			t.Errorf("Expected LatestTag v4.0.0, got %s", outdated[0].LatestTag)
+		}
+	}
+}
+
+func TestDetectOutdated_UpToDateAction(t *testing.T) {
+	releases := map[string]*github.ReleaseInfo{
+		"actions/checkout": {TagName: "v3.1.0", Name: "v3.1.0", HTMLURL: "https://github.com/actions/checkout/releases/tag/v3.1.0"},
+	}
+	repoInfo := map[string]*github.RepoInfo{
+		"actions/checkout": {
+			FullName:  "actions/checkout",
+			Archived:  false,
+			UpdatedAt: time.Now().Format(time.RFC3339),
+		},
+	}
+	server := makeGHServer(map[string]bool{"actions/checkout": false}, releases, repoInfo)
+	defer server.Close()
+
+	rc := newTestRunContext(server)
+
+	workflowFiles := []*workflow.WorkflowFile{
+		{
+			Path: ".github/workflows/ci.yml",
+			UsesWithVersions: []workflow.ActionRef{
+				{OwnerRepo: "actions/checkout", Version: "v4", FullRef: "actions/checkout@v4"},
+			},
+		},
+	}
+	archived := map[string]bool{"actions/checkout": false}
+	nonArchivedRepos := []string{"actions/checkout"}
+
+	outdated, releaseMap := DetectOutdated(rc, workflowFiles, archived, nonArchivedRepos)
+
+	if releaseMap == nil {
+		t.Fatal("Expected non-nil releases map")
+	}
+	if len(outdated) > 0 {
+		t.Errorf("Expected no outdated actions for up-to-date ref, got %d", len(outdated))
+	}
+}
+
+func TestSendArchivedNotifications_WithNotifier(t *testing.T) {
+	notifyServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		if _, err := w.Write([]byte(`{"appid":1,"messageid":1}`)); err != nil {
+			t.Errorf("failed to write response: %v", err)
+		}
+	}))
+	defer notifyServer.Close()
+
+	origEnv := os.Getenv("GITHUB_REPOSITORY")
+	defer os.Setenv("GITHUB_REPOSITORY", origEnv)
+	os.Setenv("GITHUB_REPOSITORY", "owner/repo")
+
+	conf := config.NotificationConfig{
+		GotifyEndpoint: notifyServer.URL,
+		GotifyToken:    "test-token",
+	}
+	mgr, err := notification.NewNotificationManager(conf)
+	if err != nil {
+		t.Fatalf("Failed to create notification manager: %v", err)
+	}
+
+	rc := &RunContext{
+		Ctx:      context.Background(),
+		WorkDir:  "/tmp/owner/repo",
+		Notifier: mgr,
+	}
+
+	actions := []issue.ArchivedActionInfo{
+		{Repo: "actions/checkout", Workflow: "ci.yml", Uses: "actions/checkout@v3"},
+	}
+
+	SendArchivedNotifications(rc, actions)
+}
+
+func TestSendArchivedNotifications_WithNotifierError(t *testing.T) {
+	notifyServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(500)
+	}))
+	defer notifyServer.Close()
+
+	origEnv := os.Getenv("GITHUB_REPOSITORY")
+	defer os.Setenv("GITHUB_REPOSITORY", origEnv)
+	os.Setenv("GITHUB_REPOSITORY", "owner/repo")
+
+	conf := config.NotificationConfig{
+		GotifyEndpoint: notifyServer.URL,
+		GotifyToken:    "test-token",
+	}
+	mgr, err := notification.NewNotificationManager(conf)
+	if err != nil {
+		t.Fatalf("Failed to create notification manager: %v", err)
+	}
+
+	rc := &RunContext{
+		Ctx:      context.Background(),
+		WorkDir:  "/tmp/owner/repo",
+		Notifier: mgr,
+	}
+
+	actions := []issue.ArchivedActionInfo{
+		{Repo: "actions/checkout", Workflow: "ci.yml", Uses: "actions/checkout@v3"},
+	}
+
+	SendArchivedNotifications(rc, actions)
+}
+
+func TestCreateArchivedIssues_WithIssueCreator(t *testing.T) {
+	origEnv := os.Getenv("GITHUB_REPOSITORY")
+	defer os.Setenv("GITHUB_REPOSITORY", origEnv)
+	os.Setenv("GITHUB_REPOSITORY", "owner/repo")
+
+	var testCalled bool
+	var testOwner, testRepo string
+	var testActions []issue.ArchivedActionInfo
+
+	ic := issue.NewTestIssueCreator(func(ctx context.Context, owner, repo string, archivedActions []issue.ArchivedActionInfo) error {
+		testCalled = true
+		testOwner = owner
+		testRepo = repo
+		testActions = archivedActions
+		return nil
+	})
+
+	rc := &RunContext{
+		Ctx:          context.Background(),
+		WorkDir:      "/tmp/owner/repo",
+		IssueCreator: ic,
+	}
+
+	actions := []issue.ArchivedActionInfo{
+		{Repo: "actions/checkout", Workflow: "ci.yml", Uses: "actions/checkout@v3"},
+	}
+
+	CreateArchivedIssues(rc, actions)
+
+	if !testCalled {
+		t.Error("Expected IssueCreator to be called")
+	}
+	if testOwner != "owner" {
+		t.Errorf("Expected owner 'owner', got %s", testOwner)
+	}
+	if testRepo != "repo" {
+		t.Errorf("Expected repo 'repo', got %s", testRepo)
+	}
+	if len(testActions) != 1 {
+		t.Errorf("Expected 1 action, got %d", len(testActions))
+	}
+}
+
+func TestCreateArchivedIssues_InvalidRepoName(t *testing.T) {
+	origEnv := os.Getenv("GITHUB_REPOSITORY")
+	defer os.Setenv("GITHUB_REPOSITORY", origEnv)
+	os.Setenv("GITHUB_REPOSITORY", "invalid-repo-name")
+
+	var testCalled bool
+
+	ic := issue.NewTestIssueCreator(func(ctx context.Context, owner, repo string, archivedActions []issue.ArchivedActionInfo) error {
+		testCalled = true
+		return nil
+	})
+
+	rc := &RunContext{
+		Ctx:          context.Background(),
+		WorkDir:      "/tmp/owner/repo",
+		IssueCreator: ic,
+	}
+
+	actions := []issue.ArchivedActionInfo{
+		{Repo: "actions/checkout", Workflow: "ci.yml", Uses: "actions/checkout@v3"},
+	}
+
+	CreateArchivedIssues(rc, actions)
+
+	if testCalled {
+		t.Error("Expected IssueCreator NOT to be called for invalid repo name format")
+	}
+}
+
+func TestCreateArchivedIssues_EmptyRepoName(t *testing.T) {
+	origEnv := os.Getenv("GITHUB_REPOSITORY")
+	defer os.Setenv("GITHUB_REPOSITORY", origEnv)
+	os.Unsetenv("GITHUB_REPOSITORY")
+
+	var testCalled bool
+
+	ic := issue.NewTestIssueCreator(func(ctx context.Context, owner, repo string, archivedActions []issue.ArchivedActionInfo) error {
+		testCalled = true
+		return nil
+	})
+
+	rc := &RunContext{
+		Ctx:          context.Background(),
+		WorkDir:      "/tmp/owner/repo",
+		IssueCreator: ic,
+	}
+
+	actions := []issue.ArchivedActionInfo{
+		{Repo: "actions/checkout", Workflow: "ci.yml", Uses: "actions/checkout@v3"},
+	}
+
+	CreateArchivedIssues(rc, actions)
+
+	if testCalled {
+		t.Error("Expected IssueCreator NOT to be called when GITHUB_REPOSITORY is unset (defaults to 'current-repo')")
+	}
+}
+
+func TestNewRunContext(t *testing.T) {
+	rc := NewRunContext("dummy-token", config.Config{}, false, false, output.FormatText)
+
+	if rc == nil {
+		t.Fatal("Expected non-nil RunContext")
+	}
+	if rc.Ctx == nil {
+		t.Error("Expected Ctx to be non-nil")
+	}
+	if rc.Parser == nil {
+		t.Error("Expected Parser to be non-nil")
+	}
+	if rc.GHClient == nil {
+		t.Error("Expected GHClient to be non-nil")
+	}
+	if rc.OutputWriter == nil {
+		t.Error("Expected OutputWriter to be non-nil")
+	}
+	if rc.Notifier != nil {
+		t.Error("Expected Notifier to be nil when initNotifier=false")
+	}
+	if rc.IssueCreator != nil {
+		t.Error("Expected IssueCreator to be nil when initIssueCreator=false")
+	}
+	if rc.WorkDir == "" {
+		t.Error("Expected WorkDir to be non-empty")
+	}
+}
+
+func TestNewRunContext_WithIssueCreator(t *testing.T) {
+	rc := NewRunContext("dummy-token", config.Config{}, false, true, output.FormatText)
+
+	if rc == nil {
+		t.Fatal("Expected non-nil RunContext")
+	}
+	if rc.IssueCreator == nil {
+		t.Error("Expected IssueCreator to be non-nil when initIssueCreator=true")
+	}
+}
+
+func TestDetectStale_BothDeprecatedAndStaleByAge(t *testing.T) {
+	ownerRepo := "actions/old-deprecated-action"
+	oldDate := time.Now().Add(-500 * 24 * time.Hour).Format(time.RFC3339)
+	repoInfo := map[string]*github.RepoInfo{
+		ownerRepo: {
+			FullName:       ownerRepo,
+			Archived:       false,
+			Deprecated:     true,
+			DeprecationMsg: "This action is deprecated and stale",
+			UpdatedAt:      oldDate,
+		},
+	}
+
+	server := makeGHServer(map[string]bool{ownerRepo: false}, nil, repoInfo)
+	defer server.Close()
+
+	rc := newTestRunContext(server)
+
+	workflowFiles := []*workflow.WorkflowFile{
+		{
+			Path: ".github/workflows/ci.yml",
+			UsesWithVersions: []workflow.ActionRef{
+				{OwnerRepo: ownerRepo, Version: "v1", FullRef: "actions/old-deprecated-action@v1"},
+			},
+		},
+	}
+	allActionRefs := []workflow.ActionRef{
+		{OwnerRepo: ownerRepo, Version: "v1", FullRef: "actions/old-deprecated-action@v1"},
+	}
+	archived := map[string]bool{ownerRepo: false}
+
+	staleActions := DetectStale(rc, workflowFiles, allActionRefs, archived, 365)
+
+	if len(staleActions) != 1 {
+		t.Fatalf("Expected 1 stale action, got %d", len(staleActions))
+	}
+	if !staleActions[0].Deprecated {
+		t.Error("Expected stale action to be marked as deprecated")
+	}
+	if !staleActions[0].StaleByAge {
+		t.Error("Expected stale action to be marked as stale by age")
+	}
+	if staleActions[0].DeprecationMessage != "This action is deprecated and stale" {
+		t.Errorf("Expected deprecation message, got %s", staleActions[0].DeprecationMessage)
+	}
+}
+
+func TestDetectArchived_WithRepoInfo(t *testing.T) {
+	ownerRepo := "actions/checkout"
+	repoInfo := map[string]*github.RepoInfo{
+		ownerRepo: {
+			FullName:       ownerRepo,
+			Archived:       true,
+			Name:           "checkout",
+			Deprecated:     false,
+			DeprecationMsg: "",
+			UpdatedAt:      time.Now().Format(time.RFC3339),
+		},
+	}
+
+	server := makeGHServer(map[string]bool{ownerRepo: true}, nil, repoInfo)
+	defer server.Close()
+
+	rc := newTestRunContext(server)
+
+	workflowFiles := []*workflow.WorkflowFile{
+		{
+			Path: ".github/workflows/ci.yml",
+			UsesWithVersions: []workflow.ActionRef{
+				{OwnerRepo: ownerRepo, Version: "v3", FullRef: "actions/checkout@v3"},
+			},
+		},
+	}
+	allActionRefs := []workflow.ActionRef{
+		{OwnerRepo: ownerRepo, Version: "v3", FullRef: "actions/checkout@v3"},
+	}
+
+	result, err := DetectArchived(rc, workflowFiles, allActionRefs)
+	if err != nil {
+		t.Fatalf("DetectArchived() error = %v", err)
+	}
+
+	if len(result.ArchivedActions) != 1 {
+		t.Errorf("Expected 1 archived action, got %d", len(result.ArchivedActions))
+	}
+	if len(result.ArchivedRepos) != 1 || result.ArchivedRepos[0] != ownerRepo {
+		t.Errorf("Expected archived repos [%s], got %v", ownerRepo, result.ArchivedRepos)
+	}
+}
+
+func TestRunReposMode_NoRepos(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	server := makeGHServer(nil, nil, nil)
+	defer server.Close()
+
+	rc := newTestRunContext(server)
+
+	var processCalled bool
+	processFunc := func(rc *RunContext, workflowFiles []*workflow.WorkflowFile, allActionRefs []workflow.ActionRef, workDir string) bool {
+		processCalled = true
+		return false
+	}
+
+	result := RunReposMode(rc, tmpDir, processFunc)
+
+	if result != false {
+		t.Error("Expected false when no repos with workflows found")
+	}
+	if processCalled {
+		t.Error("Expected processFunc NOT to be called when no repos found")
+	}
+}
+
+func TestRunReposMode_WithRepos(t *testing.T) {
+	tmpDir := t.TempDir()
+	repoDir := filepath.Join(tmpDir, "my-repo")
+	workflowsDir := filepath.Join(repoDir, ".github", "workflows")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatalf("Failed to create workflows dir: %v", err)
+	}
+	workflowContent := "name: CI\non: push\njobs:\n  test:\n    steps:\n      - uses: actions/checkout@v3\n"
+	if err := os.WriteFile(filepath.Join(workflowsDir, "ci.yml"), []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	server := makeGHServer(map[string]bool{"actions/checkout": false}, nil, nil)
+	defer server.Close()
+
+	rc := newTestRunContext(server)
+
+	var processCalled bool
+	var receivedWorkDir string
+	processFunc := func(rc *RunContext, workflowFiles []*workflow.WorkflowFile, allActionRefs []workflow.ActionRef, workDir string) bool {
+		processCalled = true
+		receivedWorkDir = workDir
+		return true
+	}
+
+	result := RunReposMode(rc, tmpDir, processFunc)
+
+	if !result {
+		t.Error("Expected true when repos have issues")
+	}
+	if !processCalled {
+		t.Error("Expected processFunc to be called")
+	}
+	if receivedWorkDir != repoDir {
+		t.Errorf("Expected workDir %s, got %s", repoDir, receivedWorkDir)
+	}
+}
+
+func TestRunReposMode_WithReposNoIssues(t *testing.T) {
+	tmpDir := t.TempDir()
+	repoDir := filepath.Join(tmpDir, "my-repo")
+	workflowsDir := filepath.Join(repoDir, ".github", "workflows")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatalf("Failed to create workflows dir: %v", err)
+	}
+	workflowContent := "name: CI\non: push\njobs:\n  test:\n    steps:\n      - uses: actions/checkout@v3\n"
+	if err := os.WriteFile(filepath.Join(workflowsDir, "ci.yml"), []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	server := makeGHServer(nil, nil, nil)
+	defer server.Close()
+
+	rc := newTestRunContext(server)
+
+	processFunc := func(rc *RunContext, workflowFiles []*workflow.WorkflowFile, allActionRefs []workflow.ActionRef, workDir string) bool {
+		return false
+	}
+
+	result := RunReposMode(rc, tmpDir, processFunc)
+
+	if result {
+		t.Error("Expected false when processFunc returns no issues")
+	}
+}
+
+func TestDetectRuntimeEOL_VerboseLogging(t *testing.T) {
+	actionContent := "name: Test Action\nruns:\n using: node12\n main: dist/index.js\n"
+	encoded := base64.StdEncoding.EncodeToString([]byte(actionContent))
+
+	eolServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/products/nodejs/releases/12") {
+			eolFrom := "2022-04-30"
+			resp := map[string]interface{}{
+				"schema_version": "1.0.0",
+				"result": map[string]interface{}{
+					"name":    "12",
+					"isEol":   true,
+					"eolFrom": eolFrom,
+				},
+			}
+			w.WriteHeader(200)
+			body, _ := json.Marshal(resp)
+			_, _ = w.Write(body)
+			return
+		}
+		w.WriteHeader(404)
+	}))
+	defer eolServer.Close()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "action.yml") || strings.Contains(r.URL.Path, "action.yaml") {
+			w.WriteHeader(200)
+			fmt.Fprintf(w, `{"content": "%s"}`, encoded)
+			return
+		}
+		w.WriteHeader(404)
+	}))
+	defer server.Close()
+
+	client := github.NewClientWithHTTP(server.URL, server.Client())
+	client.SetEOLClientForTest(eolServer.URL, eolServer.Client())
+
+	rc := &RunContext{
+		Ctx:      context.Background(),
+		WorkDir:  "/tmp/test-repo",
+		Parser:   &workflow.WorkflowParser{},
+		GHClient: client,
+		Verbose:  true,
+	}
+
+	workflowFiles := []*workflow.WorkflowFile{
+		{
+			Path: ".github/workflows/ci.yml",
+			UsesWithVersions: []workflow.ActionRef{
+				{OwnerRepo: "actions/checkout", Version: "v3", FullRef: "actions/checkout@v3"},
+			},
+		},
+	}
+	archived := map[string]bool{"actions/checkout": false}
+	nonArchivedRepos := []string{"actions/checkout"}
+
+	result := DetectRuntimeEOL(rc, workflowFiles, archived, nonArchivedRepos)
+	if len(result) != 1 {
+		t.Errorf("Expected 1 runtime EOL action, got %d", len(result))
 	}
 }

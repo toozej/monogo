@@ -41,21 +41,13 @@ import (
 // The function will terminate with log.Fatal if any critical operation fails,
 // such as directory creation, navigation, or diagram rendering.
 func main() {
-	// Ensure output directory exists
-	if err := os.MkdirAll("docs/diagrams", 0750); err != nil {
+	outputDir := "docs/diagrams"
+	if err := os.MkdirAll(outputDir, 0750); err != nil {
 		log.Fatal("Failed to create output directory:", err)
 	}
 
-	// Change to docs/diagrams directory
-	if err := os.Chdir("docs/diagrams"); err != nil {
-		log.Fatal("Failed to change directory:", err)
-	}
-
-	// Generate architecture diagram
-	generateArchitectureDiagram()
-
-	// Generate component diagram
-	generateComponentDiagram()
+	generateArchitectureDiagram(outputDir)
+	generateComponentDiagram(outputDir)
 
 	fmt.Println("Diagram .dot files generated successfully in ./docs/diagrams/go-diagrams/")
 }
@@ -75,14 +67,21 @@ func main() {
 // The diagram is rendered in top-to-bottom (TB) direction and saved as
 // "architecture.dot" in the current working directory. The function will
 // terminate the program with log.Fatal if diagram creation or rendering fails.
-func generateArchitectureDiagram() {
+func generateArchitectureDiagram(outputDir string) {
+	origDir, err := os.Getwd()
+	if err != nil {
+		log.Fatal("Failed to get working directory:", err)
+	}
+	if err := os.Chdir(outputDir); err != nil {
+		log.Fatal("Failed to change to output directory:", err)
+	}
 	d, err := diagram.New(
 		diagram.Filename("architecture"),
 		diagram.Label("go-sort-out-gh-actions Architecture"),
 		diagram.Direction("TB"),
 	)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Failed to create architecture diagram: %v", err)
 	}
 
 	// Actors / external systems
@@ -121,7 +120,11 @@ func generateArchitectureDiagram() {
 	d.Connect(issueCreator, githubIssues, diagram.Forward())
 
 	if err := d.Render(); err != nil {
-		log.Fatal(err)
+		log.Fatalf("Failed to render architecture diagram: %v", err)
+	}
+
+	if err := os.Chdir(origDir); err != nil {
+		log.Printf("Warning: failed to change back to original directory: %v", err)
 	}
 }
 
@@ -143,14 +146,21 @@ func generateArchitectureDiagram() {
 // The diagram is rendered in left-to-right (LR) direction and saved as
 // "components.dot" in the current working directory. The function will
 // terminate the program with log.Fatal if diagram creation or rendering fails.
-func generateComponentDiagram() {
+func generateComponentDiagram(outputDir string) {
+	origDir, err := os.Getwd()
+	if err != nil {
+		log.Fatal("Failed to get working directory:", err)
+	}
+	if err := os.Chdir(outputDir); err != nil {
+		log.Fatal("Failed to change to output directory:", err)
+	}
 	d, err := diagram.New(
 		diagram.Filename("components"),
 		diagram.Label("go-sort-out-gh-actions Components"),
 		diagram.Direction("LR"),
 	)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Failed to create component diagram: %v", err)
 	}
 
 	// Entry point
@@ -203,6 +213,10 @@ func generateComponentDiagram() {
 	d.Connect(notificationPkg, notifServices, diagram.Forward())
 
 	if err := d.Render(); err != nil {
-		log.Fatal(err)
+		log.Fatalf("Failed to render component diagram: %v", err)
+	}
+
+	if err := os.Chdir(origDir); err != nil {
+		log.Printf("Warning: failed to change back to original directory: %v", err)
 	}
 }
