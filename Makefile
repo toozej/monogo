@@ -68,8 +68,11 @@ build: ## Build Docker image, including running tests
 get-cosign-pub-key: ## Get go-sort-out-gh-actions Cosign public key from GitHub
 	test -f $(CURDIR)/go-sort-out-gh-actions.pub || curl --silent https://raw.githubusercontent.com/toozej/go-sort-out-gh-actions/main/go-sort-out-gh-actions.pub -O
 
-verify: get-cosign-pub-key ## Verify Docker image with Cosign
-	cosign verify --key $(CURDIR)/go-sort-out-gh-actions.pub $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG)
+verify: ## Verify Docker image with Cosign
+	cosign verify \
+		--certificate-identity-regexp '^https://github.com/toozej/go-sort-out-gh-actions/.github/workflows/release.yaml@refs/tags/.*$$' \
+		--certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
+		$(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG)
 
 run: ## Run built Docker image
 	-docker kill $(IMAGE_NAME)

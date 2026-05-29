@@ -102,9 +102,19 @@ pkg/                              # Public packages (importable)
     version.go                    # Version, Commit, Branch, BuiltAt, Builder, Get(), Command()
   man/                            # Man page generation
     man.go                        # Man page via mango-cobra/roff
-scripts/                          # Build and utility scripts
-examples/workflows/               # Example workflow YAML files
-examples/pre-commit/              # Example pre-commit config file
+ scripts/ # Build and utility scripts
+ check-archived/ # Reusable GitHub Action: check for archived actions
+ check-archived/action.yml
+ check-outdated/ # Reusable GitHub Action: check for outdated actions
+ check-outdated/action.yml
+ check/ # Reusable GitHub Action: run all checks
+ check/action.yml
+ eol/ # Reusable GitHub Action: check for EOL runtimes
+ eol/action.yml
+ go-sort-out-gh-actions/ # Reusable GitHub Action: default archived check (composite)
+ go-sort-out-gh-actions/action.yml
+ examples/workflows/ # Example workflow YAML files
+ examples/pre-commit/ # Example pre-commit config file
 ```
 
 ## Tech Stack
