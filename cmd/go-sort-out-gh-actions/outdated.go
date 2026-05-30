@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/toozej/go-sort-out-gh-actions/internal/actioninfo"
@@ -88,13 +87,12 @@ func processOutdated(rc *checkrunner.RunContext, workflowFiles []*workflow.Workf
 		return false
 	}
 
-	if update && len(outdatedActions) > 0 {
-		if err := actioninfo.WriteOutdatedActions(rc.Ctx, rc.GHClient, workflowFiles, outdatedActions, releases, useSemver, rc.Verbose); err != nil {
-			log.Errorf("Failed to write outdated action updates: %v", err)
-		}
-	}
-
 	summary := "\n" + actioninfo.Emoji("⚠️ ", "[WARN] ") + "Outdated actions detected. Consider updating to the latest versions."
+	if update {
+		updateReport := actioninfo.WriteOutdatedActions(rc.Ctx, rc.GHClient, workflowFiles, outdatedActions, releases, useSemver, rc.Verbose)
+		actioninfo.PrintOutdatedUpdateReport(os.Stdout, updateReport)
+		summary = actioninfo.BuildOutdatedUpdateSummary(updateReport)
+	}
 
 	checkrunner.WriteResult(rc.OutputWriter, nil, nil, nil, nil, outdatedActions, hasIssues, summary, "")
 

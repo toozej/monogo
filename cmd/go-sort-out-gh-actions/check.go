@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/toozej/go-sort-out-gh-actions/internal/actioninfo"
@@ -14,6 +13,7 @@ import (
 
 func newCheckCmd() *cobra.Command {
 	var write bool
+	var semver bool
 	var staleDays int
 
 	cmd := &cobra.Command{
@@ -23,17 +23,18 @@ func newCheckCmd() *cobra.Command {
 Use --write/-w to automatically apply updates: runs archived check, then eol with --update, then outdated with --update.`,
 		Args: cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-			runCheck(write, staleDays)
+			runCheck(write, semver, staleDays)
 		},
 	}
 
 	cmd.Flags().BoolVarP(&write, "write", "w", false, "Run eol and outdated with --update after archived check passes")
+	cmd.Flags().BoolVar(&semver, "semver", false, "Use semver version strings instead of SHAs when updating (for outdated updates during --write)")
 	cmd.Flags().IntVar(&staleDays, "stale-days", actioninfo.DefaultStaleDays, "Number of days after which an action is considered stale (default 365)")
 
 	return cmd
 }
 
-func runCheck(writeFlag bool, staleDays int) {
+func runCheck(writeFlag bool, semverFlag bool, staleDays int) {
 	token := resolveToken()
 	of := resolveOutputFormat()
 	rc := checkrunner.NewRunContext(token, conf, notify, createIssue, of)
@@ -45,7 +46,7 @@ func runCheck(writeFlag bool, staleDays int) {
 	}
 
 	processFunc := func(rc *checkrunner.RunContext, workflowFiles []*workflow.WorkflowFile, allActionRefs []workflow.ActionRef, workDir string) bool {
-		return processCheck(rc, workflowFiles, allActionRefs, workDir, writeFlag, staleDays)
+		return processCheck(rc, workflowFiles, allActionRefs, workDir, writeFlag, semverFlag, staleDays)
 	}
 
 	if reposDir != "" {
@@ -60,7 +61,7 @@ func runCheck(writeFlag bool, staleDays int) {
 	processFunc(rc, workflowFiles, allActionRefs, rc.WorkDir)
 }
 
-func processCheck(rc *checkrunner.RunContext, workflowFiles []*workflow.WorkflowFile, allActionRefs []workflow.ActionRef, workDir string, writeFlag bool, staleDays int) bool {
+func processCheck(rc *checkrunner.RunContext, workflowFiles []*workflow.WorkflowFile, allActionRefs []workflow.ActionRef, workDir string, writeFlag bool, semverFlag bool, staleDays int) bool {
 	actioninfo.LogWorkflowInfo(os.Stdout, rc.Verbose, workflowFiles, allActionRefs)
 
 	if len(allActionRefs) == 0 {
@@ -89,21 +90,24 @@ func processCheck(rc *checkrunner.RunContext, workflowFiles []*workflow.Workflow
 	}
 
 	checkrunner.SendArchivedNotifications(rc, result.ArchivedActions)
+	checkrunner.CreateArchivedIssues(rc, result.ArchivedActions)
 
+	didOutdatedWrite := false
+	updateReport := actioninfo.OutdatedUpdateReport{}
 	if writeFlag && len(result.ArchivedActions) == 0 && len(outdatedActions) > 0 {
-		if err := actioninfo.WriteOutdatedActions(rc.Ctx, rc.GHClient, workflowFiles, outdatedActions, releases, false, rc.Verbose); err != nil {
-			log.Errorf("Failed to write action updates: %v", err)
-		}
+		updateReport = actioninfo.WriteOutdatedActions(rc.Ctx, rc.GHClient, workflowFiles, outdatedActions, releases, semverFlag, rc.Verbose)
+		actioninfo.PrintOutdatedUpdateReport(os.Stdout, updateReport)
+		didOutdatedWrite = true
 	} else if writeFlag && len(result.ArchivedActions) > 0 {
 		fmt.Println("\n" + actioninfo.Emoji("⚠️ ", "[WARN] ") + "Cannot auto-update because archived actions were found. Please replace archived actions first.")
 	}
-
-	checkrunner.CreateArchivedIssues(rc, result.ArchivedActions)
 
 	var summary string
 	switch {
 	case len(result.ArchivedActions) > 0:
 		summary = "\n" + actioninfo.Emoji("❌ ", "[X] ") + "Archived actions detected. Please replace them with actively maintained alternatives."
+	case didOutdatedWrite:
+		summary = actioninfo.BuildOutdatedUpdateSummary(updateReport)
 	case len(outdatedActions) > 0:
 		summary = "\n" + actioninfo.Emoji("⚠️ ", "[WARN] ") + "Outdated actions detected. Consider updating to the latest versions."
 	case len(staleActions) > 0:

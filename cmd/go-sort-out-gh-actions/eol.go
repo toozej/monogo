@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/toozej/go-sort-out-gh-actions/internal/actioninfo"
@@ -85,29 +84,33 @@ func processEOL(rc *checkrunner.RunContext, workflowFiles []*workflow.WorkflowFi
 	checkrunner.SendArchivedNotifications(rc, result.ArchivedActions)
 	checkrunner.CreateArchivedIssues(rc, result.ArchivedActions)
 
-	if update && len(staleActions) > 0 {
+	summary := "\n" + actioninfo.Emoji("⏳ ", "[STALE] ") + "EOL actions detected. Consider replacing them with actively maintained alternatives."
+	if len(result.ArchivedActions) > 0 {
+		summary = "\n" + actioninfo.Emoji("❌ ", "[X] ") + "Archived actions detected. Please replace them with actively maintained alternatives."
+	}
+
+	if update && len(staleActions) > 0 && len(result.ArchivedActions) == 0 {
 		fmt.Println("\n" + actioninfo.Emoji("⚠️ ", "[WARN] ") + "EOL actions detected. Writing updates for stale/deprecated actions...")
-		eolRepos := make([]string, 0)
+		eolRepos := make([]string, 0, len(staleActions))
 		for _, action := range staleActions {
 			eolRepos = append(eolRepos, action.OwnerRepo)
 		}
 		eolRepos = actioninfo.RemoveDuplicates(eolRepos)
 
+		didUpdate := false
 		if len(eolRepos) > 0 && len(result.NonArchivedRepos) > 0 {
 			outdatedActions, releases := checkrunner.DetectOutdated(rc, workflowFiles, result.Archived, result.NonArchivedRepos)
 			if len(outdatedActions) > 0 {
-				if err := actioninfo.WriteOutdatedActions(rc.Ctx, rc.GHClient, workflowFiles, outdatedActions, releases, false, rc.Verbose); err != nil {
-					log.Errorf("Failed to write EOL action updates: %v", err)
-				}
+				updateReport := actioninfo.WriteOutdatedActions(rc.Ctx, rc.GHClient, workflowFiles, outdatedActions, releases, false, rc.Verbose)
+				actioninfo.PrintOutdatedUpdateReport(os.Stdout, updateReport)
+				summary = actioninfo.BuildOutdatedUpdateSummary(updateReport)
+				didUpdate = true
 			}
 		}
-	}
 
-	var summary string
-	if len(result.ArchivedActions) > 0 {
-		summary = "\n" + actioninfo.Emoji("❌ ", "[X] ") + "Archived actions detected. Please replace them with actively maintained alternatives."
-	} else {
-		summary = "\n" + actioninfo.Emoji("⏳ ", "[STALE] ") + "EOL actions detected. Consider replacing them with actively maintained alternatives."
+		if !didUpdate {
+			summary = "\n" + actioninfo.Emoji("⚠️ ", "[WARN] ") + "EOL actions were detected, but no automatic version updates were available."
+		}
 	}
 
 	checkrunner.WriteResult(rc.OutputWriter, result.ArchivedActions, result.ArchivedRepos, staleActions, runtimeEOLActions, nil, hasIssues, summary, "")

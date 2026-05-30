@@ -963,8 +963,9 @@ func TestWriteOutdatedActions(t *testing.T) {
 		"owner/repo": {TagName: "v4.1.2", HTMLURL: "https://github.com/owner/repo/releases/tag/v4.1.2"},
 	}
 
-	if err := WriteOutdatedActions(ctx, client, []*workflow.WorkflowFile{wf}, outdated, releases, false, false); err != nil {
-		t.Fatalf("WriteOutdatedActions failed: %v", err)
+	report := WriteOutdatedActions(ctx, client, []*workflow.WorkflowFile{wf}, outdated, releases, false, false)
+	if got := OutdatedUpdateFailureCount(report); got != 0 {
+		t.Fatalf("WriteOutdatedActions() failure count = %d, want 0", got)
 	}
 
 	result, err := os.ReadFile(filePath)
@@ -1023,8 +1024,9 @@ func TestWriteOutdatedActions_Semver(t *testing.T) {
 		"owner/repo": {TagName: "v4.1.2", HTMLURL: "https://github.com/owner/repo/releases/tag/v4.1.2"},
 	}
 
-	if err := WriteOutdatedActions(ctx, client, []*workflow.WorkflowFile{wf}, outdated, releases, true, false); err != nil {
-		t.Fatalf("WriteOutdatedActions with semver failed: %v", err)
+	report := WriteOutdatedActions(ctx, client, []*workflow.WorkflowFile{wf}, outdated, releases, true, false)
+	if got := OutdatedUpdateFailureCount(report); got != 0 {
+		t.Fatalf("WriteOutdatedActions() failure count = %d, want 0", got)
 	}
 
 	result, err := os.ReadFile(filePath)
@@ -1092,8 +1094,9 @@ func TestWriteOutdatedActions_ActionPath(t *testing.T) {
 	}
 
 	// Test SHA mode preserves subpath
-	if err := WriteOutdatedActions(ctx, client, []*workflow.WorkflowFile{wf}, outdated, releases, false, false); err != nil {
-		t.Fatalf("WriteOutdatedActions failed: %v", err)
+	report := WriteOutdatedActions(ctx, client, []*workflow.WorkflowFile{wf}, outdated, releases, false, false)
+	if got := OutdatedUpdateFailureCount(report); got != 0 {
+		t.Fatalf("WriteOutdatedActions() failure count = %d, want 0", got)
 	}
 
 	result, err := os.ReadFile(filePath)
@@ -1113,8 +1116,9 @@ func TestWriteOutdatedActions_ActionPath(t *testing.T) {
 	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
 		t.Fatalf("Failed to reset test file: %v", err)
 	}
-	if err := WriteOutdatedActions(ctx, client, []*workflow.WorkflowFile{wf}, outdated, releases, true, false); err != nil {
-		t.Fatalf("WriteOutdatedActions with semver failed: %v", err)
+	report = WriteOutdatedActions(ctx, client, []*workflow.WorkflowFile{wf}, outdated, releases, true, false)
+	if got := OutdatedUpdateFailureCount(report); got != 0 {
+		t.Fatalf("WriteOutdatedActions() failure count = %d, want 0", got)
 	}
 
 	result, err = os.ReadFile(filePath)
@@ -1338,13 +1342,6 @@ func TestCheckOutdatedActions_NoRelease(t *testing.T) {
 }
 
 func TestWriteOutdatedActions_Empty(t *testing.T) {
-	oldStdout := os.Stdout
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("Failed to create pipe: %v", err)
-	}
-	os.Stdout = w
-
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(404)
 	}))
@@ -1353,21 +1350,13 @@ func TestWriteOutdatedActions_Empty(t *testing.T) {
 	client := newTestGithubClient(server)
 	ctx := context.Background()
 
-	err = WriteOutdatedActions(ctx, client, nil, []OutdatedActionInfo{}, nil, false, false)
+	report := WriteOutdatedActions(ctx, client, nil, []OutdatedActionInfo{}, nil, false, false)
 
-	w.Close()
-	os.Stdout = oldStdout
-
-	var buf bytes.Buffer
-	if _, err2 := buf.ReadFrom(r); err2 != nil {
-		t.Fatalf("Failed to read from pipe: %v", err2)
+	if got := OutdatedUpdateCount(report); got != 0 {
+		t.Fatalf("OutdatedUpdateCount() = %d, want 0", got)
 	}
-
-	if err != nil {
-		t.Errorf("WriteOutdatedActions with empty list returned error: %v", err)
-	}
-	if !strings.Contains(buf.String(), "No outdated actions to write.") {
-		t.Errorf("Expected 'No outdated actions to write.' message, got: %q", buf.String())
+	if got := OutdatedUpdateFailureCount(report); got != 0 {
+		t.Fatalf("OutdatedUpdateFailureCount() = %d, want 0", got)
 	}
 }
 
@@ -1484,8 +1473,9 @@ func TestWriteOutdatedActions_SHAFetchFailure(t *testing.T) {
 		"owner/repo": {TagName: "v4.0.0", HTMLURL: "https://github.com/owner/repo/releases/tag/v4.0.0"},
 	}
 
-	if err := WriteOutdatedActions(ctx, client, []*workflow.WorkflowFile{wf}, outdated, releases, false, false); err != nil {
-		t.Fatalf("WriteOutdatedActions failed: %v", err)
+	report := WriteOutdatedActions(ctx, client, []*workflow.WorkflowFile{wf}, outdated, releases, false, false)
+	if got := OutdatedUpdateFailureCount(report); got == 0 {
+		t.Fatalf("WriteOutdatedActions() failure count = %d, want > 0", got)
 	}
 
 	result, err := os.ReadFile(filePath)

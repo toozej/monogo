@@ -62,7 +62,6 @@ runs:
     - ${{ inputs.semver == 'true' && '--semver' || '' }}
   env:
     GH_TOKEN: ${{ inputs.token }}
-    GITHUB_REPOSITORY: ${{ github.repository }}
 
 # Example usage in a workflow:
 #

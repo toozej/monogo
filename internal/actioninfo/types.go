@@ -36,5 +36,17 @@ type FileUpdate struct {
 	NewUse string
 }
 
+type OutdatedUpdateFailure struct {
+	WorkflowFile string
+	OldUse       string
+	NewUse       string
+	Reason       string
+}
+
+type OutdatedUpdateReport struct {
+	UpdatedByFile map[string][]FileUpdate
+	FailedUpdates []OutdatedUpdateFailure
+}
+
 const DefaultStaleDays = 365
 const MaxStaleDays = 3650

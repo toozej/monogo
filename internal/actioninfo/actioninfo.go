@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -244,10 +245,13 @@ func CheckOutdatedActions(ctx context.Context, ghClient *github.Client, workflow
 	return outdatedActions
 }
 
-func WriteOutdatedActions(ctx context.Context, ghClient *github.Client, workflowFiles []*workflow.WorkflowFile, outdatedActions []OutdatedActionInfo, releases map[string]*github.ReleaseInfo, useSemver bool, verbose bool) error {
+func WriteOutdatedActions(ctx context.Context, ghClient *github.Client, workflowFiles []*workflow.WorkflowFile, outdatedActions []OutdatedActionInfo, releases map[string]*github.ReleaseInfo, useSemver bool, verbose bool) OutdatedUpdateReport {
+	report := OutdatedUpdateReport{
+		UpdatedByFile: make(map[string][]FileUpdate),
+	}
+
 	if len(outdatedActions) == 0 {
-		fmt.Println("No outdated actions to write.")
-		return nil
+		return report
 	}
 
 	type update struct {
@@ -267,11 +271,14 @@ func WriteOutdatedActions(ctx context.Context, ghClient *github.Client, workflow
 	}
 
 	shaCache := make(map[string]string)
+	shaResolveErrs := make(map[string]string)
 	if !useSemver {
 		for key, upd := range uniqueUpdates {
 			sha, err := ghClient.GetRefSHA(ctx, upd.ownerRepo, upd.latestTag)
 			if err != nil {
-				log.Warnf("Failed to get SHA for %s@%s: %v", upd.ownerRepo, upd.latestTag, err)
+				reason := fmt.Sprintf("failed to resolve %s@%s to a commit SHA: %v", upd.ownerRepo, upd.latestTag, err)
+				shaResolveErrs[key] = reason
+				log.Warn(reason)
 				continue
 			}
 			shaCache[key] = sha
@@ -281,48 +288,148 @@ func WriteOutdatedActions(ctx context.Context, ghClient *github.Client, workflow
 		}
 	}
 
-	updatesByFile := make(map[string][]FileUpdate)
+	pendingByFile := make(map[string][]FileUpdate)
 	for _, action := range outdatedActions {
 		key := action.OwnerRepo + "@" + action.LatestTag
+		oldUse := action.FullRef
+		if oldUse == "" {
+			oldUse = workflow.ActionRef{OwnerRepo: action.OwnerRepo, ActionPath: action.ActionPath, Version: action.CurrentRef}.Key()
+		}
 
 		var newUse string
 		if useSemver {
-			if action.ActionPath != "" {
-				newUse = fmt.Sprintf("%s/%s@%s", action.OwnerRepo, action.ActionPath, action.LatestTag)
-			} else {
-				newUse = fmt.Sprintf("%s@%s", action.OwnerRepo, action.LatestTag)
-			}
+			newUse = workflow.ActionRef{OwnerRepo: action.OwnerRepo, ActionPath: action.ActionPath, Version: action.LatestTag}.Key()
 		} else {
 			sha, ok := shaCache[key]
 			if !ok {
+				reason := shaResolveErrs[key]
+				if reason == "" {
+					reason = fmt.Sprintf("failed to resolve %s to a commit SHA", key)
+				}
+				report.FailedUpdates = append(report.FailedUpdates, OutdatedUpdateFailure{
+					WorkflowFile: action.Workflow,
+					OldUse:       oldUse,
+					NewUse:       workflow.ActionRef{OwnerRepo: action.OwnerRepo, ActionPath: action.ActionPath, Version: action.LatestTag}.Key(),
+					Reason:       reason,
+				})
 				continue
 			}
-			if action.ActionPath != "" {
-				newUse = fmt.Sprintf("%s/%s@%s # %s", action.OwnerRepo, action.ActionPath, sha, action.LatestTag)
-			} else {
-				newUse = fmt.Sprintf("%s@%s # %s", action.OwnerRepo, sha, action.LatestTag)
-			}
+			newUse = workflow.ActionRef{OwnerRepo: action.OwnerRepo, ActionPath: action.ActionPath, Version: sha}.Key() + " # " + action.LatestTag
 		}
 
+		matched := false
 		for _, wf := range workflowFiles {
 			if filepath.Base(wf.Path) == action.Workflow || wf.Path == action.Workflow {
-				updatesByFile[wf.Path] = append(updatesByFile[wf.Path], FileUpdate{
-					OldUse: action.FullRef,
+				pendingByFile[wf.Path] = append(pendingByFile[wf.Path], FileUpdate{
+					OldUse: oldUse,
 					NewUse: newUse,
 				})
+				matched = true
+			}
+		}
+
+		if !matched {
+			report.FailedUpdates = append(report.FailedUpdates, OutdatedUpdateFailure{
+				WorkflowFile: action.Workflow,
+				OldUse:       oldUse,
+				NewUse:       newUse,
+				Reason:       "workflow file could not be matched to a writable file path",
+			})
+		}
+	}
+
+	filePaths := make([]string, 0, len(pendingByFile))
+	for filePath := range pendingByFile {
+		filePaths = append(filePaths, filePath)
+	}
+	sort.Strings(filePaths)
+
+	for _, filePath := range filePaths {
+		updates := pendingByFile[filePath]
+		if err := ApplyUpdatesToFile(filePath, updates); err != nil {
+			reason := fmt.Sprintf("failed to write updates to file: %v", err)
+			for _, update := range updates {
+				report.FailedUpdates = append(report.FailedUpdates, OutdatedUpdateFailure{
+					WorkflowFile: filePath,
+					OldUse:       update.OldUse,
+					NewUse:       update.NewUse,
+					Reason:       reason,
+				})
+			}
+			continue
+		}
+
+		report.UpdatedByFile[filePath] = updates
+	}
+
+	return report
+}
+
+func OutdatedUpdateCount(report OutdatedUpdateReport) int {
+	total := 0
+	for _, updates := range report.UpdatedByFile {
+		total += len(updates)
+	}
+
+	return total
+}
+
+func OutdatedUpdateFailureCount(report OutdatedUpdateReport) int {
+	return len(report.FailedUpdates)
+}
+
+func PrintOutdatedUpdateReport(w io.Writer, report OutdatedUpdateReport) {
+	updatedCount := OutdatedUpdateCount(report)
+	failureCount := OutdatedUpdateFailureCount(report)
+
+	if updatedCount > 0 {
+		fmt.Fprintf(w, "\n%s Updated %d GitHub Action use(s):\n", Emoji("✅ ", "[OK] "), updatedCount)
+		filePaths := make([]string, 0, len(report.UpdatedByFile))
+		for filePath := range report.UpdatedByFile {
+			filePaths = append(filePaths, filePath)
+		}
+		sort.Strings(filePaths)
+
+		for _, filePath := range filePaths {
+			fmt.Fprintf(w, "  %s:\n", filePath)
+			for _, update := range report.UpdatedByFile[filePath] {
+				fmt.Fprintf(w, "    %s -> %s\n", update.OldUse, update.NewUse)
 			}
 		}
 	}
 
-	for filePath, updates := range updatesByFile {
-		if err := ApplyUpdatesToFile(filePath, updates); err != nil {
-			log.Errorf("Failed to write updates to %s: %v", filePath, err)
-			continue
-		}
-		fmt.Printf("Updated %s with %d action(s)\n", filePath, len(updates))
-	}
+	if failureCount > 0 {
+		fmt.Fprintf(w, "\n%s Could not update %d GitHub Action use(s):\n", Emoji("⚠️ ", "[WARN] "), failureCount)
+		failures := append([]OutdatedUpdateFailure(nil), report.FailedUpdates...)
+		sort.Slice(failures, func(i, j int) bool {
+			if failures[i].WorkflowFile != failures[j].WorkflowFile {
+				return failures[i].WorkflowFile < failures[j].WorkflowFile
+			}
+			return failures[i].OldUse < failures[j].OldUse
+		})
 
-	return nil
+		for _, failure := range failures {
+			fmt.Fprintf(w, "  %s (%s)\n", failure.OldUse, failure.WorkflowFile)
+			fmt.Fprintf(w, "    target: %s\n", failure.NewUse)
+			fmt.Fprintf(w, "    reason: %s\n", failure.Reason)
+		}
+	}
+}
+
+func BuildOutdatedUpdateSummary(report OutdatedUpdateReport) string {
+	updatedCount := OutdatedUpdateCount(report)
+	failureCount := OutdatedUpdateFailureCount(report)
+
+	switch {
+	case updatedCount > 0 && failureCount == 0:
+		return "\n" + Emoji("✅ ", "[OK] ") + fmt.Sprintf("Updated %d GitHub Action use(s) to the latest available refs.", updatedCount)
+	case updatedCount > 0 && failureCount > 0:
+		return "\n" + Emoji("⚠️ ", "[WARN] ") + fmt.Sprintf("Updated %d GitHub Action use(s), but %d could not be updated.", updatedCount, failureCount)
+	case failureCount > 0:
+		return "\n" + Emoji("❌ ", "[X] ") + fmt.Sprintf("%d GitHub Action use(s) could not be updated automatically.", failureCount)
+	default:
+		return "\n" + Emoji("⚠️ ", "[WARN] ") + "Outdated actions were detected, but no updates were applied."
+	}
 }
 
 func ApplyUpdatesToFile(filePath string, updates []FileUpdate) error {

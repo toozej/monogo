@@ -63,7 +63,6 @@ runs:
     - ${{ inputs.stale-days && format('--stale-days={0}', inputs.stale-days) || '' }}
   env:
     GH_TOKEN: ${{ inputs.token }}
-    GITHUB_REPOSITORY: ${{ github.repository }}
     NOTIFICATION_ENDPOINTS: ${{ inputs.notification-endpoints }}
 
 # Example usage in a workflow:
