@@ -1,7 +1,9 @@
-# runtime image
-FROM scratch
+# runtime image including CA certs and tzdata
+FROM gcr.io/distroless/static-debian13:nonroot
 # Copy our static executable.
 ARG TARGETPLATFORM
 COPY $TARGETPLATFORM/kmhd2spotify /go/bin/kmhd2spotify
+# Expose port for publishing as web service
+# EXPOSE 8081
 # Run the binary.
 ENTRYPOINT ["/go/bin/kmhd2spotify"]

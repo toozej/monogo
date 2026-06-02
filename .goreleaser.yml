@@ -96,52 +96,18 @@ dockers_v2:
       - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ .Version
         }}{{ end }}'
       - "latest"
-    dockerfile: Dockerfile.goreleaser
-    labels:
-      "io.artifacthub.package.readme-url": "https://raw.githubusercontent.com/toozej/kmhd2spotify/main/README.md"
-      "io.artifacthub.package.maintainers": "[{\"name\":\"toozej\"}]"
-      "io.artifacthub.package.license": "GPLv3"
-      "org.opencontainers.image.description": "Golang starter template"
-      "org.opencontainers.image.created": "{{.Date}}"
-      "org.opencontainers.image.name": "{{.ProjectName}}"
-      "org.opencontainers.image.revision": "{{.FullCommit}}"
-      "org.opencontainers.image.version": "{{.Version}}"
-      "org.opencontainers.image.source": "{{.GitURL}}"
-      "org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
-      "org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/kmhd2spotify/main/README.md"
-      "org.opencontainers.image.licenses": "GPL-3.0-only"
-      "org.opencontainers.image.title": "{{.ProjectName}}"
-      "org.opencontainers.image.vendor": "James Tooze"
-    annotations:
-      "index,manifest:org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
-      "index,manifest:org.opencontainers.image.created": "{{.Date}}"
-      "index,manifest:org.opencontainers.image.description": "Golang starter template"
-      "index,manifest:org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/kmhd2spotify/main/README.md"
-      "index,manifest:org.opencontainers.image.licenses": "GPL-3.0-only"
-      "index,manifest:org.opencontainers.image.revision": "{{.FullCommit}}"
-      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/kmhd2spotify"
-      "index,manifest:org.opencontainers.image.title": "{{.ProjectName}}"
-      "index,manifest:org.opencontainers.image.vendor": "James Tooze"
-      "index,manifest:org.opencontainers.image.version": "{{.Version}}"
-    extra_files:
-      - scripts/goreleaser_entrypoint.sh
-  - id: kmhd2spotify-distroless
-    images:
-      - 'toozej/kmhd2spotify'
-      - 'ghcr.io/toozej/kmhd2spotify'
-      - 'quay.io/toozej/kmhd2spotify'
-    tags:
       - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}v{{ .Version
         }}-distroless{{ end }}'
       - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ .Version
         }}-distroless{{ end }}'
       - "distroless"
-    dockerfile: Dockerfile.goreleaser.distroless
+    dockerfile: Dockerfile.goreleaser
     labels:
       "io.artifacthub.package.readme-url": "https://raw.githubusercontent.com/toozej/kmhd2spotify/main/README.md"
       "io.artifacthub.package.maintainers": "[{\"name\":\"toozej\"}]"
       "io.artifacthub.package.license": "GPLv3"
-      "org.opencontainers.image.description": "Golang starter template"
+      "org.opencontainers.image.description": "Automatically sync songs from KMHD jazz radio\
+        \ to your Spotify playlists"
       "org.opencontainers.image.created": "{{.Date}}"
       "org.opencontainers.image.name": "{{.ProjectName}}"
       "org.opencontainers.image.revision": "{{.FullCommit}}"
@@ -155,7 +121,8 @@ dockers_v2:
     annotations:
       "index,manifest:org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
       "index,manifest:org.opencontainers.image.created": "{{.Date}}"
-      "index,manifest:org.opencontainers.image.description": "Golang starter template"
+      "index,manifest:org.opencontainers.image.description": "Automatically sync songs from\
+        \ KMHD jazz radio to your Spotify playlists"
       "index,manifest:org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/kmhd2spotify/main/README.md"
       "index,manifest:org.opencontainers.image.licenses": "GPL-3.0-only"
       "index,manifest:org.opencontainers.image.revision": "{{.FullCommit}}"
@@ -187,7 +154,7 @@ nfpms:
     id: packages
     homepage: https://github.com/toozej/kmhd2spotify
     description: |-
-      Golang starter template
+      Automatically sync songs from KMHD jazz radio to your Spotify playlists
     maintainer: toozej
     license: GPLv3
     vendor: kmhd2spotify
@@ -230,7 +197,7 @@ nfpms:
 homebrew_casks:
   - name: kmhd2spotify
     homepage: https://github.com/toozej/kmhd2spotify
-    description: "Golang starter template"
+    description: "Automatically sync songs from KMHD jazz radio to your Spotify playlists"
     license: GPLv3
     repository:
       owner: toozej

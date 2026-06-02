@@ -17,9 +17,7 @@ RUN go vet ./...
 # run tests
 FROM init AS test
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-RUN go test -coverprofile c.out -v ./... && \
-	echo "Statements missing coverage" && \
-	grep -v -e " 1$" c.out
+RUN go test -coverprofile c.out -v ./...
 
 # build binary
 FROM init AS build
@@ -30,17 +28,19 @@ ARG BRANCH=unknown
 ARG BUILT_AT=unknown
 ARG BUILDER=unknown
 
+# Install coreutils for sleep and other utilities utilized in devcontainer
+RUN apt-get update && apt-get install --no-install-recommends -y coreutils
+
 RUN PKG=$(head -n 1 go.mod | cut -c 8-) && \
     LDFLAGS="-s -w -X ${PKG}/pkg/version.Version=${VERSION} -X ${PKG}/pkg/version.Commit=${COMMIT} -X ${PKG}/pkg/version.Branch=${BRANCH} -X ${PKG}/pkg/version.BuiltAt=${BUILT_AT} -X ${PKG}/pkg/version.Builder=${BUILDER}" && \
     CGO_ENABLED=0 go build -ldflags="${LDFLAGS}"
 
-# Install coreutils for sleep and other utilities utilized in devcontainer
-RUN apt-get update && apt-get install --no-install-recommends -y coreutils
-
-# runtime image
-FROM scratch
+# runtime image including CA certs and tzdata
+FROM gcr.io/distroless/static-debian13:nonroot
 # Copy our static executable.
 COPY --from=build /go/kmhd2spotify/kmhd2spotify /go/bin/kmhd2spotify
+# Expose port for publishing as web service
+# EXPOSE 8081
 # Run the binary.
 USER nonroot
 ENTRYPOINT ["/go/bin/kmhd2spotify"]
