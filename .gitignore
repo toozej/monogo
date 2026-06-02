@@ -2,6 +2,7 @@
 rss2socials.key
 cosign.key
 *.sig
+*.bundle
 
 # local secret environment variables
 .env
