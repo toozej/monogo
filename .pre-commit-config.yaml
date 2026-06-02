@@ -63,9 +63,18 @@ repos:
       # - id: go-structslop-mod
       - id: go-fmt
       - id: go-imports
-      - id: golangci-lint-mod
       - id: go-test-mod
         args: [-race]
+
+
+  # golangci-lint - comprehensive Go linting
+  - repo: https://github.com/golangci/golangci-lint
+    rev: v2.12.2
+    hooks:
+      - id: golangci-lint-full  # Use -full to lint all files, not just new changes
+        args:
+          - --timeout=5m
+          - --config=.golangci.yml
 
   # run shellcheck on Bash scripts
   - repo: https://github.com/koalaman/shellcheck-precommit

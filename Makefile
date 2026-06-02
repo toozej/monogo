@@ -45,7 +45,7 @@ else
 	OPENER=open
 endif
 
-.PHONY: all vet test build release verify run up down distroless-build distroless-run install local local-vet local-test local-cover local-run local-kill local-iterate local-release-test local-release local-sign local-verify local-release-verify local-install get-cosign-pub-key docker-login pre-commit-install pre-commit-run pre-commit pre-reqs update-golang-version upload-secrets-to-gh upload-secrets-envfile-to-1pass docs diagrams mutation-test test-changed watch-test profile-cpu profile-mem profile-all benchmark clean help
+.PHONY: all vet test build release verify run up down install local local-vet local-test local-cover local-run local-kill local-iterate local-release-test local-release local-sign local-verify local-release-verify local-install get-cosign-pub-key docker-login pre-commit-install pre-commit-run pre-commit pre-reqs update-golang-version upload-secrets-to-gh upload-secrets-envfile-to-1pass docs diagrams mutation-test test-changed watch-test profile-cpu profile-mem profile-all benchmark clean help
 
 all: vet pre-commit clean test build release verify ## Run default workflow via Docker
 local: local-update-deps local-vendor local-vet pre-commit clean local-test local-cover local-build local-release-test ## Run default workflow using locally installed Golang toolchain
@@ -83,8 +83,11 @@ release: ## Build and sign Docker image
 get-cosign-pub-key: ## Get podgrab Cosign public key from GitHub
 	test -f $(CURDIR)/podgrab.pub || curl --silent https://raw.githubusercontent.com/toozej/podgrab/main/podgrab.pub -O
 
-verify: get-cosign-pub-key ## Verify Docker image with Cosign
-	cosign verify --key $(CURDIR)/podgrab.pub $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG)
+verify: ## Verify Docker image with Cosign
+	cosign verify \
+		--certificate-identity-regexp '^https://github.com/toozej/podgrab/.github/workflows/release.yaml@refs/tags/.*$$' \
+		--certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
+		$(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG)
 
 run: ## Run built Docker image
 	-docker kill $(IMAGE_NAME)
@@ -97,18 +100,6 @@ up: test build ## Run Docker Compose project with build Docker image
 
 down: ## Stop running Docker Compose project
 	docker compose -f docker-compose.yml down --remove-orphans
-
-distroless-build: ## Build Docker image using distroless as final base
-	docker build -f $(CURDIR)/Dockerfile.distroless \
-		--build-arg VERSION=$(or $(VERSION),unknown) \
-		--build-arg COMMIT=$(or $(COMMIT),unknown) \
-		--build-arg BRANCH=$(or $(BRANCH),unknown) \
-		--build-arg BUILT_AT=$(NOW) \
-		--build-arg BUILDER=$(BUILDER) \
-		-t $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG)-distroless .
-
-distroless-run: ## Run built Docker image using distroless as final base
-	docker run --rm --name podgrab -v $(CURDIR)/config:/config $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG)-distroless
 
 install: ## Install podgrab from latest GitHub release
 	if command -v go; then \

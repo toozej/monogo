@@ -187,12 +187,11 @@ jobs:
     steps:
       - name: Install Cosign
         uses: sigstore/cosign-installer@v4.1.2 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
-      - name: Get public cosign key for podgrab project from GitHub
-        run: |
-          curl --silent https://raw.githubusercontent.com/toozej/podgrab/main/podgrab.pub -O
       - name: Verify signatures of Docker images
         run: |
-          cosign verify --key podgrab.pub \
+          cosign verify \
+            --certificate-identity-regexp '^https://github.com/toozej/podgrab/.github/workflows/release.yaml@refs/tags/.*$' \
+            --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
             ${{ matrix.registry }}toozej/podgrab:${{ matrix.tag }}
 
   workflow-keepalive:

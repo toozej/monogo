@@ -96,6 +96,11 @@ dockers_v2:
       - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ .Version
         }}{{ end }}'
       - "latest"
+      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}v{{ .Version
+        }}-distroless{{ end }}'
+      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ .Version
+        }}-distroless{{ end }}'
+      - "distroless"
     dockerfile: Dockerfile.goreleaser
     labels:
       "io.artifacthub.package.readme-url": "https://raw.githubusercontent.com/toozej/podgrab/main/README.md"
@@ -126,46 +131,6 @@ dockers_v2:
     extra_files:
       - client
       - webassets
-      - scripts/goreleaser_entrypoint.sh
-  - id: podgrab-distroless
-    images:
-      - 'toozej/podgrab'
-      - 'ghcr.io/toozej/podgrab'
-      - 'quay.io/toozej/podgrab'
-    tags:
-      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}v{{ .Version
-        }}-distroless{{ end }}'
-      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ .Version
-        }}-distroless{{ end }}'
-      - "distroless"
-    dockerfile: Dockerfile.goreleaser.distroless
-    labels:
-      "io.artifacthub.package.readme-url": "https://raw.githubusercontent.com/toozej/podgrab/main/README.md"
-      "io.artifacthub.package.maintainers": "[{\"name\":\"toozej\"}]"
-      "io.artifacthub.package.license": "GPLv3"
-      "org.opencontainers.image.description": "Self-hosted podcast manager"
-      "org.opencontainers.image.created": "{{.Date}}"
-      "org.opencontainers.image.name": "{{.ProjectName}}"
-      "org.opencontainers.image.revision": "{{.FullCommit}}"
-      "org.opencontainers.image.version": "{{.Version}}"
-      "org.opencontainers.image.source": "{{.GitURL}}"
-      "org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
-      "org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/podgrab/main/README.md"
-      "org.opencontainers.image.licenses": "GPL-3.0-only"
-      "org.opencontainers.image.title": "{{.ProjectName}}"
-      "org.opencontainers.image.vendor": "James Tooze"
-    annotations:
-      "index,manifest:org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
-      "index,manifest:org.opencontainers.image.created": "{{.Date}}"
-      "index,manifest:org.opencontainers.image.description": "Self-hosted podcast manager"
-      "index,manifest:org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/podgrab/main/README.md"
-      "index,manifest:org.opencontainers.image.licenses": "GPL-3.0-only"
-      "index,manifest:org.opencontainers.image.revision": "{{.FullCommit}}"
-      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/podgrab"
-      "index,manifest:org.opencontainers.image.title": "{{.ProjectName}}"
-      "index,manifest:org.opencontainers.image.vendor": "James Tooze"
-      "index,manifest:org.opencontainers.image.version": "{{.Version}}"
-    extra_files:
       - scripts/goreleaser_entrypoint.sh
 
 archives:
