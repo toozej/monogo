@@ -24,7 +24,7 @@ import (
 )
 
 func newTestRunContext(ghServer *httptest.Server) *RunContext {
-	client := github.NewClientWithHTTP(ghServer.URL, ghServer.Client())
+	client := github.NewClientWithHTTP(ghServer.URL, ghServer.Client(), github.WithCache(false, false, 0))
 	return &RunContext{
 		Ctx:      context.Background(),
 		WorkDir:  "/tmp/test-repo",
@@ -971,7 +971,7 @@ func TestDetectRuntimeEOL_WithRuntimeResults(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := github.NewClientWithHTTP(server.URL, server.Client())
+	client := github.NewClientWithHTTP(server.URL, server.Client(), github.WithCache(false, false, 0))
 	client.SetEOLClientForTest(eolServer.URL, eolServer.Client())
 
 	rc := &RunContext{
@@ -1266,7 +1266,7 @@ func TestCreateArchivedIssues_EmptyRepoName(t *testing.T) {
 }
 
 func TestNewRunContext(t *testing.T) {
-	rc := NewRunContext("dummy-token", config.Config{}, false, false, output.FormatText)
+	rc := NewRunContext("dummy-token", config.Config{}, false, false, output.FormatText, false, false, 0)
 
 	if rc == nil {
 		t.Fatal("Expected non-nil RunContext")
@@ -1295,7 +1295,7 @@ func TestNewRunContext(t *testing.T) {
 }
 
 func TestNewRunContext_WithIssueCreator(t *testing.T) {
-	rc := NewRunContext("dummy-token", config.Config{}, false, true, output.FormatText)
+	rc := NewRunContext("dummy-token", config.Config{}, false, true, output.FormatText, false, false, 0)
 
 	if rc == nil {
 		t.Fatal("Expected non-nil RunContext")
@@ -1519,7 +1519,7 @@ func TestDetectRuntimeEOL_VerboseLogging(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := github.NewClientWithHTTP(server.URL, server.Client())
+	client := github.NewClientWithHTTP(server.URL, server.Client(), github.WithCache(false, false, 0))
 	client.SetEOLClientForTest(eolServer.URL, eolServer.Client())
 
 	rc := &RunContext{

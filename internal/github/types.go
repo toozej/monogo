@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/toozej/go-sort-out-gh-actions/internal/cache"
 	"github.com/toozej/go-sort-out-gh-actions/internal/runtime"
 )
 
@@ -19,6 +20,11 @@ type Client struct {
 	refSHACache   map[string]string
 	repoInfoCache map[string]*RepoInfo
 	cacheMu       sync.RWMutex
+
+	cacheStore   *cache.CacheStore
+	cacheEnabled bool
+	refreshCache bool
+	cacheTTL     time.Duration
 }
 
 type RepoInfo struct {

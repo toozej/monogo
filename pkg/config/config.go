@@ -30,6 +30,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/caarlos0/env/v11"
 	"github.com/joho/godotenv"
@@ -91,6 +92,15 @@ type Config struct {
 	// CreateIssues specifies whether to create GitHub issues in the repository
 	// when archived actions are found.
 	CreateIssues bool `env:"CREATE_ISSUES" envDefault:"false"`
+
+	// NoCache disables reading and writing of persistent disk cache.
+	NoCache bool `env:"NO_CACHE" envDefault:"false"`
+
+	// RefreshCache ignores existing cache and overwrites it after the run.
+	RefreshCache bool `env:"REFRESH_CACHE" envDefault:"false"`
+
+	// CacheTTL is the duration for which cache files remain valid.
+	CacheTTL time.Duration `env:"CACHE_TTL" envDefault:"24h"`
 }
 
 // GetEnvVars loads and returns the application configuration from environment
@@ -131,6 +141,8 @@ type Config struct {
 //		fmt.Printf("GitHub token configured\n")
 //	}
 var osExit = os.Exit
+var osGetwd = os.Getwd
+var filepathAbs = filepath.Abs
 
 func GetEnvVars() Config {
 	conf, err := loadConfig()
@@ -144,18 +156,18 @@ func GetEnvVars() Config {
 func loadConfig() (Config, error) {
 	var conf Config
 
-	cwd, err := os.Getwd()
+	cwd, err := osGetwd()
 	if err != nil {
 		return conf, fmt.Errorf("error getting current working directory: %w", err)
 	}
 
 	envPath := filepath.Join(cwd, ".env")
 
-	cleanEnvPath, err := filepath.Abs(envPath)
+	cleanEnvPath, err := filepathAbs(envPath)
 	if err != nil {
 		return conf, fmt.Errorf("error resolving .env file path: %w", err)
 	}
-	cleanCwd, err := filepath.Abs(cwd)
+	cleanCwd, err := filepathAbs(cwd)
 	if err != nil {
 		return conf, fmt.Errorf("error resolving current directory: %w", err)
 	}

@@ -1218,6 +1218,27 @@ func TestWriteActionOutput_NoEnvVar(t *testing.T) {
 	WriteActionOutput("key", "value")
 }
 
+func TestWriteActionOutput_OpenRootError(t *testing.T) {
+	t.Setenv("GITHUB_OUTPUT", "/nonexistent/deeply/nested/dir/file")
+	WriteActionOutput("key", "value")
+}
+
+func TestWriteActionOutput_OpenFileError(t *testing.T) {
+	tmpDir := t.TempDir()
+	outputFile := filepath.Join(tmpDir, "github_output")
+
+	t.Setenv("GITHUB_OUTPUT", outputFile)
+	if err := os.WriteFile(outputFile, []byte{}, 0000); err != nil {
+		t.Fatalf("Failed to create output file: %v", err)
+	}
+	_ = os.Chmod(outputFile, 0000)
+	defer func() {
+		_ = os.Chmod(outputFile, 0600)
+	}()
+
+	WriteActionOutput("key", "value")
+}
+
 func TestLogWorkflowInfo_Verbose(t *testing.T) {
 	var buf bytes.Buffer
 
@@ -1260,6 +1281,26 @@ func TestLogWorkflowInfo_NotVerbose(t *testing.T) {
 
 	if buf.Len() != 0 {
 		t.Errorf("Expected no output when verbose=false, got: %q", buf.String())
+	}
+}
+
+func TestLogWorkflowInfo_EmptyFullRef(t *testing.T) {
+	var buf bytes.Buffer
+
+	workflows := []*workflow.WorkflowFile{
+		{Path: "ci.yaml", UsesWithVersions: []workflow.ActionRef{
+			{OwnerRepo: "actions/checkout", Version: "v3", FullRef: ""},
+		}},
+	}
+	refs := []workflow.ActionRef{
+		{OwnerRepo: "actions/checkout", Version: "v3", FullRef: ""},
+	}
+
+	LogWorkflowInfo(&buf, true, workflows, refs)
+
+	output := buf.String()
+	if !strings.Contains(output, "actions/checkout@v3") {
+		t.Errorf("Expected fallback owner@version format when FullRef is empty, got: %q", output)
 	}
 }
 
@@ -1313,6 +1354,169 @@ func TestCheckOutdatedActions_ArchivedExcluded(t *testing.T) {
 	result := CheckOutdatedActions(ctx, client, []*workflow.WorkflowFile{wf}, archived, releases, false)
 	if len(result) != 0 {
 		t.Errorf("Expected 0 outdated actions for archived repo, got %d: %+v", len(result), result)
+	}
+}
+
+func TestCheckOutdatedActions_CompareRefSHAsError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/repos/owner/repo/releases/latest":
+			w.WriteHeader(200)
+			if err := json.NewEncoder(w).Encode(gh.ReleaseInfo{
+				TagName: "v2.3.9",
+				HTMLURL: "https://github.com/owner/repo/releases/tag/v2.3.9",
+			}); err != nil {
+				t.Errorf("failed to encode release info: %v", err)
+			}
+		default:
+			w.WriteHeader(404)
+		}
+	}))
+	defer server.Close()
+
+	client := newTestGithubClient(server)
+	ctx := context.Background()
+
+	wf := &workflow.WorkflowFile{
+		Path: "ci.yaml",
+		UsesWithVersions: []workflow.ActionRef{
+			{OwnerRepo: "owner/repo", Version: "v2", FullRef: "owner/repo@v2"},
+		},
+	}
+
+	releases := map[string]*gh.ReleaseInfo{
+		"owner/repo": {TagName: "v2.3.9", HTMLURL: "https://github.com/owner/repo/releases/tag/v2.3.9"},
+	}
+	archived := map[string]bool{"owner/repo": false}
+
+	result := CheckOutdatedActions(ctx, client, []*workflow.WorkflowFile{wf}, archived, releases, true)
+	if len(result) != 0 {
+		t.Errorf("Expected 0 outdated actions when SHA comparison fails, got %d: %+v", len(result), result)
+	}
+}
+
+func TestCheckOutdatedActions_VerboseCompareRefSHAsError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/repos/owner/repo/releases/latest":
+			w.WriteHeader(200)
+			if err := json.NewEncoder(w).Encode(gh.ReleaseInfo{
+				TagName: "v2.3.9",
+				HTMLURL: "https://github.com/owner/repo/releases/tag/v2.3.9",
+			}); err != nil {
+				t.Errorf("failed to encode release info: %v", err)
+			}
+		default:
+			w.WriteHeader(404)
+		}
+	}))
+	defer server.Close()
+
+	client := newTestGithubClient(server)
+	ctx := context.Background()
+
+	wf := &workflow.WorkflowFile{
+		Path: "ci.yaml",
+		UsesWithVersions: []workflow.ActionRef{
+			{OwnerRepo: "owner/repo", Version: "v2", FullRef: "owner/repo@v2"},
+		},
+	}
+
+	releases := map[string]*gh.ReleaseInfo{
+		"owner/repo": {TagName: "v2.3.9", HTMLURL: "https://github.com/owner/repo/releases/tag/v2.3.9"},
+	}
+	archived := map[string]bool{"owner/repo": false}
+
+	result := CheckOutdatedActions(ctx, client, []*workflow.WorkflowFile{wf}, archived, releases, true)
+	if len(result) != 0 {
+		t.Errorf("Expected 0 outdated actions, got %d", len(result))
+	}
+}
+
+func TestCheckOutdatedActions_IsVersionOutdatedError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/repos/owner/repo/releases/latest":
+			w.WriteHeader(200)
+			if err := json.NewEncoder(w).Encode(gh.ReleaseInfo{
+				TagName: "not-a-semver-tag",
+				HTMLURL: "https://github.com/owner/repo/releases/tag/not-a-semver-tag",
+			}); err != nil {
+				t.Errorf("failed to encode release info: %v", err)
+			}
+		default:
+			w.WriteHeader(404)
+		}
+	}))
+	defer server.Close()
+
+	client := newTestGithubClient(server)
+	ctx := context.Background()
+
+	wf := &workflow.WorkflowFile{
+		Path: "ci.yaml",
+		UsesWithVersions: []workflow.ActionRef{
+			{OwnerRepo: "owner/repo", Version: "v1", FullRef: "owner/repo@v1"},
+		},
+	}
+
+	releases := map[string]*gh.ReleaseInfo{
+		"owner/repo": {TagName: "not-a-semver-tag", HTMLURL: "https://github.com/owner/repo/releases/tag/not-a-semver-tag"},
+	}
+	archived := map[string]bool{"owner/repo": false}
+
+	result := CheckOutdatedActions(ctx, client, []*workflow.WorkflowFile{wf}, archived, releases, false)
+	if len(result) != 0 {
+		t.Errorf("Expected 0 outdated actions when version comparison fails for non-major tag, got %d: %+v", len(result), result)
+	}
+}
+
+func TestCheckOutdatedActions_DuplicateCacheKey(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/repos/owner/repo/releases/latest":
+			w.WriteHeader(200)
+			if err := json.NewEncoder(w).Encode(gh.ReleaseInfo{
+				TagName: "v5.0.0",
+				HTMLURL: "https://github.com/owner/repo/releases/tag/v5.0.0",
+			}); err != nil {
+				t.Errorf("failed to encode release info: %v", err)
+			}
+		case r.URL.Path == "/repos/owner/repo/git/refs/tags/v3":
+			w.WriteHeader(200)
+			if _, err := w.Write([]byte(`{"ref":"refs/tags/v3","object":{"sha":"oldSHA","type":"commit"}}`)); err != nil {
+				t.Errorf("failed to write response: %v", err)
+			}
+		case r.URL.Path == "/repos/owner/repo/git/refs/tags/v5.0.0":
+			w.WriteHeader(200)
+			if _, err := w.Write([]byte(`{"ref":"refs/tags/v5.0.0","object":{"sha":"newSHA","type":"commit"}}`)); err != nil {
+				t.Errorf("failed to write response: %v", err)
+			}
+		default:
+			w.WriteHeader(404)
+		}
+	}))
+	defer server.Close()
+
+	client := newTestGithubClient(server)
+	ctx := context.Background()
+
+	wf := &workflow.WorkflowFile{
+		Path: "ci.yaml",
+		UsesWithVersions: []workflow.ActionRef{
+			{OwnerRepo: "owner/repo", Version: "v3", FullRef: "owner/repo@v3"},
+			{OwnerRepo: "owner/repo", Version: "v3", FullRef: "owner/repo@v3"},
+		},
+	}
+
+	releases := map[string]*gh.ReleaseInfo{
+		"owner/repo": {TagName: "v5.0.0", HTMLURL: "https://github.com/owner/repo/releases/tag/v5.0.0"},
+	}
+	archived := map[string]bool{"owner/repo": false}
+
+	result := CheckOutdatedActions(ctx, client, []*workflow.WorkflowFile{wf}, archived, releases, false)
+	if len(result) != 1 {
+		t.Errorf("Expected 1 outdated action (duplicate cached), got %d: %+v", len(result), result)
 	}
 }
 
@@ -1452,7 +1656,7 @@ func TestWriteOutdatedActions_SHAFetchFailure(t *testing.T) {
 	ctx := context.Background()
 
 	tmpDir := t.TempDir()
-	content := "name: CI\non: push\njobs:\n  test:\n    steps:\n      - uses: owner/repo@v3\n"
+	content := "name: CI\non: push\njobs:\n test:\n steps:\n - uses: owner/repo@v3\n"
 	filePath := filepath.Join(tmpDir, "ci.yaml")
 	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
 		t.Fatalf("Failed to write test file: %v", err)
@@ -1484,5 +1688,519 @@ func TestWriteOutdatedActions_SHAFetchFailure(t *testing.T) {
 	}
 	if string(result) != content {
 		t.Errorf("Expected file content unchanged after SHA fetch failure, got: %q", string(result))
+	}
+}
+
+func TestPrintOutdatedUpdateReport_WithUpdates(t *testing.T) {
+	origTTY := IsTTY
+	defer func() { IsTTY = origTTY }()
+	IsTTY = false
+
+	report := OutdatedUpdateReport{
+		UpdatedByFile: map[string][]FileUpdate{
+			"ci.yaml": {
+				{OldUse: "actions/checkout@v3", NewUse: "actions/checkout@abc123 # v3"},
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+	PrintOutdatedUpdateReport(&buf, report)
+
+	output := buf.String()
+	if !strings.Contains(output, "Updated 1") {
+		t.Errorf("Expected update count in output, got: %q", output)
+	}
+	if !strings.Contains(output, "ci.yaml") {
+		t.Errorf("Expected file path in output, got: %q", output)
+	}
+	if !strings.Contains(output, "actions/checkout@v3") {
+		t.Errorf("Expected old use in output, got: %q", output)
+	}
+	if !strings.Contains(output, "actions/checkout@abc123 # v3") {
+		t.Errorf("Expected new use in output, got: %q", output)
+	}
+}
+
+func TestPrintOutdatedUpdateReport_WithFailures(t *testing.T) {
+	origTTY := IsTTY
+	defer func() { IsTTY = origTTY }()
+	IsTTY = false
+
+	report := OutdatedUpdateReport{
+		FailedUpdates: []OutdatedUpdateFailure{
+			{WorkflowFile: "ci.yaml", OldUse: "actions/checkout@v3", NewUse: "actions/checkout@v4", Reason: "SHA resolution failed"},
+		},
+	}
+
+	var buf bytes.Buffer
+	PrintOutdatedUpdateReport(&buf, report)
+
+	output := buf.String()
+	if !strings.Contains(output, "Could not update 1") {
+		t.Errorf("Expected failure count in output, got: %q", output)
+	}
+	if !strings.Contains(output, "SHA resolution failed") {
+		t.Errorf("Expected failure reason in output, got: %q", output)
+	}
+}
+
+func TestPrintOutdatedUpdateReport_Empty(t *testing.T) {
+	report := OutdatedUpdateReport{
+		UpdatedByFile: map[string][]FileUpdate{},
+	}
+
+	var buf bytes.Buffer
+	PrintOutdatedUpdateReport(&buf, report)
+
+	if buf.Len() > 0 {
+		t.Errorf("Expected no output for empty report, got: %q", buf.String())
+	}
+}
+
+func TestPrintOutdatedUpdateReport_WithUpdatesAndFailures(t *testing.T) {
+	origTTY := IsTTY
+	defer func() { IsTTY = origTTY }()
+	IsTTY = false
+
+	report := OutdatedUpdateReport{
+		UpdatedByFile: map[string][]FileUpdate{
+			"ci.yaml": {
+				{OldUse: "actions/checkout@v3", NewUse: "actions/checkout@abc123 # v3"},
+			},
+		},
+		FailedUpdates: []OutdatedUpdateFailure{
+			{WorkflowFile: "release.yaml", OldUse: "b@v1", NewUse: "b@v2", Reason: "SHA resolution failed"},
+		},
+	}
+
+	var buf bytes.Buffer
+	PrintOutdatedUpdateReport(&buf, report)
+
+	output := buf.String()
+	if !strings.Contains(output, "Updated 1") {
+		t.Errorf("Expected update count in output, got: %q", output)
+	}
+	if !strings.Contains(output, "Could not update 1") {
+		t.Errorf("Expected failure count in output, got: %q", output)
+	}
+}
+
+func TestBuildOutdatedUpdateSummary_UpdatedOnly(t *testing.T) {
+	origTTY := IsTTY
+	defer func() { IsTTY = origTTY }()
+	IsTTY = false
+
+	report := OutdatedUpdateReport{
+		UpdatedByFile: map[string][]FileUpdate{
+			"ci.yaml": {{OldUse: "a@v1", NewUse: "a@v2"}},
+		},
+	}
+	summary := BuildOutdatedUpdateSummary(report)
+	if !strings.Contains(summary, "Updated 1") {
+		t.Errorf("Expected updated count in summary, got: %q", summary)
+	}
+}
+
+func TestBuildOutdatedUpdateSummary_UpdatedAndFailures(t *testing.T) {
+	origTTY := IsTTY
+	defer func() { IsTTY = origTTY }()
+	IsTTY = false
+
+	report := OutdatedUpdateReport{
+		UpdatedByFile: map[string][]FileUpdate{
+			"ci.yaml": {{OldUse: "a@v1", NewUse: "a@v2"}},
+		},
+		FailedUpdates: []OutdatedUpdateFailure{
+			{WorkflowFile: "release.yaml", OldUse: "b@v1", NewUse: "b@v2", Reason: "failed"},
+		},
+	}
+	summary := BuildOutdatedUpdateSummary(report)
+	if !strings.Contains(summary, "Updated 1") {
+		t.Errorf("Expected updated count in summary, got: %q", summary)
+	}
+	if !strings.Contains(summary, "1 could not be updated") {
+		t.Errorf("Expected failure count in summary, got: %q", summary)
+	}
+}
+
+func TestBuildOutdatedUpdateSummary_FailuresOnly(t *testing.T) {
+	origTTY := IsTTY
+	defer func() { IsTTY = origTTY }()
+	IsTTY = false
+
+	report := OutdatedUpdateReport{
+		FailedUpdates: []OutdatedUpdateFailure{
+			{WorkflowFile: "ci.yaml", OldUse: "a@v1", NewUse: "a@v2", Reason: "failed"},
+		},
+	}
+	summary := BuildOutdatedUpdateSummary(report)
+	if !strings.Contains(summary, "could not be updated") {
+		t.Errorf("Expected failure message in summary, got: %q", summary)
+	}
+}
+
+func TestBuildOutdatedUpdateSummary_NoUpdatesNoFailures(t *testing.T) {
+	origTTY := IsTTY
+	defer func() { IsTTY = origTTY }()
+	IsTTY = false
+
+	report := OutdatedUpdateReport{
+		UpdatedByFile: map[string][]FileUpdate{},
+	}
+	summary := BuildOutdatedUpdateSummary(report)
+	if !strings.Contains(summary, "no updates were applied") {
+		t.Errorf("Expected no-updates message in summary, got: %q", summary)
+	}
+}
+
+func TestOutdatedUpdateCount(t *testing.T) {
+	tests := []struct {
+		name     string
+		report   OutdatedUpdateReport
+		expected int
+	}{
+		{name: "empty report", report: OutdatedUpdateReport{UpdatedByFile: map[string][]FileUpdate{}}, expected: 0},
+		{name: "single file single update", report: OutdatedUpdateReport{UpdatedByFile: map[string][]FileUpdate{
+			"ci.yaml": {{OldUse: "a@v1", NewUse: "a@v2"}},
+		}}, expected: 1},
+		{name: "single file multiple updates", report: OutdatedUpdateReport{UpdatedByFile: map[string][]FileUpdate{
+			"ci.yaml": {{OldUse: "a@v1", NewUse: "a@v2"}, {OldUse: "b@v1", NewUse: "b@v2"}},
+		}}, expected: 2},
+		{name: "multiple files", report: OutdatedUpdateReport{UpdatedByFile: map[string][]FileUpdate{
+			"ci.yaml":      {{OldUse: "a@v1", NewUse: "a@v2"}},
+			"release.yaml": {{OldUse: "b@v1", NewUse: "b@v2"}, {OldUse: "c@v1", NewUse: "c@v2"}},
+		}}, expected: 3},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := OutdatedUpdateCount(tt.report)
+			if got != tt.expected {
+				t.Errorf("OutdatedUpdateCount() = %d, want %d", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestOutdatedUpdateFailureCount(t *testing.T) {
+	report := OutdatedUpdateReport{
+		FailedUpdates: []OutdatedUpdateFailure{
+			{WorkflowFile: "ci.yaml", OldUse: "a@v1", NewUse: "a@v2", Reason: "failed"},
+			{WorkflowFile: "ci.yaml", OldUse: "b@v1", NewUse: "b@v2", Reason: "failed"},
+		},
+	}
+	if got := OutdatedUpdateFailureCount(report); got != 2 {
+		t.Errorf("OutdatedUpdateFailureCount() = %d, want 2", got)
+	}
+}
+
+func TestCheckTTY_NO_COLOR(t *testing.T) {
+	orig := os.Getenv("NO_COLOR")
+	defer os.Setenv("NO_COLOR", orig)
+
+	os.Setenv("NO_COLOR", "1")
+	result := checkTTY()
+	if result {
+		t.Error("Expected checkTTY to return false when NO_COLOR is set")
+	}
+}
+
+func TestCheckTTY_TERMDumb(t *testing.T) {
+	orig := os.Getenv("TERM")
+	defer os.Setenv("TERM", orig)
+
+	os.Setenv("TERM", "dumb")
+	result := checkTTY()
+	if result {
+		t.Error("Expected checkTTY to return false when TERM=dumb")
+	}
+}
+
+func TestCheckTTY_CI(t *testing.T) {
+	orig := os.Getenv("CI")
+	defer os.Setenv("CI", orig)
+
+	os.Setenv("CI", "true")
+	result := checkTTY()
+	if result {
+		t.Error("Expected checkTTY to return false when CI is set")
+	}
+}
+
+func TestCheckTTY_GitHubActions(t *testing.T) {
+	orig := os.Getenv("GITHUB_ACTIONS")
+	defer os.Setenv("GITHUB_ACTIONS", orig)
+
+	os.Setenv("GITHUB_ACTIONS", "true")
+	result := checkTTY()
+	if result {
+		t.Error("Expected checkTTY to return false when GITHUB_ACTIONS is set")
+	}
+}
+
+func TestWriteActionOutput_InvalidDir(t *testing.T) {
+	origEnv := os.Getenv("GITHUB_OUTPUT")
+	defer os.Setenv("GITHUB_OUTPUT", origEnv)
+
+	os.Setenv("GITHUB_OUTPUT", "/nonexistent/path/that/does/not/exist/file")
+	WriteActionOutput("key", "value")
+}
+
+func TestApplyUpdatesToFile_NonexistentDir(t *testing.T) {
+	err := ApplyUpdatesToFile("/nonexistent/dir/file.yaml", []FileUpdate{
+		{OldUse: "a@v1", NewUse: "a@v2"},
+	})
+	if err == nil {
+		t.Error("Expected error for nonexistent directory")
+	}
+}
+
+func TestApplyUpdatesToFile_NonexistentFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	err := ApplyUpdatesToFile(filepath.Join(tmpDir, "nonexistent.yaml"), []FileUpdate{
+		{OldUse: "a@v1", NewUse: "a@v2"},
+	})
+	if err == nil {
+		t.Error("Expected error for nonexistent file in existing directory")
+	}
+}
+
+func TestApplyUpdatesToFile_StatError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("Skipping permission test when running as root")
+	}
+	tmpDir := t.TempDir()
+	content := "name: CI\non: push\njobs:\n test:\n steps:\n - uses: actions/checkout@v3\n"
+	filePath := filepath.Join(tmpDir, "ci.yaml")
+	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+	_ = os.Chmod(filePath, 0000)
+	defer func() {
+		_ = os.Chmod(filePath, 0644)
+	}()
+
+	err := ApplyUpdatesToFile(filePath, []FileUpdate{
+		{OldUse: "actions/checkout@v3", NewUse: "actions/checkout@abc123 # v3"},
+	})
+	if err == nil {
+		t.Error("Expected error when file has no read permissions")
+	}
+}
+
+func TestApplyUpdatesToFile_WriteError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("Skipping permission test when running as root")
+	}
+	tmpDir := t.TempDir()
+	content := "name: CI\non: push\njobs:\n test:\n steps:\n - uses: actions/checkout@v3\n"
+	filePath := filepath.Join(tmpDir, "ci.yaml")
+	if err := os.WriteFile(filePath, []byte(content), 0444); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	err := ApplyUpdatesToFile(filePath, []FileUpdate{
+		{OldUse: "actions/checkout@v3", NewUse: "actions/checkout@abc123 # v3"},
+	})
+	if err == nil {
+		t.Error("Expected error when directory is read-only")
+	}
+}
+
+func TestReadAll_Error(t *testing.T) {
+	r, _, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("Failed to create pipe: %v", err)
+	}
+	r.Close()
+
+	result, err := readAll(r)
+	if err == nil {
+		t.Errorf("readAll() expected error, got nil (result=%q)", string(result))
+	}
+}
+
+func TestReadAll_Success(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", "readall_success_test")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+	defer tmpFile.Close()
+
+	if _, err := tmpFile.WriteString("hello world"); err != nil {
+		t.Fatalf("Failed to write to temp file: %v", err)
+	}
+	if _, err := tmpFile.Seek(0, 0); err != nil {
+		t.Fatalf("Failed to seek: %v", err)
+	}
+
+	result, err := readAll(tmpFile)
+	if err != nil {
+		t.Fatalf("readAll() unexpected error: %v", err)
+	}
+	if string(result) != "hello world" {
+		t.Errorf("readAll() = %q, want %q", string(result), "hello world")
+	}
+}
+
+func TestWriteOutdatedActions_WorkflowFileMismatch(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(404)
+	}))
+	defer server.Close()
+
+	client := newTestGithubClient(server)
+	ctx := context.Background()
+
+	outdated := []OutdatedActionInfo{
+		{OwnerRepo: "owner/repo", CurrentRef: "v3", LatestTag: "v4.1.2", Workflow: "nonexistent.yaml", FullRef: "owner/repo@v3"},
+	}
+
+	releases := map[string]*gh.ReleaseInfo{
+		"owner/repo": {TagName: "v4.1.2", HTMLURL: "https://github.com/owner/repo/releases/tag/v4.1.2"},
+	}
+
+	report := WriteOutdatedActions(ctx, client, nil, outdated, releases, true, false)
+	if got := OutdatedUpdateFailureCount(report); got == 0 {
+		t.Error("Expected failures for workflow file that doesn't match any WorkflowFile path")
+	}
+}
+
+func TestWriteOutdatedActions_VerboseSHAResolution(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/repos/owner/repo/git/refs/tags/v4.1.2":
+			w.WriteHeader(200)
+			if _, err := w.Write([]byte(`{"ref":"refs/tags/v4.1.2","object":{"sha":"abc123def456","type":"commit"}}`)); err != nil {
+				t.Errorf("failed to write response: %v", err)
+			}
+		default:
+			w.WriteHeader(404)
+		}
+	}))
+	defer server.Close()
+
+	client := newTestGithubClient(server)
+	ctx := context.Background()
+
+	tmpDir := t.TempDir()
+	content := "name: CI\non: push\njobs:\n test:\n steps:\n - uses: owner/repo@v3\n"
+	filePath := filepath.Join(tmpDir, "ci.yaml")
+	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	wf := &workflow.WorkflowFile{
+		Path: filePath,
+		UsesWithVersions: []workflow.ActionRef{
+			{OwnerRepo: "owner/repo", Version: "v3", FullRef: "owner/repo@v3"},
+		},
+	}
+
+	outdated := []OutdatedActionInfo{
+		{OwnerRepo: "owner/repo", CurrentRef: "v3", LatestTag: "v4.1.2", Workflow: "ci.yaml", FullRef: "owner/repo@v3"},
+	}
+
+	releases := map[string]*gh.ReleaseInfo{
+		"owner/repo": {TagName: "v4.1.2", HTMLURL: "https://github.com/owner/repo/releases/tag/v4.1.2"},
+	}
+
+	report := WriteOutdatedActions(ctx, client, []*workflow.WorkflowFile{wf}, outdated, releases, false, true)
+	if got := OutdatedUpdateFailureCount(report); got != 0 {
+		t.Fatalf("WriteOutdatedActions() failure count = %d, want 0", got)
+	}
+}
+
+func TestWriteOutdatedActions_ApplyUpdatesToFileError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("Skipping permission test when running as root")
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/repos/owner/repo/git/refs/tags/v4.1.2":
+			w.WriteHeader(200)
+			if _, err := w.Write([]byte(`{"ref":"refs/tags/v4.1.2","object":{"sha":"abc123def456","type":"commit"}}`)); err != nil {
+				t.Errorf("failed to write response: %v", err)
+			}
+		default:
+			w.WriteHeader(404)
+		}
+	}))
+	defer server.Close()
+
+	client := newTestGithubClient(server)
+	ctx := context.Background()
+
+	tmpDir := t.TempDir()
+	content := "name: CI\non: push\njobs:\n test:\n steps:\n - uses: owner/repo@v3\n"
+	filePath := filepath.Join(tmpDir, "ci.yaml")
+	if err := os.WriteFile(filePath, []byte(content), 0444); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	wf := &workflow.WorkflowFile{
+		Path: filePath,
+		UsesWithVersions: []workflow.ActionRef{
+			{OwnerRepo: "owner/repo", Version: "v3", FullRef: "owner/repo@v3"},
+		},
+	}
+
+	outdated := []OutdatedActionInfo{
+		{OwnerRepo: "owner/repo", CurrentRef: "v3", LatestTag: "v4.1.2", Workflow: "ci.yaml", FullRef: "owner/repo@v3"},
+	}
+
+	releases := map[string]*gh.ReleaseInfo{
+		"owner/repo": {TagName: "v4.1.2", HTMLURL: "https://github.com/owner/repo/releases/tag/v4.1.2"},
+	}
+
+	report := WriteOutdatedActions(ctx, client, []*workflow.WorkflowFile{wf}, outdated, releases, false, false)
+	if got := OutdatedUpdateFailureCount(report); got == 0 {
+		t.Error("Expected failures when file write fails due to permissions")
+	}
+}
+
+func TestWriteOutdatedActions_EmptyFullRef(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(404)
+	}))
+	defer server.Close()
+
+	client := newTestGithubClient(server)
+	ctx := context.Background()
+
+	tmpDir := t.TempDir()
+	content := "name: CI\non: push\njobs:\n test:\n steps:\n - uses: owner/repo@v3\n"
+	filePath := filepath.Join(tmpDir, "ci.yaml")
+	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	wf := &workflow.WorkflowFile{
+		Path: filePath,
+		UsesWithVersions: []workflow.ActionRef{
+			{OwnerRepo: "owner/repo", Version: "v3"},
+		},
+	}
+
+	outdated := []OutdatedActionInfo{
+		{OwnerRepo: "owner/repo", CurrentRef: "v3", LatestTag: "v4.1.2", Workflow: "ci.yaml"},
+	}
+
+	releases := map[string]*gh.ReleaseInfo{
+		"owner/repo": {TagName: "v4.1.2", HTMLURL: "https://github.com/owner/repo/releases/tag/v4.1.2"},
+	}
+
+	report := WriteOutdatedActions(ctx, client, []*workflow.WorkflowFile{wf}, outdated, releases, true, false)
+	if got := OutdatedUpdateFailureCount(report); got != 0 {
+		t.Fatalf("WriteOutdatedActions() failure count = %d, want 0", got)
+	}
+
+	result, err := os.ReadFile(filePath)
+	if err != nil {
+		t.Fatalf("Failed to read file: %v", err)
+	}
+	if !strings.Contains(string(result), "owner/repo@v4.1.2") {
+		t.Errorf("Expected semver update with empty FullRef, got: %s", string(result))
 	}
 }

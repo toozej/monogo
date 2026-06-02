@@ -17,18 +17,31 @@ import (
 	"golang.org/x/oauth2"
 	"gopkg.in/yaml.v3"
 
+	"github.com/toozej/go-sort-out-gh-actions/internal/cache"
 	"github.com/toozej/go-sort-out-gh-actions/internal/runtime"
 	"github.com/toozej/go-sort-out-gh-actions/internal/workflow"
 )
 
 const maxConcurrency = 10
 
+// ClientOption configures a Client.
+type ClientOption func(*Client)
+
+// WithCache enables or disables the persistent disk cache and refresh mode.
+func WithCache(enabled, refresh bool, ttl time.Duration) ClientOption {
+	return func(c *Client) {
+		c.cacheEnabled = enabled
+		c.refreshCache = refresh
+		c.cacheTTL = ttl
+	}
+}
+
 func (c *Client) SetEOLClientForTest(baseURL string, httpClient *http.Client) {
 	c.eolClient = runtime.NewEOLClientWithHTTP(baseURL, httpClient)
 }
 
-func NewClientWithHTTP(baseURL string, httpClient *http.Client) *Client {
-	return &Client{
+func NewClientWithHTTP(baseURL string, httpClient *http.Client, opts ...ClientOption) *Client {
+	client := &Client{
 		httpClient:    httpClient,
 		token:         "",
 		baseURL:       baseURL,
@@ -37,17 +50,48 @@ func NewClientWithHTTP(baseURL string, httpClient *http.Client) *Client {
 		releaseCache:  make(map[string]*ReleaseInfo),
 		refSHACache:   make(map[string]string),
 		repoInfoCache: make(map[string]*RepoInfo),
+		cacheEnabled:  true,
+		cacheTTL:      24 * time.Hour,
 	}
+
+	for _, opt := range opts {
+		opt(client)
+	}
+
+	if client.cacheEnabled {
+		var err error
+		client.cacheStore, err = cache.NewCacheStore("go-sort-out-gh-actions")
+		if err != nil {
+			log.WithFields(log.Fields{
+				"error": err,
+			}).Warn("Failed to initialize disk cache, falling back to in-memory only")
+			client.cacheEnabled = false
+		}
+	}
+
+	if client.cacheEnabled && client.cacheStore != nil && client.refreshCache {
+		if err := client.cacheStore.ClearAll(); err != nil {
+			log.WithFields(log.Fields{
+				"error": err,
+			}).Warn("Failed to clear disk cache")
+		}
+	}
+
+	if client.cacheEnabled && client.cacheStore != nil && !client.refreshCache {
+		client.loadAllCaches()
+	}
+
+	return client
 }
 
-func NewClient(token string) *Client {
+func NewClient(token string, opts ...ClientOption) *Client {
 	ctx := context.Background()
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: token},
 	)
 	tc := oauth2.NewClient(ctx, ts)
 
-	return &Client{
+	client := &Client{
 		httpClient:    tc,
 		token:         token,
 		baseURL:       "https://api.github.com",
@@ -56,6 +100,61 @@ func NewClient(token string) *Client {
 		releaseCache:  make(map[string]*ReleaseInfo),
 		refSHACache:   make(map[string]string),
 		repoInfoCache: make(map[string]*RepoInfo),
+		cacheEnabled:  true,
+		cacheTTL:      24 * time.Hour,
+	}
+
+	for _, opt := range opts {
+		opt(client)
+	}
+
+	if client.cacheEnabled {
+		var err error
+		client.cacheStore, err = cache.NewCacheStore("go-sort-out-gh-actions")
+		if err != nil {
+			log.WithFields(log.Fields{
+				"error": err,
+			}).Warn("Failed to initialize disk cache, falling back to in-memory only")
+			client.cacheEnabled = false
+		}
+	}
+
+	if client.cacheEnabled && client.cacheStore != nil && client.refreshCache {
+		if err := client.cacheStore.ClearAll(); err != nil {
+			log.WithFields(log.Fields{
+				"error": err,
+			}).Warn("Failed to clear disk cache")
+		}
+	}
+
+	if client.cacheEnabled && client.cacheStore != nil && !client.refreshCache {
+		client.loadAllCaches()
+	}
+
+	return client
+}
+
+func (c *Client) loadAllCaches() {
+	if c.cacheStore == nil {
+		return
+	}
+
+	var archivedCache map[string]bool
+	var releaseCache map[string]*ReleaseInfo
+	var refSHACache map[string]string
+	var repoInfoCache map[string]*RepoInfo
+
+	if err := c.cacheStore.Load("archived", &archivedCache); err == nil {
+		c.archivedCache = archivedCache
+	}
+	if err := c.cacheStore.Load("releases", &releaseCache); err == nil {
+		c.releaseCache = releaseCache
+	}
+	if err := c.cacheStore.Load("refsha", &refSHACache); err == nil {
+		c.refSHACache = refSHACache
+	}
+	if err := c.cacheStore.Load("repoinfo", &repoInfoCache); err == nil {
+		c.repoInfoCache = repoInfoCache
 	}
 }
 
@@ -98,6 +197,9 @@ func (c *Client) handleRateLimit(resp *http.Response) error {
 }
 
 func (c *Client) getCachedArchived(ownerRepo string) (bool, *RepoInfo, bool) {
+	if !c.cacheEnabled {
+		return false, nil, false
+	}
 	c.cacheMu.RLock()
 	defer c.cacheMu.RUnlock()
 	cleanRepo := cleanOwnerRepo(ownerRepo)
@@ -119,6 +221,9 @@ func (c *Client) setCachedArchived(ownerRepo string, archived bool, info *RepoIn
 }
 
 func (c *Client) getCachedRelease(ownerRepo string) (*ReleaseInfo, bool) {
+	if !c.cacheEnabled {
+		return nil, false
+	}
 	c.cacheMu.RLock()
 	defer c.cacheMu.RUnlock()
 	cleanRepo := cleanOwnerRepo(ownerRepo)
@@ -129,6 +234,9 @@ func (c *Client) getCachedRelease(ownerRepo string) (*ReleaseInfo, bool) {
 }
 
 func (c *Client) setCachedRelease(ownerRepo string, release *ReleaseInfo) {
+	if !c.cacheEnabled {
+		return
+	}
 	c.cacheMu.Lock()
 	defer c.cacheMu.Unlock()
 	cleanRepo := cleanOwnerRepo(ownerRepo)
@@ -136,6 +244,9 @@ func (c *Client) setCachedRelease(ownerRepo string, release *ReleaseInfo) {
 }
 
 func (c *Client) getCachedRefSHA(ownerRepo, ref string) (string, bool) {
+	if !c.cacheEnabled {
+		return "", false
+	}
 	c.cacheMu.RLock()
 	defer c.cacheMu.RUnlock()
 	key := cleanOwnerRepo(ownerRepo) + "@" + ref
@@ -146,6 +257,9 @@ func (c *Client) getCachedRefSHA(ownerRepo, ref string) (string, bool) {
 }
 
 func (c *Client) setCachedRefSHA(ownerRepo, ref, sha string) {
+	if !c.cacheEnabled {
+		return
+	}
 	c.cacheMu.Lock()
 	defer c.cacheMu.Unlock()
 	key := cleanOwnerRepo(ownerRepo) + "@" + ref
@@ -811,4 +925,37 @@ func (c *Client) LogRateLimits(ctx context.Context) {
 	}
 	log.Debugf("GitHub API rate limit: limit=%d remaining=%d used=%d reset=%s resource=%s",
 		info.Limit, info.Remaining, info.Used, info.Reset.Format(time.RFC3339), info.Resource)
+}
+
+// FlushCache persists all in-memory caches to disk.
+func (c *Client) FlushCache() error {
+	if c.cacheStore == nil || !c.cacheEnabled {
+		return nil
+	}
+
+	c.cacheMu.Lock()
+	defer c.cacheMu.Unlock()
+
+	if err := c.cacheStore.Save("archived", c.archivedCache); err != nil {
+		return fmt.Errorf("failed to flush archived cache: %w", err)
+	}
+	if err := c.cacheStore.Save("releases", c.releaseCache); err != nil {
+		return fmt.Errorf("failed to flush release cache: %w", err)
+	}
+	if err := c.cacheStore.Save("refsha", c.refSHACache); err != nil {
+		return fmt.Errorf("failed to flush refsha cache: %w", err)
+	}
+	if err := c.cacheStore.Save("repoinfo", c.repoInfoCache); err != nil {
+		return fmt.Errorf("failed to flush repoinfo cache: %w", err)
+	}
+
+	return nil
+}
+
+// Close flushes any in-memory cache to disk and releases resources.
+func (c *Client) Close() error {
+	if err := c.FlushCache(); err != nil {
+		return err
+	}
+	return nil
 }

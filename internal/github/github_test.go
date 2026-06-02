@@ -25,6 +25,8 @@ func newTestClient(server *httptest.Server) *Client {
 		releaseCache:  make(map[string]*ReleaseInfo),
 		refSHACache:   make(map[string]string),
 		repoInfoCache: make(map[string]*RepoInfo),
+		cacheEnabled:  true,
+		cacheTTL:      24 * time.Hour,
 	}
 }
 
@@ -489,6 +491,8 @@ func TestClient_IsRepoArchived_RequestError(t *testing.T) {
 		releaseCache:  make(map[string]*ReleaseInfo),
 		refSHACache:   make(map[string]string),
 		repoInfoCache: make(map[string]*RepoInfo),
+		cacheEnabled:  true,
+		cacheTTL:      24 * time.Hour,
 	}
 	_, _, err := client.IsRepoArchived(context.Background(), "owner/repo")
 	if err == nil {
@@ -505,6 +509,8 @@ func TestClient_IsRepoArchived_BadURL(t *testing.T) {
 		releaseCache:  make(map[string]*ReleaseInfo),
 		refSHACache:   make(map[string]string),
 		repoInfoCache: make(map[string]*RepoInfo),
+		cacheEnabled:  true,
+		cacheTTL:      24 * time.Hour,
 	}
 	_, _, err := client.IsRepoArchived(context.Background(), "owner/repo")
 	if err == nil {

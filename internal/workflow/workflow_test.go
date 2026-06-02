@@ -541,7 +541,97 @@ func TestWorkflowParser_FindReposWithWorkflows(t *testing.T) {
 	}
 }
 
-func TestWorkflowParser_GetAllUsesFromRepoWithVersions(t *testing.T) {
+func TestActionRef_Key(t *testing.T) {
+	tests := []struct {
+		name     string
+		ref      ActionRef
+		expected string
+	}{
+		{
+			name:     "empty action path uses ownerRepo@version",
+			ref:      ActionRef{OwnerRepo: "actions/checkout", Version: "v3"},
+			expected: "actions/checkout@v3",
+		},
+		{
+			name:     "non-empty action path uses ownerRepo/actionPath@version",
+			ref:      ActionRef{OwnerRepo: "github/codeql-action", ActionPath: "init", Version: "v4.35.2"},
+			expected: "github/codeql-action/init@v4.35.2",
+		},
+		{
+			name:     "empty action path with commit SHA",
+			ref:      ActionRef{OwnerRepo: "actions/checkout", Version: "abc123def456"},
+			expected: "actions/checkout@abc123def456",
+		},
+		{
+			name:     "non-empty action path with branch ref",
+			ref:      ActionRef{OwnerRepo: "github/codeql-action", ActionPath: "analyze", Version: "main"},
+			expected: "github/codeql-action/analyze@main",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.ref.Key()
+			if got != tt.expected {
+				t.Errorf("Key() = %q, want %q", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestActionRef_Key_EmptyActionPath(t *testing.T) {
+	ref := ActionRef{OwnerRepo: "owner/repo", Version: "v1"}
+	if ref.Key() != "owner/repo@v1" {
+		t.Errorf("Expected 'owner/repo@v1', got %q", ref.Key())
+	}
+}
+
+func TestActionRef_Key_WithActionPath(t *testing.T) {
+	ref := ActionRef{OwnerRepo: "owner/repo", ActionPath: "sub", Version: "v2"}
+	if ref.Key() != "owner/repo/sub@v2" {
+		t.Errorf("Expected 'owner/repo/sub@v2', got %q", ref.Key())
+	}
+}
+
+func TestWorkflowFile_Fields(t *testing.T) {
+	wf := WorkflowFile{
+		Path:             ".github/workflows/ci.yml",
+		Uses:             []string{"actions/checkout"},
+		UsesWithVersions: []ActionRef{{OwnerRepo: "actions/checkout", Version: "v3"}},
+	}
+	if wf.Path != ".github/workflows/ci.yml" {
+		t.Errorf("Expected Path '.github/workflows/ci.yml', got %s", wf.Path)
+	}
+	if len(wf.Uses) != 1 {
+		t.Errorf("Expected 1 use, got %d", len(wf.Uses))
+	}
+	if len(wf.UsesWithVersions) != 1 {
+		t.Errorf("Expected 1 use with version, got %d", len(wf.UsesWithVersions))
+	}
+}
+
+func TestWorkflowFile_WithError(t *testing.T) {
+	wf := WorkflowFile{
+		Path:  "nonexistent.yml",
+		Error: os.ErrNotExist,
+	}
+	if wf.Error == nil {
+		t.Error("Expected Error to be set")
+	}
+}
+
+func TestWorkflowParser_FindWorkflowFilesInDir_NonexistentDir(t *testing.T) {
+	parser := NewParser()
+	files, err := parser.FindWorkflowFilesInDir("/nonexistent/path/that/does/not/exist")
+	if err != nil {
+		t.Fatalf("FindWorkflowFilesInDir should not error for nonexistent dir: %v", err)
+	}
+	if len(files) != 0 {
+		t.Errorf("Expected 0 files from nonexistent directory, got %d", len(files))
+	}
+}
+
+func TestGetAllUsesFromRepoWithVersions(t *testing.T) {
 	parser := NewParser()
 
 	tmpDir := t.TempDir()
@@ -553,15 +643,14 @@ func TestWorkflowParser_GetAllUsesFromRepoWithVersions(t *testing.T) {
 	file1 := filepath.Join(workflowsDir, "ci.yml")
 	file2 := filepath.Join(workflowsDir, "security.yml")
 
-	if err := os.WriteFile(file1, []byte("jobs:\n  test:\n    steps:\n      - uses: actions/checkout@v3\n      - uses: github/codeql-action/init@v4.35.2\n"), 0644); err != nil {
+	if err := os.WriteFile(file1, []byte("jobs:\n test:\n steps:\n - uses: actions/checkout@v3\n - uses: github/codeql-action/init@v4.35.2\n"), 0644); err != nil {
 		t.Fatalf("Failed to write file1: %v", err)
 	}
-	if err := os.WriteFile(file2, []byte("jobs:\n  analyze:\n    steps:\n      - uses: github/codeql-action/autobuild@v4.35.4\n      - uses: github/codeql-action/analyze@v4.35.4\n"), 0644); err != nil {
+	if err := os.WriteFile(file2, []byte("jobs:\n analyze:\n steps:\n - uses: github/codeql-action/autobuild@v4.35.4\n - uses: github/codeql-action/analyze@v4.35.4\n"), 0644); err != nil {
 		t.Fatalf("Failed to write file2: %v", err)
 	}
 
 	actionRefs, files, err := parser.GetAllUsesFromRepoWithVersions(tmpDir)
-
 	if err != nil {
 		t.Fatalf("GetAllUsesFromRepoWithVersions failed: %v", err)
 	}

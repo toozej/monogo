@@ -30,6 +30,8 @@ func newClientWithRawRedirect(rawServer *httptest.Server) *Client {
 		releaseCache:  make(map[string]*ReleaseInfo),
 		refSHACache:   make(map[string]string),
 		repoInfoCache: make(map[string]*RepoInfo),
+		cacheEnabled:  true,
+		cacheTTL:      24 * time.Hour,
 	}
 }
 
@@ -167,6 +169,8 @@ func TestClient_GetRateLimits_RequestError(t *testing.T) {
 		releaseCache:  make(map[string]*ReleaseInfo),
 		refSHACache:   make(map[string]string),
 		repoInfoCache: make(map[string]*RepoInfo),
+		cacheEnabled:  true,
+		cacheTTL:      24 * time.Hour,
 	}
 	_, err := client.GetRateLimits(context.Background())
 	if err == nil {
@@ -183,6 +187,8 @@ func TestClient_GetLatestRelease_RequestError(t *testing.T) {
 		releaseCache:  make(map[string]*ReleaseInfo),
 		refSHACache:   make(map[string]string),
 		repoInfoCache: make(map[string]*RepoInfo),
+		cacheEnabled:  true,
+		cacheTTL:      24 * time.Hour,
 	}
 	_, err := client.GetLatestRelease(context.Background(), "owner/repo")
 	if err == nil {
@@ -341,6 +347,8 @@ func TestClient_GetLatestSemverTag_RequestError(t *testing.T) {
 		releaseCache:  make(map[string]*ReleaseInfo),
 		refSHACache:   make(map[string]string),
 		repoInfoCache: make(map[string]*RepoInfo),
+		cacheEnabled:  true,
+		cacheTTL:      24 * time.Hour,
 	}
 	_, err := client.GetLatestSemverTag(context.Background(), "owner/repo")
 	if err == nil {
@@ -434,6 +442,8 @@ func TestClient_GetActionYML_RequestError(t *testing.T) {
 		releaseCache:  make(map[string]*ReleaseInfo),
 		refSHACache:   make(map[string]string),
 		repoInfoCache: make(map[string]*RepoInfo),
+		cacheEnabled:  true,
+		cacheTTL:      24 * time.Hour,
 	}
 	_, err := client.GetActionYML(context.Background(), "owner/repo", "", "v1")
 	if err == nil {
@@ -636,6 +646,8 @@ func TestClient_GetRawActionYML_RequestError(t *testing.T) {
 		releaseCache:  make(map[string]*ReleaseInfo),
 		refSHACache:   make(map[string]string),
 		repoInfoCache: make(map[string]*RepoInfo),
+		cacheEnabled:  true,
+		cacheTTL:      24 * time.Hour,
 	}
 	_, err := client.GetRawActionYML(context.Background(), "owner/repo", "", "v1")
 	if err == nil {
@@ -716,6 +728,8 @@ func TestClient_GetRefSHA_RequestError(t *testing.T) {
 		releaseCache:  make(map[string]*ReleaseInfo),
 		refSHACache:   make(map[string]string),
 		repoInfoCache: make(map[string]*RepoInfo),
+		cacheEnabled:  true,
+		cacheTTL:      24 * time.Hour,
 	}
 	_, err := client.GetRefSHA(context.Background(), "owner/repo", "v1")
 	if err == nil {
@@ -771,6 +785,8 @@ func TestClient_DereferenceTag_RequestError(t *testing.T) {
 		releaseCache:  make(map[string]*ReleaseInfo),
 		refSHACache:   make(map[string]string),
 		repoInfoCache: make(map[string]*RepoInfo),
+		cacheEnabled:  true,
+		cacheTTL:      24 * time.Hour,
 	}
 	_, err := client.dereferenceTag(context.Background(), "owner", "repo", "deadbeef")
 	if err == nil {

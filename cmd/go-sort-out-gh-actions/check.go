@@ -37,7 +37,8 @@ Use --write/-w to automatically apply updates: runs archived check, then eol wit
 func runCheck(writeFlag bool, semverFlag bool, staleDays int) {
 	token := resolveToken()
 	of := resolveOutputFormat()
-	rc := checkrunner.NewRunContext(token, conf, notify, createIssue, of)
+	rc := newRunContextFromFlags(token, of)
+	defer rc.Close()
 	rc.Verbose = verbose
 	rc.Debug = debug
 
@@ -52,13 +53,15 @@ func runCheck(writeFlag bool, semverFlag bool, staleDays int) {
 	if reposDir != "" {
 		reposDir = actioninfo.ExpandPath(reposDir, rc.WorkDir)
 		if checkrunner.RunReposMode(rc, reposDir, processFunc) {
-			os.Exit(1)
+			exitCode = 1
 		}
 		return
 	}
 
 	workflowFiles, allActionRefs := resolveWorkflowFiles(rc.Parser, rc.WorkDir)
-	processFunc(rc, workflowFiles, allActionRefs, rc.WorkDir)
+	if processFunc(rc, workflowFiles, allActionRefs, rc.WorkDir) {
+		exitCode = 1
+	}
 }
 
 func processCheck(rc *checkrunner.RunContext, workflowFiles []*workflow.WorkflowFile, allActionRefs []workflow.ActionRef, workDir string, writeFlag bool, semverFlag bool, staleDays int) bool {

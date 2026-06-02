@@ -5,26 +5,26 @@
 // command for displaying version details to users.
 //
 // The version information includes:
-//   - Version: Semantic version number (e.g., "v1.0.0")
-//   - Commit: Git commit hash from build
-//   - Branch: Git branch name from build
-//   - BuiltAt: Build timestamp
-//   - Builder: Build environment or CI system identifier
+// - Version: Semantic version number (e.g., "v1.0.0")
+// - Commit: Git commit hash from build
+// - Branch: Git branch name from build
+// - BuiltAt: Build timestamp
+// - Builder: Build environment or CI system identifier
 //
 // Build-time injection example:
 //
-//	go build -ldflags "-X github.com/toozej/go-sort-out-gh-actions/pkg/version.Version=v1.0.0 \
-//	  -X github.com/toozej/go-sort-out-gh-actions/pkg/version.Commit=abc123 \
-//	  -X github.com/toozej/go-sort-out-gh-actions/pkg/version.Branch=main"
+// go build -ldflags "-X github.com/toozej/go-sort-out-gh-actions/pkg/version.Version=v1.0.0 \
+// -X github.com/toozej/go-sort-out-gh-actions/pkg/version.Commit=abc123 \
+// -X github.com/toozej/go-sort-out-gh-actions/pkg/version.Branch=main"
 //
 // Example usage:
 //
-//	import "github.com/toozej/go-sort-out-gh-actions/pkg/version"
+// import "github.com/toozej/go-sort-out-gh-actions/pkg/version"
 //
 //	// Get version info programmatically
 //	info, err := version.Get()
 //	if err == nil {
-//		fmt.Printf("Version: %s\n", info.Version)
+//	    fmt.Printf("Version: %s\n", info.Version)
 //	}
 //
 //	// Add version command to CLI
@@ -44,15 +44,15 @@ import (
 // mechanism. If not set, they default to development-friendly values.
 //
 // Variables:
-//   - Version: The semantic version of the application (default: "local")
-//   - Commit: Git commit hash of the build (default: empty string)
-//   - Branch: Git branch name of the build (default: empty string)
-//   - BuiltAt: ISO timestamp of when the binary was built (default: empty string)
-//   - Builder: Identifier of the build system/CI (default: empty string)
+// - Version: The semantic version of the application (default: "local")
+// - Commit: Git commit hash of the build (default: empty string)
+// - Branch: Git branch name of the build (default: empty string)
+// - BuiltAt: ISO timestamp of when the binary was built (default: empty string)
+// - Builder: Identifier of the build system/CI (default: empty string)
 //
 // Build-time injection example:
 //
-//	go build -ldflags "-X github.com/toozej/go-sort-out-gh-actions/pkg/version.Version=v1.2.3"
+// go build -ldflags "-X github.com/toozej/go-sort-out-gh-actions/pkg/version.Version=v1.2.3"
 var (
 	// Version represents the semantic version of the application.
 	// Defaults to "local" for development builds.
@@ -82,20 +82,20 @@ var (
 // version command output.
 //
 // Fields:
-//   - Version: Semantic version string
-//   - Commit: Git commit hash
-//   - Branch: Git branch name
-//   - BuiltAt: Build timestamp
-//   - Builder: Build environment identifier
+// - Version: Semantic version string
+// - Commit: Git commit hash
+// - Branch: Git branch name
+// - BuiltAt: Build timestamp
+// - Builder: Build environment identifier
 //
 // Example:
 //
 //	info := Info{
-//		Version: "v1.0.0",
-//		Commit:  "abc123def",
-//		Branch:  "main",
-//		BuiltAt: "2023-10-15T10:30:00Z",
-//		Builder: "github-actions",
+//	    Version: "v1.0.0",
+//	    Commit: "abc123def",
+//	    Branch: "main",
+//	    BuiltAt: "2023-10-15T10:30:00Z",
+//	    Builder: "github-actions",
 //	}
 type Info struct {
 	// Commit holds the Git commit hash from the build.
@@ -125,19 +125,19 @@ type Info struct {
 // logging, telemetry, or other programmatic uses.
 //
 // Returns:
-//   - Info: Populated version information struct
-//   - error: Always nil in current implementation (reserved for future use)
+// - Info: Populated version information struct
+// - error: Always nil in current implementation (reserved for future use)
 //
 // Example:
 //
 //	info, err := version.Get()
 //	if err != nil {
-//		log.Fatal(err)
+//	    log.Fatal(err)
 //	}
 //
 //	fmt.Printf("Running %s version %s\n", os.Args[0], info.Version)
 //	if info.Commit != "" {
-//		fmt.Printf("Built from commit %s\n", info.Commit)
+//	    fmt.Printf("Built from commit %s\n", info.Commit)
 //	}
 func Get() (Info, error) {
 	return Info{
@@ -149,6 +149,12 @@ func Get() (Info, error) {
 	}, nil
 }
 
+// getFunc allows the Get implementation to be overridden in tests for error-path coverage.
+var getFunc = Get
+
+// marshalFunc allows the JSON marshaling implementation to be overridden in tests.
+var marshalFunc = json.Marshal
+
 // Command creates and returns a cobra command for displaying version information.
 //
 // This function constructs a "version" subcommand that outputs detailed build
@@ -156,16 +162,16 @@ func Get() (Info, error) {
 // to a root cobra command to provide standard version query functionality.
 //
 // Command characteristics:
-//   - Use: "version" - command name for invocation
-//   - Output: JSON-formatted version information
-//   - Args: No arguments accepted
-//   - Errors: Returns error if JSON marshaling or Info retrieval fails
+// - Use: "version" - command name for invocation
+// - Output: JSON-formatted version information
+// - Args: No arguments accepted
+// - Errors: Returns error if JSON marshaling or Info retrieval fails
 //
 // The JSON output includes all available version fields and follows a consistent
 // format that can be parsed by scripts or other automated tools.
 //
 // Returns:
-//   - *cobra.Command: Configured version command ready to be added to parent command
+// - *cobra.Command: Configured version command ready to be added to parent command
 //
 // Example:
 //
@@ -181,11 +187,11 @@ func Command() *cobra.Command {
 		Short: "Print the version.",
 		Long:  `Print the version and build information.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			info, err := Get()
+			info, err := getFunc()
 			if err != nil {
 				return err
 			}
-			jsonBytes, err := json.Marshal(info)
+			jsonBytes, err := marshalFunc(info)
 			if err != nil {
 				return err
 			}

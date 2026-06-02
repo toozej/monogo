@@ -1,13 +1,20 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
+	"net/http"
 	"os"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/toozej/go-sort-out-gh-actions/internal/actioninfo"
+	"github.com/toozej/go-sort-out-gh-actions/internal/checkrunner"
+	"github.com/toozej/go-sort-out-gh-actions/internal/github"
+	"github.com/toozej/go-sort-out-gh-actions/internal/issue"
+	"github.com/toozej/go-sort-out-gh-actions/internal/notification"
 	"github.com/toozej/go-sort-out-gh-actions/internal/output"
 	"github.com/toozej/go-sort-out-gh-actions/internal/workflow"
 	"github.com/toozej/go-sort-out-gh-actions/pkg/config"
@@ -26,6 +33,14 @@ var (
 	notify       bool
 	createIssue  bool
 	outputFormat string
+	noCache      bool
+	refreshCache bool
+	cacheTTL     time.Duration
+
+	ghAPIBaseURL  string
+	ghAPIClient   *http.Client
+	eolAPIBaseURL string
+	eolAPIClient  *http.Client
 )
 
 var rootCmd = &cobra.Command{
@@ -53,6 +68,9 @@ func Execute() {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
+	if exitCode != 0 {
+		os.Exit(exitCode)
+	}
 }
 
 func init() {
@@ -67,6 +85,9 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&workflowsDir, "workflows-dir", "", "Path to directory containing workflow yaml files")
 	rootCmd.PersistentFlags().StringVar(&reposDir, "repos-dir", "", "Path to base directory containing multiple repos to scan")
 	rootCmd.PersistentFlags().StringVarP(&outputFormat, "output-format", "o", "text", "Output format: text or json")
+	rootCmd.PersistentFlags().BoolVar(&noCache, "no-cache", conf.NoCache, "Disable reading and writing cache files")
+	rootCmd.PersistentFlags().BoolVar(&refreshCache, "refresh-cache", conf.RefreshCache, "Ignore existing cache and overwrite after run")
+	rootCmd.PersistentFlags().DurationVar(&cacheTTL, "cache-ttl", conf.CacheTTL, "How long cache files remain valid (e.g. 24h)")
 
 	rootCmd.AddCommand(
 		newArchivedCmd(),
@@ -98,6 +119,38 @@ func resolveOutputFormat() output.Format {
 		log.Fatal(err.Error())
 	}
 	return f
+}
+
+func newRunContextFromFlags(token string, of output.Format) *checkrunner.RunContext {
+	if ghAPIBaseURL != "" && ghAPIClient != nil {
+		ghClient := github.NewClientWithHTTP(ghAPIBaseURL, ghAPIClient, github.WithCache(!noCache, refreshCache, cacheTTL))
+		if eolAPIBaseURL != "" && eolAPIClient != nil {
+			ghClient.SetEOLClientForTest(eolAPIBaseURL, eolAPIClient)
+		}
+		workDir, err := os.Getwd()
+		if err != nil {
+			log.Fatalf("Failed to get working directory: %v", err)
+		}
+		rc := &checkrunner.RunContext{
+			Ctx:          context.Background(),
+			WorkDir:      workDir,
+			Parser:       workflow.NewParser(),
+			GHClient:     ghClient,
+			OutputWriter: output.NewWriter(of),
+		}
+		if notify {
+			manager, nerr := notification.NewNotificationManager(conf.Notification)
+			if nerr != nil {
+				log.Fatalf("Failed to initialize notification manager: %v", nerr)
+			}
+			rc.Notifier = manager
+		}
+		if createIssue {
+			rc.IssueCreator = issue.NewIssueCreator(token)
+		}
+		return rc
+	}
+	return checkrunner.NewRunContext(token, conf, notify, createIssue, of, noCache, refreshCache, cacheTTL)
 }
 
 func resolveWorkflowFiles(parser *workflow.WorkflowParser, workDir string) ([]*workflow.WorkflowFile, []workflow.ActionRef) {
