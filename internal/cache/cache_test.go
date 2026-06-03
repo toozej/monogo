@@ -10,6 +10,33 @@ import (
 	"time"
 )
 
+// isRunningAsRoot reports whether the current process is running as root
+// (UID 0), where Unix file permissions are not enforced.
+func isRunningAsRoot() bool {
+	return os.Getuid() == 0
+}
+
+// skipIfRoot skips the test if running as root, since root bypasses
+// Unix file permission checks and the permission-based tests would fail.
+func skipIfRoot(t *testing.T) {
+	t.Helper()
+	if isRunningAsRoot() {
+		t.Skip("skipping: test relies on Unix file permissions which are not enforced when running as root")
+	}
+}
+
+// skipIfDarwinOrRoot skips the test on macOS (which doesn't enforce Unix
+// permissions) or when running as root.
+func skipIfDarwinOrRoot(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS == "darwin" {
+		t.Skip("skipping: macOS does not enforce Unix file permissions")
+	}
+	if isRunningAsRoot() {
+		t.Skip("skipping: test relies on Unix file permissions which are not enforced when running as root")
+	}
+}
+
 func TestCacheStore_LoadSaveRoundTrip(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := &CacheStore{dir: tmpDir}
@@ -546,6 +573,7 @@ func TestCacheStore_ClearAll_NonexistentDir(t *testing.T) {
 }
 
 func TestCacheStore_Load_ReadError(t *testing.T) {
+	skipIfDarwinOrRoot(t)
 	tmpDir := t.TempDir()
 	store := &CacheStore{dir: tmpDir}
 
@@ -576,6 +604,7 @@ func TestNewCacheStore_InvalidDir(t *testing.T) {
 }
 
 func TestCacheStore_Save_WriteFailure(t *testing.T) {
+	skipIfDarwinOrRoot(t)
 	tmpDir := t.TempDir()
 	store := &CacheStore{dir: tmpDir}
 
@@ -676,6 +705,7 @@ func TestCacheDir_TableDriven(t *testing.T) {
 }
 
 func TestNewCacheStore_MkdirAllFailure(t *testing.T) {
+	skipIfDarwinOrRoot(t)
 	tmpDir := t.TempDir()
 	readOnlyDir := filepath.Join(tmpDir, "readonly")
 	if err := os.MkdirAll(readOnlyDir, 0o500); err != nil {
@@ -694,9 +724,7 @@ func TestNewCacheStore_MkdirAllFailure(t *testing.T) {
 }
 
 func TestCacheStore_Save_RenameTargetLocked(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("skipping on windows")
-	}
+	skipIfDarwinOrRoot(t)
 
 	tmpDir := t.TempDir()
 	dstDir := filepath.Join(tmpDir, "dst")
@@ -719,9 +747,7 @@ func TestCacheStore_Save_RenameTargetLocked(t *testing.T) {
 }
 
 func TestCacheStore_Clear_PermissionDenied(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("skipping on windows")
-	}
+	skipIfDarwinOrRoot(t)
 
 	tmpDir := t.TempDir()
 	deletedDir := filepath.Join(tmpDir, "deleted")
@@ -764,9 +790,7 @@ func TestCacheStore_Clear_PermissionDenied(t *testing.T) {
 }
 
 func TestCacheStore_ClearAll_RemoveFileFailure(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("skipping on windows")
-	}
+	skipIfDarwinOrRoot(t)
 
 	tmpDir := t.TempDir()
 	readonlyDir := filepath.Join(tmpDir, "noclearall")
@@ -814,6 +838,7 @@ func TestCacheStore_Save_NilData(t *testing.T) {
 }
 
 func TestNewCacheStore_CacheDirError(t *testing.T) {
+	skipIfRoot(t)
 	t.Setenv("XDG_CACHE_HOME", "")
 	t.Setenv("HOME", "/nonexistent/home/that/does/not/exist")
 

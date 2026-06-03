@@ -15,6 +15,24 @@ import (
 	"github.com/toozej/go-sort-out-gh-actions/internal/cache"
 )
 
+// isRunningAsRoot reports whether the current process is running as root
+// (UID 0), where Unix file permissions are not enforced.
+func isRunningAsRoot() bool {
+	return os.Getuid() == 0
+}
+
+// skipIfDarwinOrRoot skips the test on macOS (which doesn't enforce Unix
+// permissions) or when running as root.
+func skipIfDarwinOrRoot(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS == "darwin" {
+		t.Skip("skipping: macOS does not enforce Unix file permissions")
+	}
+	if isRunningAsRoot() {
+		t.Skip("skipping: test relies on Unix file permissions which are not enforced when running as root")
+	}
+}
+
 func TestWithCache(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -272,6 +290,9 @@ func TestFlushCache_Errors(t *testing.T) {
 		{
 			name: "read-only cache dir causes flush error",
 			setupCache: func(c *Client, tmpDir string) error {
+				if isRunningAsRoot() {
+					return fmt.Errorf("skip: root")
+				}
 				if runtime.GOOS == "darwin" {
 					return fmt.Errorf("skip: macOS")
 				}
@@ -307,7 +328,7 @@ func TestFlushCache_Errors(t *testing.T) {
 				repoInfoCache: make(map[string]*RepoInfo),
 			}
 			if err := tt.setupCache(client, tmpDir); err != nil {
-				if strings.Contains(err.Error(), "macOS") {
+				if strings.Contains(err.Error(), "macOS") || strings.Contains(err.Error(), "root") {
 					t.Skip("skipping: macOS does not enforce Unix file permissions")
 				}
 				t.Fatalf("setup failed: %v", err)
@@ -329,9 +350,7 @@ func TestFlushCache_Errors(t *testing.T) {
 }
 
 func TestFlushCache_ArchivedSaveError(t *testing.T) {
-	if runtime.GOOS == "darwin" {
-		t.Skip("skipping: macOS does not enforce Unix file permissions")
-	}
+	skipIfDarwinOrRoot(t)
 
 	tmpDir := t.TempDir()
 	t.Setenv("XDG_CACHE_HOME", tmpDir)
@@ -364,9 +383,7 @@ func TestFlushCache_ArchivedSaveError(t *testing.T) {
 }
 
 func TestFlushCache_ReleaseSaveError(t *testing.T) {
-	if runtime.GOOS == "darwin" {
-		t.Skip("skipping: macOS does not enforce Unix file permissions")
-	}
+	skipIfDarwinOrRoot(t)
 
 	tmpDir := t.TempDir()
 	t.Setenv("XDG_CACHE_HOME", tmpDir)
@@ -399,9 +416,7 @@ func TestFlushCache_ReleaseSaveError(t *testing.T) {
 }
 
 func TestFlushCache_RefSHASaveError(t *testing.T) {
-	if runtime.GOOS == "darwin" {
-		t.Skip("skipping: macOS does not enforce Unix file permissions")
-	}
+	skipIfDarwinOrRoot(t)
 
 	tmpDir := t.TempDir()
 	t.Setenv("XDG_CACHE_HOME", tmpDir)
@@ -434,9 +449,7 @@ func TestFlushCache_RefSHASaveError(t *testing.T) {
 }
 
 func TestFlushCache_RepoInfoSaveError(t *testing.T) {
-	if runtime.GOOS == "darwin" {
-		t.Skip("skipping: macOS does not enforce Unix file permissions")
-	}
+	skipIfDarwinOrRoot(t)
 
 	tmpDir := t.TempDir()
 	t.Setenv("XDG_CACHE_HOME", tmpDir)
@@ -469,9 +482,7 @@ func TestFlushCache_RepoInfoSaveError(t *testing.T) {
 }
 
 func TestClose_Errors(t *testing.T) {
-	if runtime.GOOS == "darwin" {
-		t.Skip("skipping: macOS does not enforce Unix file permissions")
-	}
+	skipIfDarwinOrRoot(t)
 
 	tmpDir := t.TempDir()
 	t.Setenv("XDG_CACHE_HOME", tmpDir)
