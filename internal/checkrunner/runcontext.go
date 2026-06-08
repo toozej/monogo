@@ -15,7 +15,7 @@ import (
 	"github.com/toozej/go-sort-out-gh-actions/pkg/config"
 )
 
-func NewRunContext(token string, conf config.Config, initNotifier, initIssueCreator bool, outputFormat output.Format, noCache, refreshCache bool, cacheTTL time.Duration) *RunContext {
+func NewRunContext(token string, conf config.Config, initNotifier, initIssueCreator bool, outputFormat output.Format, csvCfg *output.CSVConfig, noCache, refreshCache bool, cacheTTL time.Duration) *RunContext {
 	ctx := context.Background()
 	workDir, err := os.Getwd()
 	if err != nil {
@@ -32,7 +32,7 @@ func NewRunContext(token string, conf config.Config, initNotifier, initIssueCrea
 		WorkDir:      workDir,
 		Parser:       parser,
 		GHClient:     ghClient,
-		OutputWriter: output.NewWriter(outputFormat),
+		OutputWriter: output.NewWriterWithOptionalCSV(outputFormat, csvCfg),
 	}
 
 	if initNotifier {

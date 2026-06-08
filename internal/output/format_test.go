@@ -21,9 +21,11 @@ func TestParseFormat(t *testing.T) {
 	}{
 		{"text", FormatText, false},
 		{"json", FormatJSON, false},
+		{"csv", FormatCSV, false},
 		{"xml", "", true},
 		{"", "", true},
 		{"TEXT", "", true},
+		{"CSV", "", true},
 	}
 
 	for _, tt := range tests {
@@ -190,6 +192,9 @@ func TestNewWriter(t *testing.T) {
 	if w.Output != os.Stdout {
 		t.Errorf("NewWriter(FormatText).Output = %v, want os.Stdout", w.Output)
 	}
+	if w.CSVConfig != nil {
+		t.Errorf("NewWriter(FormatText).CSVConfig = %v, want nil", w.CSVConfig)
+	}
 
 	wj := NewWriter(FormatJSON)
 	if wj.Format != FormatJSON {
@@ -197,6 +202,39 @@ func TestNewWriter(t *testing.T) {
 	}
 	if wj.Output != os.Stdout {
 		t.Errorf("NewWriter(FormatJSON).Output = %v, want os.Stdout", wj.Output)
+	}
+
+	wc := NewWriter(FormatCSV)
+	if wc.Format != FormatCSV {
+		t.Errorf("NewWriter(FormatCSV).Format = %q, want %q", wc.Format, FormatCSV)
+	}
+	if wc.Output != os.Stdout {
+		t.Errorf("NewWriter(FormatCSV).Output = %v, want os.Stdout", wc.Output)
+	}
+}
+
+func TestNewWriterWithCSVConfig(t *testing.T) {
+	cfg := &CSVConfig{
+		ExtraColumns: map[string]string{"Assignee": "dev", "IssueType": "Task", "Labels": "bug", "Priority": "High", "Project": "PROJ"},
+	}
+	w := NewWriterWithCSVConfig(FormatCSV, cfg)
+	if w.Format != FormatCSV {
+		t.Errorf("NewWriterWithCSVConfig(FormatCSV).Format = %q, want %q", w.Format, FormatCSV)
+	}
+	if w.Output != os.Stdout {
+		t.Errorf("NewWriterWithCSVConfig(FormatCSV).Output = %v, want os.Stdout", w.Output)
+	}
+	if w.CSVConfig != cfg {
+		t.Errorf("NewWriterWithCSVConfig(FormatCSV).CSVConfig = %v, want %v", w.CSVConfig, cfg)
+	}
+	if w.CSVConfig.ExtraColumns["Project"] != "PROJ" {
+		t.Errorf("CSVConfig.ExtraColumns[Project] = %q, want %q", w.CSVConfig.ExtraColumns["Project"], "PROJ")
+	}
+}
+
+func TestFormatCSVConstant(t *testing.T) {
+	if FormatCSV != "csv" {
+		t.Errorf("FormatCSV = %q, want %q", FormatCSV, "csv")
 	}
 }
 

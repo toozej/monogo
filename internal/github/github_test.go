@@ -30,6 +30,20 @@ func newTestClient(server *httptest.Server) *Client {
 	}
 }
 
+func newRequestErrorClient() *Client {
+	return &Client{
+		httpClient:    &http.Client{Timeout: 5 * time.Second},
+		token:         "test",
+		baseURL:       "http://127.0.0.1:0",
+		archivedCache: make(map[string]bool),
+		releaseCache:  make(map[string]*ReleaseInfo),
+		refSHACache:   make(map[string]string),
+		repoInfoCache: make(map[string]*RepoInfo),
+		cacheEnabled:  true,
+		cacheTTL:      24 * time.Hour,
+	}
+}
+
 func TestClient_GetActionYML(t *testing.T) {
 	actionContent := `name: Test Action
 description: A test action
@@ -483,36 +497,21 @@ func TestClient_IsRepoArchived(t *testing.T) {
 }
 
 func TestClient_IsRepoArchived_RequestError(t *testing.T) {
-	client := &Client{
-		httpClient:    http.DefaultClient,
-		token:         "test",
-		baseURL:       "http://127.0.0.1:0",
-		archivedCache: make(map[string]bool),
-		releaseCache:  make(map[string]*ReleaseInfo),
-		refSHACache:   make(map[string]string),
-		repoInfoCache: make(map[string]*RepoInfo),
-		cacheEnabled:  true,
-		cacheTTL:      24 * time.Hour,
-	}
-	_, _, err := client.IsRepoArchived(context.Background(), "owner/repo")
+	client := newRequestErrorClient()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, _, err := client.IsRepoArchived(ctx, "owner/repo")
 	if err == nil {
 		t.Error("Expected network error")
 	}
 }
 
 func TestClient_IsRepoArchived_BadURL(t *testing.T) {
-	client := &Client{
-		httpClient:    http.DefaultClient,
-		token:         "test",
-		baseURL:       "://bad\x00url",
-		archivedCache: make(map[string]bool),
-		releaseCache:  make(map[string]*ReleaseInfo),
-		refSHACache:   make(map[string]string),
-		repoInfoCache: make(map[string]*RepoInfo),
-		cacheEnabled:  true,
-		cacheTTL:      24 * time.Hour,
-	}
-	_, _, err := client.IsRepoArchived(context.Background(), "owner/repo")
+	client := newRequestErrorClient()
+	client.baseURL = "://bad\x00url"
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, _, err := client.IsRepoArchived(ctx, "owner/repo")
 	if err == nil {
 		t.Error("Expected URL creation error")
 	}

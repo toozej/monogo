@@ -114,7 +114,7 @@ func TestEOLClient_FetchReleaseEOL(t *testing.T) {
 			var client *EOLClient
 
 			if tt.name == "request error" {
-				client = NewEOLClientWithHTTP("http://127.0.0.1:0", http.DefaultClient)
+				client = NewEOLClientWithHTTP("http://127.0.0.1:0", &http.Client{Timeout: 5 * time.Second})
 			} else {
 				server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					if r.Header.Get("User-Agent") == "" {
@@ -132,7 +132,8 @@ func TestEOLClient_FetchReleaseEOL(t *testing.T) {
 				client = NewEOLClientWithHTTP(server.URL, server.Client())
 			}
 
-			ctx := context.Background()
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			t.Cleanup(cancel)
 			info, err := client.FetchReleaseEOL(ctx, tt.product, tt.version)
 
 			if tt.wantErr {

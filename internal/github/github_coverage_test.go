@@ -161,36 +161,20 @@ func TestClient_GetRateLimits_BadJSON(t *testing.T) {
 }
 
 func TestClient_GetRateLimits_RequestError(t *testing.T) {
-	client := &Client{
-		httpClient:    http.DefaultClient,
-		token:         "test",
-		baseURL:       "http://127.0.0.1:0",
-		archivedCache: make(map[string]bool),
-		releaseCache:  make(map[string]*ReleaseInfo),
-		refSHACache:   make(map[string]string),
-		repoInfoCache: make(map[string]*RepoInfo),
-		cacheEnabled:  true,
-		cacheTTL:      24 * time.Hour,
-	}
-	_, err := client.GetRateLimits(context.Background())
+	client := newRequestErrorClient()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, err := client.GetRateLimits(ctx)
 	if err == nil {
 		t.Error("Expected network error")
 	}
 }
 
 func TestClient_GetLatestRelease_RequestError(t *testing.T) {
-	client := &Client{
-		httpClient:    http.DefaultClient,
-		token:         "test",
-		baseURL:       "http://127.0.0.1:0",
-		archivedCache: make(map[string]bool),
-		releaseCache:  make(map[string]*ReleaseInfo),
-		refSHACache:   make(map[string]string),
-		repoInfoCache: make(map[string]*RepoInfo),
-		cacheEnabled:  true,
-		cacheTTL:      24 * time.Hour,
-	}
-	_, err := client.GetLatestRelease(context.Background(), "owner/repo")
+	client := newRequestErrorClient()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, err := client.GetLatestRelease(ctx, "owner/repo")
 	if err == nil {
 		t.Error("Expected network error")
 	}
@@ -339,18 +323,10 @@ func TestClient_GetLatestSemverTag_BadJSON(t *testing.T) {
 }
 
 func TestClient_GetLatestSemverTag_RequestError(t *testing.T) {
-	client := &Client{
-		httpClient:    http.DefaultClient,
-		token:         "test",
-		baseURL:       "http://127.0.0.1:0",
-		archivedCache: make(map[string]bool),
-		releaseCache:  make(map[string]*ReleaseInfo),
-		refSHACache:   make(map[string]string),
-		repoInfoCache: make(map[string]*RepoInfo),
-		cacheEnabled:  true,
-		cacheTTL:      24 * time.Hour,
-	}
-	_, err := client.GetLatestSemverTag(context.Background(), "owner/repo")
+	client := newRequestErrorClient()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, err := client.GetLatestSemverTag(ctx, "owner/repo")
 	if err == nil {
 		t.Error("Expected network error")
 	}
@@ -434,18 +410,10 @@ func TestClient_GetActionYML_NotFoundWithActionPath(t *testing.T) {
 }
 
 func TestClient_GetActionYML_RequestError(t *testing.T) {
-	client := &Client{
-		httpClient:    http.DefaultClient,
-		token:         "test",
-		baseURL:       "http://127.0.0.1:0",
-		archivedCache: make(map[string]bool),
-		releaseCache:  make(map[string]*ReleaseInfo),
-		refSHACache:   make(map[string]string),
-		repoInfoCache: make(map[string]*RepoInfo),
-		cacheEnabled:  true,
-		cacheTTL:      24 * time.Hour,
-	}
-	_, err := client.GetActionYML(context.Background(), "owner/repo", "", "v1")
+	client := newRequestErrorClient()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, err := client.GetActionYML(ctx, "owner/repo", "", "v1")
 	if err == nil {
 		t.Error("Expected network error")
 	}
@@ -638,18 +606,10 @@ func TestClient_GetRawActionYML_InvalidOwnerRepo(t *testing.T) {
 }
 
 func TestClient_GetRawActionYML_RequestError(t *testing.T) {
-	client := &Client{
-		httpClient:    http.DefaultClient,
-		token:         "test",
-		baseURL:       "http://127.0.0.1:0",
-		archivedCache: make(map[string]bool),
-		releaseCache:  make(map[string]*ReleaseInfo),
-		refSHACache:   make(map[string]string),
-		repoInfoCache: make(map[string]*RepoInfo),
-		cacheEnabled:  true,
-		cacheTTL:      24 * time.Hour,
-	}
-	_, err := client.GetRawActionYML(context.Background(), "owner/repo", "", "v1")
+	client := newRequestErrorClient()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, err := client.GetRawActionYML(ctx, "owner/repo", "", "v1")
 	if err == nil {
 		t.Error("Expected network error")
 	}
@@ -720,18 +680,10 @@ func TestClient_GetRefSHA_InvalidOwnerRepo(t *testing.T) {
 }
 
 func TestClient_GetRefSHA_RequestError(t *testing.T) {
-	client := &Client{
-		httpClient:    http.DefaultClient,
-		token:         "test",
-		baseURL:       "http://127.0.0.1:0",
-		archivedCache: make(map[string]bool),
-		releaseCache:  make(map[string]*ReleaseInfo),
-		refSHACache:   make(map[string]string),
-		repoInfoCache: make(map[string]*RepoInfo),
-		cacheEnabled:  true,
-		cacheTTL:      24 * time.Hour,
-	}
-	_, err := client.GetRefSHA(context.Background(), "owner/repo", "v1")
+	client := newRequestErrorClient()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, err := client.GetRefSHA(ctx, "owner/repo", "v1")
 	if err == nil {
 		t.Error("Expected network error")
 	}
@@ -777,18 +729,10 @@ func TestClient_GetRefSHA_BranchFallback(t *testing.T) {
 }
 
 func TestClient_DereferenceTag_RequestError(t *testing.T) {
-	client := &Client{
-		httpClient:    http.DefaultClient,
-		token:         "test",
-		baseURL:       "http://127.0.0.1:0",
-		archivedCache: make(map[string]bool),
-		releaseCache:  make(map[string]*ReleaseInfo),
-		refSHACache:   make(map[string]string),
-		repoInfoCache: make(map[string]*RepoInfo),
-		cacheEnabled:  true,
-		cacheTTL:      24 * time.Hour,
-	}
-	_, err := client.dereferenceTag(context.Background(), "owner", "repo", "deadbeef")
+	client := newRequestErrorClient()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, err := client.dereferenceTag(ctx, "owner", "repo", "deadbeef")
 	if err == nil {
 		t.Error("Expected network error")
 	}

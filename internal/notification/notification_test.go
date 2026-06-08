@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/toozej/go-sort-out-gh-actions/pkg/config"
 )
@@ -389,7 +390,9 @@ func TestGotifyNotifier(t *testing.T) {
 	defer server.Close()
 
 	notifier := NewGotifyNotifier(server.URL, "test-token")
-	err := notifier.Notify(context.Background(), "Test Subject", "Test Message")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	err := notifier.Notify(ctx, "Test Subject", "Test Message")
 	if err != nil {
 		t.Errorf("Notify failed: %v", err)
 	}
@@ -402,7 +405,9 @@ func TestGotifyNotifier_Failure(t *testing.T) {
 	defer server.Close()
 
 	notifier := NewGotifyNotifier(server.URL, "test-token")
-	err := notifier.Notify(context.Background(), "Test Subject", "Test Message")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	err := notifier.Notify(ctx, "Test Subject", "Test Message")
 	if err == nil {
 		t.Errorf("Expected error due to 500 status code, got nil")
 	} else if !strings.Contains(err.Error(), "status code 500") {
@@ -412,7 +417,9 @@ func TestGotifyNotifier_Failure(t *testing.T) {
 
 func TestGotifyNotifier_BadURL(t *testing.T) {
 	notifier := NewGotifyNotifier("http://invalid-url-\x00.com", "test-token")
-	err := notifier.Notify(context.Background(), "Test Subject", "Test Message")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	err := notifier.Notify(ctx, "Test Subject", "Test Message")
 	if err == nil {
 		t.Errorf("Expected error due to bad URL, got nil")
 	}

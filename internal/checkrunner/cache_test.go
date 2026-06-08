@@ -31,7 +31,7 @@ func TestRunContext_CacheReuseAcrossRuns(t *testing.T) {
 	client1 := github.NewClientWithHTTP(server.URL, server.Client())
 	defer client1.Close()
 
-	rc1 := NewRunContext("token", config.Config{}, false, false, output.FormatText, false, false, 24*time.Hour)
+	rc1 := NewRunContext("token", config.Config{}, false, false, output.FormatText, nil, false, false, 24*time.Hour)
 	rc1.GHClient = client1
 
 	workflowFiles := []*workflow.WorkflowFile{
@@ -64,7 +64,7 @@ func TestRunContext_CacheReuseAcrossRuns(t *testing.T) {
 	client2 := github.NewClientWithHTTP(server.URL, server.Client())
 	defer client2.Close()
 
-	rc2 := NewRunContext("token", config.Config{}, false, false, output.FormatText, false, false, 24*time.Hour)
+	rc2 := NewRunContext("token", config.Config{}, false, false, output.FormatText, nil, false, false, 24*time.Hour)
 	rc2.GHClient = client2
 
 	_, err = DetectArchived(rc2, workflowFiles, allActionRefs)
@@ -92,7 +92,7 @@ func TestRunContext_NoCacheMakesExtraCalls(t *testing.T) {
 	client := github.NewClientWithHTTP(server.URL, server.Client(), github.WithCache(false, false, 24*time.Hour))
 	defer client.Close()
 
-	rc := NewRunContext("token", config.Config{}, false, false, output.FormatText, true, false, 24*time.Hour)
+	rc := NewRunContext("token", config.Config{}, false, false, output.FormatText, nil, true, false, 24*time.Hour)
 	rc.GHClient = client
 
 	workflowFiles := []*workflow.WorkflowFile{
@@ -126,7 +126,7 @@ func TestRunContext_Close(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("XDG_CACHE_HOME", tmpDir)
 
-	rc := NewRunContext("token", config.Config{}, false, false, output.FormatText, false, false, 24*time.Hour)
+	rc := NewRunContext("token", config.Config{}, false, false, output.FormatText, nil, false, false, 24*time.Hour)
 	if rc == nil {
 		t.Fatal("Expected non-nil RunContext")
 	}

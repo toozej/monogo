@@ -101,6 +101,12 @@ type Config struct {
 
 	// CacheTTL is the duration for which cache files remain valid.
 	CacheTTL time.Duration `env:"CACHE_TTL" envDefault:"24h"`
+
+	// MCPAddr is the host:port address for the MCP server's SSE transport.
+	MCPAddr string `env:"MCP_ADDR" envDefault:"localhost:8080"`
+
+	// MCPTransport is the transport mode for the MCP server ("stdio" or "sse").
+	MCPTransport string `env:"MCP_TRANSPORT" envDefault:"stdio"`
 }
 
 // GetEnvVars loads and returns the application configuration from environment

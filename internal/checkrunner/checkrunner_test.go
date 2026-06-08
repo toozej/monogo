@@ -1266,7 +1266,7 @@ func TestCreateArchivedIssues_EmptyRepoName(t *testing.T) {
 }
 
 func TestNewRunContext(t *testing.T) {
-	rc := NewRunContext("dummy-token", config.Config{}, false, false, output.FormatText, false, false, 0)
+	rc := NewRunContext("dummy-token", config.Config{}, false, false, output.FormatText, nil, false, false, 0)
 
 	if rc == nil {
 		t.Fatal("Expected non-nil RunContext")
@@ -1295,7 +1295,7 @@ func TestNewRunContext(t *testing.T) {
 }
 
 func TestNewRunContext_WithIssueCreator(t *testing.T) {
-	rc := NewRunContext("dummy-token", config.Config{}, false, true, output.FormatText, false, false, 0)
+	rc := NewRunContext("dummy-token", config.Config{}, false, true, output.FormatText, nil, false, false, 0)
 
 	if rc == nil {
 		t.Fatal("Expected non-nil RunContext")

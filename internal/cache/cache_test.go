@@ -629,20 +629,21 @@ func TestCacheStore_IsExpired_WithTTL(t *testing.T) {
 		t.Fatalf("Save failed: %v", err)
 	}
 
-	if store.IsExpired("ttl-test", 1*time.Millisecond) {
-		t.Error("expected fresh file to not be expired with very short TTL")
+	// Use a generous TTL so the "fresh" check is reliable even on slow
+	// filesystems (e.g., Docker overlayfs) where Save→IsExpired latency
+	// can exceed sub-millisecond durations.
+	if store.IsExpired("ttl-test", 1*time.Second) {
+		t.Error("expected fresh file to not be expired with short TTL")
 	}
 
-	time.Sleep(2 * time.Millisecond)
-
-	oldTime := time.Now().Add(-10 * time.Millisecond)
+	oldTime := time.Now().Add(-2 * time.Second)
 	path := filepath.Join(tmpDir, "ttl-test.json")
 	if err := os.Chtimes(path, oldTime, oldTime); err != nil {
 		t.Fatalf("failed to backdate file: %v", err)
 	}
 
-	if !store.IsExpired("ttl-test", 1*time.Millisecond) {
-		t.Error("expected backdated file to be expired with very short TTL")
+	if !store.IsExpired("ttl-test", 1*time.Second) {
+		t.Error("expected backdated file to be expired with short TTL")
 	}
 }
 

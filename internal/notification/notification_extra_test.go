@@ -4,11 +4,14 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 )
 
 func TestGotifyNotifier_Notify_RequestError(t *testing.T) {
 	notifier := NewGotifyNotifier("http://127.0.0.1:0", "token")
-	err := notifier.Notify(context.Background(), "subject", "message")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	err := notifier.Notify(ctx, "subject", "message")
 	if err == nil {
 		t.Error("Expected error from Notify due to bad endpoint")
 	}
@@ -25,7 +28,9 @@ func TestGotifyNotifier_Notify_RequestCreationError(t *testing.T) {
 
 func TestNikoksrNotifier_Notify(t *testing.T) {
 	n := NewNikoksrNotifier()
-	err := n.Notify(context.Background(), "test", "test message")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	err := n.Notify(ctx, "test", "test message")
 	// If no receivers/services, nikoksr might return nil or error
 	_ = err
 }
@@ -46,20 +51,22 @@ func TestNotificationManager_NotifyArchivedActions_Errors(t *testing.T) {
 	actions := []ArchivedActionInfo{
 		{Uses: "actions/checkout@v3", Workflow: "ci.yml"},
 	}
-	err := manager.NotifyArchivedActions(context.Background(), actions, "test/repo")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	err := manager.NotifyArchivedActions(ctx, actions, "test/repo")
 	if err == nil {
 		t.Error("Expected error from NotifyArchivedActions")
 	}
 
 	// Also test condensed error
 	manager.condense = true
-	err = manager.NotifyArchivedActions(context.Background(), actions, "test/repo")
+	err = manager.NotifyArchivedActions(ctx, actions, "test/repo")
 	if err == nil {
 		t.Error("Expected error from NotifyArchivedActions condensed")
 	}
 
 	// Test empty list
-	err = manager.NotifyArchivedActions(context.Background(), []ArchivedActionInfo{}, "test/repo")
+	err = manager.NotifyArchivedActions(ctx, []ArchivedActionInfo{}, "test/repo")
 	if err != nil {
 		t.Errorf("Expected no error for empty actions, got %v", err)
 	}

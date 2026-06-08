@@ -16,6 +16,7 @@ type Format string
 const (
 	FormatText Format = "text"
 	FormatJSON Format = "json"
+	FormatCSV  Format = "csv"
 )
 
 func ParseFormat(s string) (Format, error) {
@@ -24,8 +25,10 @@ func ParseFormat(s string) (Format, error) {
 		return FormatText, nil
 	case FormatJSON:
 		return FormatJSON, nil
+	case FormatCSV:
+		return FormatCSV, nil
 	default:
-		return "", fmt.Errorf("invalid output format %q: valid values are text, json", s)
+		return "", fmt.Errorf("invalid output format %q: valid values are text, json, csv", s)
 	}
 }
 
@@ -41,8 +44,9 @@ type CheckOutput struct {
 }
 
 type Writer struct {
-	Format Format
-	Output io.Writer
+	Format    Format
+	Output    io.Writer
+	CSVConfig *CSVConfig
 }
 
 func NewWriter(format Format) *Writer {
@@ -52,12 +56,33 @@ func NewWriter(format Format) *Writer {
 	}
 }
 
-func (w *Writer) WriteCheckResult(co *CheckOutput) {
-	if w.Format == FormatJSON {
-		w.writeJSON(co)
-		return
+func NewWriterWithCSVConfig(format Format, cfg *CSVConfig) *Writer {
+	return &Writer{
+		Format:    format,
+		Output:    os.Stdout,
+		CSVConfig: cfg,
 	}
-	w.writeText(co)
+}
+
+// NewWriterWithOptionalCSV returns a Writer, using CSVConfig if provided.
+// This is the single canonical entry point for Writer creation to avoid
+// divergent logic across call sites.
+func NewWriterWithOptionalCSV(format Format, csvCfg *CSVConfig) *Writer {
+	if csvCfg != nil {
+		return NewWriterWithCSVConfig(format, csvCfg)
+	}
+	return NewWriter(format)
+}
+
+func (w *Writer) WriteCheckResult(co *CheckOutput) {
+	switch w.Format {
+	case FormatJSON:
+		w.writeJSON(co)
+	case FormatCSV:
+		FprintCSV(w.Output, co, w.CSVConfig)
+	default:
+		w.writeText(co)
+	}
 }
 
 func (w *Writer) writeJSON(co *CheckOutput) {

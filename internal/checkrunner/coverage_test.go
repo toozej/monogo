@@ -35,7 +35,7 @@ func TestNewRunContext_WithNotifier(t *testing.T) {
 		},
 	}
 
-	rc := NewRunContext("dummy-token", conf, true, false, output.FormatText, false, false, 0)
+	rc := NewRunContext("dummy-token", conf, true, false, output.FormatText, nil, false, false, 0)
 	defer rc.Close()
 
 	if rc == nil {
@@ -62,7 +62,7 @@ func TestNewRunContext_WithNotifierAndIssueCreator(t *testing.T) {
 		},
 	}
 
-	rc := NewRunContext("dummy-token", conf, true, true, output.FormatText, false, false, 0)
+	rc := NewRunContext("dummy-token", conf, true, true, output.FormatText, nil, false, false, 0)
 	defer rc.Close()
 
 	if rc.Notifier == nil {
@@ -74,7 +74,7 @@ func TestNewRunContext_WithNotifierAndIssueCreator(t *testing.T) {
 }
 
 func TestNewRunContext_NoCache(t *testing.T) {
-	rc := NewRunContext("dummy-token", config.Config{}, false, false, output.FormatText, true, false, 0)
+	rc := NewRunContext("dummy-token", config.Config{}, false, false, output.FormatText, nil, true, false, 0)
 	defer rc.Close()
 
 	if rc == nil {
@@ -86,7 +86,7 @@ func TestNewRunContext_RefreshCache(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("XDG_CACHE_HOME", tmpDir)
 
-	rc := NewRunContext("dummy-token", config.Config{}, false, false, output.FormatText, false, true, 24*time.Hour)
+	rc := NewRunContext("dummy-token", config.Config{}, false, false, output.FormatText, nil, false, true, 24*time.Hour)
 	defer rc.Close()
 
 	if rc == nil {
@@ -95,7 +95,7 @@ func TestNewRunContext_RefreshCache(t *testing.T) {
 }
 
 func TestNewRunContext_JSONFormat(t *testing.T) {
-	rc := NewRunContext("dummy-token", config.Config{}, false, false, output.FormatJSON, false, false, 0)
+	rc := NewRunContext("dummy-token", config.Config{}, false, false, output.FormatJSON, nil, false, false, 0)
 	defer rc.Close()
 
 	if rc == nil {

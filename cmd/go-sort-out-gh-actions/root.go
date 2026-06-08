@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -36,6 +37,8 @@ var (
 	noCache      bool
 	refreshCache bool
 	cacheTTL     time.Duration
+
+	csvAdditionalData string
 
 	ghAPIBaseURL  string
 	ghAPIClient   *http.Client
@@ -84,16 +87,19 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&workflowPath, "workflow", "", "Path to specific workflow file to check")
 	rootCmd.PersistentFlags().StringVar(&workflowsDir, "workflows-dir", "", "Path to directory containing workflow yaml files")
 	rootCmd.PersistentFlags().StringVar(&reposDir, "repos-dir", "", "Path to base directory containing multiple repos to scan")
-	rootCmd.PersistentFlags().StringVarP(&outputFormat, "output-format", "o", "text", "Output format: text or json")
+	rootCmd.PersistentFlags().StringVarP(&outputFormat, "output-format", "o", "text", "Output format: text, json, or csv")
 	rootCmd.PersistentFlags().BoolVar(&noCache, "no-cache", conf.NoCache, "Disable reading and writing cache files")
 	rootCmd.PersistentFlags().BoolVar(&refreshCache, "refresh-cache", conf.RefreshCache, "Ignore existing cache and overwrite after run")
 	rootCmd.PersistentFlags().DurationVar(&cacheTTL, "cache-ttl", conf.CacheTTL, "How long cache files remain valid (e.g. 24h)")
+	rootCmd.PersistentFlags().StringVar(&csvAdditionalData, "csv-additional-data", "", "Additional CSV columns as key=value pairs, comma-separated (e.g., Project=PROJ,Assignee=user)")
 
 	rootCmd.AddCommand(
 		newArchivedCmd(),
 		newEOLCmd(),
 		newOutdatedCmd(),
 		newCheckCmd(),
+		newMCPCmd(),
+		newAvatarCmd(),
 		man.NewManCmd(),
 		version.Command(),
 	)
@@ -121,6 +127,34 @@ func resolveOutputFormat() output.Format {
 	return f
 }
 
+func resolveCSVConfig() *output.CSVConfig {
+	if outputFormat != "csv" || csvAdditionalData == "" {
+		return nil
+	}
+	extraColumns := make(map[string]string)
+	for _, pair := range strings.Split(csvAdditionalData, ",") {
+		pair = strings.TrimSpace(pair)
+		if pair == "" {
+			continue
+		}
+		kv := strings.SplitN(pair, "=", 2)
+		if len(kv) != 2 || strings.TrimSpace(kv[0]) == "" {
+			log.Fatalf("Invalid --csv-additional-data pair %q: expected format key=value", pair)
+		}
+		extraColumns[strings.TrimSpace(kv[0])] = strings.TrimSpace(kv[1])
+	}
+	if len(extraColumns) == 0 {
+		return nil
+	}
+	return &output.CSVConfig{
+		ExtraColumns: extraColumns,
+	}
+}
+
+func newOutputWriter(of output.Format) *output.Writer {
+	return output.NewWriterWithOptionalCSV(of, resolveCSVConfig())
+}
+
 func newRunContextFromFlags(token string, of output.Format) *checkrunner.RunContext {
 	if ghAPIBaseURL != "" && ghAPIClient != nil {
 		ghClient := github.NewClientWithHTTP(ghAPIBaseURL, ghAPIClient, github.WithCache(!noCache, refreshCache, cacheTTL))
@@ -136,7 +170,7 @@ func newRunContextFromFlags(token string, of output.Format) *checkrunner.RunCont
 			WorkDir:      workDir,
 			Parser:       workflow.NewParser(),
 			GHClient:     ghClient,
-			OutputWriter: output.NewWriter(of),
+			OutputWriter: newOutputWriter(of),
 		}
 		if notify {
 			manager, nerr := notification.NewNotificationManager(conf.Notification)
@@ -150,7 +184,7 @@ func newRunContextFromFlags(token string, of output.Format) *checkrunner.RunCont
 		}
 		return rc
 	}
-	return checkrunner.NewRunContext(token, conf, notify, createIssue, of, noCache, refreshCache, cacheTTL)
+	return checkrunner.NewRunContext(token, conf, notify, createIssue, of, resolveCSVConfig(), noCache, refreshCache, cacheTTL)
 }
 
 func resolveWorkflowFiles(parser *workflow.WorkflowParser, workDir string) ([]*workflow.WorkflowFile, []workflow.ActionRef) {

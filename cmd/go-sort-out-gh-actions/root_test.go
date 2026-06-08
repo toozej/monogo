@@ -17,7 +17,7 @@ func TestCommandStructure(t *testing.T) {
 		commandNames[subCmd.Name()] = true
 	}
 
-	expectedCommands := []string{"archived", "eol", "outdated", "check", "version", "man"}
+	expectedCommands := []string{"archived", "eol", "outdated", "check", "version", "man", "mcp", "avatar"}
 	for _, name := range expectedCommands {
 		if !commandNames[name] {
 			t.Errorf("Expected subcommand %q not found", name)
@@ -26,7 +26,7 @@ func TestCommandStructure(t *testing.T) {
 }
 
 func TestGlobalFlags(t *testing.T) {
-	expectedPersistentFlags := []string{"debug", "verbose", "token", "notify", "create-issue", "workflow", "workflows-dir", "repos-dir", "output-format"}
+	expectedPersistentFlags := []string{"debug", "verbose", "token", "notify", "create-issue", "workflow", "workflows-dir", "repos-dir", "output-format", "csv-additional-data"}
 	for _, flagName := range expectedPersistentFlags {
 		if rootCmd.PersistentFlags().Lookup(flagName) == nil {
 			t.Errorf("Expected persistent flag --%s on root command", flagName)
@@ -72,7 +72,7 @@ func TestPersistentFlagShorthandsAndDefaults(t *testing.T) {
 		})
 	}
 
-	noShorthandFlags := []string{"notify", "create-issue", "workflow", "workflows-dir", "repos-dir"}
+	noShorthandFlags := []string{"notify", "create-issue", "workflow", "workflows-dir", "repos-dir", "csv-additional-data"}
 	for _, name := range noShorthandFlags {
 		flag := rootCmd.PersistentFlags().Lookup(name)
 		if flag == nil {
@@ -195,6 +195,83 @@ func TestResolveOutputFormat(t *testing.T) {
 		f := resolveOutputFormat()
 		if f != output.FormatJSON {
 			t.Errorf("Expected FormatJSON, got %v", f)
+		}
+	})
+
+	t.Run("csv format", func(t *testing.T) {
+		outputFormat = "csv"
+		f := resolveOutputFormat()
+		if f != output.FormatCSV {
+			t.Errorf("Expected FormatCSV, got %v", f)
+		}
+	})
+}
+
+func TestResolveCSVConfig(t *testing.T) {
+	origOutputFormat := outputFormat
+	origCSVAdditionalData := csvAdditionalData
+	defer func() {
+		outputFormat = origOutputFormat
+		csvAdditionalData = origCSVAdditionalData
+	}()
+
+	t.Run("nil when not csv format", func(t *testing.T) {
+		outputFormat = "text"
+		csvAdditionalData = "Project=PROJ"
+		cfg := resolveCSVConfig()
+		if cfg != nil {
+			t.Errorf("expected nil when not csv format, got %v", cfg)
+		}
+	})
+
+	t.Run("nil when csv but no additional data", func(t *testing.T) {
+		outputFormat = "csv"
+		csvAdditionalData = ""
+		cfg := resolveCSVConfig()
+		if cfg != nil {
+			t.Errorf("expected nil when no additional data, got %v", cfg)
+		}
+	})
+
+	t.Run("parses key=value pairs", func(t *testing.T) {
+		outputFormat = "csv"
+		csvAdditionalData = "Project=PROJ,Assignee=user"
+		cfg := resolveCSVConfig()
+		if cfg == nil {
+			t.Fatal("expected non-nil config")
+		}
+		if cfg.ExtraColumns["Project"] != "PROJ" {
+			t.Errorf("ExtraColumns[Project] = %q, want %q", cfg.ExtraColumns["Project"], "PROJ")
+		}
+		if cfg.ExtraColumns["Assignee"] != "user" {
+			t.Errorf("ExtraColumns[Assignee] = %q, want %q", cfg.ExtraColumns["Assignee"], "user")
+		}
+	})
+
+	t.Run("trims whitespace", func(t *testing.T) {
+		outputFormat = "csv"
+		csvAdditionalData = " Project = PROJ , Assignee = user "
+		cfg := resolveCSVConfig()
+		if cfg == nil {
+			t.Fatal("expected non-nil config")
+		}
+		if cfg.ExtraColumns["Project"] != "PROJ" {
+			t.Errorf("ExtraColumns[Project] = %q, want %q", cfg.ExtraColumns["Project"], "PROJ")
+		}
+		if cfg.ExtraColumns["Assignee"] != "user" {
+			t.Errorf("ExtraColumns[Assignee] = %q, want %q", cfg.ExtraColumns["Assignee"], "user")
+		}
+	})
+
+	t.Run("value can contain equals sign", func(t *testing.T) {
+		outputFormat = "csv"
+		csvAdditionalData = "Formula=a=b"
+		cfg := resolveCSVConfig()
+		if cfg == nil {
+			t.Fatal("expected non-nil config")
+		}
+		if cfg.ExtraColumns["Formula"] != "a=b" {
+			t.Errorf("ExtraColumns[Formula] = %q, want %q", cfg.ExtraColumns["Formula"], "a=b")
 		}
 	})
 }
