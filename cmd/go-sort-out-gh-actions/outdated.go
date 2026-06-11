@@ -86,7 +86,7 @@ func processOutdated(rc *checkrunner.RunContext, workflowFiles []*workflow.Workf
 	actioninfo.WriteActionOutput("has-outdated", fmt.Sprintf("%v", len(outdatedActions) > 0))
 
 	if !hasIssues {
-		checkrunner.WriteResult(rc.OutputWriter, nil, nil, nil, nil, nil, false, "", actioninfo.Emoji("✅ ", "[OK] ")+"No outdated GitHub Actions found!")
+		checkrunner.WriteResult(rc.OutputWriter, nil, nil, nil, nil, nil, nil, false, "", actioninfo.Emoji("✅ ", "[OK] ")+"No outdated GitHub Actions found!")
 		return false
 	}
 
@@ -97,7 +97,7 @@ func processOutdated(rc *checkrunner.RunContext, workflowFiles []*workflow.Workf
 		summary = actioninfo.BuildOutdatedUpdateSummary(updateReport)
 	}
 
-	checkrunner.WriteResult(rc.OutputWriter, nil, nil, nil, nil, outdatedActions, hasIssues, summary, "")
+	checkrunner.WriteResult(rc.OutputWriter, nil, nil, nil, nil, outdatedActions, nil, hasIssues, summary, "")
 
 	return hasIssues
 }

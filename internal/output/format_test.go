@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"io"
 	"os"
 	"strings"
 	"testing"
@@ -555,5 +556,205 @@ func TestFprintArchivedText_MultipleActionsPerWorkflow(t *testing.T) {
 	}
 	if !strings.Contains(output, "b/repo@v2") {
 		t.Errorf("expected second action in output, got: %s", output)
+	}
+}
+
+func TestFprintPinnableText_WithActions(t *testing.T) {
+	var buf bytes.Buffer
+	actions := []actioninfo.PinActionInfo{
+		{OwnerRepo: "actions/checkout", ActionPath: "checkout", Version: "v4", FullRef: "actions/checkout@v4", Workflow: ".github/workflows/ci.yml"},
+	}
+
+	FprintPinnableText(&buf, actions)
+
+	output := buf.String()
+	if !strings.Contains(output, "Found 1 pinnable GitHub Actions in 1 uses") {
+		t.Errorf("expected pinnable header, got: %s", output)
+	}
+	if !strings.Contains(output, "ci.yml") {
+		t.Errorf("expected workflow name ci.yml, got: %s", output)
+	}
+	if !strings.Contains(output, "actions/checkout@v4") {
+		t.Errorf("expected action ref, got: %s", output)
+	}
+}
+
+func TestFprintPinnableText_EmptyFullRef(t *testing.T) {
+	var buf bytes.Buffer
+	actions := []actioninfo.PinActionInfo{
+		{OwnerRepo: "actions/setup-go", ActionPath: "setup-go", Version: "v5", FullRef: "", Workflow: ".github/workflows/build.yml"},
+	}
+
+	FprintPinnableText(&buf, actions)
+
+	output := buf.String()
+	if !strings.Contains(output, "actions/setup-go@v5") {
+		t.Errorf("expected fallback OwnerRepo@Version when FullRef empty, got: %s", output)
+	}
+}
+
+func TestFprintPinnableText_MultipleWorkflows(t *testing.T) {
+	var buf bytes.Buffer
+	actions := []actioninfo.PinActionInfo{
+		{OwnerRepo: "a/repo", Version: "v1", FullRef: "a/repo@v1", Workflow: ".github/workflows/deploy.yml"},
+		{OwnerRepo: "b/repo", Version: "v2", FullRef: "b/repo@v2", Workflow: ".github/workflows/ci.yml"},
+	}
+
+	FprintPinnableText(&buf, actions)
+
+	output := buf.String()
+	ciIdx := strings.Index(output, "ci.yml")
+	deployIdx := strings.Index(output, "deploy.yml")
+	if ciIdx == -1 || deployIdx == -1 {
+		t.Fatalf("expected both workflows in output, got: %s", output)
+	}
+	if deployIdx < ciIdx {
+		t.Errorf("expected workflows sorted alphabetically (ci.yml before deploy.yml), got: %s", output)
+	}
+}
+
+func TestFprintPinnableText_MultipleActionsPerWorkflow(t *testing.T) {
+	var buf bytes.Buffer
+	actions := []actioninfo.PinActionInfo{
+		{OwnerRepo: "actions/checkout", Version: "v4", FullRef: "actions/checkout@v4", Workflow: ".github/workflows/ci.yml"},
+		{OwnerRepo: "actions/setup-go", Version: "v5", FullRef: "actions/setup-go@v5", Workflow: ".github/workflows/ci.yml"},
+	}
+
+	FprintPinnableText(&buf, actions)
+
+	output := buf.String()
+	if !strings.Contains(output, "Found 2 pinnable GitHub Actions in 2 uses") {
+		t.Errorf("expected header with 2 pinnable and 2 uses, got: %s", output)
+	}
+	if !strings.Contains(output, "actions/checkout@v4") {
+		t.Errorf("expected first action in output, got: %s", output)
+	}
+	if !strings.Contains(output, "actions/setup-go@v5") {
+		t.Errorf("expected second action in output, got: %s", output)
+	}
+}
+
+func TestNewWriterWithOptionalCSV_NilConfig(t *testing.T) {
+	w := NewWriterWithOptionalCSV(FormatText, nil)
+	if w.Format != FormatText {
+		t.Errorf("Format = %q, want %q", w.Format, FormatText)
+	}
+	if w.CSVConfig != nil {
+		t.Errorf("CSVConfig = %v, want nil", w.CSVConfig)
+	}
+	if w.Output != os.Stdout {
+		t.Errorf("Output = %v, want os.Stdout", w.Output)
+	}
+}
+
+func TestNewWriterWithOptionalCSV_WithConfig(t *testing.T) {
+	cfg := &CSVConfig{ExtraColumns: map[string]string{"Project": "PROJ"}}
+	w := NewWriterWithOptionalCSV(FormatCSV, cfg)
+	if w.Format != FormatCSV {
+		t.Errorf("Format = %q, want %q", w.Format, FormatCSV)
+	}
+	if w.CSVConfig != cfg {
+		t.Errorf("CSVConfig = %v, want %v", w.CSVConfig, cfg)
+	}
+	if w.CSVConfig.ExtraColumns["Project"] != "PROJ" {
+		t.Errorf("CSVConfig.ExtraColumns[Project] = %q, want %q", w.CSVConfig.ExtraColumns["Project"], "PROJ")
+	}
+}
+
+func TestPrintArchivedText_WithData(t *testing.T) {
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+	PrintArchivedText([]issue.ArchivedActionInfo{
+		{Repo: "owner/repo", Workflow: "ci.yml", Uses: "owner/repo@v1"},
+	}, []string{"owner/repo"})
+	w.Close()
+	os.Stdout = old
+	var buf bytes.Buffer
+	if _, err := io.Copy(&buf, r); err != nil {
+		t.Fatalf("failed to read stdout: %v", err)
+	}
+	output := buf.String()
+	if !strings.Contains(output, "archived") {
+		t.Errorf("expected archived in output, got: %s", output)
+	}
+}
+
+func TestPrintStaleText_WithData(t *testing.T) {
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+	PrintStaleText([]actioninfo.StaleActionInfo{
+		{OwnerRepo: "stale/repo", FullRef: "stale/repo@v1", Workflow: "ci.yml", Deprecated: true, DeprecationMessage: "use v2"},
+	})
+	w.Close()
+	os.Stdout = old
+	var buf bytes.Buffer
+	if _, err := io.Copy(&buf, r); err != nil {
+		t.Fatalf("failed to read stdout: %v", err)
+	}
+	output := buf.String()
+	if !strings.Contains(output, "stale") && !strings.Contains(output, "STALE") {
+		t.Errorf("expected stale in output, got: %s", output)
+	}
+}
+
+func TestPrintRuntimeEOLText_WithData(t *testing.T) {
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+	PrintRuntimeEOLText([]actioninfo.RuntimeEOLActionInfo{
+		{OwnerRepo: "eol/repo", FullRef: "eol/repo@v1", Workflow: "ci.yml", Runtime: "node", Version: "14", EOLDate: time.Date(2023, 4, 30, 0, 0, 0, 0, time.UTC)},
+	})
+	w.Close()
+	os.Stdout = old
+	var buf bytes.Buffer
+	if _, err := io.Copy(&buf, r); err != nil {
+		t.Fatalf("failed to read stdout: %v", err)
+	}
+	output := buf.String()
+	if !strings.Contains(output, "EOL") && !strings.Contains(output, "RUNTIME") {
+		t.Errorf("expected EOL/runtime in output, got: %s", output)
+	}
+}
+
+func TestPrintOutdatedText_WithData(t *testing.T) {
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+	PrintOutdatedText([]actioninfo.OutdatedActionInfo{
+		{OwnerRepo: "outdated/repo", CurrentRef: "v1", LatestTag: "v2", Workflow: "ci.yml", FullRef: "outdated/repo@v1"},
+	})
+	w.Close()
+	os.Stdout = old
+	var buf bytes.Buffer
+	if _, err := io.Copy(&buf, r); err != nil {
+		t.Fatalf("failed to read stdout: %v", err)
+	}
+	output := buf.String()
+	if !strings.Contains(output, "outdated") && !strings.Contains(output, "WARN") {
+		t.Errorf("expected outdated in output, got: %s", output)
+	}
+}
+
+func TestWriteText_OnlyPinnable(t *testing.T) {
+	var buf bytes.Buffer
+	w := &Writer{Format: FormatText, Output: &buf}
+
+	co := &CheckOutput{
+		PinnableActions: []actioninfo.PinActionInfo{
+			{OwnerRepo: "actions/checkout", Version: "v4", FullRef: "actions/checkout@v4", Workflow: ".github/workflows/ci.yml"},
+		},
+		HasIssues: true,
+	}
+
+	w.WriteCheckResult(co)
+
+	output := buf.String()
+	if !strings.Contains(output, "pinnable") && !strings.Contains(output, "PIN") {
+		t.Errorf("expected pinnable output, got: %s", output)
+	}
+	if !strings.Contains(output, "actions/checkout@v4") {
+		t.Errorf("expected action ref in output, got: %s", output)
 	}
 }

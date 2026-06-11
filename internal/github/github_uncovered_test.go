@@ -533,6 +533,30 @@ func TestClose_NilCacheStore(t *testing.T) {
 	}
 }
 
+func TestClose_Success(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("XDG_CACHE_HOME", tmpDir)
+	store, err := cache.NewCacheStore("go-sort-out-gh-actions")
+	if err != nil {
+		t.Fatalf("NewCacheStore failed: %v", err)
+	}
+	client := &Client{
+		httpClient:    http.DefaultClient,
+		token:         "test",
+		baseURL:       "http://localhost",
+		archivedCache: map[string]bool{"owner/repo": true},
+		releaseCache:  map[string]*ReleaseInfo{"owner/repo": {TagName: "v1"}},
+		refSHACache:   map[string]string{"owner/repo@v1": "sha"},
+		repoInfoCache: map[string]*RepoInfo{"owner/repo": {Name: "repo"}},
+		cacheEnabled:  true,
+		cacheStore:    store,
+	}
+	err = client.Close()
+	if err != nil {
+		t.Fatalf("Close should succeed, got: %v", err)
+	}
+}
+
 func TestGetRawActionYML_YAMLFallback(t *testing.T) {
 	actionContent := `name: Test Action
 runs:
@@ -623,8 +647,174 @@ func TestLoadAllCaches_InvalidJSON(t *testing.T) {
 	}
 
 	client.loadAllCaches()
-
 	if len(client.archivedCache) != 0 {
 		t.Error("Expected empty archivedCache when cache file is corrupt")
+	}
+}
+
+func TestFlushCache_Success(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("XDG_CACHE_HOME", tmpDir)
+
+	store, err := cache.NewCacheStore("go-sort-out-gh-actions")
+	if err != nil {
+		t.Fatalf("NewCacheStore failed: %v", err)
+	}
+
+	client := &Client{
+		httpClient:    http.DefaultClient,
+		token:         "test",
+		baseURL:       "http://localhost",
+		archivedCache: map[string]bool{"owner/repo": true},
+		releaseCache:  map[string]*ReleaseInfo{"owner/repo": {TagName: "v1"}},
+		refSHACache:   map[string]string{"owner/repo@v1": "sha"},
+		repoInfoCache: map[string]*RepoInfo{"owner/repo": {Name: "repo"}},
+		cacheEnabled:  true,
+		cacheStore:    store,
+	}
+
+	err = client.FlushCache()
+	if err != nil {
+		t.Fatalf("FlushCache should succeed, got: %v", err)
+	}
+
+	cacheDir := filepath.Join(tmpDir, "go-sort-out-gh-actions")
+	for _, name := range []string{"archived", "releases", "refsha", "repoinfo"} {
+		path := filepath.Join(cacheDir, name+".json")
+		if _, err := os.Stat(path); err != nil {
+			t.Errorf("Expected cache file %s.json to exist: %v", name, err)
+		}
+	}
+}
+
+func TestFlushCache_CacheDisabledWithStore(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("XDG_CACHE_HOME", tmpDir)
+	store, err := cache.NewCacheStore("go-sort-out-gh-actions")
+	if err != nil {
+		t.Fatalf("NewCacheStore failed: %v", err)
+	}
+	client := &Client{
+		httpClient:    http.DefaultClient,
+		token:         "test",
+		baseURL:       "http://localhost",
+		archivedCache: map[string]bool{"owner/repo": true},
+		releaseCache:  map[string]*ReleaseInfo{"owner/repo": {TagName: "v1"}},
+		refSHACache:   map[string]string{"owner/repo@v1": "sha"},
+		repoInfoCache: map[string]*RepoInfo{"owner/repo": {Name: "repo"}},
+		cacheEnabled:  false,
+		cacheStore:    store,
+	}
+	err = client.FlushCache()
+	if err != nil {
+		t.Fatalf("FlushCache with cacheEnabled=false should return nil, got: %v", err)
+	}
+}
+
+func TestClose_CacheDisabledWithStore(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("XDG_CACHE_HOME", tmpDir)
+	store, err := cache.NewCacheStore("go-sort-out-gh-actions")
+	if err != nil {
+		t.Fatalf("NewCacheStore failed: %v", err)
+	}
+	client := &Client{
+		httpClient:    http.DefaultClient,
+		token:         "test",
+		baseURL:       "http://localhost",
+		archivedCache: make(map[string]bool),
+		releaseCache:  make(map[string]*ReleaseInfo),
+		refSHACache:   make(map[string]string),
+		repoInfoCache: make(map[string]*RepoInfo),
+		cacheEnabled:  false,
+		cacheStore:    store,
+	}
+	err = client.Close()
+	if err != nil {
+		t.Fatalf("Close with cacheEnabled=false should return nil, got: %v", err)
+	}
+}
+
+func makeFlushCacheClient(t *testing.T, tmpDir string, blockFiles []string) *Client {
+	t.Helper()
+	t.Setenv("XDG_CACHE_HOME", tmpDir)
+	store, err := cache.NewCacheStore("go-sort-out-gh-actions")
+	if err != nil {
+		t.Fatalf("NewCacheStore failed: %v", err)
+	}
+	cacheDir := filepath.Join(tmpDir, "go-sort-out-gh-actions")
+	for _, name := range blockFiles {
+		tmpPath := filepath.Join(cacheDir, name+".json.tmp")
+		if err := os.MkdirAll(tmpPath, 0o755); err != nil {
+			t.Fatalf("Failed to create blocking dir %s: %v", tmpPath, err)
+		}
+	}
+	return &Client{
+		httpClient:    http.DefaultClient,
+		token:         "test",
+		baseURL:       "http://localhost",
+		archivedCache: map[string]bool{"owner/repo": true},
+		releaseCache:  map[string]*ReleaseInfo{"owner/repo": {TagName: "v1"}},
+		refSHACache:   map[string]string{"owner/repo@v1": "sha"},
+		repoInfoCache: map[string]*RepoInfo{"owner/repo": {Name: "repo"}},
+		cacheEnabled:  true,
+		cacheStore:    store,
+	}
+}
+
+func TestFlushCache_ArchivedSaveErrorCrossPlatform(t *testing.T) {
+	tmpDir := t.TempDir()
+	client := makeFlushCacheClient(t, tmpDir, []string{"archived"})
+	err := client.FlushCache()
+	if err == nil {
+		t.Error("Expected error when archived cache save fails")
+	}
+	if !strings.Contains(err.Error(), "archived") {
+		t.Errorf("Expected error to mention 'archived', got: %v", err)
+	}
+}
+
+func TestFlushCache_ReleaseSaveErrorCrossPlatform(t *testing.T) {
+	tmpDir := t.TempDir()
+	client := makeFlushCacheClient(t, tmpDir, []string{"releases"})
+	err := client.FlushCache()
+	if err == nil {
+		t.Error("Expected error when release cache save fails")
+	}
+	if !strings.Contains(err.Error(), "release") {
+		t.Errorf("Expected error to mention 'release', got: %v", err)
+	}
+}
+
+func TestFlushCache_RefSHASaveErrorCrossPlatform(t *testing.T) {
+	tmpDir := t.TempDir()
+	client := makeFlushCacheClient(t, tmpDir, []string{"refsha"})
+	err := client.FlushCache()
+	if err == nil {
+		t.Error("Expected error when refSHA cache save fails")
+	}
+	if !strings.Contains(err.Error(), "refsha") {
+		t.Errorf("Expected error to mention 'refsha', got: %v", err)
+	}
+}
+
+func TestFlushCache_RepoInfoSaveErrorCrossPlatform(t *testing.T) {
+	tmpDir := t.TempDir()
+	client := makeFlushCacheClient(t, tmpDir, []string{"repoinfo"})
+	err := client.FlushCache()
+	if err == nil {
+		t.Error("Expected error when repoInfo cache save fails")
+	}
+	if !strings.Contains(err.Error(), "repoinfo") {
+		t.Errorf("Expected error to mention 'repoinfo', got: %v", err)
+	}
+}
+
+func TestClose_ErrorsCrossPlatform(t *testing.T) {
+	tmpDir := t.TempDir()
+	client := makeFlushCacheClient(t, tmpDir, []string{"archived"})
+	err := client.Close()
+	if err == nil {
+		t.Error("Expected error from Close when FlushCache fails")
 	}
 }

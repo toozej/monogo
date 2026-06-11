@@ -153,8 +153,8 @@ func TestIsCommitSHA(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			if got := isCommitSHA(tt.input); got != tt.want {
-				t.Errorf("isCommitSHA(%s) = %v, want %v", tt.input, got, tt.want)
+			if got := IsCommitSHA(tt.input); got != tt.want {
+				t.Errorf("IsCommitSHA(%s) = %v, want %v", tt.input, got, tt.want)
 			}
 		})
 	}
@@ -180,8 +180,8 @@ func TestIsBranchName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			if got := isBranchName(tt.input); got != tt.want {
-				t.Errorf("isBranchName(%s) = %v, want %v", tt.input, got, tt.want)
+			if got := IsBranchName(tt.input); got != tt.want {
+				t.Errorf("IsBranchName(%s) = %v, want %v", tt.input, got, tt.want)
 			}
 		})
 	}

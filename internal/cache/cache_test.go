@@ -842,10 +842,34 @@ func TestNewCacheStore_CacheDirError(t *testing.T) {
 	skipIfRoot(t)
 	t.Setenv("XDG_CACHE_HOME", "")
 	t.Setenv("HOME", "/nonexistent/home/that/does/not/exist")
-
 	_, err := NewCacheStore("test-app")
 	if err == nil {
 		t.Error("expected error when cache dir cannot be determined")
+	}
+}
+
+func TestCacheStore_Save_WithRenameDst(t *testing.T) {
+	tmpDir := t.TempDir()
+	dstDir := filepath.Join(tmpDir, "destination")
+	if err := os.MkdirAll(dstDir, 0o755); err != nil {
+		t.Fatalf("Failed to create destination dir: %v", err)
+	}
+
+	store := &CacheStore{dir: tmpDir, renameDst: dstDir}
+	data := map[string]string{"key": "renamed-value"}
+
+	if err := store.Save("renamed", data); err != nil {
+		t.Fatalf("Save with renameDst should succeed: %v", err)
+	}
+
+	dstPath := filepath.Join(dstDir, "renamed.json")
+	if _, err := os.Stat(dstPath); err != nil {
+		t.Errorf("Expected file at destination %s: %v", dstPath, err)
+	}
+
+	tmpPath := filepath.Join(tmpDir, "renamed.json.tmp")
+	if _, err := os.Stat(tmpPath); !os.IsNotExist(err) {
+		t.Error("Expected no .tmp file to remain after save with renameDst")
 	}
 }
 

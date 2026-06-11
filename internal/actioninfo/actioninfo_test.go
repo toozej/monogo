@@ -2204,3 +2204,951 @@ func TestWriteOutdatedActions_EmptyFullRef(t *testing.T) {
 		t.Errorf("Expected semver update with empty FullRef, got: %s", string(result))
 	}
 }
+
+func TestDetectPinnableActions(t *testing.T) {
+	tests := []struct {
+		name          string
+		workflowFiles []*workflow.WorkflowFile
+		archived      map[string]bool
+		expectedCount int
+	}{
+		{
+			name: "version tag is pinnable",
+			workflowFiles: []*workflow.WorkflowFile{
+				{Path: "ci.yaml", UsesWithVersions: []workflow.ActionRef{
+					{OwnerRepo: "actions/checkout", Version: "v3", FullRef: "actions/checkout@v3"},
+				}},
+			},
+			archived:      map[string]bool{"actions/checkout": false},
+			expectedCount: 1,
+		},
+		{
+			name: "commit SHA is not pinnable",
+			workflowFiles: []*workflow.WorkflowFile{
+				{Path: "ci.yaml", UsesWithVersions: []workflow.ActionRef{
+					{OwnerRepo: "actions/checkout", Version: "abc123def456", FullRef: "actions/checkout@abc123def456"},
+				}},
+			},
+			archived:      map[string]bool{"actions/checkout": false},
+			expectedCount: 0,
+		},
+		{
+			name: "archived action is not pinnable",
+			workflowFiles: []*workflow.WorkflowFile{
+				{Path: "ci.yaml", UsesWithVersions: []workflow.ActionRef{
+					{OwnerRepo: "archived/action", Version: "v1", FullRef: "archived/action@v1"},
+				}},
+			},
+			archived:      map[string]bool{"archived/action": true},
+			expectedCount: 0,
+		},
+		{
+			name: "mixed actions only non-archived non-SHA are pinnable",
+			workflowFiles: []*workflow.WorkflowFile{
+				{Path: "ci.yaml", UsesWithVersions: []workflow.ActionRef{
+					{OwnerRepo: "actions/checkout", Version: "v3", FullRef: "actions/checkout@v3"},
+					{OwnerRepo: "actions/setup-go", Version: "abc123def", FullRef: "actions/setup-go@abc123def"},
+					{OwnerRepo: "archived/action", Version: "v1", FullRef: "archived/action@v1"},
+				}},
+			},
+			archived:      map[string]bool{"actions/checkout": false, "actions/setup-go": false, "archived/action": true},
+			expectedCount: 1,
+		},
+		{
+			name: "duplicate same file same ref counted once",
+			workflowFiles: []*workflow.WorkflowFile{
+				{Path: "ci.yaml", UsesWithVersions: []workflow.ActionRef{
+					{OwnerRepo: "actions/checkout", Version: "v3", FullRef: "actions/checkout@v3"},
+					{OwnerRepo: "actions/checkout", Version: "v3", FullRef: "actions/checkout@v3"},
+				}},
+			},
+			archived:      map[string]bool{"actions/checkout": false},
+			expectedCount: 1,
+		},
+		{
+			name: "action with subpath is pinnable",
+			workflowFiles: []*workflow.WorkflowFile{
+				{Path: "ci.yaml", UsesWithVersions: []workflow.ActionRef{
+					{OwnerRepo: "github/codeql-action", ActionPath: "init", Version: "v4.35.2", FullRef: "github/codeql-action/init@v4.35.2"},
+				}},
+			},
+			archived:      map[string]bool{"github/codeql-action": false},
+			expectedCount: 1,
+		},
+		{
+			name: "empty workflow files returns nothing",
+			workflowFiles: []*workflow.WorkflowFile{
+				{Path: "ci.yaml", UsesWithVersions: []workflow.ActionRef{}},
+			},
+			archived:      map[string]bool{},
+			expectedCount: 0,
+		},
+		{
+			name: "branch-name ref is not pinnable",
+			workflowFiles: []*workflow.WorkflowFile{
+				{Path: "ci.yaml", UsesWithVersions: []workflow.ActionRef{
+					{OwnerRepo: "actions/checkout", Version: "main", FullRef: "actions/checkout@main"},
+				}},
+			},
+			archived:      map[string]bool{"actions/checkout": false},
+			expectedCount: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := DetectPinnableActions(tt.workflowFiles, tt.archived)
+			if len(result) != tt.expectedCount {
+				t.Errorf("DetectPinnableActions() = %d pinnable, want %d: %+v", len(result), tt.expectedCount, result)
+			}
+		})
+	}
+}
+
+func TestPinActions(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/repos/owner/repo/git/refs/tags/v3":
+			w.WriteHeader(200)
+			if _, err := w.Write([]byte(`{"ref":"refs/tags/v3","object":{"sha":"abc123def456","type":"commit"}}`)); err != nil {
+				t.Errorf("failed to write response: %v", err)
+			}
+		default:
+			w.WriteHeader(404)
+		}
+	}))
+	defer server.Close()
+
+	client := newTestGithubClient(server)
+	ctx := context.Background()
+
+	tmpDir := t.TempDir()
+	content := "name: CI\non: push\njobs:\n test:\n steps:\n - uses: owner/repo@v3\n"
+	filePath := filepath.Join(tmpDir, "ci.yaml")
+	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	wf := &workflow.WorkflowFile{
+		Path: filePath,
+		UsesWithVersions: []workflow.ActionRef{
+			{OwnerRepo: "owner/repo", Version: "v3", FullRef: "owner/repo@v3"},
+		},
+	}
+
+	pinnable := []PinActionInfo{
+		{OwnerRepo: "owner/repo", Version: "v3", Workflow: filePath, FullRef: "owner/repo@v3"},
+	}
+
+	report := PinActions(ctx, client, []*workflow.WorkflowFile{wf}, pinnable, false)
+	if got := PinUpdateFailureCount(report); got != 0 {
+		t.Fatalf("PinActions() failure count = %d, want 0", got)
+	}
+	if got := PinUpdateCount(report); got != 1 {
+		t.Fatalf("PinActions() update count = %d, want 1", got)
+	}
+
+	result, err := os.ReadFile(filePath)
+	if err != nil {
+		t.Fatalf("Failed to read updated file: %v", err)
+	}
+
+	resultStr := string(result)
+	if !strings.Contains(resultStr, "owner/repo@abc123def456 # v3") {
+		t.Errorf("Expected action to be pinned to SHA with version comment, got: %s", resultStr)
+	}
+	if strings.Contains(resultStr, "owner/repo@v3\n") {
+		t.Errorf("Expected old ref to be replaced, got: %s", resultStr)
+	}
+}
+
+func TestPinActions_ActionPath(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/repos/github/codeql-action/git/refs/tags/v4.35.4":
+			w.WriteHeader(200)
+			if _, err := w.Write([]byte(`{"ref":"refs/tags/v4.35.4","object":{"sha":"deadbeef1234","type":"commit"}}`)); err != nil {
+				t.Errorf("failed to write response: %v", err)
+			}
+		default:
+			w.WriteHeader(404)
+		}
+	}))
+	defer server.Close()
+
+	client := newTestGithubClient(server)
+	ctx := context.Background()
+
+	tmpDir := t.TempDir()
+	content := "name: CI\non: push\njobs:\n test:\n steps:\n - uses: github/codeql-action/init@v4.35.4\n"
+	filePath := filepath.Join(tmpDir, "ci.yaml")
+	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	wf := &workflow.WorkflowFile{
+		Path: filePath,
+		UsesWithVersions: []workflow.ActionRef{
+			{OwnerRepo: "github/codeql-action", ActionPath: "init", Version: "v4.35.4", FullRef: "github/codeql-action/init@v4.35.4"},
+		},
+	}
+
+	pinnable := []PinActionInfo{
+		{OwnerRepo: "github/codeql-action", ActionPath: "init", Version: "v4.35.4", Workflow: filePath, FullRef: "github/codeql-action/init@v4.35.4"},
+	}
+
+	report := PinActions(ctx, client, []*workflow.WorkflowFile{wf}, pinnable, false)
+	if got := PinUpdateFailureCount(report); got != 0 {
+		t.Fatalf("PinActions() failure count = %d, want 0", got)
+	}
+
+	result, err := os.ReadFile(filePath)
+	if err != nil {
+		t.Fatalf("Failed to read updated file: %v", err)
+	}
+
+	resultStr := string(result)
+	if !strings.Contains(resultStr, "github/codeql-action/init@deadbeef1234 # v4.35.4") {
+		t.Errorf("Expected subpath action to be pinned to SHA with version comment, got: %s", resultStr)
+	}
+}
+
+func TestPinActions_SHAFetchFailure(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(404)
+	}))
+	defer server.Close()
+
+	client := newTestGithubClient(server)
+	ctx := context.Background()
+
+	tmpDir := t.TempDir()
+	content := "name: CI\non: push\njobs:\n test:\n steps:\n - uses: owner/repo@v3\n"
+	filePath := filepath.Join(tmpDir, "ci.yaml")
+	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	wf := &workflow.WorkflowFile{
+		Path: filePath,
+		UsesWithVersions: []workflow.ActionRef{
+			{OwnerRepo: "owner/repo", Version: "v3", FullRef: "owner/repo@v3"},
+		},
+	}
+
+	pinnable := []PinActionInfo{
+		{OwnerRepo: "owner/repo", Version: "v3", Workflow: filePath, FullRef: "owner/repo@v3"},
+	}
+
+	report := PinActions(ctx, client, []*workflow.WorkflowFile{wf}, pinnable, false)
+	if got := PinUpdateFailureCount(report); got == 0 {
+		t.Fatal("PinActions() expected failures when SHA resolution fails, got 0")
+	}
+
+	result, err := os.ReadFile(filePath)
+	if err != nil {
+		t.Fatalf("Failed to read file: %v", err)
+	}
+	if string(result) != content {
+		t.Errorf("Expected file content unchanged after SHA fetch failure, got: %q", string(result))
+	}
+}
+
+func TestPinActions_Empty(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(404)
+	}))
+	defer server.Close()
+
+	client := newTestGithubClient(server)
+	ctx := context.Background()
+
+	report := PinActions(ctx, client, nil, []PinActionInfo{}, false)
+	if got := PinUpdateCount(report); got != 0 {
+		t.Fatalf("PinUpdateCount() = %d, want 0", got)
+	}
+	if got := PinUpdateFailureCount(report); got != 0 {
+		t.Fatalf("PinUpdateFailureCount() = %d, want 0", got)
+	}
+}
+
+func TestPinActions_WithComments(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/repos/owner/repo/git/refs/tags/v3":
+			w.WriteHeader(200)
+			if _, err := w.Write([]byte(`{"ref":"refs/tags/v3","object":{"sha":"abc123def456","type":"commit"}}`)); err != nil {
+				t.Errorf("failed to write response: %v", err)
+			}
+		default:
+			w.WriteHeader(404)
+		}
+	}))
+	defer server.Close()
+
+	client := newTestGithubClient(server)
+	ctx := context.Background()
+
+	tmpDir := t.TempDir()
+	content := "name: CI\non: push\njobs:\n test:\n steps:\n - uses: owner/repo@v3 # nosemgrep: some-rule\n"
+	filePath := filepath.Join(tmpDir, "ci.yaml")
+	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	wf := &workflow.WorkflowFile{
+		Path: filePath,
+		UsesWithVersions: []workflow.ActionRef{
+			{OwnerRepo: "owner/repo", Version: "v3", FullRef: "owner/repo@v3"},
+		},
+	}
+
+	pinnable := []PinActionInfo{
+		{OwnerRepo: "owner/repo", Version: "v3", Workflow: filePath, FullRef: "owner/repo@v3"},
+	}
+
+	report := PinActions(ctx, client, []*workflow.WorkflowFile{wf}, pinnable, false)
+	if got := PinUpdateFailureCount(report); got != 0 {
+		t.Fatalf("PinActions() failure count = %d, want 0", got)
+	}
+
+	result, err := os.ReadFile(filePath)
+	if err != nil {
+		t.Fatalf("Failed to read updated file: %v", err)
+	}
+
+	resultStr := string(result)
+	if !strings.Contains(resultStr, "owner/repo@abc123def456 # v3 # nosemgrep: some-rule") {
+		t.Errorf("Expected pin with semver comment before nosemgrep comment, got: %s", resultStr)
+	}
+}
+
+func TestPinUpdateCount(t *testing.T) {
+	tests := []struct {
+		name     string
+		report   PinUpdateReport
+		expected int
+	}{
+		{name: "empty report", report: PinUpdateReport{UpdatedByFile: map[string][]FileUpdate{}}, expected: 0},
+		{name: "single file single update", report: PinUpdateReport{UpdatedByFile: map[string][]FileUpdate{
+			"ci.yaml": {{OldUse: "a@v1", NewUse: "a@sha1 # v1"}},
+		}}, expected: 1},
+		{name: "multiple files", report: PinUpdateReport{UpdatedByFile: map[string][]FileUpdate{
+			"ci.yaml":      {{OldUse: "a@v1", NewUse: "a@sha1 # v1"}},
+			"release.yaml": {{OldUse: "b@v2", NewUse: "b@sha2 # v2"}, {OldUse: "c@v3", NewUse: "c@sha3 # v3"}},
+		}}, expected: 3},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := PinUpdateCount(tt.report)
+			if got != tt.expected {
+				t.Errorf("PinUpdateCount() = %d, want %d", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestPinUpdateFailureCount(t *testing.T) {
+	report := PinUpdateReport{
+		FailedUpdates: []PinUpdateFailure{
+			{WorkflowFile: "ci.yaml", OldUse: "a@v1", NewUse: "a@sha1 # v1", Reason: "failed"},
+			{WorkflowFile: "ci.yaml", OldUse: "b@v1", NewUse: "b@sha2 # v1", Reason: "failed"},
+		},
+	}
+	if got := PinUpdateFailureCount(report); got != 2 {
+		t.Errorf("PinUpdateFailureCount() = %d, want 2", got)
+	}
+}
+
+func TestPrintPinUpdateReport_WithUpdates(t *testing.T) {
+	origTTY := IsTTY
+	defer func() { IsTTY = origTTY }()
+	IsTTY = false
+
+	report := PinUpdateReport{
+		UpdatedByFile: map[string][]FileUpdate{
+			"ci.yaml": {
+				{OldUse: "actions/checkout@v3", NewUse: "actions/checkout@abc123 # v3"},
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+	PrintPinUpdateReport(&buf, report)
+
+	output := buf.String()
+	if !strings.Contains(output, "Pinned 1") {
+		t.Errorf("Expected pin count in output, got: %q", output)
+	}
+	if !strings.Contains(output, "ci.yaml") {
+		t.Errorf("Expected file path in output, got: %q", output)
+	}
+}
+
+func TestPrintPinUpdateReport_WithFailures(t *testing.T) {
+	origTTY := IsTTY
+	defer func() { IsTTY = origTTY }()
+	IsTTY = false
+
+	report := PinUpdateReport{
+		FailedUpdates: []PinUpdateFailure{
+			{WorkflowFile: "ci.yaml", OldUse: "actions/checkout@v3", NewUse: "actions/checkout@v3", Reason: "SHA resolution failed"},
+		},
+	}
+
+	var buf bytes.Buffer
+	PrintPinUpdateReport(&buf, report)
+
+	output := buf.String()
+	if !strings.Contains(output, "Could not pin 1") {
+		t.Errorf("Expected failure count in output, got: %q", output)
+	}
+}
+
+func TestPrintPinUpdateReport_Empty(t *testing.T) {
+	report := PinUpdateReport{
+		UpdatedByFile: map[string][]FileUpdate{},
+	}
+
+	var buf bytes.Buffer
+	PrintPinUpdateReport(&buf, report)
+
+	if buf.Len() > 0 {
+		t.Errorf("Expected no output for empty report, got: %q", buf.String())
+	}
+}
+
+func TestBuildPinUpdateSummary_UpdatedOnly(t *testing.T) {
+	origTTY := IsTTY
+	defer func() { IsTTY = origTTY }()
+	IsTTY = false
+
+	report := PinUpdateReport{
+		UpdatedByFile: map[string][]FileUpdate{
+			"ci.yaml": {{OldUse: "a@v1", NewUse: "a@sha1 # v1"}},
+		},
+	}
+	summary := BuildPinUpdateSummary(report)
+	if !strings.Contains(summary, "Pinned 1") {
+		t.Errorf("Expected pinned count in summary, got: %q", summary)
+	}
+}
+
+func TestBuildPinUpdateSummary_UpdatedAndFailures(t *testing.T) {
+	origTTY := IsTTY
+	defer func() { IsTTY = origTTY }()
+	IsTTY = false
+
+	report := PinUpdateReport{
+		UpdatedByFile: map[string][]FileUpdate{
+			"ci.yaml": {{OldUse: "a@v1", NewUse: "a@sha1 # v1"}},
+		},
+		FailedUpdates: []PinUpdateFailure{
+			{WorkflowFile: "release.yaml", OldUse: "b@v1", NewUse: "b@sha2 # v1", Reason: "failed"},
+		},
+	}
+	summary := BuildPinUpdateSummary(report)
+	if !strings.Contains(summary, "Pinned 1") {
+		t.Errorf("Expected pinned count in summary, got: %q", summary)
+	}
+	if !strings.Contains(summary, "1 could not be pinned") {
+		t.Errorf("Expected failure count in summary, got: %q", summary)
+	}
+}
+
+func TestBuildPinUpdateSummary_FailuresOnly(t *testing.T) {
+	origTTY := IsTTY
+	defer func() { IsTTY = origTTY }()
+	IsTTY = false
+
+	report := PinUpdateReport{
+		FailedUpdates: []PinUpdateFailure{
+			{WorkflowFile: "ci.yaml", OldUse: "a@v1", NewUse: "a@sha1 # v1", Reason: "failed"},
+		},
+	}
+	summary := BuildPinUpdateSummary(report)
+	if !strings.Contains(summary, "could not be pinned") {
+		t.Errorf("Expected failure message in summary, got: %q", summary)
+	}
+}
+
+func TestBuildPinUpdateSummary_NoUpdatesNoFailures(t *testing.T) {
+	origTTY := IsTTY
+	defer func() { IsTTY = origTTY }()
+	IsTTY = false
+
+	report := PinUpdateReport{
+		UpdatedByFile: map[string][]FileUpdate{},
+	}
+	summary := BuildPinUpdateSummary(report)
+	if !strings.Contains(summary, "none were pinned") {
+		t.Errorf("Expected no-pins message in summary, got: %q", summary)
+	}
+}
+
+func TestPinActionInfo_Fields(t *testing.T) {
+	info := PinActionInfo{
+		OwnerRepo:  "actions/checkout",
+		ActionPath: "",
+		Version:    "v3",
+		FullRef:    "actions/checkout@v3",
+		Workflow:   ".github/workflows/ci.yaml",
+	}
+	if info.OwnerRepo != "actions/checkout" {
+		t.Errorf("Expected OwnerRepo 'actions/checkout', got %s", info.OwnerRepo)
+	}
+	if info.Version != "v3" {
+		t.Errorf("Expected Version 'v3', got %s", info.Version)
+	}
+	if info.Workflow != ".github/workflows/ci.yaml" {
+		t.Errorf("Expected Workflow 'ci.yaml', got %s", info.Workflow)
+	}
+}
+
+func TestPinUpdateFailure_Fields(t *testing.T) {
+	failure := PinUpdateFailure{
+		WorkflowFile: "ci.yaml",
+		OldUse:       "actions/checkout@v3",
+		NewUse:       "actions/checkout@abc123 # v3",
+		Reason:       "SHA resolution failed",
+	}
+	if failure.WorkflowFile != "ci.yaml" {
+		t.Errorf("Expected WorkflowFile 'ci.yaml', got %s", failure.WorkflowFile)
+	}
+	if failure.Reason != "SHA resolution failed" {
+		t.Errorf("Expected Reason 'SHA resolution failed', got %s", failure.Reason)
+	}
+}
+
+func TestPinUpdateReport_Fields(t *testing.T) {
+	report := PinUpdateReport{
+		UpdatedByFile: map[string][]FileUpdate{
+			"ci.yaml": {{OldUse: "a@v1", NewUse: "a@sha1 # v1"}},
+		},
+		FailedUpdates: []PinUpdateFailure{
+			{WorkflowFile: "release.yaml", OldUse: "b@v1", Reason: "failed"},
+		},
+	}
+	if len(report.UpdatedByFile) != 1 {
+		t.Errorf("Expected 1 updated file, got %d", len(report.UpdatedByFile))
+	}
+	if len(report.FailedUpdates) != 1 {
+		t.Errorf("Expected 1 failed update, got %d", len(report.FailedUpdates))
+	}
+}
+
+func TestMatchesUsesLine_QuotedRefs(t *testing.T) {
+	tests := []struct {
+		name   string
+		line   string
+		oldUse string
+		want   bool
+	}{
+		{name: "single-quoted match", line: " - uses: 'actions/checkout@v3'", oldUse: "actions/checkout@v3", want: true},
+		{name: "double-quoted match", line: " - uses: \"actions/checkout@v3\"", oldUse: "actions/checkout@v3", want: true},
+		{name: "single-quoted with trailing comment", line: " - uses: 'actions/checkout@v3' # nosemgrep", oldUse: "actions/checkout@v3", want: true},
+		{name: "double-quoted with trailing comment", line: " - uses: \"actions/checkout@v3\" # nosemgrep", oldUse: "actions/checkout@v3", want: true},
+		{name: "unquoted still matches", line: " - uses: actions/checkout@v3", oldUse: "actions/checkout@v3", want: true},
+		{name: "single-quoted no match different ref", line: " - uses: 'actions/setup-go@v4'", oldUse: "actions/checkout@v3", want: false},
+		{name: "double-quoted no match different ref", line: " - uses: \"actions/setup-go@v4\"", oldUse: "actions/checkout@v3", want: false},
+		{name: "single-quoted partial match not a match", line: " - uses: 'actions/checkout@v3-extra'", oldUse: "actions/checkout@v3", want: false},
+		{name: "double-quoted partial match not a match", line: " - uses: \"actions/checkout@v3-extra\"", oldUse: "actions/checkout@v3", want: false},
+		{name: "single-quoted exact match at end of line", line: " - uses: 'actions/checkout@v3'", oldUse: "actions/checkout@v3", want: true},
+		{name: "double-quoted exact match at end of line", line: " - uses: \"actions/checkout@v3\"", oldUse: "actions/checkout@v3", want: true},
+		{name: "single-quoted subpath action", line: " - uses: 'github/codeql-action/init@v4.35.2'", oldUse: "github/codeql-action/init@v4.35.2", want: true},
+		{name: "double-quoted subpath action", line: " - uses: \"github/codeql-action/init@v4.35.2\"", oldUse: "github/codeql-action/init@v4.35.2", want: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := matchesUsesLine(tt.line, tt.oldUse)
+			if got != tt.want {
+				t.Errorf("matchesUsesLine(%q, %q) = %v, want %v", tt.line, tt.oldUse, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBuildReplacementLine_QuotedRefs(t *testing.T) {
+	tests := []struct {
+		name     string
+		line     string
+		oldUse   string
+		newUse   string
+		expected string
+	}{
+		{
+			name:     "single-quoted no trailing comment - SHA mode",
+			line:     " - uses: 'actions/checkout@v3'",
+			oldUse:   "actions/checkout@v3",
+			newUse:   "actions/checkout@sha789 # v3",
+			expected: " - uses: 'actions/checkout@sha789' # v3",
+		},
+		{
+			name:     "double-quoted no trailing comment - SHA mode",
+			line:     " - uses: \"actions/checkout@v3\"",
+			oldUse:   "actions/checkout@v3",
+			newUse:   "actions/checkout@sha789 # v3",
+			expected: " - uses: \"actions/checkout@sha789\" # v3",
+		},
+		{
+			name:     "single-quoted no trailing comment - semver mode",
+			line:     " - uses: 'actions/checkout@v3'",
+			oldUse:   "actions/checkout@v3",
+			newUse:   "actions/checkout@v4",
+			expected: " - uses: 'actions/checkout@v4'",
+		},
+		{
+			name:     "double-quoted no trailing comment - semver mode",
+			line:     " - uses: \"actions/checkout@v3\"",
+			oldUse:   "actions/checkout@v3",
+			newUse:   "actions/checkout@v4",
+			expected: " - uses: \"actions/checkout@v4\"",
+		},
+		{
+			name:     "single-quoted with nosemgrep comment - SHA mode",
+			line:     " - uses: 'actions/checkout@v3' # nosemgrep: some-rule",
+			oldUse:   "actions/checkout@v3",
+			newUse:   "actions/checkout@sha789 # v4.1.2",
+			expected: " - uses: 'actions/checkout@sha789' # v4.1.2 # nosemgrep: some-rule",
+		},
+		{
+			name:     "double-quoted with nosemgrep comment - SHA mode",
+			line:     " - uses: \"actions/checkout@v3\" # nosemgrep: some-rule",
+			oldUse:   "actions/checkout@v3",
+			newUse:   "actions/checkout@sha789 # v4.1.2",
+			expected: " - uses: \"actions/checkout@sha789\" # v4.1.2 # nosemgrep: some-rule",
+		},
+		{
+			name:     "single-quoted with nosemgrep comment - semver mode",
+			line:     " - uses: 'actions/checkout@v3' # nosemgrep: some-rule",
+			oldUse:   "actions/checkout@v3",
+			newUse:   "actions/checkout@v4.1.2",
+			expected: " - uses: 'actions/checkout@v4.1.2' # nosemgrep: some-rule",
+		},
+		{
+			name:     "double-quoted with nosemgrep comment - semver mode",
+			line:     " - uses: \"actions/checkout@v3\" # nosemgrep: some-rule",
+			oldUse:   "actions/checkout@v3",
+			newUse:   "actions/checkout@v4.1.2",
+			expected: " - uses: \"actions/checkout@v4.1.2\" # nosemgrep: some-rule",
+		},
+		{
+			name:     "single-quoted re-pin replaces old semver comment",
+			line:     " - uses: 'actions/checkout@oldSHA' # v3",
+			oldUse:   "actions/checkout@oldSHA",
+			newUse:   "actions/checkout@newSHA # v4",
+			expected: " - uses: 'actions/checkout@newSHA' # v4",
+		},
+		{
+			name:     "double-quoted re-pin replaces old semver comment",
+			line:     " - uses: \"actions/checkout@oldSHA\" # v3",
+			oldUse:   "actions/checkout@oldSHA",
+			newUse:   "actions/checkout@newSHA # v4",
+			expected: " - uses: \"actions/checkout@newSHA\" # v4",
+		},
+		{
+			name:     "single-quoted re-pin with nosemgrep keeps nosemgrep",
+			line:     " - uses: 'actions/checkout@oldSHA' # v3 # nosemgrep: rule",
+			oldUse:   "actions/checkout@oldSHA",
+			newUse:   "actions/checkout@newSHA # v4",
+			expected: " - uses: 'actions/checkout@newSHA' # v4 # nosemgrep: rule",
+		},
+		{
+			name:     "double-quoted re-pin with nosemgrep keeps nosemgrep",
+			line:     " - uses: \"actions/checkout@oldSHA\" # v3 # nosemgrep: rule",
+			oldUse:   "actions/checkout@oldSHA",
+			newUse:   "actions/checkout@newSHA # v4",
+			expected: " - uses: \"actions/checkout@newSHA\" # v4 # nosemgrep: rule",
+		},
+		{
+			name:     "single-quoted subpath with comment preserved",
+			line:     " - uses: 'github/codeql-action/init@v4.35.2' # nosemgrep: some-comment",
+			oldUse:   "github/codeql-action/init@v4.35.2",
+			newUse:   "github/codeql-action/init@sha456 # v4.35.4",
+			expected: " - uses: 'github/codeql-action/init@sha456' # v4.35.4 # nosemgrep: some-comment",
+		},
+		{
+			name:     "double-quoted subpath with comment preserved",
+			line:     " - uses: \"github/codeql-action/init@v4.35.2\" # nosemgrep: some-comment",
+			oldUse:   "github/codeql-action/init@v4.35.2",
+			newUse:   "github/codeql-action/init@sha456 # v4.35.4",
+			expected: " - uses: \"github/codeql-action/init@sha456\" # v4.35.4 # nosemgrep: some-comment",
+		},
+		{
+			name:     "single-quoted custom comment gets semver prepended",
+			line:     " - uses: 'actions/checkout@v3' # see: https://example.com",
+			oldUse:   "actions/checkout@v3",
+			newUse:   "actions/checkout@sha789 # v3.1.0",
+			expected: " - uses: 'actions/checkout@sha789' # v3.1.0 # see: https://example.com",
+		},
+		{
+			name:     "double-quoted custom comment gets semver prepended",
+			line:     " - uses: \"actions/checkout@v3\" # see: https://example.com",
+			oldUse:   "actions/checkout@v3",
+			newUse:   "actions/checkout@sha789 # v3.1.0",
+			expected: " - uses: \"actions/checkout@sha789\" # v3.1.0 # see: https://example.com",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := buildReplacementLine(tt.line, tt.oldUse, tt.newUse)
+			if result != tt.expected {
+				t.Errorf("buildReplacementLine() = %q, want %q", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestReplaceUsesLine_QuotedRefs(t *testing.T) {
+	tests := []struct {
+		name     string
+		content  string
+		oldUse   string
+		newUse   string
+		expected string
+	}{
+		{
+			name:     "single-quoted standard replacement",
+			content:  " - uses: 'actions/checkout@v3'\n",
+			oldUse:   "actions/checkout@v3",
+			newUse:   "actions/checkout@abc123 # v3",
+			expected: " - uses: 'actions/checkout@abc123' # v3\n",
+		},
+		{
+			name:     "double-quoted standard replacement",
+			content:  " - uses: \"actions/checkout@v3\"\n",
+			oldUse:   "actions/checkout@v3",
+			newUse:   "actions/checkout@abc123 # v3",
+			expected: " - uses: \"actions/checkout@abc123\" # v3\n",
+		},
+		{
+			name:     "single-quoted semver mode replacement",
+			content:  " - uses: 'actions/checkout@v3'\n",
+			oldUse:   "actions/checkout@v3",
+			newUse:   "actions/checkout@v4",
+			expected: " - uses: 'actions/checkout@v4'\n",
+		},
+		{
+			name:     "double-quoted semver mode replacement",
+			content:  " - uses: \"actions/checkout@v3\"\n",
+			oldUse:   "actions/checkout@v3",
+			newUse:   "actions/checkout@v4",
+			expected: " - uses: \"actions/checkout@v4\"\n",
+		},
+		{
+			name:     "single-quoted with nosemgrep comment preserved",
+			content:  " - uses: 'gitleaks/gitleaks-action@v2' # nosemgrep: some-comment\n",
+			oldUse:   "gitleaks/gitleaks-action@v2",
+			newUse:   "gitleaks/gitleaks-action@abc123def # v2.3.9",
+			expected: " - uses: 'gitleaks/gitleaks-action@abc123def' # v2.3.9 # nosemgrep: some-comment\n",
+		},
+		{
+			name:     "double-quoted with nosemgrep comment preserved",
+			content:  " - uses: \"gitleaks/gitleaks-action@v2\" # nosemgrep: some-comment\n",
+			oldUse:   "gitleaks/gitleaks-action@v2",
+			newUse:   "gitleaks/gitleaks-action@abc123def # v2.3.9",
+			expected: " - uses: \"gitleaks/gitleaks-action@abc123def\" # v2.3.9 # nosemgrep: some-comment\n",
+		},
+		{
+			name:     "mixed quoted and unquoted lines - only matching line updated",
+			content:  " - uses: actions/checkout@v3\n - uses: 'actions/setup-go@v4'\n - uses: \"docker/build-push-action@v5\"\n",
+			oldUse:   "actions/setup-go@v4",
+			newUse:   "actions/setup-go@def456 # v4",
+			expected: " - uses: actions/checkout@v3\n - uses: 'actions/setup-go@def456' # v4\n - uses: \"docker/build-push-action@v5\"\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ReplaceUsesLine([]byte(tt.content), tt.oldUse, tt.newUse)
+			if string(result) != tt.expected {
+				t.Errorf("ReplaceUsesLine() = %q, want %q", string(result), tt.expected)
+			}
+		})
+	}
+}
+
+func TestApplyUpdatesToFile_QuotedRefs(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name                string
+		content             string
+		updates             []FileUpdate
+		expectedContains    []string
+		expectedNotContains []string
+	}{
+		{
+			name:    "single-quoted SHA pin",
+			content: "name: CI\non: push\njobs:\n test:\n steps:\n - uses: 'actions/checkout@v3'\n - uses: 'actions/setup-go@v4'\n",
+			updates: []FileUpdate{
+				{OldUse: "actions/checkout@v3", NewUse: "actions/checkout@abc123def # v3"},
+				{OldUse: "actions/setup-go@v4", NewUse: "actions/setup-go@def456abc # v4"},
+			},
+			expectedContains:    []string{"'actions/checkout@abc123def' # v3", "'actions/setup-go@def456abc' # v4"},
+			expectedNotContains: []string{"'actions/checkout@v3'", "'actions/setup-go@v4'"},
+		},
+		{
+			name:    "double-quoted SHA pin",
+			content: "name: CI\non: push\njobs:\n test:\n steps:\n - uses: \"actions/checkout@v3\"\n - uses: \"actions/setup-go@v4\"\n",
+			updates: []FileUpdate{
+				{OldUse: "actions/checkout@v3", NewUse: "actions/checkout@abc123def # v3"},
+				{OldUse: "actions/setup-go@v4", NewUse: "actions/setup-go@def456abc # v4"},
+			},
+			expectedContains:    []string{"\"actions/checkout@abc123def\" # v3", "\"actions/setup-go@def456abc\" # v4"},
+			expectedNotContains: []string{"\"actions/checkout@v3\"", "\"actions/setup-go@v4\""},
+		},
+		{
+			name:    "mixed quotes with comments",
+			content: "name: CI\non: push\njobs:\n test:\n steps:\n - uses: 'actions/checkout@v3' # nosemgrep: some-rule\n - uses: \"gitleaks/gitleaks-action@v2\" # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha\n",
+			updates: []FileUpdate{
+				{OldUse: "actions/checkout@v3", NewUse: "actions/checkout@abc123def # v4.1.2"},
+				{OldUse: "gitleaks/gitleaks-action@v2", NewUse: "gitleaks/gitleaks-action@def456abc # v2.3.9"},
+			},
+			expectedContains: []string{
+				"'actions/checkout@abc123def' # v4.1.2 # nosemgrep: some-rule",
+				"\"gitleaks/gitleaks-action@def456abc\" # v2.3.9 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha",
+			},
+			expectedNotContains: []string{"'actions/checkout@v3'", "\"gitleaks/gitleaks-action@v2\""},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			filePath := filepath.Join(tmpDir, "ci.yaml")
+			if err := os.WriteFile(filePath, []byte(tt.content), 0644); err != nil {
+				t.Fatalf("Failed to write test file: %v", err)
+			}
+
+			if err := ApplyUpdatesToFile(filePath, tt.updates); err != nil {
+				t.Fatalf("ApplyUpdatesToFile failed: %v", err)
+			}
+
+			result, err := os.ReadFile(filePath)
+			if err != nil {
+				t.Fatalf("Failed to read updated file: %v", err)
+			}
+
+			resultStr := string(result)
+			for _, expected := range tt.expectedContains {
+				if !strings.Contains(resultStr, expected) {
+					t.Errorf("Expected result to contain %q, got: %s", expected, resultStr)
+				}
+			}
+			for _, notExpected := range tt.expectedNotContains {
+				if strings.Contains(resultStr, notExpected) {
+					t.Errorf("Expected result NOT to contain %q, got: %s", notExpected, resultStr)
+				}
+			}
+		})
+	}
+}
+
+func TestWriteOutdatedActions_QuotedRefs(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/repos/owner/repo/releases/latest":
+			w.WriteHeader(200)
+			if err := json.NewEncoder(w).Encode(gh.ReleaseInfo{
+				TagName: "v4.1.2",
+				HTMLURL: "https://github.com/owner/repo/releases/tag/v4.1.2",
+			}); err != nil {
+				t.Errorf("failed to encode release info: %v", err)
+			}
+		case r.URL.Path == "/repos/owner/repo/git/refs/tags/v4.1.2":
+			w.WriteHeader(200)
+			if _, err := w.Write([]byte(`{"ref":"refs/tags/v4.1.2","object":{"sha":"abc123def456","type":"commit"}}`)); err != nil {
+				t.Errorf("failed to write response: %v", err)
+			}
+		default:
+			w.WriteHeader(404)
+		}
+	}))
+	defer server.Close()
+
+	client := newTestGithubClient(server)
+	ctx := context.Background()
+
+	tests := []struct {
+		name                string
+		content             string
+		useSemver           bool
+		expectedContains    string
+		expectedNotContains string
+	}{
+		{
+			name:                "single-quoted SHA mode",
+			content:             "name: CI\non: push\njobs:\n test:\n steps:\n - uses: 'owner/repo@v3'\n",
+			useSemver:           false,
+			expectedContains:    "'owner/repo@abc123def456' # v4.1.2",
+			expectedNotContains: "'owner/repo@v3'",
+		},
+		{
+			name:                "double-quoted SHA mode",
+			content:             "name: CI\non: push\njobs:\n test:\n steps:\n - uses: \"owner/repo@v3\"\n",
+			useSemver:           false,
+			expectedContains:    "\"owner/repo@abc123def456\" # v4.1.2",
+			expectedNotContains: "\"owner/repo@v3\"",
+		},
+		{
+			name:                "single-quoted semver mode",
+			content:             "name: CI\non: push\njobs:\n test:\n steps:\n - uses: 'owner/repo@v3'\n",
+			useSemver:           true,
+			expectedContains:    "'owner/repo@v4.1.2'",
+			expectedNotContains: "'owner/repo@v3'",
+		},
+		{
+			name:                "double-quoted semver mode",
+			content:             "name: CI\non: push\njobs:\n test:\n steps:\n - uses: \"owner/repo@v3\"\n",
+			useSemver:           true,
+			expectedContains:    "\"owner/repo@v4.1.2\"",
+			expectedNotContains: "\"owner/repo@v3\"",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			filePath := filepath.Join(tmpDir, "ci.yaml")
+			if err := os.WriteFile(filePath, []byte(tt.content), 0644); err != nil {
+				t.Fatalf("Failed to write test file: %v", err)
+			}
+
+			wf := &workflow.WorkflowFile{
+				Path: filePath,
+				UsesWithVersions: []workflow.ActionRef{
+					{OwnerRepo: "owner/repo", Version: "v3", FullRef: "owner/repo@v3"},
+				},
+			}
+
+			outdated := []OutdatedActionInfo{
+				{OwnerRepo: "owner/repo", CurrentRef: "v3", LatestTag: "v4.1.2", Workflow: "ci.yaml", FullRef: "owner/repo@v3"},
+			}
+
+			releases := map[string]*gh.ReleaseInfo{
+				"owner/repo": {TagName: "v4.1.2", HTMLURL: "https://github.com/owner/repo/releases/tag/v4.1.2"},
+			}
+
+			report := WriteOutdatedActions(ctx, client, []*workflow.WorkflowFile{wf}, outdated, releases, tt.useSemver, false)
+			if got := OutdatedUpdateFailureCount(report); got != 0 {
+				t.Fatalf("WriteOutdatedActions() failure count = %d, want 0", got)
+			}
+
+			result, err := os.ReadFile(filePath)
+			if err != nil {
+				t.Fatalf("Failed to read updated file: %v", err)
+			}
+
+			resultStr := string(result)
+			if !strings.Contains(resultStr, tt.expectedContains) {
+				t.Errorf("Expected result to contain %q, got: %s", tt.expectedContains, resultStr)
+			}
+			if strings.Contains(resultStr, tt.expectedNotContains) {
+				t.Errorf("Expected result NOT to contain %q, got: %s", tt.expectedNotContains, resultStr)
+			}
+		})
+	}
+}

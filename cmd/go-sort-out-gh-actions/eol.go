@@ -84,7 +84,7 @@ func processEOL(rc *checkrunner.RunContext, workflowFiles []*workflow.WorkflowFi
 	actioninfo.WriteActionOutput("has-eol", fmt.Sprintf("%v", totalEOL > 0))
 
 	if !hasIssues {
-		checkrunner.WriteResult(rc.OutputWriter, nil, nil, nil, nil, nil, false, "", actioninfo.Emoji("✅ ", "[OK] ")+"No EOL GitHub Actions found!")
+		checkrunner.WriteResult(rc.OutputWriter, nil, nil, nil, nil, nil, nil, false, "", actioninfo.Emoji("✅ ", "[OK] ")+"No EOL GitHub Actions found!")
 		return false
 	}
 
@@ -120,7 +120,7 @@ func processEOL(rc *checkrunner.RunContext, workflowFiles []*workflow.WorkflowFi
 		}
 	}
 
-	checkrunner.WriteResult(rc.OutputWriter, result.ArchivedActions, result.ArchivedRepos, staleActions, runtimeEOLActions, nil, hasIssues, summary, "")
+	checkrunner.WriteResult(rc.OutputWriter, result.ArchivedActions, result.ArchivedRepos, staleActions, runtimeEOLActions, nil, nil, hasIssues, summary, "")
 
 	return hasIssues
 }

@@ -78,7 +78,7 @@ func processArchived(rc *checkrunner.RunContext, workflowFiles []*workflow.Workf
 	actioninfo.WriteActionOutput("has-stale", fmt.Sprintf("%v", len(staleActions) > 0))
 
 	if !hasIssues {
-		checkrunner.WriteResult(rc.OutputWriter, nil, nil, nil, nil, nil, false, "", actioninfo.Emoji("✅ ", "[OK] ")+"No archived or stale GitHub Actions found!")
+		checkrunner.WriteResult(rc.OutputWriter, nil, nil, nil, nil, nil, nil, false, "", actioninfo.Emoji("✅ ", "[OK] ")+"No archived or stale GitHub Actions found!")
 		return false
 	}
 
@@ -92,7 +92,7 @@ func processArchived(rc *checkrunner.RunContext, workflowFiles []*workflow.Workf
 		summary = "\n" + actioninfo.Emoji("⏳ ", "[STALE] ") + "Stale or deprecated actions detected. Consider replacing them with actively maintained alternatives."
 	}
 
-	checkrunner.WriteResult(rc.OutputWriter, result.ArchivedActions, result.ArchivedRepos, staleActions, nil, nil, hasIssues, summary, "")
+	checkrunner.WriteResult(rc.OutputWriter, result.ArchivedActions, result.ArchivedRepos, staleActions, nil, nil, nil, hasIssues, summary, "")
 
 	return hasIssues
 }

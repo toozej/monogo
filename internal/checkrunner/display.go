@@ -6,12 +6,13 @@ import (
 	"github.com/toozej/go-sort-out-gh-actions/internal/output"
 )
 
-func WriteResult(w *output.Writer, archivedActions []issue.ArchivedActionInfo, archivedRepos []string, staleActions []actioninfo.StaleActionInfo, runtimeEOLActions []actioninfo.RuntimeEOLActionInfo, outdatedActions []actioninfo.OutdatedActionInfo, hasIssues bool, summary string, noIssuesMessage string) {
+func WriteResult(w *output.Writer, archivedActions []issue.ArchivedActionInfo, archivedRepos []string, staleActions []actioninfo.StaleActionInfo, runtimeEOLActions []actioninfo.RuntimeEOLActionInfo, outdatedActions []actioninfo.OutdatedActionInfo, pinnableActions []actioninfo.PinActionInfo, hasIssues bool, summary string, noIssuesMessage string) {
 	co := &output.CheckOutput{
 		ArchivedActions: archivedActions,
 		StaleActions:    staleActions,
 		RuntimeEOL:      runtimeEOLActions,
 		OutdatedActions: outdatedActions,
+		PinnableActions: pinnableActions,
 		ArchivedRepos:   archivedRepos,
 		HasIssues:       hasIssues,
 		Summary:         summary,

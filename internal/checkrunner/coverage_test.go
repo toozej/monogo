@@ -965,7 +965,7 @@ func TestWriteResult_JSONWithAllIssueTypes(t *testing.T) {
 		{OwnerRepo: "actions/setup-go", CurrentRef: "v3", LatestTag: "v4", LatestURL: "https://github.com/actions/setup-go/releases/tag/v4", Workflow: "ci.yml", FullRef: "actions/setup-go@v3"},
 	}
 
-	WriteResult(w, archivedActions, []string{"actions/checkout"}, staleActions, runtimeEOLActions, outdatedActions, true, "Multiple issues found", "")
+	WriteResult(w, archivedActions, []string{"actions/checkout"}, staleActions, runtimeEOLActions, outdatedActions, nil, true, "Multiple issues found", "")
 
 	out := buf.String()
 	if !strings.Contains(out, `"archived_actions"`) {

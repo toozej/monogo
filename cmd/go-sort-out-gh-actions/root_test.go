@@ -1,10 +1,14 @@
 package cmd
 
 import (
+	"os"
+	"os/exec"
 	"testing"
 
 	log "github.com/sirupsen/logrus"
+
 	"github.com/toozej/go-sort-out-gh-actions/internal/output"
+
 	"github.com/toozej/go-sort-out-gh-actions/pkg/config"
 )
 
@@ -274,4 +278,34 @@ func TestResolveCSVConfig(t *testing.T) {
 			t.Errorf("ExtraColumns[Formula] = %q, want %q", cfg.ExtraColumns["Formula"], "a=b")
 		}
 	})
+}
+
+func TestResolveCSVConfig_InvalidPair(t *testing.T) {
+	if os.Getenv("TEST_RESOLVE_CSV_INVALID") == "1" {
+		outputFormat = "csv"
+		csvAdditionalData = "invalidpair"
+		resolveCSVConfig()
+		return
+	}
+	cmd := exec.Command(os.Args[0], "-test.run=TestResolveCSVConfig_InvalidPair")
+	cmd.Env = append(os.Environ(), "TEST_RESOLVE_CSV_INVALID=1")
+	err := cmd.Run()
+	if err == nil {
+		t.Error("expected log.Fatalf for invalid CSV pair, but process exited successfully")
+	}
+}
+
+func TestResolveCSVConfig_EmptyKey(t *testing.T) {
+	if os.Getenv("TEST_RESOLVE_CSV_EMPTY_KEY") == "1" {
+		outputFormat = "csv"
+		csvAdditionalData = "=value"
+		resolveCSVConfig()
+		return
+	}
+	cmd := exec.Command(os.Args[0], "-test.run=TestResolveCSVConfig_EmptyKey")
+	cmd.Env = append(os.Environ(), "TEST_RESOLVE_CSV_EMPTY_KEY=1")
+	err := cmd.Run()
+	if err == nil {
+		t.Error("expected log.Fatalf for empty key in CSV pair, but process exited successfully")
+	}
 }

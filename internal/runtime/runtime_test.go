@@ -326,3 +326,19 @@ func TestRuntimeEOLInfoString_Nil(t *testing.T) {
 		t.Errorf("String() = %q, want empty string for nil", info.String())
 	}
 }
+
+func TestNewEOLClient(t *testing.T) {
+	client := NewEOLClient(&http.Client{Timeout: 10 * time.Second})
+	if client == nil {
+		t.Fatal("Expected non-nil client")
+	}
+	if client.baseURL != "https://endoflife.date/api/v1" {
+		t.Errorf("Expected baseURL 'https://endoflife.date/api/v1', got %q", client.baseURL)
+	}
+	if client.httpClient == nil {
+		t.Error("Expected httpClient to be set")
+	}
+	if client.cache == nil {
+		t.Error("Expected cache map to be initialized")
+	}
+}

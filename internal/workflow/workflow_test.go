@@ -113,6 +113,46 @@ jobs:
 			hasError: false,
 		},
 		{
+			name: "workflow with single-quoted uses",
+			content: `name: CI
+on: push
+jobs:
+test:
+runs-on: ubuntu-latest
+steps:
+- uses: 'actions/checkout@v3'
+- uses: 'actions/setup-go@v4'`,
+			expected: []string{"actions/checkout", "actions/setup-go"},
+			hasError: false,
+		},
+		{
+			name: "workflow with double-quoted uses",
+			content: `name: CI
+on: push
+jobs:
+test:
+runs-on: ubuntu-latest
+steps:
+- uses: "actions/checkout@v3"
+- uses: "actions/setup-go@v4"`,
+			expected: []string{"actions/checkout", "actions/setup-go"},
+			hasError: false,
+		},
+		{
+			name: "workflow with mixed quotes and unquoted uses",
+			content: `name: CI
+on: push
+jobs:
+test:
+runs-on: ubuntu-latest
+steps:
+- uses: actions/checkout@v3
+- uses: 'actions/setup-go@v4'
+- uses: "docker/build-push-action@v5"`,
+			expected: []string{"actions/checkout", "actions/setup-go", "docker/build-push-action"},
+			hasError: false,
+		},
+		{
 			name: "invalid yaml",
 			content: `name: CI
 on: push
@@ -198,13 +238,42 @@ func TestWorkflowParser_extractUsesFromYAML(t *testing.T) {
 			expected: []string{"actions/checkout", "actions/setup-go", "docker/build-push-action"},
 		},
 		{
-			name: "duplicates removed",
+			name: "sorted output",
 			yaml: `jobs:
-  test:
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/checkout@v3`,
-			expected: []string{"actions/checkout"},
+test:
+steps:
+- uses: docker/build-push-action@v4
+- uses: actions/checkout@v3
+- uses: actions/setup-go@v4`,
+			expected: []string{"actions/checkout", "actions/setup-go", "docker/build-push-action"},
+		},
+		{
+			name: "single-quoted uses",
+			yaml: `jobs:
+test:
+steps:
+- uses: 'actions/checkout@v3'
+- uses: 'actions/setup-go@v4'`,
+			expected: []string{"actions/checkout", "actions/setup-go"},
+		},
+		{
+			name: "double-quoted uses",
+			yaml: `jobs:
+test:
+steps:
+- uses: "actions/checkout@v3"
+- uses: "actions/setup-go@v4"`,
+			expected: []string{"actions/checkout", "actions/setup-go"},
+		},
+		{
+			name: "mixed quoted and unquoted uses",
+			yaml: `jobs:
+test:
+steps:
+- uses: actions/checkout@v3
+- uses: 'actions/setup-go@v4'
+- uses: "docker/build-push-action@v5"`,
+			expected: []string{"actions/checkout", "actions/setup-go", "docker/build-push-action"},
 		},
 	}
 
@@ -668,6 +737,53 @@ func TestGetAllUsesFromRepoWithVersions(t *testing.T) {
 		"github/codeql-action/init":      {OwnerRepo: "github/codeql-action", ActionPath: "init", Version: "v4.35.2", FullRef: "github/codeql-action/init@v4.35.2"},
 		"github/codeql-action/autobuild": {OwnerRepo: "github/codeql-action", ActionPath: "autobuild", Version: "v4.35.4", FullRef: "github/codeql-action/autobuild@v4.35.4"},
 		"github/codeql-action/analyze":   {OwnerRepo: "github/codeql-action", ActionPath: "analyze", Version: "v4.35.4", FullRef: "github/codeql-action/analyze@v4.35.4"},
+	}
+
+	for _, ref := range actionRefs {
+		key := ref.OwnerRepo
+		if ref.ActionPath != "" {
+			key = ref.OwnerRepo + "/" + ref.ActionPath
+		}
+		exp, ok := expected[key]
+		if !ok {
+			t.Errorf("Unexpected action ref: %v", ref)
+			continue
+		}
+		if ref.OwnerRepo != exp.OwnerRepo || ref.ActionPath != exp.ActionPath || ref.Version != exp.Version || ref.FullRef != exp.FullRef {
+			t.Errorf("Expected ref %v, got %v", exp, ref)
+		}
+	}
+}
+
+func TestGetAllUsesFromRepoWithVersions_QuotedUses(t *testing.T) {
+	parser := NewParser()
+
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatalf("Failed to create workflows directory: %v", err)
+	}
+
+	file1 := filepath.Join(workflowsDir, "ci.yml")
+
+	// Mix of single-quoted, double-quoted, and unquoted uses
+	if err := os.WriteFile(file1, []byte("jobs:\n test:\n steps:\n - uses: actions/checkout@v3\n - uses: 'actions/setup-go@v4'\n - uses: \"docker/build-push-action@v5\"\n"), 0644); err != nil {
+		t.Fatalf("Failed to write file1: %v", err)
+	}
+
+	actionRefs, _, err := parser.GetAllUsesFromRepoWithVersions(tmpDir)
+	if err != nil {
+		t.Fatalf("GetAllUsesFromRepoWithVersions failed: %v", err)
+	}
+
+	if len(actionRefs) != 3 {
+		t.Fatalf("Expected 3 unique action refs, got %d: %v", len(actionRefs), actionRefs)
+	}
+
+	expected := map[string]ActionRef{
+		"actions/checkout":         {OwnerRepo: "actions/checkout", ActionPath: "", Version: "v3", FullRef: "actions/checkout@v3"},
+		"actions/setup-go":         {OwnerRepo: "actions/setup-go", ActionPath: "", Version: "v4", FullRef: "actions/setup-go@v4"},
+		"docker/build-push-action": {OwnerRepo: "docker/build-push-action", ActionPath: "", Version: "v5", FullRef: "docker/build-push-action@v5"},
 	}
 
 	for _, ref := range actionRefs {

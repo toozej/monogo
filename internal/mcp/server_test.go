@@ -1,6 +1,10 @@
 package mcp
 
 import (
+	"bytes"
+	"io"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -150,6 +154,50 @@ func TestConfig_DefaultEnv(t *testing.T) {
 				} else if v != tt.wantFOOVal {
 					t.Errorf("expected DefaultEnv[FOO] == %q, got %q", tt.wantFOOVal, v)
 				}
+			}
+		})
+	}
+}
+
+func TestNewMCPCommand_InvalidTransport(t *testing.T) {
+	old := os.Stderr
+	r, w, _ := os.Pipe()
+	os.Stderr = w
+	cfg := &Config{
+		Transport: "invalid-transport",
+	}
+	cmd := NewMCPCommand(cfg)
+	w.Close()
+	os.Stderr = old
+	var buf bytes.Buffer
+	if _, err := io.Copy(&buf, r); err != nil {
+		t.Fatalf("failed to read stderr: %v", err)
+	}
+	output := buf.String()
+	if cmd == nil {
+		t.Fatal("expected non-nil command even with invalid transport")
+	}
+	if !strings.Contains(output, "invalid MCP_TRANSPORT") {
+		t.Errorf("expected warning about invalid transport, got: %s", output)
+	}
+}
+
+func TestNewMCPCommand_ValidTransports(t *testing.T) {
+	tests := []struct {
+		name      string
+		transport string
+	}{
+		{name: "stdio transport", transport: "stdio"},
+		{name: "sse transport", transport: "sse"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &Config{
+				Transport: tt.transport,
+			}
+			cmd := NewMCPCommand(cfg)
+			if cmd == nil {
+				t.Fatal("expected non-nil command")
 			}
 		})
 	}

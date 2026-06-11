@@ -88,7 +88,7 @@ func processCheck(rc *checkrunner.RunContext, workflowFiles []*workflow.Workflow
 	actioninfo.WriteActionOutput("has-eol", fmt.Sprintf("%v", totalEOL > 0))
 
 	if !hasIssues {
-		checkrunner.WriteResult(rc.OutputWriter, nil, nil, nil, nil, nil, false, "", actioninfo.Emoji("✅ ", "[OK] ")+"No archived, outdated, or stale GitHub Actions found!")
+		checkrunner.WriteResult(rc.OutputWriter, nil, nil, nil, nil, nil, nil, false, "", actioninfo.Emoji("✅ ", "[OK] ")+"No archived, outdated, or stale GitHub Actions found!")
 		return false
 	}
 
@@ -119,7 +119,7 @@ func processCheck(rc *checkrunner.RunContext, workflowFiles []*workflow.Workflow
 		summary = "\n" + actioninfo.Emoji("🖥️ ", "[RUNTIME] ") + "Actions using EOL runtimes detected. Consider updating to actions that use supported runtime versions."
 	}
 
-	checkrunner.WriteResult(rc.OutputWriter, result.ArchivedActions, result.ArchivedRepos, staleActions, runtimeEOLActions, outdatedActions, hasIssues, summary, "")
+	checkrunner.WriteResult(rc.OutputWriter, result.ArchivedActions, result.ArchivedRepos, staleActions, runtimeEOLActions, outdatedActions, nil, hasIssues, summary, "")
 
 	return hasIssues
 }

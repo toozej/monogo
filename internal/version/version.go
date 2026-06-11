@@ -1,3 +1,5 @@
+// Package version provides semver comparison and reference classification utilities
+// for GitHub Action version strings.
 package version
 
 import (
@@ -16,11 +18,11 @@ func IsVersionOutdated(currentRef, latestTag string) (bool, error) {
 		return false, nil
 	}
 
-	if isCommitSHA(currentRef) {
+	if IsCommitSHA(currentRef) {
 		return false, nil
 	}
 
-	if isBranchName(currentRef) {
+	if IsBranchName(currentRef) {
 		return false, nil
 	}
 
@@ -84,12 +86,12 @@ func parseSemver(version string) (*semver.Version, error) {
 	return semver.NewVersion(version)
 }
 
-func isCommitSHA(s string) bool {
+func IsCommitSHA(s string) bool {
 	matched, _ := regexp.MatchString(`^[a-fA-F0-9]{7,40}$`, s)
 	return matched
 }
 
-func isBranchName(s string) bool {
+func IsBranchName(s string) bool {
 	commonBranches := []string{"main", "master", "develop", "dev", "staging", "production", "prod"}
 	sLower := strings.ToLower(s)
 	for _, branch := range commonBranches {

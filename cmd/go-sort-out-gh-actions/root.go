@@ -97,6 +97,7 @@ func init() {
 		newArchivedCmd(),
 		newEOLCmd(),
 		newOutdatedCmd(),
+		newPinCmd(),
 		newCheckCmd(),
 		newMCPCmd(),
 		newAvatarCmd(),

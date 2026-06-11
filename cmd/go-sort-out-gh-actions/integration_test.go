@@ -128,27 +128,29 @@ func makeCmdEOLServer(eolProducts map[string]bool) *httptest.Server {
 	}))
 }
 
-func newCmdRunContext(ghServer *httptest.Server, format output.Format) *checkrunner.RunContext {
+func newCmdRunContext(ghServer *httptest.Server, format output.Format) (*checkrunner.RunContext, *bytes.Buffer) {
 	client := github.NewClientWithHTTP(ghServer.URL, ghServer.Client(), github.WithCache(false, false, 0))
+	buf := new(bytes.Buffer)
 	return &checkrunner.RunContext{
 		Ctx:          context.Background(),
 		WorkDir:      "/tmp/test-repo",
 		Parser:       &workflow.WorkflowParser{},
 		GHClient:     client,
-		OutputWriter: &output.Writer{Format: format, Output: new(bytes.Buffer)},
-	}
+		OutputWriter: &output.Writer{Format: format, Output: buf},
+	}, buf
 }
 
-func newCmdRunContextWithEOL(ghServer, eolServer *httptest.Server, format output.Format) *checkrunner.RunContext {
+func newCmdRunContextWithEOL(ghServer, eolServer *httptest.Server, format output.Format) (*checkrunner.RunContext, *bytes.Buffer) {
 	client := github.NewClientWithHTTP(ghServer.URL, ghServer.Client(), github.WithCache(false, false, 0))
 	client.SetEOLClientForTest(eolServer.URL, eolServer.Client())
+	buf := new(bytes.Buffer)
 	return &checkrunner.RunContext{
 		Ctx:          context.Background(),
 		WorkDir:      "/tmp/test-repo",
 		Parser:       &workflow.WorkflowParser{},
 		GHClient:     client,
-		OutputWriter: &output.Writer{Format: format, Output: new(bytes.Buffer)},
-	}
+		OutputWriter: &output.Writer{Format: format, Output: buf},
+	}, buf
 }
 
 func writeWorkflowFile(t *testing.T, dir, filename, content string) string {
@@ -303,7 +305,7 @@ func TestProcessArchived_NoActions(t *testing.T) {
 	server := makeCmdGHServer(nil, nil, nil)
 	defer server.Close()
 
-	rc := newCmdRunContext(server, output.FormatText)
+	rc, _ := newCmdRunContext(server, output.FormatText)
 	wfFiles := []*workflow.WorkflowFile{
 		{Path: ".github/workflows/ci.yml", UsesWithVersions: []workflow.ActionRef{}},
 	}
@@ -322,7 +324,7 @@ func TestProcessArchived_NoArchivedActions(t *testing.T) {
 	server := makeCmdGHServer(archivedRepos, nil, nil)
 	defer server.Close()
 
-	rc := newCmdRunContext(server, output.FormatText)
+	rc, _ := newCmdRunContext(server, output.FormatText)
 	wfFiles := []*workflow.WorkflowFile{
 		{
 			Path: ".github/workflows/ci.yml",
@@ -359,7 +361,7 @@ func TestProcessArchived_WithArchivedActions(t *testing.T) {
 	server := makeCmdGHServer(archivedRepos, nil, nil)
 	defer server.Close()
 
-	rc := newCmdRunContext(server, output.FormatText)
+	rc, _ := newCmdRunContext(server, output.FormatText)
 	wfFiles := []*workflow.WorkflowFile{
 		{
 			Path: ".github/workflows/ci.yml",
@@ -402,7 +404,7 @@ func TestProcessArchived_WithStaleActions(t *testing.T) {
 	server := makeCmdGHServer(map[string]bool{"actions/old-action": false}, nil, repoInfo)
 	defer server.Close()
 
-	rc := newCmdRunContext(server, output.FormatText)
+	rc, _ := newCmdRunContext(server, output.FormatText)
 	wfFiles := []*workflow.WorkflowFile{
 		{
 			Path: ".github/workflows/ci.yml",
@@ -436,7 +438,7 @@ func TestProcessArchived_JSONOutput(t *testing.T) {
 	server := makeCmdGHServer(archivedRepos, nil, nil)
 	defer server.Close()
 
-	rc := newCmdRunContext(server, output.FormatJSON)
+	rc, _ := newCmdRunContext(server, output.FormatJSON)
 	wfFiles := []*workflow.WorkflowFile{
 		{
 			Path: ".github/workflows/ci.yml",
@@ -470,7 +472,7 @@ func TestProcessArchived_VerboseOutput(t *testing.T) {
 	server := makeCmdGHServer(archivedRepos, nil, nil)
 	defer server.Close()
 
-	rc := newCmdRunContext(server, output.FormatText)
+	rc, _ := newCmdRunContext(server, output.FormatText)
 	rc.Verbose = true
 	wfFiles := []*workflow.WorkflowFile{
 		{
@@ -494,7 +496,7 @@ func TestProcessOutdated_NoActions(t *testing.T) {
 	server := makeCmdGHServer(nil, nil, nil)
 	defer server.Close()
 
-	rc := newCmdRunContext(server, output.FormatText)
+	rc, _ := newCmdRunContext(server, output.FormatText)
 	wfFiles := []*workflow.WorkflowFile{
 		{Path: ".github/workflows/ci.yml", UsesWithVersions: []workflow.ActionRef{}},
 	}
@@ -519,7 +521,7 @@ func TestProcessOutdated_NoOutdatedActions(t *testing.T) {
 	server := makeCmdGHServer(map[string]bool{"actions/checkout": false}, releases, repoInfo)
 	defer server.Close()
 
-	rc := newCmdRunContext(server, output.FormatText)
+	rc, _ := newCmdRunContext(server, output.FormatText)
 	wfFiles := []*workflow.WorkflowFile{
 		{
 			Path: ".github/workflows/ci.yml",
@@ -552,7 +554,7 @@ func TestProcessOutdated_WithOutdatedActions(t *testing.T) {
 	server := makeCmdGHServer(map[string]bool{"actions/setup-go": false}, releases, repoInfo)
 	defer server.Close()
 
-	rc := newCmdRunContext(server, output.FormatText)
+	rc, _ := newCmdRunContext(server, output.FormatText)
 	wfFiles := []*workflow.WorkflowFile{
 		{
 			Path: ".github/workflows/ci.yml",
@@ -614,7 +616,7 @@ steps:
 	server := makeCmdGHServer(archivedRepos, releases, repoInfo)
 	defer server.Close()
 
-	rc := newCmdRunContext(server, output.FormatText)
+	rc, _ := newCmdRunContext(server, output.FormatText)
 	rc.Verbose = true
 
 	parsedWf, err := rc.Parser.ParseWorkflowFile(wfPath)
@@ -644,7 +646,7 @@ func TestProcessOutdated_UseSemverTrue(t *testing.T) {
 	server := makeCmdGHServer(map[string]bool{"actions/setup-go": false}, releases, repoInfo)
 	defer server.Close()
 
-	rc := newCmdRunContext(server, output.FormatText)
+	rc, _ := newCmdRunContext(server, output.FormatText)
 	wfFiles := []*workflow.WorkflowFile{
 		{
 			Path: ".github/workflows/ci.yml",
@@ -680,7 +682,7 @@ func TestProcessOutdated_VerboseOutput(t *testing.T) {
 	server := makeCmdGHServer(archivedRepos, releases, repoInfo)
 	defer server.Close()
 
-	rc := newCmdRunContext(server, output.FormatText)
+	rc, _ := newCmdRunContext(server, output.FormatText)
 	rc.Verbose = true
 	wfFiles := []*workflow.WorkflowFile{
 		{
@@ -704,7 +706,7 @@ func TestProcessEOL_NoActions(t *testing.T) {
 	server := makeCmdGHServer(nil, nil, nil)
 	defer server.Close()
 
-	rc := newCmdRunContext(server, output.FormatText)
+	rc, _ := newCmdRunContext(server, output.FormatText)
 	wfFiles := []*workflow.WorkflowFile{
 		{Path: ".github/workflows/ci.yml", UsesWithVersions: []workflow.ActionRef{}},
 	}
@@ -730,7 +732,7 @@ func TestProcessEOL_NoEOLActions(t *testing.T) {
 	eolServer := makeCmdEOLServer(map[string]bool{"nodejs/releases/20": false})
 	defer eolServer.Close()
 
-	rc := newCmdRunContextWithEOL(ghServer, eolServer, output.FormatText)
+	rc, _ := newCmdRunContextWithEOL(ghServer, eolServer, output.FormatText)
 	wfFiles := []*workflow.WorkflowFile{
 		{
 			Path: ".github/workflows/ci.yml",
@@ -756,7 +758,7 @@ func TestProcessEOL_WithArchivedActions(t *testing.T) {
 	server := makeCmdGHServer(archivedRepos, nil, nil)
 	defer server.Close()
 
-	rc := newCmdRunContext(server, output.FormatText)
+	rc, _ := newCmdRunContext(server, output.FormatText)
 	wfFiles := []*workflow.WorkflowFile{
 		{
 			Path: ".github/workflows/ci.yml",
@@ -800,7 +802,7 @@ func TestProcessEOL_WithEOLRuntime(t *testing.T) {
 	eolServer := makeCmdEOLServer(map[string]bool{"nodejs/releases/12": true})
 	defer eolServer.Close()
 
-	rc := newCmdRunContextWithEOL(ghServer, eolServer, output.FormatText)
+	rc, _ := newCmdRunContextWithEOL(ghServer, eolServer, output.FormatText)
 	wfFiles := []*workflow.WorkflowFile{
 		{
 			Path: ".github/workflows/ci.yml",
@@ -841,7 +843,7 @@ func TestProcessEOL_WithUpdateStaleOnlyNoArchived(t *testing.T) {
 	server := makeCmdGHServer(map[string]bool{"actions/old-action": false}, nil, repoInfo)
 	defer server.Close()
 
-	rc := newCmdRunContext(server, output.FormatText)
+	rc, _ := newCmdRunContext(server, output.FormatText)
 	rc.Verbose = true
 	wfFiles := []*workflow.WorkflowFile{
 		{
@@ -876,7 +878,7 @@ func TestProcessEOL_UpdateNoUpdatesAvailable(t *testing.T) {
 	server := makeCmdGHServer(archivedRepos, nil, repoInfo)
 	defer server.Close()
 
-	rc := newCmdRunContext(server, output.FormatText)
+	rc, _ := newCmdRunContext(server, output.FormatText)
 	wfFiles := []*workflow.WorkflowFile{
 		{
 			Path: ".github/workflows/ci.yml",
@@ -920,7 +922,7 @@ func TestProcessEOL_UpdateStaleNoOutdatedAvailable(t *testing.T) {
 	server := makeCmdGHServer(archivedRepos, releases, repoInfo)
 	defer server.Close()
 
-	rc := newCmdRunContext(server, output.FormatText)
+	rc, _ := newCmdRunContext(server, output.FormatText)
 	wfFiles := []*workflow.WorkflowFile{
 		{
 			Path: ".github/workflows/ci.yml",
@@ -959,7 +961,7 @@ func TestProcessEOL_StaleOnlySummary(t *testing.T) {
 	server := makeCmdGHServer(map[string]bool{"actions/old-action": false}, nil, repoInfo)
 	defer server.Close()
 
-	rc := newCmdRunContext(server, output.FormatText)
+	rc, _ := newCmdRunContext(server, output.FormatText)
 	wfFiles := []*workflow.WorkflowFile{
 		{
 			Path: ".github/workflows/ci.yml",
@@ -987,7 +989,7 @@ func TestProcessEOL_NoActionsMessage(t *testing.T) {
 	server := makeCmdGHServer(nil, nil, nil)
 	defer server.Close()
 
-	rc := newCmdRunContext(server, output.FormatText)
+	rc, _ := newCmdRunContext(server, output.FormatText)
 	wfFiles := []*workflow.WorkflowFile{
 		{Path: ".github/workflows/ci.yml", UsesWithVersions: []workflow.ActionRef{}},
 	}
@@ -1003,7 +1005,7 @@ func TestProcessCheck_NoActions(t *testing.T) {
 	server := makeCmdGHServer(nil, nil, nil)
 	defer server.Close()
 
-	rc := newCmdRunContext(server, output.FormatText)
+	rc, _ := newCmdRunContext(server, output.FormatText)
 	wfFiles := []*workflow.WorkflowFile{
 		{Path: ".github/workflows/ci.yml", UsesWithVersions: []workflow.ActionRef{}},
 	}
@@ -1034,7 +1036,7 @@ func TestProcessCheck_NoIssues(t *testing.T) {
 	eolServer := makeCmdEOLServer(map[string]bool{"nodejs/releases/20": false})
 	defer eolServer.Close()
 
-	rc := newCmdRunContextWithEOL(ghServer, eolServer, output.FormatText)
+	rc, _ := newCmdRunContextWithEOL(ghServer, eolServer, output.FormatText)
 	wfFiles := []*workflow.WorkflowFile{
 		{
 			Path: ".github/workflows/ci.yml",
@@ -1069,7 +1071,7 @@ func TestProcessCheck_WithArchivedActions(t *testing.T) {
 	server := makeCmdGHServer(archivedRepos, nil, nil)
 	defer server.Close()
 
-	rc := newCmdRunContext(server, output.FormatText)
+	rc, _ := newCmdRunContext(server, output.FormatText)
 	wfFiles := []*workflow.WorkflowFile{
 		{
 			Path: ".github/workflows/ci.yml",
@@ -1105,7 +1107,7 @@ func TestProcessCheck_WriteFlagWithArchived(t *testing.T) {
 	server := makeCmdGHServer(archivedRepos, nil, nil)
 	defer server.Close()
 
-	rc := newCmdRunContext(server, output.FormatText)
+	rc, _ := newCmdRunContext(server, output.FormatText)
 	wfFiles := []*workflow.WorkflowFile{
 		{
 			Path: ".github/workflows/ci.yml",
@@ -1138,7 +1140,7 @@ func TestProcessCheck_WithOutdatedActions(t *testing.T) {
 	server := makeCmdGHServer(map[string]bool{"actions/setup-go": false}, releases, repoInfo)
 	defer server.Close()
 
-	rc := newCmdRunContext(server, output.FormatText)
+	rc, _ := newCmdRunContext(server, output.FormatText)
 	wfFiles := []*workflow.WorkflowFile{
 		{
 			Path: ".github/workflows/ci.yml",
@@ -1179,7 +1181,7 @@ func TestProcessCheck_WithStaleActions(t *testing.T) {
 	server := makeCmdGHServer(map[string]bool{"actions/old-action": false}, nil, repoInfo)
 	defer server.Close()
 
-	rc := newCmdRunContext(server, output.FormatText)
+	rc, _ := newCmdRunContext(server, output.FormatText)
 	wfFiles := []*workflow.WorkflowFile{
 		{
 			Path: ".github/workflows/ci.yml",
@@ -1212,7 +1214,7 @@ func TestProcessCheck_WriteFlagNoArchived(t *testing.T) {
 	server := makeCmdGHServer(map[string]bool{"actions/setup-go": false}, releases, repoInfo)
 	defer server.Close()
 
-	rc := newCmdRunContext(server, output.FormatText)
+	rc, _ := newCmdRunContext(server, output.FormatText)
 	wfFiles := []*workflow.WorkflowFile{
 		{
 			Path: ".github/workflows/ci.yml",
@@ -1238,7 +1240,7 @@ func TestProcessCheck_WriteFlagWithArchivedCannotUpdate(t *testing.T) {
 	server := makeCmdGHServer(archivedRepos, nil, nil)
 	defer server.Close()
 
-	rc := newCmdRunContext(server, output.FormatText)
+	rc, _ := newCmdRunContext(server, output.FormatText)
 	wfFiles := []*workflow.WorkflowFile{
 		{
 			Path: ".github/workflows/ci.yml",
@@ -1271,7 +1273,7 @@ func TestProcessCheck_StaleOnlySummary(t *testing.T) {
 	server := makeCmdGHServer(map[string]bool{"actions/old-action": false}, nil, repoInfo)
 	defer server.Close()
 
-	rc := newCmdRunContext(server, output.FormatText)
+	rc, _ := newCmdRunContext(server, output.FormatText)
 	wfFiles := []*workflow.WorkflowFile{
 		{
 			Path: ".github/workflows/ci.yml",
@@ -1315,7 +1317,7 @@ func TestProcessCheck_RuntimeEOLSummary(t *testing.T) {
 	eolServer := makeCmdEOLServer(map[string]bool{"nodejs/releases/12": true})
 	defer eolServer.Close()
 
-	rc := newCmdRunContextWithEOL(ghServer, eolServer, output.FormatText)
+	rc, _ := newCmdRunContextWithEOL(ghServer, eolServer, output.FormatText)
 	wfFiles := []*workflow.WorkflowFile{
 		{
 			Path: ".github/workflows/ci.yml",
@@ -1347,7 +1349,7 @@ func TestProcessCheck_JSONOutput(t *testing.T) {
 	server := makeCmdGHServer(archivedRepos, nil, nil)
 	defer server.Close()
 
-	rc := newCmdRunContext(server, output.FormatJSON)
+	rc, _ := newCmdRunContext(server, output.FormatJSON)
 	wfFiles := []*workflow.WorkflowFile{
 		{
 			Path: ".github/workflows/ci.yml",
@@ -1375,7 +1377,7 @@ func TestProcessCheck_NoActionsMessage(t *testing.T) {
 	server := makeCmdGHServer(nil, nil, nil)
 	defer server.Close()
 
-	rc := newCmdRunContext(server, output.FormatText)
+	rc, _ := newCmdRunContext(server, output.FormatText)
 	wfFiles := []*workflow.WorkflowFile{
 		{Path: ".github/workflows/ci.yml", UsesWithVersions: []workflow.ActionRef{}},
 	}
@@ -1419,7 +1421,7 @@ func TestRunArchived_NoArchivedActions(t *testing.T) {
 	parser := &workflow.WorkflowParser{}
 	wfFiles, allActionRefs := resolveWorkflowFiles(parser, tmpDir)
 
-	rc := newCmdRunContext(server, output.FormatText)
+	rc, _ := newCmdRunContext(server, output.FormatText)
 	if processArchived(rc, wfFiles, allActionRefs, rc.WorkDir, 365) {
 		exitCode = 1
 	}
@@ -1460,7 +1462,7 @@ func TestRunArchived_WithArchivedActions(t *testing.T) {
 	parser := &workflow.WorkflowParser{}
 	wfFiles, allActionRefs := resolveWorkflowFiles(parser, tmpDir)
 
-	rc := newCmdRunContext(server, output.FormatText)
+	rc, _ := newCmdRunContext(server, output.FormatText)
 	if processArchived(rc, wfFiles, allActionRefs, rc.WorkDir, 365) {
 		exitCode = 1
 	}
@@ -1487,7 +1489,7 @@ func TestRunArchived_ReposDir(t *testing.T) {
 		t.Fatalf("Failed to write workflow: %v", err)
 	}
 
-	rc := newCmdRunContext(server, output.FormatText)
+	rc, _ := newCmdRunContext(server, output.FormatText)
 
 	files, err := rc.Parser.FindWorkflowFilesInDir(wfDir)
 	if err != nil {
@@ -1556,7 +1558,7 @@ steps:
 	parser := &workflow.WorkflowParser{}
 	wfFiles, allActionRefs := resolveWorkflowFiles(parser, tmpDir)
 
-	rc := newCmdRunContext(server, output.FormatText)
+	rc, _ := newCmdRunContext(server, output.FormatText)
 	if processOutdated(rc, wfFiles, allActionRefs, rc.WorkDir, false, false) {
 		exitCode = 1
 	}
@@ -1614,7 +1616,7 @@ steps:
 	parser := &workflow.WorkflowParser{}
 	wfFiles, allActionRefs := resolveWorkflowFiles(parser, tmpDir)
 
-	rc := newCmdRunContext(server, output.FormatText)
+	rc, _ := newCmdRunContext(server, output.FormatText)
 	if processOutdated(rc, wfFiles, allActionRefs, rc.WorkDir, false, false) {
 		exitCode = 1
 	}
@@ -1651,7 +1653,7 @@ func TestRunOutdated_ReposDir(t *testing.T) {
 		t.Fatalf("Failed to write workflow: %v", err)
 	}
 
-	rc := newCmdRunContext(server, output.FormatText)
+	rc, _ := newCmdRunContext(server, output.FormatText)
 
 	files, err := rc.Parser.FindWorkflowFilesInDir(wfDir)
 	if err != nil {
@@ -1720,7 +1722,7 @@ steps:
 	parser := &workflow.WorkflowParser{}
 	wfFiles, allActionRefs := resolveWorkflowFiles(parser, tmpDir)
 
-	rc := newCmdRunContextWithEOL(ghServer, eolServer, output.FormatText)
+	rc, _ := newCmdRunContextWithEOL(ghServer, eolServer, output.FormatText)
 	if processEOL(rc, wfFiles, allActionRefs, rc.WorkDir, false, 365) {
 		exitCode = 1
 	}
@@ -1781,7 +1783,7 @@ steps:
 	parser := &workflow.WorkflowParser{}
 	wfFiles, allActionRefs := resolveWorkflowFiles(parser, tmpDir)
 
-	rc := newCmdRunContextWithEOL(ghServer, eolServer, output.FormatText)
+	rc, _ := newCmdRunContextWithEOL(ghServer, eolServer, output.FormatText)
 	if processCheck(rc, wfFiles, allActionRefs, rc.WorkDir, false, false, 365) {
 		exitCode = 1
 	}
@@ -1822,7 +1824,7 @@ func TestRunCheck_WithArchivedActions(t *testing.T) {
 	parser := &workflow.WorkflowParser{}
 	wfFiles, allActionRefs := resolveWorkflowFiles(parser, tmpDir)
 
-	rc := newCmdRunContext(server, output.FormatText)
+	rc, _ := newCmdRunContext(server, output.FormatText)
 	if processCheck(rc, wfFiles, allActionRefs, rc.WorkDir, false, false, 365) {
 		exitCode = 1
 	}
@@ -1851,7 +1853,7 @@ func TestProcessEOL_UpdateWithAvailableUpdates(t *testing.T) {
 	server := makeCmdGHServer(archivedRepos, releases, repoInfo)
 	defer server.Close()
 
-	rc := newCmdRunContext(server, output.FormatText)
+	rc, _ := newCmdRunContext(server, output.FormatText)
 	rc.Verbose = true
 	wfFiles := []*workflow.WorkflowFile{
 		{
@@ -1891,7 +1893,7 @@ func TestProcessCheck_WriteFlagWithUpdatesAvailable(t *testing.T) {
 	server := makeCmdGHServer(map[string]bool{"actions/setup-go": false}, releases, repoInfo)
 	defer server.Close()
 
-	rc := newCmdRunContext(server, output.FormatText)
+	rc, _ := newCmdRunContext(server, output.FormatText)
 	wfFiles := []*workflow.WorkflowFile{
 		{
 			Path: ".github/workflows/ci.yml",
@@ -1917,7 +1919,7 @@ func TestProcessCheck_WriteFlagArchivedCannotUpdate(t *testing.T) {
 	server := makeCmdGHServer(archivedRepos, nil, nil)
 	defer server.Close()
 
-	rc := newCmdRunContext(server, output.FormatText)
+	rc, _ := newCmdRunContext(server, output.FormatText)
 	wfFiles := []*workflow.WorkflowFile{
 		{
 			Path: ".github/workflows/ci.yml",
@@ -1962,7 +1964,7 @@ func TestProcessCheck_RuntimeEOLOnlySummary(t *testing.T) {
 	eolServer := makeCmdEOLServer(map[string]bool{"nodejs/releases/12": true})
 	defer eolServer.Close()
 
-	rc := newCmdRunContextWithEOL(ghServer, eolServer, output.FormatText)
+	rc, _ := newCmdRunContextWithEOL(ghServer, eolServer, output.FormatText)
 	wfFiles := []*workflow.WorkflowFile{
 		{
 			Path: ".github/workflows/ci.yml",
@@ -2001,7 +2003,7 @@ func TestProcessCheck_OutdatedOnlySummary(t *testing.T) {
 	server := makeCmdGHServer(map[string]bool{"actions/setup-go": false}, releases, repoInfo)
 	defer server.Close()
 
-	rc := newCmdRunContext(server, output.FormatText)
+	rc, _ := newCmdRunContext(server, output.FormatText)
 	wfFiles := []*workflow.WorkflowFile{
 		{
 			Path: ".github/workflows/ci.yml",
@@ -2040,7 +2042,7 @@ func TestProcessCheck_StaleOnlySummary2(t *testing.T) {
 	server := makeCmdGHServer(map[string]bool{"actions/old-action": false}, nil, repoInfo)
 	defer server.Close()
 
-	rc := newCmdRunContext(server, output.FormatText)
+	rc, _ := newCmdRunContext(server, output.FormatText)
 	wfFiles := []*workflow.WorkflowFile{
 		{
 			Path: ".github/workflows/ci.yml",
@@ -2997,6 +2999,56 @@ func TestWriteActionOutput_WithGITHUB_OUTPUT(t *testing.T) {
 	}
 	if !strings.Contains(string(content), "test-key=test-value") {
 		t.Errorf("Expected output file to contain 'test-key=test-value', got %q", string(content))
+	}
+}
+
+func TestNewOutdatedCmd_RunClosureInProcess(t *testing.T) {
+	archivedRepos := map[string]bool{}
+	releases := map[string]*github.ReleaseInfo{
+		"actions/checkout": {TagName: "v3"},
+		"actions/setup-go": {TagName: "v4"},
+	}
+	repoInfo := map[string]*github.RepoInfo{
+		"actions/checkout": {Name: "checkout", Archived: false},
+		"actions/setup-go": {Name: "setup-go", Archived: false},
+	}
+	server := makeCmdGHServerWithActionYML(archivedRepos, releases, repoInfo, defaultActionYMLContent)
+	defer server.Close()
+
+	tmpDir := t.TempDir()
+	writeWorkflowFile(t, tmpDir, "ci.yml", simpleWorkflowContent)
+
+	saveGlobals()
+	defer restoreGlobals()
+
+	conf = config.Config{GitHubToken: "test-token"}
+	githubToken = "test-token"
+	workflowPath = filepath.Join(tmpDir, ".github", "workflows", "ci.yml")
+	workflowsDir = ""
+	reposDir = ""
+	notify = false
+	createIssue = false
+	outputFormat = "text"
+	noCache = true
+	refreshCache = false
+	cacheTTL = 0
+	verbose = false
+	debug = false
+	exitCode = 0
+	ghAPIBaseURL = server.URL
+	ghAPIClient = server.Client()
+
+	cmd := newOutdatedCmd()
+	if err := cmd.Flags().Set("pin", "true"); err != nil {
+		t.Fatalf("Failed to set pin flag: %v", err)
+	}
+	if err := cmd.Flags().Set("semver", "true"); err != nil {
+		t.Fatalf("Failed to set semver flag: %v", err)
+	}
+	cmd.Run(cmd, []string{})
+
+	if exitCode != 0 {
+		t.Errorf("Expected exitCode 0, got %d", exitCode)
 	}
 }
 

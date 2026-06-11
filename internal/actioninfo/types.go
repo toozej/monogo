@@ -48,5 +48,25 @@ type OutdatedUpdateReport struct {
 	FailedUpdates []OutdatedUpdateFailure
 }
 
+type PinActionInfo struct {
+	OwnerRepo  string
+	ActionPath string
+	Version    string
+	FullRef    string
+	Workflow   string
+}
+
+type PinUpdateFailure struct {
+	WorkflowFile string
+	OldUse       string
+	NewUse       string
+	Reason       string
+}
+
+type PinUpdateReport struct {
+	UpdatedByFile map[string][]FileUpdate
+	FailedUpdates []PinUpdateFailure
+}
+
 const DefaultStaleDays = 365
 const MaxStaleDays = 3650

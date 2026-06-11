@@ -134,6 +134,18 @@ func FprintCSV(w io.Writer, co *CheckOutput, cfg *CSVConfig) {
 		})
 	}
 
+	for _, a := range co.PinnableActions {
+		rows = append(rows, csvRow{
+			Summary:        fmt.Sprintf("Pinnable action: %s (version tag, not pinned to SHA)", a.FullRef),
+			Category:       "pinnable",
+			Workflow:       a.Workflow,
+			ActionRef:      a.FullRef,
+			OwnerRepo:      a.OwnerRepo,
+			CurrentVersion: a.Version,
+			Description:    "Using version tag instead of commit SHA",
+		})
+	}
+
 	sort.Slice(rows, func(i, j int) bool {
 		if rows[i].Category != rows[j].Category {
 			return rows[i].Category < rows[j].Category

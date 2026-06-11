@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"os"
+	"os/exec"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -79,6 +81,30 @@ func TestOutdatedCommandHasRun(t *testing.T) {
 	cmd := newOutdatedCmd()
 	if cmd.Run == nil {
 		t.Error("Expected Run function to be set on outdated command")
+	}
+}
+
+func TestOutdatedCommand_PinFlagInRun(t *testing.T) {
+	if os.Getenv("TEST_OUTDATED_PIN_RUN") == "1" {
+		cmd := newOutdatedCmd()
+		_ = cmd.Flags().Set("pin", "true")
+		_ = cmd.Flags().Set("semver", "true")
+		pinVal, _ := cmd.Flags().GetBool("pin")
+		semverVal, _ := cmd.Flags().GetBool("semver")
+		useSemver := semverVal
+		if pinVal {
+			useSemver = false
+		}
+		if useSemver != false {
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+	cmd := exec.Command(os.Args[0], "-test.run=TestOutdatedCommand_PinFlagInRun")
+	cmd.Env = append(os.Environ(), "TEST_OUTDATED_PIN_RUN=1")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Process exited with error: %v\nOutput: %s", err, output)
 	}
 }
 

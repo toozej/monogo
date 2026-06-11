@@ -883,7 +883,7 @@ func TestWriteResult_WithIssues(t *testing.T) {
 		{OwnerRepo: "actions/setup-go", CurrentRef: "v3", LatestTag: "v4", LatestURL: "https://github.com/actions/setup-go/releases/tag/v4", Workflow: "ci.yml", FullRef: "actions/setup-go@v3"},
 	}
 
-	WriteResult(w, archivedActions, []string{"actions/checkout"}, staleActions, nil, outdatedActions, true, "Found issues", "")
+	WriteResult(w, archivedActions, []string{"actions/checkout"}, staleActions, nil, outdatedActions, nil, true, "Found issues", "")
 
 	out := buf.String()
 	if !strings.Contains(out, "actions/checkout@v3") {
@@ -907,7 +907,7 @@ func TestWriteResult_NoIssues(t *testing.T) {
 		Output: &buf,
 	}
 
-	WriteResult(w, nil, nil, nil, nil, nil, false, "", "No issues found!")
+	WriteResult(w, nil, nil, nil, nil, nil, nil, false, "", "No issues found!")
 
 	out := buf.String()
 	if !strings.Contains(out, "No issues found!") {
@@ -926,7 +926,7 @@ func TestWriteResult_JSON(t *testing.T) {
 		{Repo: "actions/checkout", Workflow: "ci.yml", Uses: "actions/checkout@v3"},
 	}
 
-	WriteResult(w, archivedActions, []string{"actions/checkout"}, nil, nil, nil, true, "", "")
+	WriteResult(w, archivedActions, []string{"actions/checkout"}, nil, nil, nil, nil, true, "", "")
 
 	out := buf.String()
 	if !strings.Contains(out, `"archived_actions"`) {

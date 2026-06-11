@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"sort"
 
 	"github.com/toozej/go-sort-out-gh-actions/internal/actioninfo"
@@ -37,6 +38,7 @@ type CheckOutput struct {
 	StaleActions    []actioninfo.StaleActionInfo      `json:"stale_actions,omitempty"`
 	RuntimeEOL      []actioninfo.RuntimeEOLActionInfo `json:"runtime_eol_actions,omitempty"`
 	OutdatedActions []actioninfo.OutdatedActionInfo   `json:"outdated_actions,omitempty"`
+	PinnableActions []actioninfo.PinActionInfo        `json:"pinnable_actions,omitempty"`
 	ArchivedRepos   []string                          `json:"archived_repos,omitempty"`
 	HasIssues       bool                              `json:"has_issues"`
 	Summary         string                            `json:"summary,omitempty"`
@@ -109,6 +111,9 @@ func (w *Writer) writeText(co *CheckOutput) {
 	}
 	if len(co.OutdatedActions) > 0 {
 		FprintOutdatedText(w.Output, co.OutdatedActions)
+	}
+	if len(co.PinnableActions) > 0 {
+		FprintPinnableText(w.Output, co.PinnableActions)
 	}
 	if co.Summary != "" {
 		fmt.Fprintln(w.Output, co.Summary)
@@ -265,6 +270,39 @@ func FprintOutdatedText(w io.Writer, actions []actioninfo.OutdatedActionInfo) {
 				refLabel = fmt.Sprintf("%s@%s", action.OwnerRepo, action.CurrentRef)
 			}
 			fmt.Fprintf(w, " %s%s (latest: %s)\n", actioninfo.Emoji("⚠️ ", "[WARN] "), refLabel, action.LatestTag)
+		}
+		fmt.Fprintln(w)
+	}
+}
+
+func FprintPinnableText(w io.Writer, actions []actioninfo.PinActionInfo) {
+	uniquePinnable := make(map[string]bool)
+	for _, action := range actions {
+		uniquePinnable[action.OwnerRepo] = true
+	}
+
+	fmt.Fprintf(w, "\n%sFound %d pinnable GitHub Actions in %d uses:\n\n", actioninfo.Emoji("📌 ", "[PIN] "), len(uniquePinnable), len(actions))
+
+	pinnableWorkflowMap := make(map[string][]actioninfo.PinActionInfo)
+	for _, action := range actions {
+		pinnableWorkflowMap[action.Workflow] = append(pinnableWorkflowMap[action.Workflow], action)
+	}
+
+	workflows := make([]string, 0, len(pinnableWorkflowMap))
+	for wf := range pinnableWorkflowMap {
+		workflows = append(workflows, wf)
+	}
+	sort.Strings(workflows)
+
+	for _, wf := range workflows {
+		actions := pinnableWorkflowMap[wf]
+		fmt.Fprintf(w, "%s%s:\n", actioninfo.Emoji("📄 ", "[FILE] "), filepath.Base(wf))
+		for _, action := range actions {
+			refLabel := action.FullRef
+			if refLabel == "" {
+				refLabel = fmt.Sprintf("%s@%s", action.OwnerRepo, action.Version)
+			}
+			fmt.Fprintf(w, " %s%s\n", actioninfo.Emoji("📌 ", "[PIN] "), refLabel)
 		}
 		fmt.Fprintln(w)
 	}
