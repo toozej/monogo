@@ -89,8 +89,8 @@ github.com/mattn/go-runewidth v0.0.2/go.mod h1:LwmH8dsx7+W8Uxz3IHJYH5QSwggIsqBzp
 github.com/mattn/go-runewidth v0.0.3/go.mod h1:LwmH8dsx7+W8Uxz3IHJYH5QSwggIsqBzpuz5H//U1FU=
 github.com/mattn/go-runewidth v0.0.24 h1:cpokDiIn0MGnhdHwuWnJBITySJ20QyNGnY2kR/ay2DU=
 github.com/mattn/go-runewidth v0.0.24/go.mod h1:XBkDxAl56ILZc9knddidhrOlY5R/pDhgLpndooCuJAs=
-github.com/mattn/go-sixel v0.0.9 h1:ncx/rVU35Ut7/6gpVk4deC4/Wp2js9fDKmFmWnzmGoY=
-github.com/mattn/go-sixel v0.0.9/go.mod h1:mfichvavqIDFW14LGU24ux/UZ/wF0/hG+4pUWOWrQgM=
+github.com/mattn/go-sixel v0.0.11 h1:+1qa839dVz5UxA0w/gQBbC1+5hb1b6DSAidf+caN63s=
+github.com/mattn/go-sixel v0.0.11/go.mod h1:UzxovwVMmjEBx5ui3fav05lfRkxNiaLLDJuOkanrVOI=
 github.com/mitchellh/go-wordwrap v0.0.0-20150314170334-ad45545899c7/go.mod h1:ZXFpozHsX6DPmq2I0TCekCxypsnAUbP2oI0UX1GXzOo=
 github.com/mitchellh/go-wordwrap v1.0.0/go.mod h1:ZXFpozHsX6DPmq2I0TCekCxypsnAUbP2oI0UX1GXzOo=
 github.com/modelcontextprotocol/go-sdk v1.6.1 h1:0zOSupjKUxPKSocPT1Wtago+mUHU2/uZ4xSOY0FGReU=

@@ -18,4 +18,3 @@ Makefile
 Dockerfile*
 docker-compose.yml
 go-sort-out-gh-actions
-go-sort-out-gh-actions.key

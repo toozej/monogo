@@ -42,7 +42,7 @@ require (
 	github.com/lucasb-eyer/go-colorful v1.4.0 // indirect
 	github.com/makeworld-the-better-one/dither/v2 v2.4.0 // indirect
 	github.com/mattn/go-runewidth v0.0.24 // indirect
-	github.com/mattn/go-sixel v0.0.9 // indirect
+	github.com/mattn/go-sixel v0.0.11 // indirect
 	github.com/modelcontextprotocol/go-sdk v1.6.1 // indirect
 	github.com/muesli/mango v0.2.0 // indirect
 	github.com/muesli/mango-pflag v0.2.0 // indirect

@@ -27,10 +27,9 @@ fi
 
 # Helper function to upload secrets to GitHub Actions
 upload_secrets_to_github() {
-    echo "Pushing .env entries to GitHub Actions secrets for repo: $GITHUB_USERNAME/$REPO_NAME..."
-    gh secret set --repo "$GITHUB_USERNAME"/"$REPO_NAME" --app actions --env-file .env
-    gh secret set COSIGN_PRIVATE_KEY --repo "$GITHUB_USERNAME"/"$REPO_NAME" --app actions < "$REPO_NAME.key"
-    echo "Secrets successfully uploaded to GitHub Actions."
+  echo "Pushing .env entries to GitHub Actions secrets for repo: $GITHUB_USERNAME/$REPO_NAME..."
+  gh secret set --repo "$GITHUB_USERNAME"/"$REPO_NAME" --app actions --env-file .env
+  echo "Secrets successfully uploaded to GitHub Actions."
 }
 
 # Helper function to upload secrets to GitHub secrets for use by Dependabot

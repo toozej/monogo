@@ -223,7 +223,7 @@ signs:
       - '--bundle=${signature}'
       - '${artifact}'
       - '--yes'
-    artifacts: all
+    artifacts: checksum
 
 docker_signs:
   - cmd: cosign

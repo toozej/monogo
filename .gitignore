@@ -1,7 +1,5 @@
 # Cosign
-go-sort-out-gh-actions.key
-cosign.key
-*.sig
+*.sigstore.json
 *.bundle
 
 # local secret environment variables

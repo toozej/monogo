@@ -43,13 +43,10 @@ store_secrets_in_1password() {
             --tags "Projects/${NEW_PROJECT_NAME}" || handle_error "Failed to create 1Password item."
     fi
 
-    # Update the 1Password item with generated secrets
-    op item edit "${NEW_PROJECT_NAME}" \
-        "Cosign.Passphrase[password]=${COSIGN_PASSPHRASE}" \
-        "Cosign.Private Key[file]=${NEW_PROJECT_NAME}.key" \
-        "Cosign.Public Key[file]=${NEW_PROJECT_NAME}.pub" \
-        "GH PAT[password]=${GITHUB_TOKEN}" \
-        || handle_error "Failed to update 1Password item with secrets."
+  # Update the 1Password item with generated secrets
+  op item edit "${NEW_PROJECT_NAME}" \
+  "GH PAT[password]=${GITHUB_TOKEN}" \
+  || handle_error "Failed to update 1Password item with secrets."
 
     echo "Secrets successfully stored in 1Password."
 }
