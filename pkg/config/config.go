@@ -1,4 +1,4 @@
-// Package config provides secure configuration management for the golang-starter application.
+// Package config provides secure configuration management for the gotts-it application.
 //
 // This package handles loading configuration from environment variables and .env files
 // with built-in security measures to prevent path traversal attacks. It uses the
@@ -17,11 +17,13 @@
 //
 // Example usage:
 //
-//	import "github.com/toozej/golang-starter/pkg/config"
+//	import "github.com/toozej/gotts-it/pkg/config"
 //
 //	func main() {
-//		conf := config.GetEnvVars()
-//		fmt.Printf("Username: %s\n", conf.Username)
+//
+// conf := config.GetEnvVars()
+// fmt.Printf("URL: %s\n", conf.URL)
+//
 //	}
 package config
 
@@ -30,6 +32,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/caarlos0/env/v11"
 	"github.com/joho/godotenv"
@@ -37,23 +40,40 @@ import (
 
 // Config represents the application configuration structure.
 //
-// This struct defines all configurable parameters for the golang-starter
+// This struct defines all configurable parameters for the gotts-it
 // application. Fields are tagged with struct tags that correspond to
 // environment variable names for automatic parsing.
 //
-// Currently supported configuration:
-//   - Username: The username for the application, loaded from USERNAME env var
-//
 // Example:
 //
-//	type Config struct {
-//		Username string `env:"USERNAME"`
-//	}
+//	conf := config.GetEnvVars()
+//	fmt.Printf("URL: %s\n", conf.URL)
 type Config struct {
-	// Username specifies the username for application operations.
-	// It is loaded from the USERNAME environment variable.
-	// If not set, defaults to empty string.
-	Username string `env:"USERNAME"`
+	// URL is the article URL to fetch and convert to speech.
+	URL string `env:"URL"`
+	// File is the path to a local HTML or text file to convert to speech.
+	File string `env:"FILE"`
+	// Output is the path to the output audio file.
+	Output string `env:"OUTPUT"`
+	// OpenAIBaseURL is the base URL of the OpenAI-compatible TTS endpoint.
+	OpenAIBaseURL string `env:"OPENAI_BASE_URL" envDefault:"http://localhost:8000/v1"`
+	// OpenAIToken is the API key for the TTS endpoint.
+	// Speaches ignores it but the openai-go SDK requires a non-empty value.
+	OpenAIToken string `env:"OPENAI_API_KEY"`
+	// TTSModel is the TTS model ID (e.g. speaches-ai/Kokoro-82M-v1.0-ONNX).
+	TTSModel string `env:"TTS_MODEL" envDefault:"speaches-ai/Kokoro-82M-v1.0-ONNX"`
+	// TTSVoice is the voice ID for speech synthesis (e.g. af_heart).
+	TTSVoice string `env:"TTS_VOICE" envDefault:"af_heart"`
+	// TTSFormat is the output audio format: mp3, wav, flac, or pcm.
+	TTSFormat string `env:"TTS_FORMAT" envDefault:"mp3"`
+	// TTSSpeed is the speech speed from 0.25 to 4.0; 1.0 is the default.
+	TTSSpeed float64 `env:"TTS_SPEED" envDefault:"1.0"`
+	// TTSInstructions is an optional model instructions string.
+	TTSInstructions string `env:"TTS_INSTRUCTIONS"`
+	// TTSTimeout is the HTTP request timeout for each TTS chunk request.
+	TTSTimeout time.Duration `env:"TTS_TIMEOUT" envDefault:"5m"`
+	// FetchTimeout is the HTTP request timeout for fetching an article URL.
+	FetchTimeout time.Duration `env:"FETCH_TIMEOUT" envDefault:"30s"`
 }
 
 // GetEnvVars loads and returns the application configuration from environment
@@ -85,12 +105,13 @@ type Config struct {
 //
 // Example:
 //
-//	// Load configuration
-//	conf := config.GetEnvVars()
+// // Load configuration
+// conf := config.GetEnvVars()
 //
-//	// Use configuration
-//	if conf.Username != "" {
-//		fmt.Printf("Hello, %s!\n", conf.Username)
+// // Use configuration
+//
+//	if conf.URL != "" {
+//		fmt.Printf("Converting URL: %s\n", conf.URL)
 //	}
 func GetEnvVars() Config {
 	// Get current working directory for secure file operations

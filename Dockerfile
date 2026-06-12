@@ -3,7 +3,7 @@ FROM golang:1.26-trixie AS init
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-WORKDIR /go/golang-starter/
+WORKDIR /go/gotts-it/
 
 COPY go.mod* go.sum* ./
 RUN go mod download
@@ -17,9 +17,7 @@ RUN go vet ./...
 # run tests
 FROM init AS test
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-RUN go test -coverprofile c.out -v ./... && \
-    echo "Statements missing coverage" && \
-    grep -v -e " 1$" c.out
+RUN go test -coverprofile c.out -v ./...
 
 # build binary
 FROM init AS build
@@ -37,10 +35,12 @@ RUN PKG=$(head -n 1 go.mod | cut -c 8-) && \
 # Install coreutils for sleep and other utilities utilized in devcontainer
 RUN apt-get update && apt-get install --no-install-recommends -y coreutils
 
-# runtime image
-FROM scratch
+# runtime image including CA certs and tzdata
+FROM gcr.io/distroless/static-debian13:nonroot
 # Copy our static executable.
-COPY --from=build /go/golang-starter/golang-starter /go/bin/golang-starter
+COPY --from=build /go/gotts-it/gotts-it /go/bin/gotts-it
+# Expose port for publishing as web service
+# EXPOSE 8081
 # Run the binary.
 USER nonroot
-ENTRYPOINT ["/go/bin/golang-starter"]
+ENTRYPOINT ["/go/bin/gotts-it"]

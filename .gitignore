@@ -1,10 +1,10 @@
 # Cosign
-golang-starter.key
-cosign.key
 *.sig
+*.bundle
 
 # local secret environment variables
 .env
+gotts-it.env
 
 # Binaries for programs and plugins
 *.exe
@@ -29,6 +29,12 @@ manpages/
 dist/
 docs/diagrams/go-diagrams/
 profiles/
+
+# Generated files / outputs
+*.mp3
+*.flac
+*.wav
+*.ogg
 
 # Temporary files
 prompt.txt

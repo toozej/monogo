@@ -2,7 +2,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Run golang-starter",
+            "name": "Run gotts-it",
             "type": "go",
             "request": "launch",
             "mode": "auto",
@@ -12,7 +12,7 @@
             "args": []
         },
         {
-            "name": "Get golang-starter version",
+            "name": "Get gotts-it version",
             "type": "go",
             "request": "launch",
             "mode": "auto",

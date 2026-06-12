@@ -1,6 +1,6 @@
-// Package main provides diagram generation utilities for the golang-starter project.
+// Package main provides diagram generation utilities for the gotts-it project.
 //
-// This application generates architectural and component diagrams for the golang-starter
+// This application generates architectural and component diagrams for the gotts-it
 // template using the go-diagrams library. It creates visual representations of the
 // project structure and component relationships to aid in documentation and understanding.
 //
@@ -37,27 +37,29 @@ import (
 // The function will terminate with log.Fatal if any critical operation fails,
 // such as directory creation, navigation, or diagram rendering.
 func main() {
-	// Ensure output directory exists
-	if err := os.MkdirAll("docs/diagrams", 0750); err != nil {
-		log.Fatal("Failed to create output directory:", err)
+	if err := run(); err != nil {
+		log.Fatal(err)
 	}
-
-	// Change to docs/diagrams directory
-	if err := os.Chdir("docs/diagrams"); err != nil {
-		log.Fatal("Failed to change directory:", err)
-	}
-
-	// Generate architecture diagram
-	generateArchitectureDiagram()
-
-	// Generate component diagram
-	generateComponentDiagram()
-
 	fmt.Println("Diagram .dot files generated successfully in ./docs/diagrams/go-diagrams/")
 }
 
+func run() error {
+	if err := os.MkdirAll("docs/diagrams", 0750); err != nil {
+		return fmt.Errorf("failed to create output directory: %w", err)
+	}
+
+	if err := os.Chdir("docs/diagrams"); err != nil {
+		return fmt.Errorf("failed to change directory: %w", err)
+	}
+
+	generateArchitectureDiagram()
+	generateComponentDiagram()
+
+	return nil
+}
+
 // generateArchitectureDiagram creates a high-level architecture diagram showing
-// the interaction flow between users and the golang-starter application components.
+// the interaction flow between users and the gotts-it application components.
 //
 // The diagram illustrates:
 //   - User interaction with the CLI application
@@ -93,11 +95,11 @@ func generateArchitectureDiagram() {
 }
 
 // generateComponentDiagram creates a detailed component diagram showing the
-// relationships and dependencies between different packages in the golang-starter project.
+// relationships and dependencies between different packages in the gotts-it project.
 //
 // The diagram illustrates:
 //   - main.go as the entry point
-//   - cmd/golang-starter package handling CLI operations
+//   - cmd/gotts-it package handling CLI operations
 //   - Integration with configuration, starter, version, and man packages
 //   - Data flow between components
 //
@@ -112,7 +114,7 @@ func generateComponentDiagram() {
 
 	// Main components
 	main := programming.Language.Go(diagram.NodeLabel("main.go"))
-	rootCmd := programming.Language.Go(diagram.NodeLabel("cmd/golang-starter\nroot.go"))
+	rootCmd := programming.Language.Go(diagram.NodeLabel("cmd/gotts-it\nroot.go"))
 	config := programming.Language.Go(diagram.NodeLabel("pkg/config\nconfig.go"))
 	starter := programming.Language.Go(diagram.NodeLabel("internal/starter\nstarter.go"))
 	version := programming.Language.Go(diagram.NodeLabel("pkg/version\nversion.go"))

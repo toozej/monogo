@@ -1,11 +1,11 @@
 ---
 name: backfill-template
-description: Back-fills template updates and improvements from the golang-starter template repository into target projects, keeping them consistent, updated, and passing builds.
+description: Back-fills template updates and improvements from the gotts-it template repository into target projects, keeping them consistent, updated, and passing builds.
 ---
 
-# Back-filling Template Updates from golang-starter
+# Back-filling Template Updates from gotts-it
 
-This skill guides the AI agent on how to back-fill scaffolding, build pipelines, and configuration updates from the `golang-starter` template repository into downstream target repositories. The goal is to keep the downstream projects consistent and updated with the latest optimizations, security practices, and workflow changes, without breaking any downstream-specific functionality.
+This skill guides the AI agent on how to back-fill scaffolding, build pipelines, and configuration updates from the `gotts-it` template repository into downstream target repositories. The goal is to keep the downstream projects consistent and updated with the latest optimizations, security practices, and workflow changes, without breaking any downstream-specific functionality.
 
 ## Core Guidelines
 
@@ -19,7 +19,7 @@ This skill guides the AI agent on how to back-fill scaffolding, build pipelines,
 ## Step-by-Step Execution Plan
 
 ### Step 1: Run the Comparison Script
-Run the helper Python script to fetch the latest `golang-starter` template and compare it against the current target repository. The script will automatically substitute placeholders (`golang-starter` and `toozej` with the target's project name and owner) and compute Dockerfile structural similarities.
+Run the helper Python script to fetch the latest `gotts-it` template and compare it against the current target repository. The script will automatically substitute placeholders (`gotts-it` and `toozej` with the target's project name and owner) and compute Dockerfile structural similarities.
 
 Run the following command from the root of the target repository:
 ```bash
@@ -97,7 +97,7 @@ Once everything builds and passes perfectly:
    ```
 2. Commit the changes locally:
    ```bash
-   git commit -m "chore: backfill updates from golang-starter template
+   git commit -m "chore: backfill updates from gotts-it template
 
 - Bumped Go and base image versions in Dockerfiles
 - Updated GitHub Action workflows to latest versions

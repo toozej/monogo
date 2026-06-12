@@ -2,9 +2,9 @@
 
 ## Project overview
 
-Golang starter template following common Go project layout best practices. Uses Cobra for CLI handling, Logrus for logging, GoDotEnv and caarlos0/env for configuration, and Goreleaser for cross-platform builds and Docker images.
+CLI tool that extracts readable article text from a URL or local HTML file and synthesizes speech via a self-hosted Speaches TTS server (OpenAI-compatible API). Uses Cobra for CLI handling, Logrus for logging, GoDotEnv and caarlos0/env for configuration, go-readability for article extraction, openai-go for TTS, and Goreleaser for cross-platform builds and Docker images.
 
-- **Module:** `github.com/toozej/golang-starter`
+- **Module:** `github.com/toozej/gotts-it`
 - **Go version:** 1.26
 - **License:** GPLv3
 
@@ -15,6 +15,7 @@ Golang starter template following common Go project layout best practices. Uses 
 - Install deps and vendor: `go mod tidy && go mod vendor`
 - Update deps: `make local-update-deps`
 - Install from latest release: `make install`
+- Start Speaches TTS server: `make speaches-up`
 
 ## Build commands
 
@@ -46,39 +47,44 @@ Golang starter template following common Go project layout best practices. Uses 
 - Run go vet in Docker: `make vet`
 - Check Goreleaser config: `goreleaser check`
 - Run govulncheck: `govulncheck ./...`
-- Run go-licenses report: `go-licenses report github.com/toozej/golang-starter/cmd/golang-starter`
+- Run go-licenses report: `go-licenses report github.com/toozej/gotts-it/cmd/gotts-it`
 
 Pre-commit hooks include: golangci-lint, gosec, staticcheck, go-critic, gofmt, goimports, shellcheck, hadolint (Dockerfiles), checkmake (Makefile), actionlint (GitHub Actions), goreleaser-check, semgrep, and private key detection.
 
 ## Project structure
 
 ```
-main.go                              # Entry point, delegates to cmd.Execute()
+main.go # Entry point, delegates to cmd.Execute()
 cmd/
-  golang-starter/
-    root.go                          # Root cobra command, flags, subcommands
-    root_test.go                     # Root command tests
+  gotts-it/
+    root.go # Root cobra command, flags, subcommands
+    root_test.go # Root command tests
   diagrams/
-    main.go                          # Architecture diagram generation
+    main.go # Architecture diagram generation
 internal/
-  starter/
-    starter.go                       # Core business logic
-    starter_test.go                  # Core logic tests
-    starter_bench_test.go            # Benchmarks
+  article/
+    article.go # Article text extraction from URL/file via go-readability
+    article_test.go
+  tts/
+    tts.go # TTS synthesis via openai-go with sentence-boundary chunking
+    tts_test.go
+  slug/
+    slug.go # Slug generation for default output file names
+    slug_test.go
 pkg/
   config/
-    config.go                        # Config loading from env vars + .env with path traversal protection
+    config.go # Config loading from env vars + .env with path traversal protection
     config_test.go
   version/
-    version.go                       # Build version info (injected via ldflags) + version cobra command
+    version.go # Build version info (injected via ldflags) + version cobra command
     version_test.go
   man/
-    man.go                           # Man page generation cobra command
+    man.go # Man page generation cobra command
     man_test.go
-scripts/                             # Build, release, and setup scripts
+scripts/ # Build, release, and setup scripts
 docs/
-  diagrams/                          # Generated architecture diagrams
-vendor/                              # Vendored dependencies
+  diagrams/ # Generated architecture diagrams
+vendor/ # Vendored dependencies
 ```
 
 Go project layout conventions used:
@@ -100,19 +106,19 @@ Go project layout conventions used:
 
 ```go
 func TestRun(t *testing.T) {
-    tests := []struct {
-        name     string
-        input    string
-        expected string
-    }{
-        {"valid username", "Alice", "Hello from Alice\n"},
-        {"empty username", "", "Hello from \n"},
-    }
-    for _, tt := range tests {
-        t.Run(tt.name, func(t *testing.T) {
-            // test logic
-        })
-    }
+	tests := []struct {
+		name string
+		input string
+		expected string
+	}{
+		{"valid username", "Alice", "Hello from Alice\n"},
+		{"empty username", "", "Hello from \n"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// test logic
+		})
+	}
 }
 ```
 
@@ -121,7 +127,7 @@ func TestRun(t *testing.T) {
 ```go
 // Run executes the main functionality by printing a greeting.
 func Run(username string) {
-    fmt.Println("Hello from", username)
+	fmt.Println("Hello from", username)
 }
 ```
 
@@ -138,7 +144,7 @@ func Run(username string) {
 - Goreleaser builds binaries for Linux, macOS, Windows across amd64, arm64, 386, arm
 - Docker images published to DockerHub, GHCR, and Quay.io
 - Distroless variant also available
-- Signing via Cosign (requires `golang-starter.key` and `.env`)
+- Signing via Cosign (requires `gotts-it.key` and `.env`)
 - ldflags inject version info at build time: `Version`, `Commit`, `Branch`, `BuiltAt`, `Builder`
 - Manpages and shell completions auto-generated via scripts in `scripts/`
 

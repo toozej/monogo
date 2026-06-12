@@ -9,7 +9,7 @@ import re
 import difflib
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Compare target repository with golang-starter template.")
+    parser = argparse.ArgumentParser(description="Compare target repository with gotts-it template.")
     parser.add_argument("--template-dir", help="Path to local template directory (if omitted, clones from GitHub)")
     parser.add_argument("--target-dir", default=os.getcwd(), help="Path to target directory (default: current working directory)")
     return parser.parse_args()
@@ -68,11 +68,11 @@ def detect_project_info(target_dir):
     return owner, project
 
 def clone_template():
-    temp_dir = tempfile.mkdtemp(prefix="golang-starter-template-")
+    temp_dir = tempfile.mkdtemp(prefix="gotts-it-template-")
     print(f"Cloning template repository from GitHub to temporary folder: {temp_dir}...")
     try:
         subprocess.check_call(
-            ["git", "clone", "--depth", "1", "https://github.com/toozej/golang-starter.git", temp_dir],
+            ["git", "clone", "--depth", "1", "https://github.com/toozej/gotts-it.git", temp_dir],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL
         )
@@ -83,8 +83,8 @@ def clone_template():
         sys.exit(1)
 
 def customize_content(content, target_owner, target_project):
-    # Replace golang-starter with target project name
-    content = content.replace("golang-starter", target_project)
+    # Replace gotts-it with target project name
+    content = content.replace("gotts-it", target_project)
     # Replace toozej with target owner
     content = content.replace("toozej", target_owner)
     return content
