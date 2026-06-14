@@ -16,6 +16,7 @@ CLI tool that extracts readable article text from a URL or local HTML file and s
 - Update deps: `make local-update-deps`
 - Install from latest release: `make install`
 - Start Speaches TTS server: `make speaches-up`
+- Run server mode: `make server-up`
 
 ## Build commands
 
@@ -59,6 +60,7 @@ cmd/
   gotts-it/
     root.go # Root cobra command, flags, subcommands
     root_test.go # Root command tests
+    server.go # Server mode entrypoint and flags
   diagrams/
     main.go # Architecture diagram generation
 internal/
@@ -68,6 +70,8 @@ internal/
   tts/
     tts.go # TTS synthesis via openai-go with sentence-boundary chunking
     tts_test.go
+    gtranslate.go # Google Translate API implementation for speech engine
+    gtranslate_test.go
   slug/
     slug.go # Slug generation for default output file names
     slug_test.go
@@ -106,19 +110,19 @@ Go project layout conventions used:
 
 ```go
 func TestRun(t *testing.T) {
-	tests := []struct {
-		name string
-		input string
-		expected string
-	}{
-		{"valid username", "Alice", "Hello from Alice\n"},
-		{"empty username", "", "Hello from \n"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// test logic
-		})
-	}
+  tests := []struct {
+    name string
+    input string
+    expected string
+  }{
+    {"valid username", "Alice", "Hello from Alice\n"},
+    {"empty username", "", "Hello from \n"},
+  }
+  for _, tt := range tests {
+    t.Run(tt.name, func(t *testing.T) {
+      // test logic
+    })
+  }
 }
 ```
 
@@ -127,7 +131,7 @@ func TestRun(t *testing.T) {
 ```go
 // Run executes the main functionality by printing a greeting.
 func Run(username string) {
-	fmt.Println("Hello from", username)
+  fmt.Println("Hello from", username)
 }
 ```
 
