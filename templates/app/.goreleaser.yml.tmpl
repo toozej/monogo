@@ -1,0 +1,320 @@
+[[- $app := ds "app" -]]
+[[- $cgo := "0" -]]
+[[- if conv.ToBool (index $app "cgoEnabled") -]][[- $cgo = "1" -]][[- end -]]
+---
+version: 2
+
+project_name: [[$app.name]]
+dist: dist/[[$app.name]]
+
+git:
+  ignore_tags:
+    - apps/*
+
+env:
+  - GO111MODULE=on
+
+env_files:
+  gitlab_token: ~/nope
+  gitea_token: ~/nope
+
+before:
+  hooks:
+    - go mod tidy
+    - ./scripts/completions.sh [[$app.name]]
+    - ./scripts/manpages.sh [[$app.name]]
+
+snapshot:
+  version_template: '{{ incpatch .Version }}-next'
+
+builds:
+  - id: [[$app.name]]
+    env:
+      - CGO_ENABLED=[[$cgo]]
+[[- if eq $cgo "1" ]]
+    # CGO links against C libraries; cross-compiling needs target toolchains,
+    # so restrict CGO builds to the native linux/amd64 platform.
+    goos:
+      - linux
+    goarch:
+      - amd64
+[[- else ]]
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - "386"
+      - amd64
+      - arm
+      - arm64
+    goarm:
+      - "7"
+    ignore:
+      - goos: windows
+        goarch: arm
+[[- end ]]
+    mod_timestamp: '{{ .CommitTimestamp }}'
+    flags:
+      - -trimpath
+    ldflags:
+      - >-
+        -s -w
+        -X github.com/toozej/monogo/pkg/version.Version={{.Version}}
+        -X github.com/toozej/monogo/pkg/version.Commit={{.Commit}}
+        -X github.com/toozej/monogo/pkg/version.Branch={{.Branch}}
+        -X github.com/toozej/monogo/pkg/version.BuiltAt={{.CommitDate}}
+        -X github.com/toozej/monogo/pkg/version.Builder=goreleaser
+    main: ./[[$app.mainPath]]
+    binary: [[$app.binary]]
+
+[[ if ne $cgo "1" -]]
+universal_binaries:
+  - replace: false
+
+[[ end -]]
+checksum:
+  name_template: 'checksums.txt'
+
+docker_digest:
+  name_template: 'digests.txt'
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - '^test:'
+      - '^chore'
+      - 'merge conflict'
+      - Merge pull request
+      - Merge remote-tracking branch
+      - Merge branch
+      - go mod tidy
+  groups:
+    - title: Dependency updates
+      regexp: "^.*feat\\(deps\\)*:+.*$"
+      order: 300
+    - title: 'New Features'
+      regexp: "^.*feat[(\\w)]*:+.*$"
+      order: 100
+    - title: 'Bug fixes'
+      regexp: "^.*fix[(\\w)]*:+.*$"
+      order: 200
+    - title: 'Documentation updates'
+      regexp: "^.*docs[(\\w)]*:+.*$"
+      order: 400
+    - title: Other work
+      order: 9999
+
+dockers_v2:
+  - id: [[$app.name]]
+[[- if eq $cgo "1" ]]
+    # CGO builds only produce a linux/amd64 binary, so pin the image platform.
+    platforms:
+      - linux/amd64
+[[- end ]]
+    images:
+      - 'toozej/[[$app.name]]'
+      - 'ghcr.io/toozej/[[$app.name]]'
+      - 'quay.io/toozej/[[$app.name]]'
+    tags:
+      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}v{{ .Version }}{{ end }}'
+      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ .Version }}{{ end }}'
+      - "latest"
+    dockerfile: [[$app.path]]/Dockerfile.goreleaser
+    labels:
+      "io.artifacthub.package.readme-url": "https://github.com/toozej/monogo/raw/main/README.md"
+      "io.artifacthub.package.maintainers": "[{\"name\":\"toozej\"}]"
+      "io.artifacthub.package.license": "GPLv3"
+      "org.opencontainers.image.description": >-
+        [[$app.description]]
+      "org.opencontainers.image.created": "{{.Date}}"
+      "org.opencontainers.image.name": "{{.ProjectName}}"
+      "org.opencontainers.image.revision": "{{.FullCommit}}"
+      "org.opencontainers.image.version": "{{.Version}}"
+      "org.opencontainers.image.source": "{{.GitURL}}"
+      "org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
+      "org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
+      "org.opencontainers.image.licenses": "GPL-3.0-only"
+      "org.opencontainers.image.title": "{{.ProjectName}}"
+      "org.opencontainers.image.vendor": "James Tooze"
+    annotations:
+      "index,manifest:org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
+      "index,manifest:org.opencontainers.image.created": "{{.Date}}"
+      "index,manifest:org.opencontainers.image.description": >-
+        [[$app.description]]
+      "index,manifest:org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
+      "index,manifest:org.opencontainers.image.licenses": "GPL-3.0-only"
+      "index,manifest:org.opencontainers.image.revision": "{{.FullCommit}}"
+      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/monogo"
+      "index,manifest:org.opencontainers.image.title": "{{.ProjectName}}"
+      "index,manifest:org.opencontainers.image.vendor": "James Tooze"
+      "index,manifest:org.opencontainers.image.version": "{{.Version}}"
+    extra_files:
+      - scripts/goreleaser_entrypoint.sh
+  - id: [[$app.name]]-distroless
+[[- if eq $cgo "1" ]]
+    # CGO builds only produce a linux/amd64 binary, so pin the image platform.
+    platforms:
+      - linux/amd64
+[[- end ]]
+    images:
+      - 'toozej/[[$app.name]]'
+      - 'ghcr.io/toozej/[[$app.name]]'
+      - 'quay.io/toozej/[[$app.name]]'
+    tags:
+      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}v{{ .Version }}-distroless{{ end }}'
+      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ .Version }}-distroless{{ end }}'
+      - "distroless"
+    dockerfile: [[$app.path]]/Dockerfile.goreleaser.distroless
+    labels:
+      "io.artifacthub.package.readme-url": "https://github.com/toozej/monogo/raw/main/README.md"
+      "io.artifacthub.package.maintainers": "[{\"name\":\"toozej\"}]"
+      "io.artifacthub.package.license": "GPLv3"
+      "org.opencontainers.image.description": >-
+        [[$app.description]]
+      "org.opencontainers.image.created": "{{.Date}}"
+      "org.opencontainers.image.name": "{{.ProjectName}}"
+      "org.opencontainers.image.revision": "{{.FullCommit}}"
+      "org.opencontainers.image.version": "{{.Version}}"
+      "org.opencontainers.image.source": "{{.GitURL}}"
+      "org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
+      "org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
+      "org.opencontainers.image.licenses": "GPL-3.0-only"
+      "org.opencontainers.image.title": "{{.ProjectName}}"
+      "org.opencontainers.image.vendor": "James Tooze"
+    annotations:
+      "index,manifest:org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
+      "index,manifest:org.opencontainers.image.created": "{{.Date}}"
+      "index,manifest:org.opencontainers.image.description": >-
+        [[$app.description]]
+      "index,manifest:org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
+      "index,manifest:org.opencontainers.image.licenses": "GPL-3.0-only"
+      "index,manifest:org.opencontainers.image.revision": "{{.FullCommit}}"
+      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/monogo"
+      "index,manifest:org.opencontainers.image.title": "{{.ProjectName}}"
+      "index,manifest:org.opencontainers.image.vendor": "James Tooze"
+      "index,manifest:org.opencontainers.image.version": "{{.Version}}"
+    extra_files:
+      - scripts/goreleaser_entrypoint.sh
+
+archives:
+  - name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+    format_overrides:
+      - goos: windows
+        formats: ['zip']
+    files:
+      - README.md
+      - LICENSE
+      - completions/[[$app.binary]].bash
+      - completions/[[$app.binary]].fish
+      - completions/[[$app.binary]].zsh
+      - manpages/[[$app.binary]].1.gz
+
+nfpms:
+  - file_name_template: '{{ .ConventionalFileName }}'
+    id: packages
+    homepage: https://github.com/toozej/monogo
+    description: |-
+      [[$app.description]]
+    maintainer: toozej
+    license: GPLv3
+    vendor: monogo
+    bindir: /usr/bin
+    section: utils
+    contents:
+      - src: ./completions/[[$app.binary]].bash
+        dst: /usr/share/bash-completion/completions/[[$app.binary]]
+        file_info:
+          mode: 0644
+      - src: ./completions/[[$app.binary]].fish
+        dst: /usr/share/fish/completions/[[$app.binary]].fish
+        file_info:
+          mode: 0644
+      - src: ./completions/[[$app.binary]].zsh
+        dst: /usr/share/zsh/vendor-completions/_[[$app.binary]]
+        file_info:
+          mode: 0644
+      - src: ./manpages/[[$app.binary]].1.gz
+        dst: /usr/share/man/man1/[[$app.binary]].1.gz
+        file_info:
+          mode: 0644
+      - src: ./LICENSE
+        dst: /usr/share/doc/[[$app.binary]]/copyright
+        file_info:
+          mode: 0644
+    formats:
+      - apk
+      - deb
+      - rpm
+    dependencies:
+      - git
+    recommends:
+      - golang
+    deb:
+      lintian_overrides:
+        - statically-linked-binary
+        - changelog-file-missing-in-native-package
+
+homebrew_casks:
+  - name: [[$app.binary]]
+    homepage: https://github.com/toozej/monogo
+    description: >-
+      [[$app.description]]
+    license: GPLv3
+    repository:
+      owner: toozej
+      name: homebrew-tap
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
+    manpages:
+      - "manpages/[[$app.binary]].1.gz"
+    completions:
+      bash: "completions/[[$app.binary]].bash"
+      zsh: "completions/[[$app.binary]].zsh"
+      fish: "completions/[[$app.binary]].fish"
+    url:
+      verified: "github.com/toozej/monogo/releases/download"
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/[[$app.binary]]"]
+          end
+
+sboms:
+  - artifacts: archive
+
+signs:
+  - cmd: cosign
+    output: true
+    signature: "${artifact}.sigstore.json"
+    args:
+      - 'sign-blob'
+      - '--bundle=${signature}'
+      - '${artifact}'
+      - '--yes'
+    artifacts: checksum
+
+docker_signs:
+  - cmd: cosign
+    artifacts: all
+    output: true
+    args:
+      - 'sign'
+      - '--yes'
+      - '${artifact}'
+
+milestones:
+  - close: true
+
+release:
+  mode: append
+  disable: '{{ eq (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}'
+  footer: |
+    **Full Changelog**: https://github.com/toozej/monogo/compare/{{ .PreviousTag }}...{{ .Tag }}

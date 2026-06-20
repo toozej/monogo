@@ -1,0 +1,10 @@
+[[- $app := ds "app" -]]
+[build]
+cmd = "make local-build local-kill local-run APP=[[$app.name]]"
+
+include_ext = ["go", "tpl", "tmpl", "html"]
+
+exclude_dir = ["assets", "tmp", "vendor", "testdata", "out", "dist"]
+
+[misc]
+clean_on_exit = true

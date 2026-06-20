@@ -1,0 +1,9 @@
+[[- $app := ds "app" -]]
+# runtime image
+FROM scratch
+# Copy our static executable.
+ARG TARGETPLATFORM
+COPY $TARGETPLATFORM/[[$app.binary]] /go/bin/[[$app.binary]]
+# Run the binary.
+USER 65532:65532
+ENTRYPOINT ["/go/bin/[[$app.binary]]"]

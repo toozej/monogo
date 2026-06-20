@@ -1,0 +1,22 @@
+[[- $app := ds "app" -]]
+---
+services:
+  [[$app.name]]:
+    container_name: [[$app.name]]
+    image: toozej/[[$app.name]]:latest
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    labels:
+      - "traefik.enable=false"
+      # labels below for publishing as web service
+      # - "traefik.docker.network=traefik"
+      # - "traefik.http.routers.[[$app.name]].rule=Host(`[[$app.name]].test`)"
+      # - "traefik.http.routers.[[$app.name]].middlewares=http-redirect-https@file,headers@file"
+      # - "traefik.http.routers.[[$app.name]]-secure.entrypoints=https"
+      # - "traefik.http.routers.[[$app.name]]-secure.rule=Host(`[[$app.name]].test`)"
+      # - "traefik.http.routers.[[$app.name]]-secure.middlewares=headers@file"
+      # - "traefik.http.routers.[[$app.name]]-secure.tls=true"
+    # networks:
+      # - traefik
