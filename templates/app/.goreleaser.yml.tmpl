@@ -119,8 +119,10 @@ dockers_v2:
       - 'ghcr.io/toozej/[[$app.name]]'
       - 'quay.io/toozej/[[$app.name]]'
     tags:
-      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}v{{ .Version }}{{ end }}'
-      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ .Version }}{{ end }}'
+      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}v{{ .Version
+        }}{{ end }}'
+      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ .Version
+        }}{{ end }}'
       - "latest"
     dockerfile: [[$app.path]]/Dockerfile.goreleaser
     labels:
@@ -164,8 +166,10 @@ dockers_v2:
       - 'ghcr.io/toozej/[[$app.name]]'
       - 'quay.io/toozej/[[$app.name]]'
     tags:
-      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}v{{ .Version }}-distroless{{ end }}'
-      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ .Version }}-distroless{{ end }}'
+      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}v{{ .Version
+        }}-distroless{{ end }}'
+      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ .Version
+        }}-distroless{{ end }}'
       - "distroless"
     dockerfile: [[$app.path]]/Dockerfile.goreleaser.distroless
     labels:

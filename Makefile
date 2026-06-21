@@ -281,7 +281,7 @@ pre-commit: pre-commit-install pre-commit-run ## Install and run pre-commit hook
 pre-commit-install: pre-reqs ## Install pre-commit hooks and necessary binaries
 	command -v apt && apt-get update || echo "package manager not apt"
 	# golangci-lint
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
 	# goimports
 	go install golang.org/x/tools/cmd/goimports@latest
 	# gosec
@@ -299,7 +299,7 @@ pre-commit-install: pre-reqs ## Install pre-commit hooks and necessary binaries
 	# actionlint
 	command -v actionlint || brew install actionlint || go install github.com/rhysd/actionlint/cmd/actionlint@latest
 	# syft
-	command -v syft || curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+	command -v syft || brew install syft || curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
 	# cosign
 	command -v cosign || brew install cosign || go install github.com/sigstore/cosign/v3/cmd/cosign@latest
 	# go-licenses

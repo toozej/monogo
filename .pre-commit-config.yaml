@@ -13,7 +13,8 @@ repos:
         pass_filenames: false
       - id: goreleaser-check-apps
         name: Check generated GoReleaser app configs
-        entry: bash -c 'for app in apps/*; do if [ -f "$app/.goreleaser.yml" ]; then goreleaser check --config "$app/.goreleaser.yml"; fi; done'
+        entry: bash -c 'for app in apps/*; do if [ -f "$app/.goreleaser.yml" ]; then goreleaser
+          check --config "$app/.goreleaser.yml"; fi; done'
         language: system
         pass_filenames: false
 
@@ -94,6 +95,7 @@ repos:
       - id: hadolint-docker
         args: ["--ignore", "DL3007", "--ignore", "DL3008", "--ignore", "DL3013", "--ignore",
           "DL3062"]
+        files: (^|/)Dockerfile(\.(distroless|goreleaser|goreleaser\.distroless))?$
 
   # lint Makefile
   - repo: https://github.com/checkmake/checkmake/
@@ -110,7 +112,7 @@ repos:
 
   # run semgrep on all known filetypes
   - repo: https://github.com/semgrep/pre-commit
-    rev: 'v1.166.0'
+    rev: 'v1.167.0'
     hooks:
       - id: semgrep
         # See https://semgrep.dev/explore to select a ruleset and copy its URL

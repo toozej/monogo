@@ -99,7 +99,8 @@ jobs:
         with:
           distribution: goreleaser
           version: latest
-          args: release --clean --skip=announce,archive,before,homebrew,nfpm,sbom,validate --config apps/${{ matrix.app }}/.goreleaser.yml
+          args: release --clean --skip=announce,archive,before,homebrew,nfpm,sbom,validate
+            --config apps/${{ matrix.app }}/.goreleaser.yml
           workdir: ${{ github.workspace }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

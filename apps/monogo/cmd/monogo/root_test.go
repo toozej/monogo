@@ -241,5 +241,5 @@ func TestUsernameFlagParsing(t *testing.T) {
 }
 
 func TestRootCmdIsCobraCommand(t *testing.T) {
-	var _ *cobra.Command = rootCmd
+	var _ = (*cobra.Command)(rootCmd)
 }

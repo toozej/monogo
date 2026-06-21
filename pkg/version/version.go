@@ -189,8 +189,8 @@ func Command() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fmt.Fprintln(cmd.OutOrStdout(), string(jsonBytes))
-			return nil
+			_, err = fmt.Fprintln(cmd.OutOrStdout(), string(jsonBytes))
+			return err
 		},
 	}
 }

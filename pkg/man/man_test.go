@@ -146,7 +146,7 @@ func TestNewManCmd_RunEWithRootFlags(t *testing.T) {
 
 func TestNewManCmd_ReturnsCobraCommand(t *testing.T) {
 	cmd := NewManCmd()
-	var _ *cobra.Command = cmd
+	var _ = (*cobra.Command)(cmd)
 }
 
 func min(a, b int) int {
