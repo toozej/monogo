@@ -3,7 +3,8 @@ name: go-listen
 binary: go-listen
 path: apps/go-listen
 mainPath: apps/go-listen
-description: "go-listen is a web application that allows users to search for artists and automatically add their top 5 songs to designated \"incoming\" playlists on Spotify"
+description: "go-listen is a web application that allows users to search for artists and automatically\
+  \ add their top 5 songs to designated \"incoming\" playlists on Spotify"
 shortDescription: "go-listen"
 goImage: golang:1.26-trixie
 distrolessImage: gcr.io/distroless/static-debian13:nonroot
