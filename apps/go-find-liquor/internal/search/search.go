@@ -131,7 +131,7 @@ func (s *Searcher) AgeVerification() error {
 	if err != nil {
 		return fmt.Errorf("failed to get page: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Parse the form for the age verification
 	_, err = goquery.NewDocumentFromReader(resp.Body)
@@ -159,7 +159,7 @@ func (s *Searcher) AgeVerification() error {
 	if err != nil {
 		return fmt.Errorf("failed to submit age verification: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("age verification failed with status: %s", resp.Status)
@@ -202,7 +202,7 @@ func (s *Searcher) SearchItem(ctx context.Context, item string, zipcode string, 
 	if err != nil {
 		return nil, fmt.Errorf("search request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("search failed with status: %s", resp.Status)

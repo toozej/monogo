@@ -6,9 +6,16 @@ services:
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
-    volumes:
-      - "./config.yaml:/config.yaml:ro"
     read_only: true
-    entrypoint: ["/go/bin/go-find-liquor", "--config", "/config.yaml"]
     labels:
       - "traefik.enable=false"
+      # labels below for publishing as web service
+      # - "traefik.docker.network=traefik"
+      # - "traefik.http.routers.go-find-liquor.rule=Host(`go-find-liquor.test`)"
+      # - "traefik.http.routers.go-find-liquor.middlewares=http-redirect-https@file,headers@file"
+      # - "traefik.http.routers.go-find-liquor-secure.entrypoints=https"
+      # - "traefik.http.routers.go-find-liquor-secure.rule=Host(`go-find-liquor.test`)"
+      # - "traefik.http.routers.go-find-liquor-secure.middlewares=headers@file"
+      # - "traefik.http.routers.go-find-liquor-secure.tls=true"
+    # networks:
+      # - traefik

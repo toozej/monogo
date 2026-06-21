@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/toozej/go-find-liquor/pkg/config"
+	"github.com/toozej/monogo/pkg/go-find-liquor/config"
 )
 
 // TestRunner_NewRunner tests the creation of Runner

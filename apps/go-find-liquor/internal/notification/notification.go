@@ -17,8 +17,8 @@ import (
 	"github.com/nikoksr/notify/service/telegram"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/toozej/go-find-liquor/internal/search"
-	"github.com/toozej/go-find-liquor/pkg/config"
+	"github.com/toozej/monogo/apps/go-find-liquor/internal/search"
+	"github.com/toozej/monogo/pkg/go-find-liquor/config"
 )
 
 // Notifier is an interface for sending notifications
@@ -68,7 +68,7 @@ func (g *GotifyNotifier) Notify(ctx context.Context, subject, message string) er
 	if err != nil {
 		return fmt.Errorf("failed to send notification: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode >= 300 {
 		return fmt.Errorf("gotify returned status code %d", resp.StatusCode)
@@ -320,32 +320,32 @@ func (m *NotificationManager) sendCondensedNotification(ctx context.Context, ite
 		// Single item - use same format as individual notification
 		item := items[0]
 		subject = fmt.Sprintf("GFL - Found %s!", item.Name)
-		message.WriteString(fmt.Sprintf("Found %s at %s on %s at %s for %s",
+		fmt.Fprintf(&message, "Found %s at %s on %s at %s for %s",
 			item.Name,
 			item.Store,
 			item.Date.Format("2006-01-02"),
 			item.Date.Format("15:04:05"),
 			item.Price,
-		))
+		)
 	} else {
 		// Multiple items - create condensed format
 		subject = fmt.Sprintf("GFL - Found %d items!", len(items))
-		message.WriteString(fmt.Sprintf("Found %d liquor items:\n\n", len(items)))
+		fmt.Fprintf(&message, "Found %d liquor items:\n\n", len(items))
 
 		for i, item := range items {
-			message.WriteString(fmt.Sprintf("%d. %s at %s for %s\n",
+			fmt.Fprintf(&message, "%d. %s at %s for %s\n",
 				i+1,
 				item.Name,
 				item.Store,
 				item.Price,
-			))
+			)
 		}
 
 		// Add timestamp for the search
-		message.WriteString(fmt.Sprintf("\nSearch completed on %s at %s",
+		fmt.Fprintf(&message, "\nSearch completed on %s at %s",
 			items[0].Date.Format("2006-01-02"),
 			items[0].Date.Format("15:04:05"),
-		))
+		)
 	}
 
 	messageStr := message.String()

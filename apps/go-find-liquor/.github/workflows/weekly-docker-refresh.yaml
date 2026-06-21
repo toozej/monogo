@@ -113,6 +113,6 @@ jobs:
       - name: Verify signatures of Docker images
         run: |
           cosign verify \
-            --certificate-identity-regexp '^https://github.com/toozej/go-find-liquor/\.github/workflows/(release|weekly-docker-refresh)\.yaml@refs/(tags/.*|heads/main)$' \
+            --certificate-identity-regexp '^https://github.com/toozej/monogo/apps/go-find-liquor/\.github/workflows/(release|weekly-docker-refresh)\.yaml@refs/(tags/.*|heads/main)$' \
             --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
             ${{ matrix.registry }}toozej/go-find-liquor:${{ matrix.tag }}

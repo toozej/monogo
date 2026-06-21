@@ -10,9 +10,9 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/toozej/go-find-liquor/internal/notification"
-	"github.com/toozej/go-find-liquor/internal/search"
-	"github.com/toozej/go-find-liquor/pkg/config"
+	"github.com/toozej/monogo/apps/go-find-liquor/internal/notification"
+	"github.com/toozej/monogo/apps/go-find-liquor/internal/search"
+	"github.com/toozej/monogo/pkg/go-find-liquor/config"
 )
 
 // Runner interface defines the contract for all runner implementations

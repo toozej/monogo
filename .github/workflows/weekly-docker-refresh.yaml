@@ -28,6 +28,7 @@ jobs:
           - gotts-it
           - url2anki
           - RSSFFS
+          - go-find-liquor
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -127,6 +128,7 @@ jobs:
           - gotts-it
           - url2anki
           - RSSFFS
+          - go-find-liquor
         registry: ['', 'ghcr.io/', 'quay.io/']
         tag: ['latest', 'distroless']
     steps:

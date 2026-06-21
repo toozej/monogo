@@ -1,0 +1,12 @@
+{
+  "source": "toozej/go-find-liquor",
+  "vcsHost": "github.com/",
+  "owner": "toozej",
+  "repo": "go-find-liquor",
+  "ownerRepo": "toozej/go-find-liquor",
+  "repoURL": "https://github.com/toozej/go-find-liquor.git",
+  "ref": "main",
+  "oldModule": "github.com/toozej/go-find-liquor",
+  "newModule": "github.com/toozej/monogo/apps/go-find-liquor",
+  "tagPrefix": "apps/go-find-liquor"
+}

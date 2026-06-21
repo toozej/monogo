@@ -1,7 +1,7 @@
 # go-find-liquor (GFL)
 
 ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/toozej/go-find-liquor)
-[![Go Report Card](https://goreportcard.com/badge/github.com/toozej/go-find-liquor)](https://goreportcard.com/report/github.com/toozej/go-find-liquor)
+[![Go Report Card](https://goreportcard.com/badge/github.com/toozej/monogo/apps/go-find-liquor)](https://goreportcard.com/report/github.com/toozej/monogo/apps/go-find-liquor)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/toozej/go-find-liquor/cicd.yaml)
 ![Docker Pulls](https://img.shields.io/docker/pulls/toozej/go-find-liquor)
 ![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/toozej/go-find-liquor/total)

@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	cmd "github.com/toozej/go-find-liquor/cmd/go-find-liquor"
+	cmd "github.com/toozej/monogo/apps/go-find-liquor/cmd/go-find-liquor"
 )
 
 func main() {

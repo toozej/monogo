@@ -21,7 +21,7 @@
 //
 // Example usage:
 //
-//	import "github.com/toozej/go-find-liquor/cmd/go-find-liquor"
+//	import "github.com/toozej/monogo/apps/go-find-liquor/cmd/go-find-liquor"
 //
 //	func main() {
 //		if err := cmd.Execute(); err != nil {
@@ -40,10 +40,10 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/toozej/go-find-liquor/internal/runner"
-	"github.com/toozej/go-find-liquor/pkg/config"
-	"github.com/toozej/go-find-liquor/pkg/man"
-	"github.com/toozej/go-find-liquor/pkg/version"
+	"github.com/toozej/monogo/apps/go-find-liquor/internal/runner"
+	"github.com/toozej/monogo/pkg/go-find-liquor/config"
+	"github.com/toozej/monogo/pkg/go-find-liquor/man"
+	"github.com/toozej/monogo/pkg/go-find-liquor/version"
 )
 
 var (

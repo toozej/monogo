@@ -32,7 +32,7 @@
 //
 // Example usage:
 //
-//	import "github.com/toozej/go-find-liquor/pkg/config"
+//	import "github.com/toozej/monogo/pkg/go-find-liquor/config"
 //
 //	func main() {
 //		conf, err := config.GetConfig()
@@ -217,7 +217,7 @@ func loadYAMLConfig() (Config, error) {
 	if err != nil {
 		return config, fmt.Errorf("failed to create secure root filesystem: %w", err)
 	}
-	defer root.Close()
+	defer func() { _ = root.Close() }()
 
 	// Read and parse YAML file using scoped root with relative path
 	data, err := root.ReadFile(configName)

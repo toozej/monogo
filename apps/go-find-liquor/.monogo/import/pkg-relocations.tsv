@@ -1,0 +1,4 @@
+github.com/toozej/monogo/apps/go-find-liquor/pkg/config	github.com/toozej/monogo/pkg/go-find-liquor/config
+github.com/toozej/monogo/apps/go-find-liquor/pkg/man	github.com/toozej/monogo/pkg/go-find-liquor/man
+apps/go-find-liquor/pkg/README.md	apps/go-find-liquor/.monogo/original-pkg/README.md
+github.com/toozej/monogo/apps/go-find-liquor/pkg/version	github.com/toozej/monogo/pkg/go-find-liquor/version
