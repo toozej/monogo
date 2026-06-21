@@ -1,0 +1,7 @@
+# runtime image
+FROM scratch
+# Copy our static executable.
+ARG TARGETPLATFORM
+COPY $TARGETPLATFORM/photos2map /go/bin/photos2map
+# Run the binary.
+ENTRYPOINT ["/go/bin/photos2map"]

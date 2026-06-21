@@ -1,0 +1,21 @@
+---
+services:
+  photos2map:
+    container_name: photos2map
+    image: toozej/photos2map:latest
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    labels:
+      - "traefik.enable=false"
+      # labels below for publishing as web service
+      # - "traefik.docker.network=traefik"
+      # - "traefik.http.routers.photos2map.rule=Host(`photos2map.test`)"
+      # - "traefik.http.routers.photos2map.middlewares=http-redirect-https@file,headers@file"
+      # - "traefik.http.routers.photos2map-secure.entrypoints=https"
+      # - "traefik.http.routers.photos2map-secure.rule=Host(`photos2map.test`)"
+      # - "traefik.http.routers.photos2map-secure.middlewares=headers@file"
+      # - "traefik.http.routers.photos2map-secure.tls=true"
+    # networks:
+      # - traefik
