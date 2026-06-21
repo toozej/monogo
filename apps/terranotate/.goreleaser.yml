@@ -2,6 +2,11 @@
 version: 2
 
 project_name: terranotate
+dist: dist/terranotate
+
+git:
+  ignore_tags:
+    - apps/*
 
 env:
   - GO111MODULE=on
@@ -13,14 +18,15 @@ env_files:
 before:
   hooks:
     - go mod tidy
-    - ./scripts/completions.sh
-    - ./scripts/manpages.sh
+    - ./scripts/completions.sh terranotate
+    - ./scripts/manpages.sh terranotate
 
 snapshot:
   version_template: '{{ incpatch .Version }}-next'
 
 builds:
-  - env:
+  - id: terranotate
+    env:
       - CGO_ENABLED=0
     goos:
       - linux
@@ -42,12 +48,12 @@ builds:
     ldflags:
       - >-
         -s -w
-        -X github.com/toozej/monogo/apps/terranotate/pkg/version.Version={{.Version}}
-        -X github.com/toozej/monogo/apps/terranotate/pkg/version.Commit={{.Commit}}
-        -X github.com/toozej/monogo/apps/terranotate/pkg/version.Branch={{.Branch}}
-        -X github.com/toozej/monogo/apps/terranotate/pkg/version.BuiltAt={{.CommitDate}}
-        -X github.com/toozej/monogo/apps/terranotate/pkg/version.Builder=goreleaser
-    main: ./
+        -X github.com/toozej/monogo/pkg/version.Version={{.Version}}
+        -X github.com/toozej/monogo/pkg/version.Commit={{.Commit}}
+        -X github.com/toozej/monogo/pkg/version.Branch={{.Branch}}
+        -X github.com/toozej/monogo/pkg/version.BuiltAt={{.CommitDate}}
+        -X github.com/toozej/monogo/pkg/version.Builder=goreleaser
+    main: ./apps/terranotate
     binary: terranotate
 
 universal_binaries:
@@ -55,6 +61,9 @@ universal_binaries:
 
 checksum:
   name_template: 'checksums.txt'
+
+docker_digest:
+  name_template: 'digests.txt'
 
 changelog:
   sort: asc
@@ -96,36 +105,32 @@ dockers_v2:
       - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ .Version
         }}{{ end }}'
       - "latest"
-      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}v{{ .Version
-        }}-distroless{{ end }}'
-      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ .Version
-        }}-distroless{{ end }}'
-      - "distroless"
-    dockerfile: Dockerfile.goreleaser
+    dockerfile: apps/terranotate/Dockerfile.goreleaser
     labels:
-      "io.artifacthub.package.readme-url": "https://raw.githubusercontent.com/toozej/terranotate/main/README.md"
+      "io.artifacthub.package.readme-url": "https://github.com/toozej/monogo/raw/main/README.md"
       "io.artifacthub.package.maintainers": "[{\"name\":\"toozej\"}]"
       "io.artifacthub.package.license": "GPLv3"
-      "org.opencontainers.image.description": "Terraform Comment Parser and Validator"
+      "org.opencontainers.image.description": >-
+        Terraform Comment Parser and Validator
       "org.opencontainers.image.created": "{{.Date}}"
       "org.opencontainers.image.name": "{{.ProjectName}}"
       "org.opencontainers.image.revision": "{{.FullCommit}}"
       "org.opencontainers.image.version": "{{.Version}}"
       "org.opencontainers.image.source": "{{.GitURL}}"
       "org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
-      "org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/terranotate/main/README.md"
+      "org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
       "org.opencontainers.image.licenses": "GPL-3.0-only"
       "org.opencontainers.image.title": "{{.ProjectName}}"
       "org.opencontainers.image.vendor": "James Tooze"
     annotations:
       "index,manifest:org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
       "index,manifest:org.opencontainers.image.created": "{{.Date}}"
-      "index,manifest:org.opencontainers.image.description": "Terraform Comment Parser and\
-        \ Validator"
-      "index,manifest:org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/terranotate/main/README.md"
+      "index,manifest:org.opencontainers.image.description": >-
+        Terraform Comment Parser and Validator
+      "index,manifest:org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
       "index,manifest:org.opencontainers.image.licenses": "GPL-3.0-only"
       "index,manifest:org.opencontainers.image.revision": "{{.FullCommit}}"
-      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/monogo/apps/terranotate"
+      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/monogo"
       "index,manifest:org.opencontainers.image.title": "{{.ProjectName}}"
       "index,manifest:org.opencontainers.image.vendor": "James Tooze"
       "index,manifest:org.opencontainers.image.version": "{{.Version}}"
@@ -142,31 +147,32 @@ dockers_v2:
       - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ .Version
         }}-distroless{{ end }}'
       - "distroless"
-    dockerfile: Dockerfile.goreleaser.distroless
+    dockerfile: apps/terranotate/Dockerfile.goreleaser.distroless
     labels:
-      "io.artifacthub.package.readme-url": "https://raw.githubusercontent.com/toozej/terranotate/main/README.md"
+      "io.artifacthub.package.readme-url": "https://github.com/toozej/monogo/raw/main/README.md"
       "io.artifacthub.package.maintainers": "[{\"name\":\"toozej\"}]"
       "io.artifacthub.package.license": "GPLv3"
-      "org.opencontainers.image.description": "Terraform Comment Parser and Validator"
+      "org.opencontainers.image.description": >-
+        Terraform Comment Parser and Validator
       "org.opencontainers.image.created": "{{.Date}}"
       "org.opencontainers.image.name": "{{.ProjectName}}"
       "org.opencontainers.image.revision": "{{.FullCommit}}"
       "org.opencontainers.image.version": "{{.Version}}"
       "org.opencontainers.image.source": "{{.GitURL}}"
       "org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
-      "org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/terranotate/main/README.md"
+      "org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
       "org.opencontainers.image.licenses": "GPL-3.0-only"
       "org.opencontainers.image.title": "{{.ProjectName}}"
       "org.opencontainers.image.vendor": "James Tooze"
     annotations:
       "index,manifest:org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
       "index,manifest:org.opencontainers.image.created": "{{.Date}}"
-      "index,manifest:org.opencontainers.image.description": "Terraform Comment Parser and\
-        \ Validator"
-      "index,manifest:org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/terranotate/main/README.md"
+      "index,manifest:org.opencontainers.image.description": >-
+        Terraform Comment Parser and Validator
+      "index,manifest:org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
       "index,manifest:org.opencontainers.image.licenses": "GPL-3.0-only"
       "index,manifest:org.opencontainers.image.revision": "{{.FullCommit}}"
-      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/monogo/apps/terranotate"
+      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/monogo"
       "index,manifest:org.opencontainers.image.title": "{{.ProjectName}}"
       "index,manifest:org.opencontainers.image.vendor": "James Tooze"
       "index,manifest:org.opencontainers.image.version": "{{.Version}}"
@@ -186,18 +192,20 @@ archives:
     files:
       - README.md
       - LICENSE
-      - completions/*
-      - manpages/*
+      - completions/terranotate.bash
+      - completions/terranotate.fish
+      - completions/terranotate.zsh
+      - manpages/terranotate.1.gz
 
 nfpms:
   - file_name_template: '{{ .ConventionalFileName }}'
     id: packages
-    homepage: https://github.com/toozej/monogo/apps/terranotate
+    homepage: https://github.com/toozej/monogo
     description: |-
       Terraform Comment Parser and Validator
     maintainer: toozej
     license: GPLv3
-    vendor: terranotate
+    vendor: monogo
     bindir: /usr/bin
     section: utils
     contents:
@@ -236,8 +244,9 @@ nfpms:
 
 homebrew_casks:
   - name: terranotate
-    homepage: https://github.com/toozej/monogo/apps/terranotate
-    description: "Terraform Comment Parser and Validator"
+    homepage: https://github.com/toozej/monogo
+    description: >-
+      Terraform Comment Parser and Validator
     license: GPLv3
     repository:
       owner: toozej
@@ -250,7 +259,7 @@ homebrew_casks:
       zsh: "completions/terranotate.zsh"
       fish: "completions/terranotate.fish"
     url:
-      verified: "github.com/toozej/monogo/apps/terranotate/releases/download"
+      verified: "github.com/toozej/monogo/releases/download"
     hooks:
       post:
         install: |
@@ -285,6 +294,7 @@ milestones:
   - close: true
 
 release:
+  mode: append
   disable: '{{ eq (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}'
   footer: |
-    **Full Changelog**: https://github.com/toozej/monogo/apps/terranotate/compare/{{ .PreviousTag }}...{{ .Tag }}
+    **Full Changelog**: https://github.com/toozej/monogo/compare/{{ .PreviousTag }}...{{ .Tag }}

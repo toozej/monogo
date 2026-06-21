@@ -27,7 +27,7 @@ LDFLAGS = -s -w \
 	-X $(VER).Builder=$(BUILDER)
 	
 # Define the repository URL
-REPO_URL := https://github.com/toozej/terranotate
+REPO_URL := https://github.com/toozej/monogo/apps/terranotate
 
 # Docker image info
 IMAGE_AUTHOR = toozej
@@ -85,7 +85,7 @@ release: ## Build and sign Docker image
 
 verify: ## Verify Docker image with Cosign
 	cosign verify \
-		--certificate-identity-regexp '^https://github.com/toozej/terranotate/\.github/workflows/(release|weekly-docker-refresh)\.yaml@refs/(tags/.*|heads/main)$$' \
+		--certificate-identity-regexp '^https://github.com/toozej/monogo/apps/terranotate/\.github/workflows/(release|weekly-docker-refresh)\.yaml@refs/(tags/.*|heads/main)$$' \
 		--certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
 		$(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG)
 
@@ -115,7 +115,7 @@ distroless-run: ## Run built Docker image using distroless as final base
 
 install: ## Install terranotate from latest GitHub release
 	if command -v go; then \
-			go install github.com/toozej/terranotate@latest ; \
+			go install github.com/toozej/monogo/apps/terranotate@latest ; \
 	else \
 			echo "Downloading terranotate binary for $(OS)-$(ARCH)..."; \
 			mkdir -p $(CURDIR)/tmp; \
@@ -179,7 +179,7 @@ local-verify: ## Verify locally compiled binary
 	@echo "Keyless verification requires the bundle was signed with an OIDC identity."
 	@if test -f $(CURDIR)/out/terranotate.bundle; then \
 		cosign verify-blob \
-			--certificate-identity-regexp '^https://github.com/toozej/terranotate/\.github/workflows/.*\.yaml@refs/.*$$' \
+			--certificate-identity-regexp '^https://github.com/toozej/monogo/apps/terranotate/\.github/workflows/.*\.yaml@refs/.*$$' \
 			--certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
 			--bundle $(CURDIR)/out/terranotate.bundle \
 			$(CURDIR)/out/terranotate; \
@@ -259,7 +259,7 @@ pre-commit-install: ## Install pre-commit hooks and necessary binaries
 pre-commit-run: ## Run pre-commit hooks against all files
 	pre-commit run --all-files
 	# manually run the following checks since their pre-commits aren't working or don't exist
-	go-licenses report github.com/toozej/terranotate/cmd/terranotate
+	go-licenses report github.com/toozej/monogo/apps/terranotate/cmd/terranotate
 	govulncheck ./...
 
 update-golang-version: ## Update to latest Golang version across the repo

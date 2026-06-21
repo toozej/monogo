@@ -5,7 +5,7 @@
 // configuration management.
 package main
 
-import cmd "github.com/toozej/terranotate/cmd/terranotate"
+import cmd "github.com/toozej/monogo/apps/terranotate/cmd/terranotate"
 
 // main is the entry point of the terranotate application.
 // It delegates execution to the cmd package which handles all

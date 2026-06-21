@@ -17,7 +17,7 @@
 //
 // Example usage:
 //
-//	import "github.com/toozej/terranotate/pkg/config"
+//	import "github.com/toozej/monogo/pkg/terranotate/config"
 //
 //	func main() {
 //		conf := config.GetEnvVars()

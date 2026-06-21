@@ -7,9 +7,9 @@ import (
 	"strings"
 
 	"github.com/spf13/afero"
-	"github.com/toozej/terranotate/internal/generator"
-	"github.com/toozej/terranotate/internal/parser"
-	"github.com/toozej/terranotate/internal/validator"
+	"github.com/toozej/monogo/apps/terranotate/internal/generator"
+	"github.com/toozej/monogo/apps/terranotate/internal/parser"
+	"github.com/toozej/monogo/apps/terranotate/internal/validator"
 )
 
 // Generate creates markdown documentation from Terraform resources

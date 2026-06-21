@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/toozej/terranotate/internal/parser"
-	"github.com/toozej/terranotate/internal/validator"
+	"github.com/toozej/monogo/apps/terranotate/internal/parser"
+	"github.com/toozej/monogo/apps/terranotate/internal/validator"
 )
 
 func TestNewMarkdownGenerator(t *testing.T) {

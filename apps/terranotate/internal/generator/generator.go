@@ -5,8 +5,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/toozej/terranotate/internal/parser"
-	"github.com/toozej/terranotate/internal/validator"
+	"github.com/toozej/monogo/apps/terranotate/internal/parser"
+	"github.com/toozej/monogo/apps/terranotate/internal/validator"
 )
 
 // MarkdownGenerator generates markdown documentation from resources

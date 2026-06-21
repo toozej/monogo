@@ -6,7 +6,7 @@ import (
 
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
-	"github.com/toozej/terranotate/internal/app"
+	"github.com/toozej/monogo/apps/terranotate/internal/app"
 )
 
 var validateCmd = &cobra.Command{

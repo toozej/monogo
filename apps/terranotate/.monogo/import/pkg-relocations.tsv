@@ -1,0 +1,4 @@
+github.com/toozej/monogo/apps/terranotate/pkg/config	github.com/toozej/monogo/pkg/terranotate/config
+github.com/toozej/monogo/apps/terranotate/pkg/man	github.com/toozej/monogo/pkg/terranotate/man
+apps/terranotate/pkg/README.md	apps/terranotate/.monogo/original-pkg/README.md
+github.com/toozej/monogo/apps/terranotate/pkg/version	github.com/toozej/monogo/pkg/terranotate/version

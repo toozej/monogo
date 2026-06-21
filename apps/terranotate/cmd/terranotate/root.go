@@ -12,7 +12,7 @@
 //
 // Example usage:
 //
-//	import "github.com/toozej/terranotate/cmd/terranotate"
+//	import "github.com/toozej/monogo/apps/terranotate/cmd/terranotate"
 //
 //	func main() {
 //		cmd.Execute()
@@ -26,10 +26,10 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/toozej/terranotate/internal/tfenv"
-	"github.com/toozej/terranotate/pkg/config"
-	"github.com/toozej/terranotate/pkg/man"
-	"github.com/toozej/terranotate/pkg/version"
+	"github.com/toozej/monogo/apps/terranotate/internal/tfenv"
+	"github.com/toozej/monogo/pkg/terranotate/config"
+	"github.com/toozej/monogo/pkg/terranotate/man"
+	"github.com/toozej/monogo/pkg/terranotate/version"
 )
 
 // conf holds the application configuration loaded from environment variables.

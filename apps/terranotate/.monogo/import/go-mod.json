@@ -1,0 +1,133 @@
+{
+	"Module": {
+		"Path": "github.com/toozej/terranotate"
+	},
+	"Go": "1.26",
+	"Require": [
+		{
+			"Path": "github.com/blushft/go-diagrams",
+			"Version": "v0.0.0-20250322201119-d91ac4ca5de4"
+		},
+		{
+			"Path": "github.com/caarlos0/env/v11",
+			"Version": "v11.4.1"
+		},
+		{
+			"Path": "github.com/hashicorp/hcl/v2",
+			"Version": "v2.24.0"
+		},
+		{
+			"Path": "github.com/joho/godotenv",
+			"Version": "v1.5.1"
+		},
+		{
+			"Path": "github.com/muesli/mango-cobra",
+			"Version": "v1.3.0"
+		},
+		{
+			"Path": "github.com/muesli/roff",
+			"Version": "v0.1.0"
+		},
+		{
+			"Path": "github.com/sirupsen/logrus",
+			"Version": "v1.9.4"
+		},
+		{
+			"Path": "github.com/spf13/afero",
+			"Version": "v1.15.0"
+		},
+		{
+			"Path": "github.com/spf13/cobra",
+			"Version": "v1.10.2"
+		},
+		{
+			"Path": "gopkg.in/yaml.v3",
+			"Version": "v3.0.1"
+		},
+		{
+			"Path": "github.com/agext/levenshtein",
+			"Version": "v1.2.3",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/apparentlymart/go-textseg/v15",
+			"Version": "v15.0.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/awalterschulze/gographviz",
+			"Version": "v2.0.3+incompatible",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/google/uuid",
+			"Version": "v1.6.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/inconshreveable/mousetrap",
+			"Version": "v1.1.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/mitchellh/go-wordwrap",
+			"Version": "v1.0.1",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/muesli/mango",
+			"Version": "v0.2.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/muesli/mango-pflag",
+			"Version": "v0.2.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/spf13/pflag",
+			"Version": "v1.0.10",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/zclconf/go-cty",
+			"Version": "v1.18.1",
+			"Indirect": true
+		},
+		{
+			"Path": "golang.org/x/mod",
+			"Version": "v0.37.0",
+			"Indirect": true
+		},
+		{
+			"Path": "golang.org/x/net",
+			"Version": "v0.56.0",
+			"Indirect": true
+		},
+		{
+			"Path": "golang.org/x/sync",
+			"Version": "v0.21.0",
+			"Indirect": true
+		},
+		{
+			"Path": "golang.org/x/sys",
+			"Version": "v0.46.0",
+			"Indirect": true
+		},
+		{
+			"Path": "golang.org/x/text",
+			"Version": "v0.38.0",
+			"Indirect": true
+		},
+		{
+			"Path": "golang.org/x/tools",
+			"Version": "v0.46.0",
+			"Indirect": true
+		}
+	],
+	"Exclude": null,
+	"Replace": null,
+	"Retract": null,
+	"Tool": null,
+	"Ignore": null
+}

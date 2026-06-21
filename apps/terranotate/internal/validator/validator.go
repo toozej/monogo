@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/spf13/afero"
-	"github.com/toozej/terranotate/internal/parser"
+	"github.com/toozej/monogo/apps/terranotate/internal/parser"
 	"gopkg.in/yaml.v3"
 )
 

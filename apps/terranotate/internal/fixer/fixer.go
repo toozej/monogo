@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/spf13/afero"
-	"github.com/toozej/terranotate/internal/parser"
-	"github.com/toozej/terranotate/internal/validator"
+	"github.com/toozej/monogo/apps/terranotate/internal/parser"
+	"github.com/toozej/monogo/apps/terranotate/internal/validator"
 )
 
 // CommentFixer handles automatic fixing of validation errors

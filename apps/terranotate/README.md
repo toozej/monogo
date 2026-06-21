@@ -1,7 +1,7 @@
 # Terranotate - Terraform Comment Parser and Validator
 
 ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/toozej/terranotate)
-[![Go Report Card](https://goreportcard.com/badge/github.com/toozej/terranotate)](https://goreportcard.com/report/github.com/toozej/terranotate)
+[![Go Report Card](https://goreportcard.com/badge/github.com/toozej/monogo/apps/terranotate)](https://goreportcard.com/report/github.com/toozej/monogo/apps/terranotate)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/toozej/terranotate/cicd.yaml)
 ![Docker Pulls](https://img.shields.io/docker/pulls/toozej/terranotate)
 ![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/toozej/terranotate/total)

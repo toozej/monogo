@@ -1,0 +1,12 @@
+{
+  "source": "toozej/terranotate",
+  "vcsHost": "github.com/",
+  "owner": "toozej",
+  "repo": "terranotate",
+  "ownerRepo": "toozej/terranotate",
+  "repoURL": "https://github.com/toozej/terranotate.git",
+  "ref": "main",
+  "oldModule": "github.com/toozej/terranotate",
+  "newModule": "github.com/toozej/monogo/apps/terranotate",
+  "tagPrefix": "apps/terranotate"
+}
