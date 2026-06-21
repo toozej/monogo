@@ -1,0 +1,25 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Run files2prompt",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "envFile": "${workspaceFolder}/.env",
+            "program": "${workspaceFolder}/main.go",
+            "cwd": "${workspaceFolder}",
+            "args": []
+        },
+        {
+            "name": "Get files2prompt version",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "envFile": "${workspaceFolder}/.env",
+            "program": "${workspaceFolder}/main.go",
+            "cwd": "${workspaceFolder}",
+            "args": ["version"]
+        },
+    ]
+}
