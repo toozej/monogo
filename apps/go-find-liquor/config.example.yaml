@@ -1,0 +1,128 @@
+---
+# Go Find Liquor Configuration
+
+# Global settings (apply to all users)
+interval: 6h  # Interval between searches (default: 12h)
+verbose: true  # Enable verbose logging (default: false)
+
+# Optional custom user agent string
+# If not set, will cycle through a list of common user agents
+# user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+
+# Commonly available items used for health check searches
+# During periodic health checks, a random item from this list is searched
+# to verify the search service is functioning. The item code or name is
+# used for the search, and the item name is displayed in the heartbeat notification.
+# If not configured, built-in defaults will be used.
+common_items:
+  - code: "99900046075"  # Bacardi Superior Rum
+  - code: "99900014675"  # Jack Daniels #7 Whiskey
+  - code: "99900088075"  # Cazadores Reposado Tequila
+  - code: "99900054075"  # Bombay Sapphire Gin
+  - code: "99900202175"  # Jagermeister Liquer
+  - code: "99900069075"  # Absolut Vodka
+
+# Multi-user configuration
+# Each user can have their own items, location, and notification preferences
+users:
+  # User 1 - Individual notifications
+  - name: "user1"
+    # Items to search for (by name or code)
+    # Current list of items can be found at http://www.olcc.state.or.us/pdfs/NumericPriceListCurrentMonth.csv
+    items:
+      - "Blanton's"
+      - "W.L. Weller Special Reserve"
+      - "1942"  # Don Julio 1942
+    zipcode: "97201"  # Your zipcode for store proximity
+    distance: 15      # Distance in miles to search (default: 10)
+    notifications:
+      # Gotify with individual notifications
+      - type: gotify
+        endpoint: "https://gotify.example.com"
+        condense: true
+        credential:
+          token: "USER1_GOTIFY_TOKEN"
+
+      # Slack with individual notifications
+      - type: slack
+        condense: false # Send separate notification for each item found
+        credential:
+          token: "USER1_SLACK_TOKEN"
+          channel_id: "https://exampleorg.slack.com/archives/XXXXXXXXXXXXXXXXXXXXXXXX"
+
+  # User 2 - Condensed notifications
+  - name: "user2"
+    items:
+      - "54633"  # Example item code
+      - "Eagle Rare"
+      - "Buffalo Trace"
+    zipcode: "97210"
+    distance: 10
+    notifications:
+      # Telegram with condensed notifications
+      - type: telegram
+        condense: true  # Combine all found items into single notification
+        credential:
+          token: "USER2_TELEGRAM_BOT_TOKEN"
+          chat_id: "USER2_CHAT_ID"
+
+      # Discord with condensed notifications
+      - type: discord
+        condense: true
+        credential:
+          token: "USER2_DISCORD_BOT_TOKEN"
+          channel_id: "https://discord.com/channels/000000000000000000/XXXXXXXXXXXXXXXXXXXXX"
+
+# Additional notification examples for reference:
+#
+# Pushover example:
+# - type: pushover
+#   condense: false  # or true for condensed notifications
+#   credential:
+#     token: "YOUR_PUSHOVER_TOKEN"
+#     receipient_id: "XXXXXXXXXXXXX"
+#
+# Pushbullet example:
+# - type: pushbullet
+#   condense: true
+#   credential:
+#     token: "YOUR_PUSHBULLET_TOKEN"
+#     device_nickname: "XXXXXXXXXXXXX"
+
+# ========================================
+# BACKWARD COMPATIBILITY EXAMPLE
+# ========================================
+#
+# If you have an existing single-user configuration, it will be automatically
+# migrated to the multi-user format. Your old config like this:
+#
+# items:
+#   - "Blanton's"
+#   - "W.L. Weller Special Reserve"
+# zipcode: "97201"
+# distance: 15
+# interval: 6h
+# verbose: true
+# notifications:
+#   - type: gotify
+#     endpoint: "https://gotify.example.com"
+#     credential:
+#       token: "YOUR_GOTIFY_TOKEN"
+#
+# Will be automatically converted to:
+#
+# interval: 6h
+# verbose: true
+# users:
+#   - name: "default"
+#     items:
+#       - "Blanton's"
+#       - "W.L. Weller Special Reserve"
+#     zipcode: "97201"
+#     distance: 15
+#     notifications:
+#       - type: gotify
+#         endpoint: "https://gotify.example.com"
+#         condense: false  # Default value
+#         credential:
+#           token: "YOUR_GOTIFY_TOKEN"

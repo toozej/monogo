@@ -1,0 +1,14 @@
+---
+services:
+  go-find-liquor:
+    container_name: go-find-liquor
+    image: toozej/go-find-liquor:latest
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - "./config.yaml:/config.yaml:ro"
+    read_only: true
+    entrypoint: ["/go/bin/go-find-liquor", "--config", "/config.yaml"]
+    labels:
+      - "traefik.enable=false"
