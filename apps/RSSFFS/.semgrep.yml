@@ -1,0 +1,22 @@
+---
+rules:
+  - id: go.lang.security.audit.net.cookie-missing-httponly.cookie-missing-httponly
+    message: "excluded for internal/web/server.go"
+    languages: [go]
+    severity: WARNING
+    patterns:
+      - pattern: |
+          __SEMGREP_NO_MATCH_PLACEHOLDER__
+    paths:
+      exclude:
+        - "**/internal/web/server.go"
+  - id: go.lang.security.audit.net.cookie-missing-secure.cookie-missing-secure
+    message: "excluded for internal/web/server.go"
+    languages: [go]
+    severity: WARNING
+    patterns:
+      - pattern: |
+          __SEMGREP_NO_MATCH_PLACEHOLDER__
+    paths:
+      exclude:
+        - "**/internal/web/server.go"

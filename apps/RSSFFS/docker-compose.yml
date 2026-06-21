@@ -1,0 +1,25 @@
+---
+services:
+  RSSFFS:
+    container_name: RSSFFS
+    image: toozej/rssffs:latest
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    command: ["serve"]
+    env_file: .env
+    ports:
+      - 8080:8080
+    labels:
+      - "traefik.enable=false"
+      # labels below for publishing as web service
+      # - "traefik.docker.network=traefik"
+      # - "traefik.http.routers.RSSFFS.rule=Host(`RSSFFS.test`)"
+      # - "traefik.http.routers.RSSFFS.middlewares=http-redirect-https@file,headers@file"
+      # - "traefik.http.routers.RSSFFS-secure.entrypoints=https"
+      # - "traefik.http.routers.RSSFFS-secure.rule=Host(`RSSFFS.test`)"
+      # - "traefik.http.routers.RSSFFS-secure.middlewares=headers@file"
+      # - "traefik.http.routers.RSSFFS-secure.tls=true"
+    # networks:
+      # - traefik

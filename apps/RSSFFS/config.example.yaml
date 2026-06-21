@@ -1,0 +1,39 @@
+---
+# RSSFFS Configuration Example
+# Copy this file to config.yaml and update with your RSS reader details
+
+# RSS Reader API Configuration
+# For Miniflux, this should be your Miniflux instance URL
+rss_reader_endpoint: "https://your-miniflux-instance.com"
+
+# RSS Reader Authentication
+# Use API token for authentication
+rss_reader_api_key: "your-api-token"
+
+# Optional: Default category for RSS feeds
+# This can be overridden with the --category flag
+# default_category: "Discovered Feeds"
+
+# Optional: Enable debug logging by default
+# This can be overridden with the --debug flag
+# debug: false
+
+# Web Server Configuration (for serve command)
+# These settings apply when using 'RSSFFS serve'
+# All can be overridden with command-line flags
+
+# Default host to bind web server to
+# Use 0.0.0.0 to bind to all interfaces
+# web_host: "127.0.0.1"
+
+# Default port for web server
+# web_port: 8080
+
+# Single URL Mode Configuration
+# When enabled, only checks for RSS feeds on the provided URL's domain
+# without traversing to other domains found on the webpage
+# rssffs_single_url_mode: false
+
+# Note: Environment variables take precedence over config file values
+# Use RSSFFS_ prefix for single URL mode environment variable:
+# RSSFFS_SINGLE_URL_MODE, RSS_READER_ENDPOINT, RSS_READER_API_KEY, etc.

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}} - RSS Feed Finder</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>RSS Feed Finder</h1>
+            <p>Discover and subscribe to RSS feeds from any website</p>
+        </header>
+
+        <main>
+            <form id="rss-form" class="form-container">
+                
+                <div class="form-group">
+                    <label for="url">Website URL *</label>
+                    <input 
+                        type="url" 
+                        id="url" 
+                        name="url" 
+                        placeholder="https://example.com" 
+                        required
+                        autocomplete="url"
+                    >
+                    <div class="error-message" id="url-error"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="category">Category (optional)</label>
+                    <select 
+                        id="category" 
+                        name="category"
+                        autocomplete="off"
+                    >
+                        <option value="">Select a category...</option>
+                        <!-- Categories will be loaded dynamically -->
+                    </select>
+                    <div class="error-message" id="category-error"></div>
+                    <div class="loading-message" id="category-loading" style="display: none;">Loading categories...</div>
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-container">
+                        <input 
+                            type="checkbox" 
+                            id="single-url-mode" 
+                            name="single_url_mode"
+                            value="true"
+                        >
+                        <span class="checkmark"></span>
+                        Single URL Mode - Only check the provided URL for RSS feeds
+                    </label>
+                    <div class="help-text">
+                        When enabled, only searches for RSS feeds on the provided domain instead of all linked domains
+                    </div>
+                </div>
+
+                <button type="submit" class="submit-btn" id="submit-btn">
+                    <span class="btn-text">Find RSS Feeds</span>
+                    <span class="loading-spinner" id="loading-spinner"></span>
+                </button>
+            </form>
+        </main>
+
+        <!-- Logs Panel -->
+        <div id="logs-panel" class="logs-panel">
+            <div class="logs-header">
+                <h3>Request Logs</h3>
+                <div class="logs-controls">
+                    <button id="toggle-logs" class="logs-toggle-btn">Show Logs</button>
+                    <button id="clear-logs" class="logs-clear-btn" style="display: none;">Clear</button>
+                </div>
+            </div>
+            <div id="logs-content" class="logs-content" style="display: none;">
+                <div id="logs-list" class="logs-list"></div>
+            </div>
+        </div>
+
+        <footer>
+            <p>RSSFFS v{{.Version}} {{if .Debug}}(Debug Mode){{end}}</p>
+        </footer>
+    </div>
+
+    <!-- Toast notification container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <script src="/script.js"></script>
+</body>
+</html>
