@@ -41,8 +41,8 @@ type Playlist struct {
 	IsIncoming bool   `json:"is_incoming"`
 }
 
-// SpotifyService defines the interface for Spotify operations
-type SpotifyService interface {
+// MusicService defines the interface for Spotify operations
+type MusicService interface {
 	SearchArtist(query string) (*Artist, error)
 	GetArtistTopTracks(artistID string) ([]Track, error)
 	GetUserPlaylists(folderName string) ([]Playlist, error)

@@ -2,7 +2,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Run kmhd2spotify search",
+            "name": "Run kmhd2playlist search",
             "type": "go",
             "request": "launch",
             "mode": "auto",
@@ -12,7 +12,7 @@
             "args": ["search"]
         },
         {
-            "name": "Run kmhd2spotify sync",
+            "name": "Run kmhd2playlist sync",
             "type": "go",
             "request": "launch",
             "mode": "auto",
@@ -22,7 +22,7 @@
             "args": ["sync", "--continuous"]
         },
         {
-            "name": "Get kmhd2spotify version",
+            "name": "Get kmhd2playlist version",
             "type": "go",
             "request": "launch",
             "mode": "auto",

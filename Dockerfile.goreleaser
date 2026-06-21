@@ -2,8 +2,8 @@
 FROM gcr.io/distroless/static-debian13:nonroot
 # Copy our static executable.
 ARG TARGETPLATFORM
-COPY $TARGETPLATFORM/kmhd2spotify /go/bin/kmhd2spotify
+COPY $TARGETPLATFORM/kmhd2playlist /go/bin/kmhd2playlist
 # Expose port for publishing as web service
 # EXPOSE 8081
 # Run the binary.
-ENTRYPOINT ["/go/bin/kmhd2spotify"]
+ENTRYPOINT ["/go/bin/kmhd2playlist"]

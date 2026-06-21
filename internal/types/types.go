@@ -5,8 +5,8 @@ import (
 	"time"
 )
 
-// SpotifyService defines the interface for Spotify API operations
-type SpotifyService interface {
+// MusicService defines the interface for music service operations (Spotify, YouTube Music, etc.)
+type MusicService interface {
 	SearchArtist(query string) (*Artist, error)
 	GetArtistTopTracks(artistID string) ([]Track, error)
 	GetUserPlaylists(folderName string) ([]Playlist, error)

@@ -6,20 +6,20 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/toozej/kmhd2spotify/internal/types"
+	"github.com/toozej/kmhd2playlist/internal/types"
 )
 
 // DuplicateService implements the DuplicateDetector interface
 type DuplicateService struct {
-	spotify types.SpotifyService
-	logger  *log.Logger
+	musicClient types.MusicService
+	logger      *log.Logger
 }
 
 // NewDuplicateService creates a new duplicate detection service
-func NewDuplicateService(spotify types.SpotifyService, logger *log.Logger) *DuplicateService {
+func NewDuplicateService(musicSvc types.MusicService, logger *log.Logger) *DuplicateService {
 	return &DuplicateService{
-		spotify: spotify,
-		logger:  logger,
+		musicClient: musicSvc,
+		logger:      logger,
 	}
 }
 
@@ -53,7 +53,7 @@ func (d *DuplicateService) CheckDuplicates(playlistID string, tracks []types.Tra
 	}
 
 	// Check which tracks exist in the playlist
-	existsResults, err := d.spotify.CheckTracksInPlaylist(playlistID, trackIDs)
+	existsResults, err := d.musicClient.CheckTracksInPlaylist(playlistID, trackIDs)
 	if err != nil {
 		d.logger.WithError(err).WithFields(log.Fields{
 			"component":   "duplicate_service",
@@ -117,7 +117,7 @@ func (d *DuplicateService) CheckArtistInPlaylist(playlistID, artistID string) (*
 	}).Debug("Checking if artist tracks exist in playlist")
 
 	// Get the artist's top tracks
-	tracks, err := d.spotify.GetArtistTopTracks(artistID)
+	tracks, err := d.musicClient.GetArtistTopTracks(artistID)
 	if err != nil {
 		d.logger.WithError(err).WithFields(log.Fields{
 			"component":   "duplicate_service",

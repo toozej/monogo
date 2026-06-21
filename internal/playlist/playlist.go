@@ -4,30 +4,30 @@ import (
 	"strings"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/toozej/kmhd2spotify/internal/types"
+	"github.com/toozej/kmhd2playlist/internal/types"
 )
 
 // PlaylistService implements the PlaylistManager interface
 type PlaylistService struct {
-	spotify   types.SpotifyService
-	duplicate types.DuplicateDetector
-	logger    *log.Logger
+	musicClient types.MusicService
+	duplicate   types.DuplicateDetector
+	logger      *log.Logger
 }
 
 // NewPlaylistService creates a new playlist service
-func NewPlaylistService(spotify types.SpotifyService, duplicate types.DuplicateDetector, logger *log.Logger) *PlaylistService {
+func NewPlaylistService(musicSvc types.MusicService, duplicate types.DuplicateDetector, logger *log.Logger) *PlaylistService {
 	return &PlaylistService{
-		spotify:   spotify,
-		duplicate: duplicate,
-		logger:    logger,
+		musicClient: musicSvc,
+		duplicate:   duplicate,
+		logger:      logger,
 	}
 }
 
 // NewService creates a new playlist service (alias for NewPlaylistService)
-func NewService(spotify types.SpotifyService, logger *log.Logger) *PlaylistService {
+func NewService(musicSvc types.MusicService, logger *log.Logger) *PlaylistService {
 	return &PlaylistService{
-		spotify: spotify,
-		logger:  logger,
+		musicClient: musicSvc,
+		logger:      logger,
 	}
 }
 
@@ -42,7 +42,7 @@ func (p *PlaylistService) AddArtistToPlaylist(artistName, playlistID string, for
 	}).Info("Starting to add artist to playlist")
 
 	// Search for the artist
-	artist, err := p.spotify.SearchArtist(artistName)
+	artist, err := p.musicClient.SearchArtist(artistName)
 	if err != nil {
 		p.logger.WithError(err).WithFields(log.Fields{
 			"component":   "playlist_service",
@@ -56,7 +56,7 @@ func (p *PlaylistService) AddArtistToPlaylist(artistName, playlistID string, for
 	}
 
 	// Get the artist's top 5 tracks
-	tracks, err := p.spotify.GetArtistTopTracks(artist.ID)
+	tracks, err := p.musicClient.GetArtistTopTracks(artist.ID)
 	if err != nil {
 		p.logger.WithError(err).WithFields(log.Fields{
 			"component":   "playlist_service",
@@ -125,7 +125,7 @@ func (p *PlaylistService) AddArtistToPlaylist(artistName, playlistID string, for
 	}
 
 	// Add tracks to playlist in batch with error handling
-	err = p.spotify.AddTracksToPlaylist(playlistID, trackIDs)
+	err = p.musicClient.AddTracksToPlaylist(playlistID, trackIDs)
 	if err != nil {
 		p.logger.WithError(err).WithFields(log.Fields{
 			"component":   "playlist_service",
@@ -182,7 +182,7 @@ func (p *PlaylistService) GetIncomingPlaylists() ([]types.Playlist, error) {
 		"folder_name": "Incoming",
 	}).Debug("Fetching playlists from 'Incoming' folder")
 
-	playlists, err := p.spotify.GetUserPlaylists("Incoming")
+	playlists, err := p.musicClient.GetUserPlaylists("Incoming")
 	if err != nil {
 		p.logger.WithError(err).WithFields(log.Fields{
 			"component":   "playlist_service",
@@ -215,7 +215,7 @@ func (p *PlaylistService) GetTop5Tracks(artistID string) ([]types.Track, error) 
 		"artist_id": artistID,
 	}).Debug("Fetching top tracks for artist")
 
-	tracks, err := p.spotify.GetArtistTopTracks(artistID)
+	tracks, err := p.musicClient.GetArtistTopTracks(artistID)
 	if err != nil {
 		p.logger.WithError(err).WithFields(log.Fields{
 			"component": "playlist_service",

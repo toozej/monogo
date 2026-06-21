@@ -1,4 +1,4 @@
-// Package api provides JSON API client functionality for the kmhd2spotify application.
+// Package api provides JSON API client functionality for the kmhd2playlist application.
 //
 // This package contains the KMHDAPIClient which is responsible for fetching
 // playlist data from the KMHD JSON API and parsing it into song information.
@@ -15,9 +15,9 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/toozej/kmhd2spotify/internal/types"
-	"github.com/toozej/kmhd2spotify/pkg/config"
-	"github.com/toozej/kmhd2spotify/pkg/useragent"
+	"github.com/toozej/kmhd2playlist/internal/types"
+	"github.com/toozej/kmhd2playlist/pkg/config"
+	"github.com/toozej/kmhd2playlist/pkg/useragent"
 )
 
 // KMHDAPIClient handles fetching and parsing of KMHD JSON API data.

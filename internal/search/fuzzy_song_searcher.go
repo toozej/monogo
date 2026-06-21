@@ -6,20 +6,20 @@ import (
 
 	"github.com/sahilm/fuzzy"
 	"github.com/sirupsen/logrus"
-	"github.com/toozej/kmhd2spotify/internal/types"
+	"github.com/toozej/kmhd2playlist/internal/types"
 )
 
 // FuzzySongSearcher implements fuzzy matching for both artist and song search
 type FuzzySongSearcher struct {
-	spotify types.SpotifyService
-	logger  *logrus.Logger
+	musicClient types.MusicService
+	logger      *logrus.Logger
 }
 
 // NewFuzzySongSearcher creates a new fuzzy song searcher
-func NewFuzzySongSearcher(spotifyService types.SpotifyService, logger *logrus.Logger) *FuzzySongSearcher {
+func NewFuzzySongSearcher(musicSvc types.MusicService, logger *logrus.Logger) *FuzzySongSearcher {
 	return &FuzzySongSearcher{
-		spotify: spotifyService,
-		logger:  logger,
+		musicClient: musicSvc,
+		logger:      logger,
 	}
 }
 
@@ -55,7 +55,7 @@ func (f *FuzzySongSearcher) FindBestSongMatchWithAlbum(artistQuery, songQuery, a
 	}).Debug("Starting fuzzy song search")
 
 	// First, search for the artist
-	artist, err := f.spotify.SearchArtist(artistQuery)
+	artist, err := f.musicClient.SearchArtist(artistQuery)
 	if err != nil {
 		f.logger.WithError(err).WithFields(logrus.Fields{
 			"artist_query": artistQuery,
@@ -67,7 +67,7 @@ func (f *FuzzySongSearcher) FindBestSongMatchWithAlbum(artistQuery, songQuery, a
 	artistConfidence := f.calculateMatchConfidence(artistQuery, artist.Name)
 
 	// Get top tracks for the artist
-	tracks, err := f.spotify.GetArtistTopTracks(artist.ID)
+	tracks, err := f.musicClient.GetArtistTopTracks(artist.ID)
 	if err != nil {
 		f.logger.WithError(err).WithFields(logrus.Fields{
 			"artist_id":   artist.ID,

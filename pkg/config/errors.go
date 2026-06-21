@@ -16,4 +16,10 @@ var (
 
 	// ErrMissingSpotifyUsername is returned when Spotify Username is not provided
 	ErrMissingSpotifyUsername = errors.New("spotify username is required")
+
+	// ErrMissingYouTubeMusicCookie is returned when YouTube Music cookie is not provided
+	ErrMissingYouTubeMusicCookie = errors.New("youtube music cookie is required")
+
+	// ErrInvalidMusicClient is returned when MUSIC_CLIENT is not 'spotify' or 'youtube'
+	ErrInvalidMusicClient = errors.New("MUSIC_CLIENT must be 'spotify' or 'youtube'")
 )

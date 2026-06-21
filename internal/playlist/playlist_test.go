@@ -6,10 +6,10 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"github.com/toozej/kmhd2spotify/internal/types"
+	"github.com/toozej/kmhd2playlist/internal/types"
 )
 
-// MockSpotifyService is a mock implementation of SpotifyService
+// MockSpotifyService is a mock implementation of MusicService
 type MockSpotifyService struct {
 	playlists []types.Playlist
 	err       error

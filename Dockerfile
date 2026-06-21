@@ -3,7 +3,7 @@ FROM golang:1.26-trixie AS init
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-WORKDIR /go/kmhd2spotify/
+WORKDIR /go/kmhd2playlist/
 
 COPY go.mod* go.sum* ./
 RUN go mod download
@@ -38,9 +38,9 @@ RUN PKG=$(head -n 1 go.mod | cut -c 8-) && \
 # runtime image including CA certs and tzdata
 FROM gcr.io/distroless/static-debian13:nonroot
 # Copy our static executable.
-COPY --from=build /go/kmhd2spotify/kmhd2spotify /go/bin/kmhd2spotify
+COPY --from=build /go/kmhd2playlist/kmhd2playlist /go/bin/kmhd2playlist
 # Expose port for publishing as web service
 # EXPOSE 8081
 # Run the binary.
 USER nonroot
-ENTRYPOINT ["/go/bin/kmhd2spotify"]
+ENTRYPOINT ["/go/bin/kmhd2playlist"]

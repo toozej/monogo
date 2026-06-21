@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/toozej/kmhd2spotify/pkg/config"
+	"github.com/toozej/kmhd2playlist/pkg/config"
 	"github.com/zmb3/spotify/v2"
 	spotifyauth "github.com/zmb3/spotify/v2/auth"
 	"golang.org/x/oauth2"
@@ -60,7 +60,7 @@ func NewClient(cfg config.SpotifyConfig, logger *logrus.Logger) (*Client, error)
 	)
 
 	// Generate state for security
-	state := "kmhd2spotify-auth-state"
+	state := "kmhd2playlist-auth-state"
 
 	// Use the library's AuthURL method as shown in examples
 	authURL := auth.AuthURL(state)

@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/toozej/kmhd2spotify/internal/types"
+	"github.com/toozej/kmhd2playlist/internal/types"
 )
 
 func TestSearchSongs(t *testing.T) {
@@ -196,10 +196,10 @@ func TestInitializeAllServices(t *testing.T) {
 		t.Skip("Skipping test due to missing Spotify credentials")
 	}
 
-	kmhdScraper, spotifyService, fuzzySongSearcher, err := initializeAllServices()
+	kmhdScraper, musicService, fuzzySongSearcher, err := initializeAllServices()
 
 	assert.NoError(t, err)
 	assert.NotNil(t, kmhdScraper)
-	assert.NotNil(t, spotifyService)
+	assert.NotNil(t, musicService)
 	assert.NotNil(t, fuzzySongSearcher)
 }

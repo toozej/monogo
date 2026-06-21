@@ -7,10 +7,10 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"github.com/toozej/kmhd2spotify/internal/types"
+	"github.com/toozej/kmhd2playlist/internal/types"
 )
 
-// MockSpotifyService is a mock implementation of the SpotifyService interface
+// MockSpotifyService is a mock implementation of the MusicService interface
 type MockSpotifyService struct {
 	// For GetArtistTopTracks
 	getArtistTopTracksFunc func(artistID string) ([]types.Track, error)
@@ -98,7 +98,7 @@ func TestNewDuplicateService(t *testing.T) {
 	service := NewDuplicateService(mockSpotify, logger)
 
 	assert.NotNil(t, service)
-	assert.Equal(t, mockSpotify, service.spotify)
+	assert.Equal(t, mockSpotify, service.musicClient)
 	assert.Equal(t, logger, service.logger)
 }
 

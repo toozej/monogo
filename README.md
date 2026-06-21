@@ -1,14 +1,14 @@
-# 🎵 kmhd2spotify
+# 🎵 kmhd2playlist
 
-![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/toozej/kmhd2spotify)
-[![Go Report Card](https://goreportcard.com/badge/github.com/toozej/kmhd2spotify)](https://goreportcard.com/report/github.com/toozej/kmhd2spotify)
-![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/toozej/kmhd2spotify/cicd.yaml)
-![Docker Pulls](https://img.shields.io/docker/pulls/toozej/kmhd2spotify)
-![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/toozej/kmhd2spotify/total)
+![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/toozej/kmhd2playlist)
+[![Go Report Card](https://goreportcard.com/badge/github.com/toozej/kmhd2playlist)](https://goreportcard.com/report/github.com/toozej/kmhd2playlist)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/toozej/kmhd2playlist/cicd.yaml)
+![Docker Pulls](https://img.shields.io/docker/pulls/toozej/kmhd2playlist)
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/toozej/kmhd2playlist/total)
 
 > 🎷 Automatically sync songs from KMHD jazz radio to your Spotify playlists
 
-**kmhd2spotify** is a Go application that fetches the KMHD jazz radio playlist via JSON API and automatically adds newly played songs to your Spotify playlist. It uses fuzzy matching to find the best artist matches and can run continuously to keep your playlist up-to-date with the latest jazz discoveries.
+**kmhd2playlist** is a Go application that fetches the KMHD jazz radio playlist via JSON API and automatically adds newly played songs to your Spotify playlist. It uses fuzzy matching to find the best artist matches and can run continuously to keep your playlist up-to-date with the latest jazz discoveries.
 
 ## ✨ Features
 
@@ -91,13 +91,13 @@ make up
 
 ```bash
 # Single sync operation
-kmhd2spotify sync
+kmhd2playlist sync
 
 # Continuous monitoring (checks every hour with randomization)
-kmhd2spotify sync --continuous
+kmhd2playlist sync --continuous
 
 # Custom interval
-kmhd2spotify sync --continuous --interval 30m
+kmhd2playlist sync --continuous --interval 30m
 ```
 
 ### Make Commands
@@ -144,7 +144,7 @@ make build run
 
 # Or pull from registry with volume mount for token persistence
 mkdir -p ./data
-docker run --rm --env-file .env -v ./data:/app/data toozej/kmhd2spotify:latest sync --continuous
+docker run --rm --env-file .env -v ./data:/app/data toozej/kmhd2playlist:latest sync --continuous
 ```
 
 ### Token Persistence in Docker
@@ -160,7 +160,7 @@ docker run --rm \
   --env-file .env \
   -e SPOTIFY_TOKEN_FILE_PATH=/app/data/spotify_token.json \
   -v ./data:/app/data \
-  toozej/kmhd2spotify:latest sync --continuous
+  toozej/kmhd2playlist:latest sync --continuous
 ```
 
 This ensures your authentication persists between container restarts and you won't need to re-authenticate every time.
@@ -175,7 +175,7 @@ This ensures your authentication persists between container restarts and you won
 | `SPOTIFY_CLIENT_SECRET` | Spotify app client secret | Required |
 | `SPOTIFY_REDIRECT_URI` | OAuth redirect URI | `http://localhost:8080/callback` |
 | `SPOTIFY_PLAYLIST_NAME_PREFIX` | Prefix for monthly playlists (creates "{prefix}-YYYY-MM" format) | Uses first existing playlist |
-| `SPOTIFY_TOKEN_FILE_PATH` | Path to store Spotify auth token | `~/.config/kmhd2spotify/spotify_token.json` |
+| `SPOTIFY_TOKEN_FILE_PATH` | Path to store Spotify auth token | `~/.config/kmhd2playlist/spotify_token.json` |
 | `KMHD_API_ENDPOINT` | KMHD JSON API endpoint | `https://www.kmhd.org/pf/api/v3/content/fetch/playlist` |
 | `KMHD_HTTP_TIMEOUT` | API request timeout (seconds) | `30` |
 | `SERVER_HOST` | OAuth callback host | `127.0.0.1` |
@@ -185,13 +185,13 @@ This ensures your authentication persists between container restarts and you won
 
 ```bash
 # Check every 30 minutes (minimum recommended interval)
-kmhd2spotify sync --continuous --interval 30m
+kmhd2playlist sync --continuous --interval 30m
 
 # Check every hour (default)
-kmhd2spotify sync --continuous --interval 1h
+kmhd2playlist sync --continuous --interval 1h
 
 # Check every 2 hours
-kmhd2spotify sync --continuous --interval 2h
+kmhd2playlist sync --continuous --interval 2h
 ```
 
 ## 📊 Monitoring & Logging
@@ -266,7 +266,7 @@ make local
 ### Project Structure
 
 ```
-├── cmd/kmhd2spotify/     # CLI application entry point
+├── cmd/kmhd2playlist/     # CLI application entry point
 ├── internal/
 │   ├── api/              # KMHD JSON API integration
 │   ├── spotify/          # Spotify API integration  

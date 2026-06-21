@@ -62,6 +62,8 @@ func TestGetEnvVars(t *testing.T) {
 
 			// Clear environment variables first
 			_ = os.Unsetenv("SPOTIFY_CLIENT_ID")
+			_ = os.Unsetenv("MUSIC_CLIENT")
+			_ = os.Unsetenv("YOUTUBEMUSIC_COOKIE")
 
 			// Create .env file if applicable
 			if tt.mockEnvFile != "" {
@@ -90,7 +92,7 @@ func TestGetEnvVars(t *testing.T) {
 				assert.Equal(t, "https://www.kmhd.org/pf/api/v3/content/fetch/playlist", conf.KMHD.APIEndpoint)
 				assert.Equal(t, 30, conf.KMHD.HTTPTimeout)
 				// Verify Spotify config has default token file path
-				assert.Equal(t, "~/.config/kmhd2spotify/spotify_token.json", conf.Spotify.TokenFilePath)
+				assert.Equal(t, "~/.config/kmhd2playlist/spotify_token.json", conf.Spotify.TokenFilePath)
 			}
 		})
 	}
@@ -105,9 +107,9 @@ func TestSpotifyConfig_GetTokenFilePath(t *testing.T) {
 	}{
 		{
 			name:           "Default path with tilde expansion",
-			tokenFilePath:  "~/.config/kmhd2spotify/spotify_token.json",
+			tokenFilePath:  "~/.config/kmhd2playlist/spotify_token.json",
 			expectError:    false,
-			expectContains: ".config/kmhd2spotify/spotify_token.json",
+			expectContains: ".config/kmhd2playlist/spotify_token.json",
 		},
 		{
 			name:           "Absolute path",

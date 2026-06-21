@@ -27,17 +27,17 @@ LDFLAGS = -s -w \
 	-X $(VER).Builder=$(BUILDER)
 	
 # Define the repository URL
-REPO_URL := https://github.com/toozej/kmhd2spotify
+REPO_URL := https://github.com/toozej/kmhd2playlist
 
 # Docker image info
 IMAGE_AUTHOR = toozej
-IMAGE_NAME = kmhd2spotify
+IMAGE_NAME = kmhd2playlist
 IMAGE_TAG = latest
 
 # Detect the OS and architecture
 OS := $(shell uname -s)
 ARCH := $(shell uname -m)
-LATEST_RELEASE_URL := $(REPO_URL)/releases/latest/download/kmhd2spotify_$(OS)_$(ARCH).tar.gz
+LATEST_RELEASE_URL := $(REPO_URL)/releases/latest/download/kmhd2playlist_$(OS)_$(ARCH).tar.gz
 
 ifeq ($(OS), Linux)
 	OPENER=xdg-open
@@ -45,9 +45,9 @@ else
 	OPENER=open
 endif
 
-.PHONY: all vet test build release verify run up down install local local-vet local-test local-cover local-run local-kill local-iterate local-release-test local-release local-sign local-verify local-release-verify local-install get-cosign-pub-key docker-login pre-commit-install pre-commit-run pre-commit pre-reqs update-golang-version upload-secrets-to-gh upload-secrets-envfile-to-1pass docs diagrams mutation-test test-changed watch-test profile-cpu profile-mem profile-all benchmark clean help
+.PHONY: all vet test build release verify run up down install local local-vet local-test local-cover local-run local-kill local-iterate local-release-test local-release local-sign local-verify local-release-verify local-install docker-login pre-commit-install pre-commit-run pre-commit pre-reqs update-golang-version upload-secrets-to-gh upload-secrets-envfile-to-1pass docs diagrams mutation-test test-changed watch-test profile-cpu profile-mem profile-all benchmark clean help
 
-all: vet pre-commit clean test build release verify ## Run default workflow via Docker
+all: vet pre-commit clean test build local-release-test ## Run default workflow via Docker
 local: local-update-deps local-vendor local-vet pre-commit clean local-test local-cover local-build local-release-test ## Run default workflow using locally installed Golang toolchain
 local-release-verify: local-release local-sign local-verify ## Release and verify using locally installed Golang toolchain
 pre-reqs: pre-commit-install ## Install pre-commit hooks and necessary binaries
@@ -80,12 +80,9 @@ release: ## Build and sign Docker image
 		echo "No environment variables found at $(CURDIR)/.env. Cannot release."; \
 	fi
 
-get-cosign-pub-key: ## Get kmhd2spotify Cosign public key from GitHub
-	test -f $(CURDIR)/kmhd2spotify.pub || curl --silent https://raw.githubusercontent.com/toozej/kmhd2spotify/main/kmhd2spotify.pub -O
-
 verify: ## Verify Docker image with Cosign
 	cosign verify \
-		--certificate-identity-regexp '^https://github.com/toozej/kmhd2spotify/.github/workflows/release.yaml@refs/tags/.*$$' \
+		--certificate-identity-regexp '^https://github.com/toozej/kmhd2playlist/.github/workflows/(release|weekly-docker-refresh)\.yaml@refs/(tags/.*|heads/main)$$' \
 		--certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
 		$(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG)
 
@@ -102,16 +99,16 @@ up: test build ## Run Docker Compose project with build Docker image
 down: ## Stop running Docker Compose project
 	docker compose -f docker-compose.yml down --remove-orphans
 
-install: ## Install kmhd2spotify from latest GitHub release
+install: ## Install kmhd2playlist from latest GitHub release
 	if command -v go; then \
-			go install github.com/toozej/kmhd2spotify@latest ; \
+			go install github.com/toozej/kmhd2playlist@latest ; \
 	else \
-			echo "Downloading kmhd2spotify binary for $(OS)-$(ARCH)..."; \
+			echo "Downloading kmhd2playlist binary for $(OS)-$(ARCH)..."; \
 			mkdir -p $(CURDIR)/tmp; \
-			curl --silent -L -o $(CURDIR)/tmp/kmhd2spotify.tgz $(LATEST_RELEASE_URL); \
-			tar -xzf $(CURDIR)/tmp/kmhd2spotify.tgz -C $(CURDIR)/tmp/; \
-			chmod +x $(CURDIR)/tmp/kmhd2spotify; \
-			sudo mv $(CURDIR)/tmp/kmhd2spotify /usr/local/bin/kmhd2spotify; \
+			curl --silent -L -o $(CURDIR)/tmp/kmhd2playlist.tgz $(LATEST_RELEASE_URL); \
+			tar -xzf $(CURDIR)/tmp/kmhd2playlist.tgz -C $(CURDIR)/tmp/; \
+			chmod +x $(CURDIR)/tmp/kmhd2playlist; \
+			sudo mv $(CURDIR)/tmp/kmhd2playlist /usr/local/bin/kmhd2playlist; \
 			rm -rf $(CURDIR)/tmp; \
 	fi
 
@@ -139,13 +136,13 @@ local-build: ## Run `go build` using locally installed golang toolchain
 
 local-run: ## Run locally built binary
 	if test -e $(CURDIR)/.env; then \
-		export `cat $(CURDIR)/.env | xargs` && $(CURDIR)/out/kmhd2spotify sync --continuous; \
+		export `cat $(CURDIR)/.env | xargs` && $(CURDIR)/out/kmhd2playlist sync --continuous; \
 	else \
 		echo "No environment variables found at $(CURDIR)/.env. Cannot run."; \
 	fi
 
 local-kill: ## Kill any currently running locally built binary
-	-pkill -f '$(CURDIR)/out/kmhd2spotify'
+	-pkill -f '$(CURDIR)/out/kmhd2playlist'
 
 local-iterate: ## Run `make local-build local-run` via `air` any time a .go or .tmpl file changes
 	air -c $(CURDIR)/.air.toml
@@ -155,33 +152,36 @@ local-release-test: ## Build assets and test goreleaser config using locally ins
 	goreleaser build --clean --snapshot
 
 local-release: local-test docker-login ## Release assets using locally installed golang toolchain and goreleaser
-	if test -e $(CURDIR)/kmhd2spotify.key && test -e $(CURDIR)/.env; then \
+	if test -e $(CURDIR)/.env; then \
 		export `cat $(CURDIR)/.env | xargs` && goreleaser release --clean; \
 	else \
-		echo "no cosign private key found at $(CURDIR)/kmhd2spotify.key. Cannot release."; \
+		echo "No environment variables found at $(CURDIR)/.env. Cannot release."; \
 	fi
 
 local-sign: local-test ## Sign locally installed golang toolchain and cosign
-	if test -e $(CURDIR)/kmhd2spotify.key && test -e $(CURDIR)/.env; then \
-		export `cat $(CURDIR)/.env | xargs` && cosign sign-blob --key=$(CURDIR)/kmhd2spotify.key --bundle=$(CURDIR)/kmhd2spotify.bundle $(CURDIR)/out/kmhd2spotify; \
+	cosign sign-blob --bundle=$(CURDIR)/out/kmhd2playlist.bundle $(CURDIR)/out/kmhd2playlist --yes
+
+local-verify: ## Verify locally compiled binary
+	if test -e $(CURDIR)/out/kmhd2playlist.bundle; then \
+		cosign verify-blob \
+			--certificate-identity-regexp '^https://github.com/toozej/kmhd2playlist/.github/workflows/release\.yaml@refs/tags/.*$$' \
+			--certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
+			--bundle $(CURDIR)/out/kmhd2playlist.bundle \
+			$(CURDIR)/out/kmhd2playlist; \
 	else \
-		echo "no cosign private key found at $(CURDIR)/kmhd2spotify.key. Cannot release."; \
+		echo "No bundle found at $(CURDIR)/out/kmhd2playlist.bundle. Cannot verify."; \
 	fi
 
-local-verify: get-cosign-pub-key ## Verify locally compiled binary
-	# cosign here assumes you're using Linux AMD64 binary
-	cosign verify-blob --key $(CURDIR)/kmhd2spotify.pub --bundle $(CURDIR)/kmhd2spotify.bundle $(CURDIR)/out/kmhd2spotify
-
-local-install: local-build local-verify ## Install compiled binary to local machine
-	sudo cp $(CURDIR)/out/kmhd2spotify /usr/local/bin/kmhd2spotify
-	sudo chmod 0755 /usr/local/bin/kmhd2spotify
+local-install: local-build ## Install compiled binary to local machine
+	sudo cp $(CURDIR)/out/kmhd2playlist /usr/local/bin/kmhd2playlist
+	sudo chmod 0755 /usr/local/bin/kmhd2playlist
 
 upload-secrets-to-gh: ## Upload secrets from .env file to GitHub Actions Secrets + Dependabot
-	$(CURDIR)/scripts/upload_secrets_to_github.sh kmhd2spotify 
+	$(CURDIR)/scripts/upload_secrets_to_github.sh kmhd2playlist 
 
 upload-secrets-envfile-to-1pass: ## Upload secrets and .env file to 1Password
-	$(CURDIR)/scripts/upload_secrets_to_1password secrets kmhd2spotify
-	$(CURDIR)/scripts/upload_secrets_to_1password envfile kmhd2spotify
+	$(CURDIR)/scripts/upload_secrets_to_1password secrets kmhd2playlist
+	$(CURDIR)/scripts/upload_secrets_to_1password envfile kmhd2playlist
 
 docker-login: ## Login to Docker registries used to publish images to
 	if test -e $(CURDIR)/.env; then \
@@ -244,7 +244,7 @@ pre-commit-install: ## Install pre-commit hooks and necessary binaries
 pre-commit-run: ## Run pre-commit hooks against all files
 	pre-commit run --all-files
 	# manually run the following checks since their pre-commits aren't working or don't exist
-	go-licenses report github.com/toozej/kmhd2spotify/cmd/kmhd2spotify
+	go-licenses report github.com/toozej/kmhd2playlist/cmd/kmhd2playlist
 	govulncheck ./...
 
 update-golang-version: ## Update to latest Golang version across the repo
@@ -312,11 +312,11 @@ benchmark: ## Run benchmarks
 
 clean: ## Remove any locally compiled binaries, profiles, demo output, and built Docker image
 	@echo "=== Cleaning up compiled binaries, profiles, demo output, and built Docker image ==="
-	@rm -f $(CURDIR)/out/kmhd2spotify
+	@rm -f $(CURDIR)/out/kmhd2playlist
 	@rm -rf $(CURDIR)/profiles/
 	@rm -rf $(CURDIR)/dist/
 	@rm -rf $(CURDIR)/c.out
-	@rm -rf $(CURDIR)/*.bundle
+	@rm -rf $(CURDIR)/out/*.bundle
 	@rm -rf $(CURDIR)/manpages/
 	@rm -rf $(CURDIR)/completions/
 	-docker image rm $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG)

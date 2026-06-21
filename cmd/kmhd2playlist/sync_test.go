@@ -7,10 +7,10 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"github.com/toozej/kmhd2spotify/internal/api"
-	"github.com/toozej/kmhd2spotify/internal/search"
-	"github.com/toozej/kmhd2spotify/internal/types"
-	"github.com/toozej/kmhd2spotify/pkg/config"
+	"github.com/toozej/kmhd2playlist/internal/api"
+	"github.com/toozej/kmhd2playlist/internal/search"
+	"github.com/toozej/kmhd2playlist/internal/types"
+	"github.com/toozej/kmhd2playlist/pkg/config"
 )
 
 func TestNewSyncCmd(t *testing.T) {
@@ -18,12 +18,12 @@ func TestNewSyncCmd(t *testing.T) {
 
 	assert.NotNil(t, cmd)
 	assert.Equal(t, "sync", cmd.Use)
-	assert.Equal(t, "Sync KMHD playlist to Spotify", cmd.Short)
+	assert.Equal(t, "Sync KMHD playlist to music service", cmd.Short)
 	assert.Contains(t, cmd.Long, "fuzzy matching")
 	assert.NotNil(t, cmd.Run)
 }
 
-func TestSyncSongsToSpotify(t *testing.T) {
+func TestSyncSongsToService(t *testing.T) {
 	// Create mock services
 	mockSpotify := &MockSpotifyServiceForSync{
 		playlists: []types.Playlist{{ID: "playlist1", Name: "Test Playlist"}},
@@ -49,13 +49,13 @@ func TestSyncSongsToSpotify(t *testing.T) {
 	targetPlaylist := types.Playlist{ID: "playlist1", Name: "Test Playlist"}
 	seenSongs := make(map[string]bool) // Add the missing seenSongs parameter
 
-	// Test that syncSongsToSpotify doesn't panic
+	// Test that syncSongsToService doesn't panic
 	assert.NotPanics(t, func() {
-		syncSongsToSpotify(songs, mockSpotify, fuzzySongSearcher, targetPlaylist, seenSongs)
+		syncSongsToService(songs, mockSpotify, fuzzySongSearcher, targetPlaylist, seenSongs)
 	})
 }
 
-// MockSpotifyServiceForSync implements types.SpotifyService for testing sync
+// MockSpotifyServiceForSync implements types.MusicService for testing sync
 type MockSpotifyServiceForSync struct {
 	playlists []types.Playlist
 	tracks    []types.Track
@@ -104,7 +104,7 @@ func (m *MockSpotifyServiceForSync) CreatePlaylist(name, description string, pub
 	}, nil
 }
 
-func TestAuthenticateSpotify(t *testing.T) {
+func TestAuthenticateMusicService(t *testing.T) {
 	// Test that authentication flow is triggered when service is not authenticated
 	mockSpotify := &MockUnauthenticatedSpotifyService{}
 

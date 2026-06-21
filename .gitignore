@@ -1,6 +1,4 @@
 # Cosign
-kmhd2spotify.key
-cosign.key
 *.sig
 *.bundle
 

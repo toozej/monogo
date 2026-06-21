@@ -15,7 +15,7 @@ func TestNewManCmd(t *testing.T) {
 		t.Errorf("Unexpected command use text: got %q, expected %q", NewManCmd().Use, expectedUse)
 	}
 
-	expectedShort := "Generates kmhd2spotify's command line manpages"
+	expectedShort := "Generates kmhd2playlist's command line manpages"
 	if NewManCmd().Short != expectedShort {
 		t.Errorf("Unexpected command short text: got %q, expected %q", NewManCmd().Short, expectedShort)
 	}

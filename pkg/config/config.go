@@ -1,4 +1,4 @@
-// Package config provides secure configuration management for the kmhd2spotify application.
+// Package config provides secure configuration management for the kmhd2playlist application.
 //
 // This package handles loading configuration from environment variables and .env files
 // with built-in security measures to prevent path traversal attacks. It uses the
@@ -17,7 +17,7 @@
 //
 // Example usage:
 //
-//	import "github.com/toozej/kmhd2spotify/pkg/config"
+//	import "github.com/toozej/kmhd2playlist/pkg/config"
 //
 //	func main() {
 //		conf := config.GetEnvVars()
@@ -37,9 +37,11 @@ import (
 
 // Config represents the main application configuration with nested service configurations.
 type Config struct {
-	Spotify SpotifyConfig `envPrefix:"SPOTIFY_"`
-	KMHD    KMHDConfig    `envPrefix:"KMHD_"`
-	Server  ServerConfig  `envPrefix:"SERVER_"`
+	MusicClient  string             `env:"MUSIC_CLIENT" envDefault:"spotify"`
+	Spotify      SpotifyConfig      `envPrefix:"SPOTIFY_"`
+	YouTubeMusic YouTubeMusicConfig `envPrefix:"YOUTUBEMUSIC_"`
+	KMHD         KMHDConfig         `envPrefix:"KMHD_"`
+	Server       ServerConfig       `envPrefix:"SERVER_"`
 }
 
 // SpotifyConfig represents the configuration for Spotify API integration.
@@ -61,8 +63,17 @@ type SpotifyConfig struct {
 	PlaylistNamePrefix string `env:"PLAYLIST_NAME_PREFIX"`
 
 	// TokenFilePath is the path where the Spotify authentication token is stored.
-	// If not specified, defaults to ~/.config/kmhd2spotify/spotify_token.json
-	TokenFilePath string `env:"TOKEN_FILE_PATH" envDefault:"~/.config/kmhd2spotify/spotify_token.json"`
+	// If not specified, defaults to ~/.config/kmhd2playlist/spotify_token.json
+	TokenFilePath string `env:"TOKEN_FILE_PATH" envDefault:"~/.config/kmhd2playlist/spotify_token.json"`
+}
+
+// YouTubeMusicConfig represents the configuration for YouTube Music API integration.
+type YouTubeMusicConfig struct {
+	Cookie string `env:"COOKIE"`
+
+	PlaylistNamePrefix string `env:"PLAYLIST_NAME_PREFIX"`
+
+	TokenFilePath string `env:"TOKEN_FILE_PATH" envDefault:"~/.config/kmhd2playlist/youtubemusic_token.json"`
 }
 
 // KMHDConfig represents the configuration for KMHD JSON API integration.
@@ -213,22 +224,58 @@ func (s SpotifyConfig) GetTokenFilePath() (string, error) {
 	return absPath, nil
 }
 
+// GetTokenFilePath returns the resolved token file path, handling tilde expansion
+// and ensuring the directory exists.
+func (y YouTubeMusicConfig) GetTokenFilePath() (string, error) {
+	tokenPath := y.TokenFilePath
+
+	if strings.HasPrefix(tokenPath, "~/") {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("failed to get user home directory: %w", err)
+		}
+		tokenPath = filepath.Join(homeDir, tokenPath[2:])
+	}
+
+	absPath, err := filepath.Abs(tokenPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve absolute path: %w", err)
+	}
+
+	tokenDir := filepath.Dir(absPath)
+	if err := os.MkdirAll(tokenDir, 0700); err != nil {
+		return "", fmt.Errorf("failed to create token directory %s: %w", tokenDir, err)
+	}
+
+	return absPath, nil
+}
+
 // validateConfig validates the configuration
 func validateConfig(conf *Config) error {
 	var errors []string
 
+	// Validate MUSIC_CLIENT
+	switch conf.MusicClient {
+	case "spotify":
+		if conf.Spotify.ClientID == "" {
+			fmt.Println("Warning: SPOTIFY_CLIENT_ID is not set. The application will not be able to connect to Spotify.")
+			fmt.Println("Please set your Spotify credentials to use the application.")
+		}
+		if conf.Spotify.ClientSecret == "" {
+			fmt.Println("Warning: SPOTIFY_CLIENT_SECRET is not set. The application will not be able to connect to Spotify.")
+		}
+	case "youtube":
+		if conf.YouTubeMusic.Cookie == "" {
+			fmt.Println("Warning: YOUTUBEMUSIC_COOKIE is not set. The application will not be able to connect to YouTube Music.")
+			fmt.Println("Please set your YouTube Music cookie to use the application.")
+		}
+	default:
+		errors = append(errors, "MUSIC_CLIENT must be 'spotify' or 'youtube'")
+	}
+
 	// Validate server configuration
 	if conf.Server.Port < 1 || conf.Server.Port > 65535 {
 		errors = append(errors, "server port must be between 1 and 65535")
-	}
-
-	// Validate Spotify configuration (warn but don't fail)
-	if conf.Spotify.ClientID == "" {
-		fmt.Println("Warning: SPOTIFY_CLIENT_ID is not set. The application will not be able to connect to Spotify.")
-		fmt.Println("Please set your Spotify credentials to use the application.")
-	}
-	if conf.Spotify.ClientSecret == "" {
-		fmt.Println("Warning: SPOTIFY_CLIENT_SECRET is not set. The application will not be able to connect to Spotify.")
 	}
 
 	// Validate KMHD configuration
