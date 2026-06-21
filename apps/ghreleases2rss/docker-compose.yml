@@ -1,0 +1,21 @@
+---
+services:
+  ghreleases2rss:
+    container_name: ghreleases2rss
+    image: toozej/ghreleases2rss:latest
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    labels:
+      - "traefik.enable=false"
+      # labels below for publishing as web service
+      # - "traefik.docker.network=traefik"
+      # - "traefik.http.routers.ghreleases2rss.rule=Host(`ghreleases2rss.test`)"
+      # - "traefik.http.routers.ghreleases2rss.middlewares=http-redirect-https@file,headers@file"
+      # - "traefik.http.routers.ghreleases2rss-secure.entrypoints=https"
+      # - "traefik.http.routers.ghreleases2rss-secure.rule=Host(`ghreleases2rss.test`)"
+      # - "traefik.http.routers.ghreleases2rss-secure.middlewares=headers@file"
+      # - "traefik.http.routers.ghreleases2rss-secure.tls=true"
+    # networks:
+      # - traefik

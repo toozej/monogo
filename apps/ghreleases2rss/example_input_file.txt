@@ -1,0 +1,4 @@
+ghcr.io/toozej/ghreleases2rss
+ghcr.io/toozej/golang-starter:latest
+https://github.com/toozej/RSSFFS
+toozej/python-starter
