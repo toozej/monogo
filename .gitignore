@@ -1,6 +1,4 @@
 # Cosign
-lego-stego.key
-cosign.key
 *.sig
 *.bundle
 
