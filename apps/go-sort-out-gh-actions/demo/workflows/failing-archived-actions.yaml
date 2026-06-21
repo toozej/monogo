@@ -1,0 +1,77 @@
+---
+name: Example Failing Workflow with Archived Actions
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Go (current)
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+
+      - name: Setup Go (outdated, EOL runtime, EOL language version but not archived)
+        uses: actions/setup-go@v1
+        with:
+          go-version: '1.13'
+
+      - name: Checkout (outdated, EOL runtime but not archived)
+        uses: actions/checkout@v2
+
+      - name: Setup Rust toolchain (archived - third-party)
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Run cargo check (archived - third-party)
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+
+      - name: Run clippy (archived - third-party)
+        uses: actions-rs/clippy-check@v1
+
+      - name: Security audit (archived - third-party)
+        uses: actions-rs/audit-check@v1
+
+      - name: Initialize CodeQL (current - GitHub official)
+        uses: github/codeql-action/init@v3
+        with:
+          languages: go
+
+      - name: Perform CodeQL Analysis (current - GitHub official)
+        uses: github/codeql-action/analyze@v3
+
+      - name: Cache (outdated but not archived - GitHub official)
+        uses: actions/cache@v2
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go (current)
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+
+      - name: Upload artifact (current - GitHub official)
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: test-results/
+
+      - name: Download artifact (current - GitHub official)
+        uses: actions/download-artifact@v4
+        with:
+          name: test-results

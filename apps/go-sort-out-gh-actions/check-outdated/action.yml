@@ -1,0 +1,111 @@
+---
+name: 'Check Outdated GitHub Actions'
+description: 'Detect outdated GitHub Actions versions and optionally update workflow files'
+author: 'toozej'
+inputs:
+  token:
+    description: 'GitHub token for API access'
+    required: true
+  verbose:
+    description: 'Enable verbose output'
+    required: false
+    default: 'false'
+  debug:
+    description: 'Enable debug logging'
+    required: false
+    default: 'false'
+  workflow:
+    description: 'Path to specific workflow file to check (optional, checks all if not specified)'
+    required: false
+  workflows-dir:
+    description: 'Path to directory containing workflow yaml files (optional, checks all if
+      not specified)'
+    required: false
+  repos-dir:
+    description: 'Path to base directory containing multiple repos to scan (optional)'
+    required: false
+  update:
+    description: 'Write updated versions to affected workflow files (pins to SHA with semver
+      comment by default)'
+    required: false
+    default: 'false'
+  pin:
+    description: 'Pin actions to SHAs instead of semver version strings (default format when
+      --update is used). When both pin and semver are true, pin takes precedence.'
+    required: false
+    default: 'false'
+  semver:
+    description: 'Use semver version strings instead of SHAs when updating. Ignored when pin
+      is also set to true.'
+    required: false
+    default: 'false'
+outputs:
+  outdated-count:
+    description: 'Number of outdated actions found'
+    value: ${{ steps.check.outputs.outdated-count }}
+  has-outdated:
+    description: 'Whether any outdated actions were found (true/false)'
+    value: ${{ steps.check.outputs.has-outdated }}
+runs:
+  using: 'docker'
+  image: 'docker://ghcr.io/toozej/go-sort-out-gh-actions:latest'
+  args:
+    - outdated
+    - ${{ inputs.verbose == 'true' && '--verbose' || '' }}
+    - ${{ inputs.debug == 'true' && '--debug' || '' }}
+    - ${{ inputs.workflow && format('--workflow={0}', inputs.workflow) || '' }}
+    - ${{ inputs.workflows-dir && format('--workflows-dir={0}', inputs.workflows-dir) || ''
+      }}
+    - ${{ inputs.repos-dir && format('--repos-dir={0}', inputs.repos-dir) || '' }}
+    - ${{ inputs.update == 'true' && '--update' || '' }}
+    - ${{ inputs.pin == 'true' && '--pin' || '' }}
+    - ${{ inputs.semver == 'true' && '--semver' || '' }}
+  env:
+    GH_TOKEN: ${{ inputs.token }}
+
+# Example usage in a workflow:
+#
+# name: Check Outdated Actions
+# on:
+#   schedule:
+#   - cron: '0 0 * * 0' # Weekly on Sundays
+#   workflow_dispatch:
+#
+# jobs:
+#   check-outdated:
+#     runs-on: ubuntu-latest
+#     steps:
+#     - name: Checkout code
+#       uses: actions/checkout@v4
+#
+#     - name: Check for outdated GitHub Actions
+#       id: check
+#       uses: toozej/go-sort-out-gh-actions/check-outdated@main
+#       with:
+#         token: ${{ secrets.GITHUB_TOKEN }}
+#         verbose: true
+#
+#     - name: Fail if outdated actions found
+#       if: steps.check.outputs.has-outdated == 'true'
+#       run: |
+#         echo "Outdated GitHub Actions detected. Please update them."
+#         exit 1
+#
+# To auto-update outdated actions (pin to SHA with semver comment):
+#
+#     - name: Update outdated GitHub Actions
+#       id: update
+#       uses: toozej/go-sort-out-gh-actions/check-outdated@main
+#       with:
+#         token: ${{ secrets.GITHUB_TOKEN }}
+#         verbose: true
+#         update: true
+#
+#     - name: Commit updated workflows
+#       if: steps.update.outputs.has-outdated == 'true'
+#       run: |
+#         git config user.name "github-actions[bot]"
+#         git config user.email "github-actions[bot]@users.noreply.github.com"
+#         git add ".github/workflows/**.yml" ".github/workflows/**.yaml"
+#         git commit -m "chore(deps): update outdated GitHub Actions"
+#         git push

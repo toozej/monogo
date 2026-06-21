@@ -1,0 +1,25 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Run go-sort-out-gh-actions",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "envFile": "${workspaceFolder}/.env",
+            "program": "${workspaceFolder}/main.go",
+            "cwd": "${workspaceFolder}",
+            "args": []
+        },
+        {
+            "name": "Get go-sort-out-gh-actions version",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "envFile": "${workspaceFolder}/.env",
+            "program": "${workspaceFolder}/main.go",
+            "cwd": "${workspaceFolder}",
+            "args": ["version"]
+        },
+    ]
+}

@@ -1,0 +1,53 @@
+---
+name: Pin dependabot GHA updates to SHA
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - ".github/workflows/**.yml"
+      - ".github/workflows/**.yaml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pin-sha-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  pin-sha:
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          token: ${{ secrets.GH_TOKEN }}
+
+      - name: Pin outdated actions to SHA
+        id: pin
+        uses: toozej/go-sort-out-gh-actions/check-outdated@main
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+          verbose: true
+          update: true
+          pin: true
+
+      - name: Check for changes
+        id: check-changes
+        run: |
+          if git diff --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit and push pinned SHAs
+        if: steps.check-changes.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ".github/workflows/**.yml" ".github/workflows/**.yaml"
+          git commit -m "chore(deps): pin GitHub Actions to immutable SHA references"
+          git push

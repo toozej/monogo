@@ -1,0 +1,58 @@
+---
+name: Demo - Pinnable Actions (version tags that can be pinned to SHAs)
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # Version-tagged actions (pinnable to SHAs)
+      - name: Checkout code (version tag, pinnable)
+        uses: actions/checkout@v4
+
+      - name: Setup Go (version tag, pinnable)
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+
+      - name: Setup Node (version tag, pinnable)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Cache dependencies (version tag, pinnable)
+        uses: actions/cache@v4
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+
+      - name: CodeQL init (subpath action, version tag, pinnable)
+        uses: github/codeql-action/init@v3
+        with:
+          languages: go
+
+      # Already SHA-pinned actions (not pinnable, already immutable)
+      - name: Upload artifact (already SHA-pinned, not pinnable)
+        uses: actions/upload-artifact@v4@e4482d9424a7baab2e606b5c1a1b5866c9e1c3d4
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      # Third-party version-tagged actions (pinnable to SHAs)
+      - name: GoReleaser (third-party, version tag, pinnable)
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean
+
+      # Archived action (not pinnable - should be replaced, not pinned)
+      - name: Run cargo check (archived, not pinnable)
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+
+      # Branch reference (not pinnable - not a version tag)
+      - name: Custom action on main branch (not pinnable)
+        uses: example/custom-action@main

@@ -1,0 +1,29 @@
+---
+name: Example - Check All Actions
+on:
+  schedule:
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+
+jobs:
+  check-all:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Run all GitHub Actions checks
+        id: check
+        uses: toozej/go-sort-out-gh-actions/check@main
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          verbose: true
+          notify: true
+          create-issue: true
+
+      - name: Fail if issues found
+        if: steps.check.outputs.has-archived == 'true' || steps.check.outputs.has-outdated
+          == 'true' || steps.check.outputs.has-eol == 'true'
+        run: |
+          echo "GitHub Actions issues detected. Please review and address them."
+          exit 1

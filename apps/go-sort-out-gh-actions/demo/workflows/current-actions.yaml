@@ -1,0 +1,71 @@
+---
+name: Demo - All Current and Up-to-Date Actions
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code (current)
+        uses: actions/checkout@v4
+
+      - name: Setup Go (current)
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+
+      - name: Setup Node (current)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Setup Python (current)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Cache (current)
+        uses: actions/cache@v4
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+
+      - name: CodeQL init (current)
+        uses: github/codeql-action/init@v3
+        with:
+          languages: go
+
+      - name: CodeQL analyze (current)
+        uses: github/codeql-action/analyze@v3
+
+      - name: GoReleaser (current third-party)
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (current)
+        uses: actions/checkout@v4
+
+      - name: Upload artifact (current)
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: test-results/
+
+      - name: Download artifact (current)
+        uses: actions/download-artifact@v4
+        with:
+          name: test-results
+
+      - name: Setup Java (current)
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'

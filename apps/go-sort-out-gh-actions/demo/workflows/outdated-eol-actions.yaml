@@ -1,0 +1,44 @@
+---
+name: Demo - Outdated and EOL Runtime Actions
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code (outdated v2, EOL runtime node16)
+        uses: actions/checkout@v2
+
+      - name: Setup Go (outdated v1, EOL runtime node16)
+        uses: actions/setup-go@v1
+        with:
+          go-version: '1.13'
+
+      - name: Cache Go modules (outdated v2, EOL runtime node16)
+        uses: actions/cache@v2
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+
+      - name: Upload artifact (outdated v3, EOL runtime node16)
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-output
+          path: dist/
+
+      - name: Download artifact (outdated v3, EOL runtime node16)
+        uses: actions/download-artifact@v3
+        with:
+          name: build-output
+
+      - name: Setup Python (outdated v4, potentially EOL runtime)
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+
+      - name: Setup Node (outdated v3, EOL runtime node16)
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'

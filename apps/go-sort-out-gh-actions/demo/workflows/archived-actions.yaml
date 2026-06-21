@@ -1,0 +1,41 @@
+---
+name: Demo - All Archived Actions
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Rust toolchain (archived - actions-rs)
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Run cargo check (archived - actions-rs)
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+
+      - name: Run clippy (archived - actions-rs)
+        uses: actions-rs/clippy-check@v1
+
+      - name: Security audit (archived - actions-rs)
+        uses: actions-rs/audit-check@v1
+
+      - name: Rustfmt check (archived - actions-rs)
+        uses: actions-rs/rustfmt-check@v1
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run cargo test (archived - actions-rs)
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+
+      - name: Benchmark (archived - actions-rs)
+        uses: actions-rs/cargo@v1
+        with:
+          command: bench

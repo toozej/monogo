@@ -1,0 +1,41 @@
+---
+name: CI
+on: push
+jobs:
+  gitleaks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: gitleaks/gitleaks-action@abc123def # v2.3.9 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+  codeql:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: github/codeql-action/init@sha111 # v4.35.4 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
+        with:
+          languages: go
+      - uses: github/codeql-action/autobuild@sha222 # v4.35.4 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
+      - uses: github/codeql-action/analyze@sha333 # v4.35.4 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
+  trivy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Run Trivy
+        uses: aquasecurity/trivy-action@sha444 # v0.30.0 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
+  snyk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: snyk/actions/setup@sha555 # v0.4.0 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
+  plain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@sha666 # v4.1.2
+      - uses: actions/setup-go@sha777 # v5.1.0
+  repin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@newSHA888 # v4.1.2
+      - uses: actions/setup-go@newSHA999 # v5.1.0 # nosemgrep: custom-rule

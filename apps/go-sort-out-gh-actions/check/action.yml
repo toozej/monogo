@@ -1,0 +1,132 @@
+---
+name: 'Check All GitHub Actions'
+description: 'Run all checks: archived, EOL, and outdated with optional auto-update'
+author: 'toozej'
+inputs:
+  token:
+    description: 'GitHub token for API access'
+    required: true
+  verbose:
+    description: 'Enable verbose output'
+    required: false
+    default: 'false'
+  debug:
+    description: 'Enable debug logging'
+    required: false
+    default: 'false'
+  workflow:
+    description: 'Path to specific workflow file to check (optional, checks all if not specified)'
+    required: false
+  workflows-dir:
+    description: 'Path to directory containing workflow yaml files (optional, checks all if
+      not specified)'
+    required: false
+  repos-dir:
+    description: 'Path to base directory containing multiple repos to scan (optional)'
+    required: false
+  notify:
+    description: 'Send notifications to configured endpoints when issues are found'
+    required: false
+    default: 'false'
+  create-issue:
+    description: 'Create GitHub issue when archived actions are found'
+    required: false
+    default: 'false'
+  write:
+    description: 'Automatically apply updates for EOL and outdated actions (skipped if archived
+      actions found)'
+    required: false
+    default: 'false'
+  notification-endpoints:
+    description: 'Comma-separated list of notification endpoints (required if notify=true)'
+    required: false
+  stale-days:
+    description: 'Number of days after which an action is considered stale (default 365)'
+    required: false
+    default: '365'
+outputs:
+  archived-count:
+    description: 'Number of archived actions found'
+    value: ${{ steps.check.outputs.archived-count }}
+  has-archived:
+    description: 'Whether any archived actions were found (true/false)'
+    value: ${{ steps.check.outputs.has-archived }}
+  outdated-count:
+    description: 'Number of outdated actions found'
+    value: ${{ steps.check.outputs.outdated-count }}
+  has-outdated:
+    description: 'Whether any outdated actions were found (true/false)'
+    value: ${{ steps.check.outputs.has-outdated }}
+  eol-count:
+    description: 'Number of EOL/stale/deprecated actions found'
+    value: ${{ steps.check.outputs.eol-count }}
+  has-eol:
+    description: 'Whether any EOL actions were found (true/false)'
+    value: ${{ steps.check.outputs.has-eol }}
+runs:
+  using: 'docker'
+  image: 'docker://ghcr.io/toozej/go-sort-out-gh-actions:latest'
+  args:
+    - check
+    - ${{ inputs.verbose == 'true' && '--verbose' || '' }}
+    - ${{ inputs.debug == 'true' && '--debug' || '' }}
+    - ${{ inputs.workflow && format('--workflow={0}', inputs.workflow) || '' }}
+    - ${{ inputs.workflows-dir && format('--workflows-dir={0}', inputs.workflows-dir) || ''
+      }}
+    - ${{ inputs.repos-dir && format('--repos-dir={0}', inputs.repos-dir) || '' }}
+    - ${{ inputs.notify == 'true' && '--notify' || '' }}
+    - ${{ inputs.create-issue == 'true' && '--create-issue' || '' }}
+    - ${{ inputs.write == 'true' && '--write' || '' }}
+    - ${{ inputs.stale-days && format('--stale-days={0}', inputs.stale-days) || '' }}
+  env:
+    GH_TOKEN: ${{ inputs.token }}
+    NOTIFICATION_ENDPOINTS: ${{ inputs.notification-endpoints }}
+    CREATE_ISSUES: ${{ inputs.create-issue }}
+
+# Example usage in a workflow:
+#
+# name: Check All GitHub Actions
+# on:
+#   schedule:
+#   - cron: '0 0 * * 0' # Weekly on Sundays
+#   workflow_dispatch:
+#
+# jobs:
+#   check-all:
+#     runs-on: ubuntu-latest
+#     steps:
+#     - name: Checkout code
+#       uses: actions/checkout@v4
+#
+#     - name: Run all GitHub Actions checks
+#       id: check
+#       uses: toozej/go-sort-out-gh-actions/check@main
+#       with:
+#         token: ${{ secrets.GITHUB_TOKEN }}
+#         verbose: true
+#         notify: true
+#         create-issue: true
+#
+#     - name: Fail if issues found
+#       if: steps.check.outputs.has-archived == 'true' || steps.check.outputs.has-outdated == 'true' || steps.check.outputs.has-eol == 'true'
+#       run: |
+#         echo "GitHub Actions issues detected. Please review and address them."
+#         exit 1
+#
+# To auto-update EOL and outdated actions (only when no archived actions found):
+#
+#     - name: Run checks and auto-update
+#       id: check
+#       uses: toozej/go-sort-out-gh-actions/check@main
+#       with:
+#         token: ${{ secrets.GITHUB_TOKEN }}
+#         verbose: true
+#         write: true
+#
+#     - name: Commit updated workflows
+#       run: |
+#         git config user.name "github-actions[bot]"
+#         git config user.email "github-actions[bot]@users.noreply.github.com"
+#         git add ".github/workflows/**.yml" ".github/workflows/**.yaml"
+#         git diff --cached --quiet || git commit -m "chore(deps): update GitHub Actions"
+#         git push

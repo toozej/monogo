@@ -1,0 +1,34 @@
+---
+name: Example - Outdated Actions with SemVer Update
+on:
+  schedule:
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+
+jobs:
+  check-outdated-semver:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check for outdated GitHub Actions (semver update)
+        id: check
+        uses: toozej/go-sort-out-gh-actions/check-outdated@main
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          verbose: true
+          update: true
+          semver: true
+
+      - name: Commit and push updated workflows
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ".github/workflows/**.yml" ".github/workflows/**.yaml"
+          git diff --cached --quiet || git commit -m "chore(deps): update outdated GitHub Actions to latest semver versions"
+          git push

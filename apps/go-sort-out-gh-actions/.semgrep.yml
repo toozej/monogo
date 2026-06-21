@@ -1,0 +1,6 @@
+---
+rules:
+  - id: go.lang.security.audit.xss.no-direct-write-to-responsewriter.no-direct-write-to-responsewriter
+    paths:
+      exclude:
+        - internal/github/github_test.go

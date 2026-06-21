@@ -1,0 +1,102 @@
+---
+name: 'Check Archived GitHub Actions'
+description: 'Check for archived GitHub Actions with optional notifications and issue creation'
+author: 'toozej'
+inputs:
+  token:
+    description: 'GitHub token for API access'
+    required: true
+  verbose:
+    description: 'Enable verbose output'
+    required: false
+    default: 'false'
+  debug:
+    description: 'Enable debug logging'
+    required: false
+    default: 'false'
+  workflow:
+    description: 'Path to specific workflow file to check (optional, checks all if not specified)'
+    required: false
+  workflows-dir:
+    description: 'Path to directory containing workflow yaml files (optional, checks all if
+      not specified)'
+    required: false
+  repos-dir:
+    description: 'Path to base directory containing multiple repos to scan (optional)'
+    required: false
+  notify:
+    description: 'Send notifications to configured endpoints when archived actions are found'
+    required: false
+    default: 'false'
+  create-issue:
+    description: 'Create GitHub issue when archived actions are found'
+    required: false
+    default: 'false'
+  notification-endpoints:
+    description: 'Comma-separated list of notification endpoints (required if notify=true)'
+    required: false
+  stale-days:
+    description: 'Number of days after which an action is considered stale (default 365)'
+    required: false
+    default: '365'
+outputs:
+  archived-count:
+    description: 'Number of archived actions found'
+    value: ${{ steps.check.outputs.archived-count }}
+  has-archived:
+    description: 'Whether any archived actions were found (true/false)'
+    value: ${{ steps.check.outputs.has-archived }}
+  stale-count:
+    description: 'Number of stale/deprecated actions found'
+    value: ${{ steps.check.outputs.stale-count }}
+  has-stale:
+    description: 'Whether any stale/deprecated actions were found (true/false)'
+    value: ${{ steps.check.outputs.has-stale }}
+runs:
+  using: 'docker'
+  image: 'docker://ghcr.io/toozej/go-sort-out-gh-actions:latest'
+  args:
+    - archived
+    - ${{ inputs.verbose == 'true' && '--verbose' || '' }}
+    - ${{ inputs.debug == 'true' && '--debug' || '' }}
+    - ${{ inputs.workflow && format('--workflow={0}', inputs.workflow) || '' }}
+    - ${{ inputs.workflows-dir && format('--workflows-dir={0}', inputs.workflows-dir) || ''
+      }}
+    - ${{ inputs.repos-dir && format('--repos-dir={0}', inputs.repos-dir) || '' }}
+    - ${{ inputs.notify == 'true' && '--notify' || '' }}
+    - ${{ inputs.create-issue == 'true' && '--create-issue' || '' }}
+    - ${{ inputs.stale-days && format('--stale-days={0}', inputs.stale-days) || '' }}
+  env:
+    GH_TOKEN: ${{ inputs.token }}
+    NOTIFICATION_ENDPOINTS: ${{ inputs.notification-endpoints }}
+    CREATE_ISSUES: ${{ inputs.create-issue }}
+
+# Example usage in a workflow:
+#
+# name: Check Archived Actions and Notify
+# on:
+#   schedule:
+#   - cron: '0 0 * * 0' # Weekly on Sundays
+#   workflow_dispatch:
+#
+# jobs:
+#   check-archived:
+#     runs-on: ubuntu-latest
+#     steps:
+#     - name: Checkout code
+#       uses: actions/checkout@v4
+#
+#     - name: Check for archived GitHub Actions
+#       id: check
+#       uses: toozej/go-sort-out-gh-actions/check-archived@main
+#       with:
+#         token: ${{ secrets.GITHUB_TOKEN }}
+#         verbose: true
+#         notify: true
+#         create-issue: true
+#
+#     - name: Fail if archived actions found
+#       if: steps.check.outputs.has-archived == 'true'
+#       run: |
+#         echo "Archived GitHub Actions detected. Please replace them."
+#         exit 1

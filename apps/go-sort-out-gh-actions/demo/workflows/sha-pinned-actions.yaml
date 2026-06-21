@@ -1,0 +1,33 @@
+---
+name: Demo - SHA-Pinned and Version-Pinned Actions
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code (current, SHA-pinned)
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Setup Go (current, version-pinned)
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+
+      - name: Cache (outdated v2, SHA-pinned)
+        uses: actions/cache@v2
+
+      - name: Setup Rust toolchain (archived, version-pinned)
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: CodeQL init (current, version-pinned)
+        uses: github/codeql-action/init@v3
+        with:
+          languages: go
+
+      - name: Invalid action (SHA-pinned but nonexistent)
+        uses: nonexistent-org/invalid-action@a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2
