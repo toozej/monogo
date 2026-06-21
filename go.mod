@@ -14,6 +14,7 @@ require (
 
 require (
 	codeberg.org/readeck/go-readability/v2 v2.1.2
+	github.com/PuerkitoBio/goquery v1.12.0
 	github.com/andybalholm/cascadia v1.3.4 // indirect
 	github.com/awalterschulze/gographviz v2.0.3+incompatible // indirect
 	github.com/blacktop/go-termimg v0.1.26

@@ -26,6 +26,7 @@ jobs:
         app:
           - monogo
           - gotts-it
+          - url2anki
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -123,6 +124,7 @@ jobs:
         app:
           - monogo
           - gotts-it
+          - url2anki
         registry: ['', 'ghcr.io/', 'quay.io/']
         tag: ['latest', 'distroless']
     steps:

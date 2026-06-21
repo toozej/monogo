@@ -1,0 +1,21 @@
+---
+services:
+  url2anki:
+    container_name: url2anki
+    image: toozej/url2anki:latest
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    labels:
+      - "traefik.enable=false"
+      # labels below for publishing as web service
+      # - "traefik.docker.network=traefik"
+      # - "traefik.http.routers.url2anki.rule=Host(`url2anki.test`)"
+      # - "traefik.http.routers.url2anki.middlewares=http-redirect-https@file,headers@file"
+      # - "traefik.http.routers.url2anki-secure.entrypoints=https"
+      # - "traefik.http.routers.url2anki-secure.rule=Host(`url2anki.test`)"
+      # - "traefik.http.routers.url2anki-secure.middlewares=headers@file"
+      # - "traefik.http.routers.url2anki-secure.tls=true"
+    # networks:
+      # - traefik

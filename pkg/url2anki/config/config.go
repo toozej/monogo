@@ -18,7 +18,7 @@
 //
 // Example usage:
 //
-//	import "github.com/toozej/url2anki/pkg/config"
+//	import "github.com/toozej/monogo/pkg/url2anki/config"
 //
 //	func main() {
 //		conf := config.GetEnvVars()

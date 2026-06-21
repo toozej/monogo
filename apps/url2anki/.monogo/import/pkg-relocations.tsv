@@ -1,0 +1,4 @@
+github.com/toozej/monogo/apps/url2anki/pkg/config	github.com/toozej/monogo/pkg/url2anki/config
+github.com/toozej/monogo/apps/url2anki/pkg/man	github.com/toozej/monogo/pkg/url2anki/man
+apps/url2anki/pkg/README.md	apps/url2anki/.monogo/original-pkg/README.md
+github.com/toozej/monogo/apps/url2anki/pkg/version	github.com/toozej/monogo/pkg/url2anki/version

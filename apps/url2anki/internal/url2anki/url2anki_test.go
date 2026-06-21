@@ -61,7 +61,7 @@ func TestExportFlashcardsToFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temporary file: %v", err)
 	}
-	defer os.Remove(tmpfile.Name())
+	defer func() { _ = os.Remove(tmpfile.Name()) }()
 
 	// Call the exportFlashcardsToJSONFile function
 	if err := exportFlashcardsToJSONFile(flashcards, tmpfile.Name()); err != nil {
@@ -102,7 +102,7 @@ func TestExportFlashcardsToCSVFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temporary file: %v", err)
 	}
-	defer os.Remove(tmpfile.Name())
+	defer func() { _ = os.Remove(tmpfile.Name()) }()
 
 	// Call the exportFlashcardsToCSVFile function
 	if err := exportFlashcardsToCSVFile(flashcards, tmpfile.Name()); err != nil {
@@ -114,7 +114,7 @@ func TestExportFlashcardsToCSVFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to open the file: %v", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	reader := csv.NewReader(file)
 	records, err := reader.ReadAll()

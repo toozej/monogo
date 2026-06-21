@@ -1,0 +1,12 @@
+{
+  "source": "toozej/url2anki",
+  "vcsHost": "github.com/",
+  "owner": "toozej",
+  "repo": "url2anki",
+  "ownerRepo": "toozej/url2anki",
+  "repoURL": "https://github.com/toozej/url2anki.git",
+  "ref": "main",
+  "oldModule": "github.com/toozej/url2anki",
+  "newModule": "github.com/toozej/monogo/apps/url2anki",
+  "tagPrefix": "apps/url2anki"
+}

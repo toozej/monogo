@@ -4,5 +4,4 @@ FROM scratch
 ARG TARGETPLATFORM
 COPY $TARGETPLATFORM/url2anki /go/bin/url2anki
 # Run the binary.
-USER 65532:65532
 ENTRYPOINT ["/go/bin/url2anki"]

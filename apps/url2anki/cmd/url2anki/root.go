@@ -12,7 +12,7 @@
 //
 // Example usage:
 //
-//	import "github.com/toozej/url2anki/cmd/url2anki"
+//	import "github.com/toozej/monogo/apps/url2anki/cmd/url2anki"
 //
 //	func main() {
 //		cmd.Execute()
@@ -26,10 +26,10 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/toozej/url2anki/internal/url2anki"
-	"github.com/toozej/url2anki/pkg/config"
-	"github.com/toozej/url2anki/pkg/man"
-	"github.com/toozej/url2anki/pkg/version"
+	"github.com/toozej/monogo/apps/url2anki/internal/url2anki"
+	"github.com/toozej/monogo/pkg/url2anki/config"
+	"github.com/toozej/monogo/pkg/url2anki/man"
+	"github.com/toozej/monogo/pkg/url2anki/version"
 )
 
 // conf holds the application configuration loaded from environment variables.

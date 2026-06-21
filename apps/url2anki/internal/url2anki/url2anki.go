@@ -86,7 +86,7 @@ func scrapeFlashcards(url, questionSelector, answerSelector string) ([]Flashcard
 	if err != nil {
 		return nil, err
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 
 	if res.StatusCode != 200 {
 		return nil, errors.New("failed to fetch the URL")
@@ -155,7 +155,7 @@ func exportFlashcardsToCSVFile(flashcards []Flashcard, filename string) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	writer := csv.NewWriter(file)
 	defer writer.Flush()

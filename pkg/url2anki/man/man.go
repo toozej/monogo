@@ -16,7 +16,7 @@
 //
 // Example usage:
 //
-//	import "github.com/toozej/url2anki/pkg/man"
+//	import "github.com/toozej/monogo/pkg/url2anki/man"
 //
 //	// Add man command to root command
 //	rootCmd.AddCommand(man.NewManCmd())
