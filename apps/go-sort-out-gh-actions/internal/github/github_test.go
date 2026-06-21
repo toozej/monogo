@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/toozej/go-sort-out-gh-actions/internal/runtime"
-	"github.com/toozej/go-sort-out-gh-actions/internal/workflow"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/runtime"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/workflow"
 )
 
 func newTestClient(server *httptest.Server) *Client {
@@ -187,7 +187,7 @@ runs:
 		if strings.Contains(r.URL.Path, "action.yml") || strings.Contains(r.URL.Path, "action.yaml") {
 			if strings.Contains(r.URL.Path, "eol-action") {
 				w.WriteHeader(200)
-				if _, err := w.Write([]byte(fmt.Sprintf(`{"content": "%s"}`, encoded))); err != nil {
+				if _, err := fmt.Fprintf(w, `{"content": "%s"}`, encoded); err != nil {
 					t.Errorf("failed to write response body: %v", err)
 				}
 				return
@@ -255,7 +255,7 @@ func TestClient_CheckMultipleRuntimeEOL_SubpathActions(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "/contents/init/action.yml") {
 			w.WriteHeader(200)
-			if _, err := w.Write([]byte(fmt.Sprintf(`{"content": "%s"}`, encoded))); err != nil {
+			if _, err := fmt.Fprintf(w, `{"content": "%s"}`, encoded); err != nil {
 				t.Errorf("failed to write response body: %v", err)
 			}
 			return

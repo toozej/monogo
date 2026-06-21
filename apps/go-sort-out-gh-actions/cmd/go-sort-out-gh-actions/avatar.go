@@ -6,8 +6,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/toozej/go-sort-out-gh-actions/internal/actioninfo"
-	"github.com/toozej/go-sort-out-gh-actions/internal/avatar"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/actioninfo"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/avatar"
 )
 
 func newAvatarCmd() *cobra.Command {

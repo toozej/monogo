@@ -1,0 +1,300 @@
+---
+version: 2
+
+project_name: go-sort-out-gh-actions
+dist: dist/go-sort-out-gh-actions
+
+git:
+  ignore_tags:
+    - apps/*
+
+env:
+  - GO111MODULE=on
+
+env_files:
+  gitlab_token: ~/nope
+  gitea_token: ~/nope
+
+before:
+  hooks:
+    - go mod tidy
+    - ./scripts/completions.sh go-sort-out-gh-actions
+    - ./scripts/manpages.sh go-sort-out-gh-actions
+
+snapshot:
+  version_template: '{{ incpatch .Version }}-next'
+
+builds:
+  - id: go-sort-out-gh-actions
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - "386"
+      - amd64
+      - arm
+      - arm64
+    goarm:
+      - "7"
+    ignore:
+      - goos: windows
+        goarch: arm
+    mod_timestamp: '{{ .CommitTimestamp }}'
+    flags:
+      - -trimpath
+    ldflags:
+      - >-
+        -s -w
+        -X github.com/toozej/monogo/pkg/version.Version={{.Version}}
+        -X github.com/toozej/monogo/pkg/version.Commit={{.Commit}}
+        -X github.com/toozej/monogo/pkg/version.Branch={{.Branch}}
+        -X github.com/toozej/monogo/pkg/version.BuiltAt={{.CommitDate}}
+        -X github.com/toozej/monogo/pkg/version.Builder=goreleaser
+    main: ./apps/go-sort-out-gh-actions
+    binary: go-sort-out-gh-actions
+
+universal_binaries:
+  - replace: false
+
+checksum:
+  name_template: 'checksums.txt'
+
+docker_digest:
+  name_template: 'digests.txt'
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - '^test:'
+      - '^chore'
+      - 'merge conflict'
+      - Merge pull request
+      - Merge remote-tracking branch
+      - Merge branch
+      - go mod tidy
+  groups:
+    - title: Dependency updates
+      regexp: "^.*feat\\(deps\\)*:+.*$"
+      order: 300
+    - title: 'New Features'
+      regexp: "^.*feat[(\\w)]*:+.*$"
+      order: 100
+    - title: 'Bug fixes'
+      regexp: "^.*fix[(\\w)]*:+.*$"
+      order: 200
+    - title: 'Documentation updates'
+      regexp: "^.*docs[(\\w)]*:+.*$"
+      order: 400
+    - title: Other work
+      order: 9999
+
+dockers_v2:
+  - id: go-sort-out-gh-actions
+    images:
+      - 'toozej/go-sort-out-gh-actions'
+      - 'ghcr.io/toozej/go-sort-out-gh-actions'
+      - 'quay.io/toozej/go-sort-out-gh-actions'
+    tags:
+      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}v{{ .Version
+        }}{{ end }}'
+      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ .Version
+        }}{{ end }}'
+      - "latest"
+    dockerfile: apps/go-sort-out-gh-actions/Dockerfile.goreleaser
+    labels:
+      "io.artifacthub.package.readme-url": "https://github.com/toozej/monogo/raw/main/README.md"
+      "io.artifacthub.package.maintainers": "[{\"name\":\"toozej\"}]"
+      "io.artifacthub.package.license": "GPLv3"
+      "org.opencontainers.image.description": >-
+        Find archived, outdated, EOL runtime GitHub Actions in use in GHA Workflows with optional notifications, auto-updates, pinning, and GH Issue creation
+      "org.opencontainers.image.created": "{{.Date}}"
+      "org.opencontainers.image.name": "{{.ProjectName}}"
+      "org.opencontainers.image.revision": "{{.FullCommit}}"
+      "org.opencontainers.image.version": "{{.Version}}"
+      "org.opencontainers.image.source": "{{.GitURL}}"
+      "org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
+      "org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
+      "org.opencontainers.image.licenses": "GPL-3.0-only"
+      "org.opencontainers.image.title": "{{.ProjectName}}"
+      "org.opencontainers.image.vendor": "James Tooze"
+    annotations:
+      "index,manifest:org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
+      "index,manifest:org.opencontainers.image.created": "{{.Date}}"
+      "index,manifest:org.opencontainers.image.description": >-
+        Find archived, outdated, EOL runtime GitHub Actions in use in GHA Workflows with optional notifications, auto-updates, pinning, and GH Issue creation
+      "index,manifest:org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
+      "index,manifest:org.opencontainers.image.licenses": "GPL-3.0-only"
+      "index,manifest:org.opencontainers.image.revision": "{{.FullCommit}}"
+      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/monogo"
+      "index,manifest:org.opencontainers.image.title": "{{.ProjectName}}"
+      "index,manifest:org.opencontainers.image.vendor": "James Tooze"
+      "index,manifest:org.opencontainers.image.version": "{{.Version}}"
+    extra_files:
+      - scripts/goreleaser_entrypoint.sh
+  - id: go-sort-out-gh-actions-distroless
+    images:
+      - 'toozej/go-sort-out-gh-actions'
+      - 'ghcr.io/toozej/go-sort-out-gh-actions'
+      - 'quay.io/toozej/go-sort-out-gh-actions'
+    tags:
+      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}v{{ .Version
+        }}-distroless{{ end }}'
+      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ .Version
+        }}-distroless{{ end }}'
+      - "distroless"
+    dockerfile: apps/go-sort-out-gh-actions/Dockerfile.goreleaser.distroless
+    labels:
+      "io.artifacthub.package.readme-url": "https://github.com/toozej/monogo/raw/main/README.md"
+      "io.artifacthub.package.maintainers": "[{\"name\":\"toozej\"}]"
+      "io.artifacthub.package.license": "GPLv3"
+      "org.opencontainers.image.description": >-
+        Find archived, outdated, EOL runtime GitHub Actions in use in GHA Workflows with optional notifications, auto-updates, pinning, and GH Issue creation
+      "org.opencontainers.image.created": "{{.Date}}"
+      "org.opencontainers.image.name": "{{.ProjectName}}"
+      "org.opencontainers.image.revision": "{{.FullCommit}}"
+      "org.opencontainers.image.version": "{{.Version}}"
+      "org.opencontainers.image.source": "{{.GitURL}}"
+      "org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
+      "org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
+      "org.opencontainers.image.licenses": "GPL-3.0-only"
+      "org.opencontainers.image.title": "{{.ProjectName}}"
+      "org.opencontainers.image.vendor": "James Tooze"
+    annotations:
+      "index,manifest:org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
+      "index,manifest:org.opencontainers.image.created": "{{.Date}}"
+      "index,manifest:org.opencontainers.image.description": >-
+        Find archived, outdated, EOL runtime GitHub Actions in use in GHA Workflows with optional notifications, auto-updates, pinning, and GH Issue creation
+      "index,manifest:org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
+      "index,manifest:org.opencontainers.image.licenses": "GPL-3.0-only"
+      "index,manifest:org.opencontainers.image.revision": "{{.FullCommit}}"
+      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/monogo"
+      "index,manifest:org.opencontainers.image.title": "{{.ProjectName}}"
+      "index,manifest:org.opencontainers.image.vendor": "James Tooze"
+      "index,manifest:org.opencontainers.image.version": "{{.Version}}"
+    extra_files:
+      - scripts/goreleaser_entrypoint.sh
+
+archives:
+  - name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+    format_overrides:
+      - goos: windows
+        formats: ['zip']
+    files:
+      - README.md
+      - LICENSE
+      - completions/go-sort-out-gh-actions.bash
+      - completions/go-sort-out-gh-actions.fish
+      - completions/go-sort-out-gh-actions.zsh
+      - manpages/go-sort-out-gh-actions.1.gz
+
+nfpms:
+  - file_name_template: '{{ .ConventionalFileName }}'
+    id: packages
+    homepage: https://github.com/toozej/monogo
+    description: |-
+      Find archived, outdated, EOL runtime GitHub Actions in use in GHA Workflows with optional notifications, auto-updates, pinning, and GH Issue creation
+    maintainer: toozej
+    license: GPLv3
+    vendor: monogo
+    bindir: /usr/bin
+    section: utils
+    contents:
+      - src: ./completions/go-sort-out-gh-actions.bash
+        dst: /usr/share/bash-completion/completions/go-sort-out-gh-actions
+        file_info:
+          mode: 0644
+      - src: ./completions/go-sort-out-gh-actions.fish
+        dst: /usr/share/fish/completions/go-sort-out-gh-actions.fish
+        file_info:
+          mode: 0644
+      - src: ./completions/go-sort-out-gh-actions.zsh
+        dst: /usr/share/zsh/vendor-completions/_go-sort-out-gh-actions
+        file_info:
+          mode: 0644
+      - src: ./manpages/go-sort-out-gh-actions.1.gz
+        dst: /usr/share/man/man1/go-sort-out-gh-actions.1.gz
+        file_info:
+          mode: 0644
+      - src: ./LICENSE
+        dst: /usr/share/doc/go-sort-out-gh-actions/copyright
+        file_info:
+          mode: 0644
+    formats:
+      - apk
+      - deb
+      - rpm
+    dependencies:
+      - git
+    recommends:
+      - golang
+    deb:
+      lintian_overrides:
+        - statically-linked-binary
+        - changelog-file-missing-in-native-package
+
+homebrew_casks:
+  - name: go-sort-out-gh-actions
+    homepage: https://github.com/toozej/monogo
+    description: >-
+      Find archived, outdated, EOL runtime GitHub Actions in use in GHA Workflows with optional notifications, auto-updates, pinning, and GH Issue creation
+    license: GPLv3
+    repository:
+      owner: toozej
+      name: homebrew-tap
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
+    manpages:
+      - "manpages/go-sort-out-gh-actions.1.gz"
+    completions:
+      bash: "completions/go-sort-out-gh-actions.bash"
+      zsh: "completions/go-sort-out-gh-actions.zsh"
+      fish: "completions/go-sort-out-gh-actions.fish"
+    url:
+      verified: "github.com/toozej/monogo/releases/download"
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/go-sort-out-gh-actions"]
+          end
+
+sboms:
+  - artifacts: archive
+
+signs:
+  - cmd: cosign
+    output: true
+    signature: "${artifact}.sigstore.json"
+    args:
+      - 'sign-blob'
+      - '--bundle=${signature}'
+      - '${artifact}'
+      - '--yes'
+    artifacts: checksum
+
+docker_signs:
+  - cmd: cosign
+    artifacts: all
+    output: true
+    args:
+      - 'sign'
+      - '--yes'
+      - '${artifact}'
+
+milestones:
+  - close: true
+
+release:
+  mode: append
+  disable: '{{ eq (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}'
+  footer: |
+    **Full Changelog**: https://github.com/toozej/monogo/compare/{{ .PreviousTag }}...{{ .Tag }}

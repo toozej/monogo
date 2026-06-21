@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/toozej/go-sort-out-gh-actions/internal/actioninfo"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/actioninfo"
 )
 
 // TestCommentPreservation verifies that ReplaceUsesLine preserves inline

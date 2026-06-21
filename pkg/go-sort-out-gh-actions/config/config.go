@@ -17,7 +17,7 @@
 //
 // Example usage:
 //
-//	import "github.com/toozej/go-sort-out-gh-actions/pkg/config"
+//	import "github.com/toozej/monogo/pkg/go-sort-out-gh-actions/config"
 //
 //	func main() {
 //		conf := config.GetEnvVars()

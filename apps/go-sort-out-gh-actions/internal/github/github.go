@@ -18,9 +18,9 @@ import (
 	"golang.org/x/oauth2"
 	"gopkg.in/yaml.v3"
 
-	"github.com/toozej/go-sort-out-gh-actions/internal/cache"
-	"github.com/toozej/go-sort-out-gh-actions/internal/runtime"
-	"github.com/toozej/go-sort-out-gh-actions/internal/workflow"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/cache"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/runtime"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/workflow"
 )
 
 const maxConcurrency = 10
@@ -307,7 +307,7 @@ func (c *Client) IsRepoArchived(ctx context.Context, ownerRepo string) (bool, *R
 	if err != nil {
 		return false, nil, fmt.Errorf("failed to make request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	c.logRateLimits(resp)
 
@@ -384,7 +384,7 @@ func (c *Client) GetLatestRelease(ctx context.Context, ownerRepo string) (*Relea
 	if err != nil {
 		return nil, fmt.Errorf("failed to make request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	c.logRateLimits(resp)
 
@@ -441,7 +441,7 @@ func (c *Client) GetLatestSemverTag(ctx context.Context, ownerRepo string) (stri
 	if err != nil {
 		return "", fmt.Errorf("failed to make request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	c.logRateLimits(resp)
 
@@ -545,7 +545,7 @@ func (c *Client) getRefSHA(ctx context.Context, owner, repo, refType, ref string
 	if err != nil {
 		return "", fmt.Errorf("failed to make request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	c.logRateLimits(resp)
 
@@ -586,7 +586,7 @@ func (c *Client) dereferenceTag(ctx context.Context, owner, repo, tagObjectSHA s
 	if err != nil {
 		return "", fmt.Errorf("failed to make request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		return "", fmt.Errorf("tag object %s not found in %s/%s", tagObjectSHA, owner, repo)
@@ -880,7 +880,7 @@ func (c *Client) GetRateLimits(ctx context.Context) (*RateLimitInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to make request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("GitHub API returned status %d", resp.StatusCode)
 	}
@@ -1083,7 +1083,7 @@ func (c *Client) ListWorkflowFiles(ctx context.Context, ownerRepo, ref string) (
 	if err != nil {
 		return nil, fmt.Errorf("failed to make request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	c.logRateLimits(resp)
 
@@ -1136,7 +1136,7 @@ func (c *Client) GetFileContent(ctx context.Context, ownerRepo, path, ref string
 	if err != nil {
 		return "", fmt.Errorf("failed to make request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	c.logRateLimits(resp)
 

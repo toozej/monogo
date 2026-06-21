@@ -40,6 +40,7 @@ jobs:
           - lego-stego
           - files2prompt
           - trails-completionist
+          - go-sort-out-gh-actions
     steps:
       - name: Validate semver tag
         run: |
@@ -126,6 +127,7 @@ jobs:
           - lego-stego
           - files2prompt
           - trails-completionist
+          - go-sort-out-gh-actions
     steps:
       - name: Install Cosign
         uses: sigstore/cosign-installer@v4.1.2 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
@@ -161,6 +163,7 @@ jobs:
           - lego-stego
           - files2prompt
           - trails-completionist
+          - go-sort-out-gh-actions
     steps:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
@@ -192,6 +195,7 @@ jobs:
           - lego-stego
           - files2prompt
           - trails-completionist
+          - go-sort-out-gh-actions
         registry: ['', 'ghcr.io/', 'quay.io/']
         tag: ['latest', 'distroless']
     steps:

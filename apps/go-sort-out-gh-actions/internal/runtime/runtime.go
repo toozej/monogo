@@ -68,7 +68,7 @@ func (c *EOLClient) FetchReleaseEOL(ctx context.Context, product, version string
 	if err != nil {
 		return nil, fmt.Errorf("failed to make request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == 404 {
 		return nil, nil

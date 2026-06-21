@@ -61,7 +61,7 @@ func (ic *IssueCreator) CreateArchivedActionIssue(ctx context.Context, owner, re
 		}
 		return fmt.Errorf("failed to create issue: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode >= 300 {
 		return fmt.Errorf("GitHub API returned status %d when creating issue", resp.StatusCode)
@@ -78,7 +78,7 @@ func BuildIssueBody(actions []ArchivedActionInfo) string {
 	body.WriteString("This repository uses the following GitHub Actions that have been archived by their maintainers:\n\n")
 
 	for _, action := range actions {
-		body.WriteString(fmt.Sprintf("- `%s` (used in `%s`)\n", action.Uses, action.Workflow))
+		_, _ = fmt.Fprintf(&body, "- `%s` (used in `%s`)\n", action.Uses, action.Workflow)
 	}
 
 	body.WriteString("\n## What does this mean?\n\n")
@@ -97,7 +97,7 @@ func BuildIssueBody(actions []ArchivedActionInfo) string {
 	body.WriteString("- [Awesome Actions](https://github.com/sdras/awesome-actions)\n\n")
 
 	body.WriteString("---\n\n")
-	body.WriteString("*This issue was automatically created by [go-sort-out-gh-actions](https://github.com/toozej/go-sort-out-gh-actions)*\n")
+	body.WriteString("*This issue was automatically created by [go-sort-out-gh-actions](https://github.com/toozej/monogo/apps/go-sort-out-gh-actions)*\n")
 
 	return body.String()
 }

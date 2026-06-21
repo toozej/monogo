@@ -3,7 +3,7 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/toozej/go-sort-out-gh-actions/internal/mcp"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/mcp"
 )
 
 func newMCPCmd() *cobra.Command {

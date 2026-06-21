@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	gh "github.com/toozej/go-sort-out-gh-actions/internal/github"
-	"github.com/toozej/go-sort-out-gh-actions/internal/workflow"
+	gh "github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/github"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/workflow"
 )
 
 func TestRemoveDuplicates(t *testing.T) {
@@ -82,16 +82,16 @@ func TestSanitizeStaleDays(t *testing.T) {
 
 func TestGetRepoName(t *testing.T) {
 	originalEnv := os.Getenv("GITHUB_REPOSITORY")
-	defer os.Setenv("GITHUB_REPOSITORY", originalEnv)
+	defer func() { _ = os.Setenv("GITHUB_REPOSITORY", originalEnv) }()
 
-	os.Unsetenv("GITHUB_REPOSITORY")
+	_ = os.Unsetenv("GITHUB_REPOSITORY")
 	result := GetRepoName("/some/fake/path")
 	expected := "current-repo"
 	if result != expected {
 		t.Errorf("GetRepoName() = %v, want %v", result, expected)
 	}
 
-	os.Setenv("GITHUB_REPOSITORY", "owner/repo")
+	_ = os.Setenv("GITHUB_REPOSITORY", "owner/repo")
 	result = GetRepoName("/some/fake/path")
 	expected = "owner/repo"
 	if result != expected {
@@ -310,12 +310,12 @@ func TestCheckOutdatedActions_FloatingMajorTagSHAComparison(t *testing.T) {
 					}
 				case r.URL.Path == fmt.Sprintf("/repos/owner/repo/git/refs/tags/%s", tt.latestTag):
 					w.WriteHeader(200)
-					if _, err := w.Write([]byte(fmt.Sprintf(`{"ref":"refs/tags/%s","object":{"sha":"%s","type":"commit"}}`, tt.latestTag, tt.latestSHA))); err != nil {
+					if _, err := fmt.Fprintf(w, `{"ref":"refs/tags/%s","object":{"sha":"%s","type":"commit"}}`, tt.latestTag, tt.latestSHA); err != nil {
 						t.Errorf("failed to write response: %v", err)
 					}
 				case r.URL.Path == fmt.Sprintf("/repos/owner/repo/git/refs/tags/%s", tt.currentRef):
 					w.WriteHeader(200)
-					if _, err := w.Write([]byte(fmt.Sprintf(`{"ref":"refs/tags/%s","object":{"sha":"%s","type":"commit"}}`, tt.currentRef, tt.currentSHA))); err != nil {
+					if _, err := fmt.Fprintf(w, `{"ref":"refs/tags/%s","object":{"sha":"%s","type":"commit"}}`, tt.currentRef, tt.currentSHA); err != nil {
 						t.Errorf("failed to write response: %v", err)
 					}
 				default:
@@ -358,8 +358,8 @@ func TestCheckOutdatedActions_FloatingMajorTagSHAComparison(t *testing.T) {
 
 func TestCheckOutdatedActions_FloatingMajorTagAnnotatedDereference(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.URL.Path == "/repos/owner/repo/releases/latest":
+		switch r.URL.Path {
+		case "/repos/owner/repo/releases/latest":
 			w.WriteHeader(200)
 			if err := json.NewEncoder(w).Encode(gh.ReleaseInfo{
 				TagName: "v2.3.9",
@@ -367,17 +367,17 @@ func TestCheckOutdatedActions_FloatingMajorTagAnnotatedDereference(t *testing.T)
 			}); err != nil {
 				t.Errorf("failed to encode release info: %v", err)
 			}
-		case r.URL.Path == "/repos/owner/repo/git/refs/tags/v2.3.9":
+		case "/repos/owner/repo/git/refs/tags/v2.3.9":
 			w.WriteHeader(200)
 			if _, err := w.Write([]byte(`{"ref":"refs/tags/v2.3.9","object":{"sha":"sameCommitSHA","type":"commit"}}`)); err != nil {
 				t.Errorf("failed to write response: %v", err)
 			}
-		case r.URL.Path == "/repos/owner/repo/git/refs/tags/v2":
+		case "/repos/owner/repo/git/refs/tags/v2":
 			w.WriteHeader(200)
 			if _, err := w.Write([]byte(`{"ref":"refs/tags/v2","object":{"sha":"tagObjSHA","type":"tag","url":"https://api.github.com/repos/owner/repo/git/tags/tagObjSHA"}}`)); err != nil {
 				t.Errorf("failed to write response: %v", err)
 			}
-		case r.URL.Path == "/repos/owner/repo/git/tags/tagObjSHA":
+		case "/repos/owner/repo/git/tags/tagObjSHA":
 			w.WriteHeader(200)
 			if _, err := w.Write([]byte(`{"object":{"sha":"sameCommitSHA","type":"commit"}}`)); err != nil {
 				t.Errorf("failed to write response: %v", err)
@@ -411,8 +411,8 @@ func TestCheckOutdatedActions_FloatingMajorTagAnnotatedDereference(t *testing.T)
 
 func TestCheckOutdatedActions_FloatingMajorTagStaleAnnotatedTag(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.URL.Path == "/repos/owner/repo/releases/latest":
+		switch r.URL.Path {
+		case "/repos/owner/repo/releases/latest":
 			w.WriteHeader(200)
 			if err := json.NewEncoder(w).Encode(gh.ReleaseInfo{
 				TagName: "v2.3.9",
@@ -420,17 +420,17 @@ func TestCheckOutdatedActions_FloatingMajorTagStaleAnnotatedTag(t *testing.T) {
 			}); err != nil {
 				t.Errorf("failed to encode release info: %v", err)
 			}
-		case r.URL.Path == "/repos/owner/repo/git/refs/tags/v2.3.9":
+		case "/repos/owner/repo/git/refs/tags/v2.3.9":
 			w.WriteHeader(200)
 			if _, err := w.Write([]byte(`{"ref":"refs/tags/v2.3.9","object":{"sha":"newCommitSHA","type":"commit"}}`)); err != nil {
 				t.Errorf("failed to write response: %v", err)
 			}
-		case r.URL.Path == "/repos/owner/repo/git/refs/tags/v2":
+		case "/repos/owner/repo/git/refs/tags/v2":
 			w.WriteHeader(200)
 			if _, err := w.Write([]byte(`{"ref":"refs/tags/v2","object":{"sha":"tagObjSHA","type":"tag","url":"https://api.github.com/repos/owner/repo/git/tags/tagObjSHA"}}`)); err != nil {
 				t.Errorf("failed to write response: %v", err)
 			}
-		case r.URL.Path == "/repos/owner/repo/git/tags/tagObjSHA":
+		case "/repos/owner/repo/git/tags/tagObjSHA":
 			w.WriteHeader(200)
 			if _, err := w.Write([]byte(`{"object":{"sha":"oldCommitSHA","type":"commit"}}`)); err != nil {
 				t.Errorf("failed to write response: %v", err)
@@ -470,8 +470,8 @@ func TestCheckOutdatedActions_FloatingMajorTagStaleAnnotatedTag(t *testing.T) {
 
 func TestCheckOutdatedActions_ActionPathAction(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.URL.Path == "/repos/github/codeql-action/releases/latest":
+		switch r.URL.Path {
+		case "/repos/github/codeql-action/releases/latest":
 			w.WriteHeader(200)
 			if err := json.NewEncoder(w).Encode(gh.ReleaseInfo{
 				TagName: "v4.35.4",
@@ -479,12 +479,12 @@ func TestCheckOutdatedActions_ActionPathAction(t *testing.T) {
 			}); err != nil {
 				t.Errorf("failed to encode release info: %v", err)
 			}
-		case r.URL.Path == "/repos/github/codeql-action/git/refs/tags/v4.35.2":
+		case "/repos/github/codeql-action/git/refs/tags/v4.35.2":
 			w.WriteHeader(200)
 			if _, err := w.Write([]byte(`{"ref":"refs/tags/v4.35.2","object":{"sha":"oldSHA","type":"commit"}}`)); err != nil {
 				t.Errorf("failed to write response: %v", err)
 			}
-		case r.URL.Path == "/repos/github/codeql-action/git/refs/tags/v4.35.4":
+		case "/repos/github/codeql-action/git/refs/tags/v4.35.4":
 			w.WriteHeader(200)
 			if _, err := w.Write([]byte(`{"ref":"refs/tags/v4.35.4","object":{"sha":"newSHA","type":"commit"}}`)); err != nil {
 				t.Errorf("failed to write response: %v", err)
@@ -918,8 +918,8 @@ func TestApplyUpdatesToFile_RePinWithComments(t *testing.T) {
 
 func TestWriteOutdatedActions(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.URL.Path == "/repos/owner/repo/releases/latest":
+		switch r.URL.Path {
+		case "/repos/owner/repo/releases/latest":
 			w.WriteHeader(200)
 			if err := json.NewEncoder(w).Encode(gh.ReleaseInfo{
 				TagName: "v4.1.2",
@@ -927,7 +927,7 @@ func TestWriteOutdatedActions(t *testing.T) {
 			}); err != nil {
 				t.Errorf("failed to encode release info: %v", err)
 			}
-		case r.URL.Path == "/repos/owner/repo/git/refs/tags/v4.1.2":
+		case "/repos/owner/repo/git/refs/tags/v4.1.2":
 			w.WriteHeader(200)
 			if _, err := w.Write([]byte(`{"ref":"refs/tags/v4.1.2","object":{"sha":"abc123def456","type":"commit"}}`)); err != nil {
 				t.Errorf("failed to write response: %v", err)
@@ -984,8 +984,8 @@ func TestWriteOutdatedActions(t *testing.T) {
 
 func TestWriteOutdatedActions_Semver(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.URL.Path == "/repos/owner/repo/releases/latest":
+		switch r.URL.Path {
+		case "/repos/owner/repo/releases/latest":
 			w.WriteHeader(200)
 			if err := json.NewEncoder(w).Encode(gh.ReleaseInfo{
 				TagName: "v4.1.2",
@@ -1048,8 +1048,8 @@ func TestWriteOutdatedActions_Semver(t *testing.T) {
 
 func TestWriteOutdatedActions_ActionPath(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.URL.Path == "/repos/github/codeql-action/releases/latest":
+		switch r.URL.Path {
+		case "/repos/github/codeql-action/releases/latest":
 			w.WriteHeader(200)
 			if err := json.NewEncoder(w).Encode(gh.ReleaseInfo{
 				TagName: "v4.35.4",
@@ -1057,7 +1057,7 @@ func TestWriteOutdatedActions_ActionPath(t *testing.T) {
 			}); err != nil {
 				t.Errorf("failed to encode release info: %v", err)
 			}
-		case r.URL.Path == "/repos/github/codeql-action/git/refs/tags/v4.35.4":
+		case "/repos/github/codeql-action/git/refs/tags/v4.35.4":
 			w.WriteHeader(200)
 			if _, err := w.Write([]byte(`{"ref":"refs/tags/v4.35.4","object":{"sha":"deadbeef1234","type":"commit"}}`)); err != nil {
 				t.Errorf("failed to write response: %v", err)
@@ -1195,9 +1195,9 @@ func TestWriteActionOutput_WithEnvVar(t *testing.T) {
 	}
 
 	origEnv := os.Getenv("GITHUB_OUTPUT")
-	defer os.Setenv("GITHUB_OUTPUT", origEnv)
+	defer func() { _ = os.Setenv("GITHUB_OUTPUT", origEnv) }()
 
-	os.Setenv("GITHUB_OUTPUT", outputFile)
+	_ = os.Setenv("GITHUB_OUTPUT", outputFile)
 	WriteActionOutput("test-key", "test-value")
 
 	data, err := os.ReadFile(outputFile)
@@ -1212,9 +1212,9 @@ func TestWriteActionOutput_WithEnvVar(t *testing.T) {
 
 func TestWriteActionOutput_NoEnvVar(t *testing.T) {
 	origEnv := os.Getenv("GITHUB_OUTPUT")
-	defer os.Setenv("GITHUB_OUTPUT", origEnv)
+	defer func() { _ = os.Setenv("GITHUB_OUTPUT", origEnv) }()
 
-	os.Unsetenv("GITHUB_OUTPUT")
+	_ = os.Unsetenv("GITHUB_OUTPUT")
 	WriteActionOutput("key", "value")
 }
 
@@ -1359,8 +1359,8 @@ func TestCheckOutdatedActions_ArchivedExcluded(t *testing.T) {
 
 func TestCheckOutdatedActions_CompareRefSHAsError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.URL.Path == "/repos/owner/repo/releases/latest":
+		switch r.URL.Path {
+		case "/repos/owner/repo/releases/latest":
 			w.WriteHeader(200)
 			if err := json.NewEncoder(w).Encode(gh.ReleaseInfo{
 				TagName: "v2.3.9",
@@ -1397,8 +1397,8 @@ func TestCheckOutdatedActions_CompareRefSHAsError(t *testing.T) {
 
 func TestCheckOutdatedActions_VerboseCompareRefSHAsError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.URL.Path == "/repos/owner/repo/releases/latest":
+		switch r.URL.Path {
+		case "/repos/owner/repo/releases/latest":
 			w.WriteHeader(200)
 			if err := json.NewEncoder(w).Encode(gh.ReleaseInfo{
 				TagName: "v2.3.9",
@@ -1435,8 +1435,8 @@ func TestCheckOutdatedActions_VerboseCompareRefSHAsError(t *testing.T) {
 
 func TestCheckOutdatedActions_IsVersionOutdatedError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.URL.Path == "/repos/owner/repo/releases/latest":
+		switch r.URL.Path {
+		case "/repos/owner/repo/releases/latest":
 			w.WriteHeader(200)
 			if err := json.NewEncoder(w).Encode(gh.ReleaseInfo{
 				TagName: "not-a-semver-tag",
@@ -1473,8 +1473,8 @@ func TestCheckOutdatedActions_IsVersionOutdatedError(t *testing.T) {
 
 func TestCheckOutdatedActions_DuplicateCacheKey(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.URL.Path == "/repos/owner/repo/releases/latest":
+		switch r.URL.Path {
+		case "/repos/owner/repo/releases/latest":
 			w.WriteHeader(200)
 			if err := json.NewEncoder(w).Encode(gh.ReleaseInfo{
 				TagName: "v5.0.0",
@@ -1482,12 +1482,12 @@ func TestCheckOutdatedActions_DuplicateCacheKey(t *testing.T) {
 			}); err != nil {
 				t.Errorf("failed to encode release info: %v", err)
 			}
-		case r.URL.Path == "/repos/owner/repo/git/refs/tags/v3":
+		case "/repos/owner/repo/git/refs/tags/v3":
 			w.WriteHeader(200)
 			if _, err := w.Write([]byte(`{"ref":"refs/tags/v3","object":{"sha":"oldSHA","type":"commit"}}`)); err != nil {
 				t.Errorf("failed to write response: %v", err)
 			}
-		case r.URL.Path == "/repos/owner/repo/git/refs/tags/v5.0.0":
+		case "/repos/owner/repo/git/refs/tags/v5.0.0":
 			w.WriteHeader(200)
 			if _, err := w.Write([]byte(`{"ref":"refs/tags/v5.0.0","object":{"sha":"newSHA","type":"commit"}}`)); err != nil {
 				t.Errorf("failed to write response: %v", err)
@@ -1896,9 +1896,9 @@ func TestOutdatedUpdateFailureCount(t *testing.T) {
 
 func TestCheckTTY_NO_COLOR(t *testing.T) {
 	orig := os.Getenv("NO_COLOR")
-	defer os.Setenv("NO_COLOR", orig)
+	defer func() { _ = os.Setenv("NO_COLOR", orig) }()
 
-	os.Setenv("NO_COLOR", "1")
+	_ = os.Setenv("NO_COLOR", "1")
 	result := checkTTY()
 	if result {
 		t.Error("Expected checkTTY to return false when NO_COLOR is set")
@@ -1907,9 +1907,9 @@ func TestCheckTTY_NO_COLOR(t *testing.T) {
 
 func TestCheckTTY_TERMDumb(t *testing.T) {
 	orig := os.Getenv("TERM")
-	defer os.Setenv("TERM", orig)
+	defer func() { _ = os.Setenv("TERM", orig) }()
 
-	os.Setenv("TERM", "dumb")
+	_ = os.Setenv("TERM", "dumb")
 	result := checkTTY()
 	if result {
 		t.Error("Expected checkTTY to return false when TERM=dumb")
@@ -1918,9 +1918,9 @@ func TestCheckTTY_TERMDumb(t *testing.T) {
 
 func TestCheckTTY_CI(t *testing.T) {
 	orig := os.Getenv("CI")
-	defer os.Setenv("CI", orig)
+	defer func() { _ = os.Setenv("CI", orig) }()
 
-	os.Setenv("CI", "true")
+	_ = os.Setenv("CI", "true")
 	result := checkTTY()
 	if result {
 		t.Error("Expected checkTTY to return false when CI is set")
@@ -1929,9 +1929,9 @@ func TestCheckTTY_CI(t *testing.T) {
 
 func TestCheckTTY_GitHubActions(t *testing.T) {
 	orig := os.Getenv("GITHUB_ACTIONS")
-	defer os.Setenv("GITHUB_ACTIONS", orig)
+	defer func() { _ = os.Setenv("GITHUB_ACTIONS", orig) }()
 
-	os.Setenv("GITHUB_ACTIONS", "true")
+	_ = os.Setenv("GITHUB_ACTIONS", "true")
 	result := checkTTY()
 	if result {
 		t.Error("Expected checkTTY to return false when GITHUB_ACTIONS is set")
@@ -1940,9 +1940,9 @@ func TestCheckTTY_GitHubActions(t *testing.T) {
 
 func TestWriteActionOutput_InvalidDir(t *testing.T) {
 	origEnv := os.Getenv("GITHUB_OUTPUT")
-	defer os.Setenv("GITHUB_OUTPUT", origEnv)
+	defer func() { _ = os.Setenv("GITHUB_OUTPUT", origEnv) }()
 
-	os.Setenv("GITHUB_OUTPUT", "/nonexistent/path/that/does/not/exist/file")
+	_ = os.Setenv("GITHUB_OUTPUT", "/nonexistent/path/that/does/not/exist/file")
 	WriteActionOutput("key", "value")
 }
 
@@ -2012,7 +2012,7 @@ func TestReadAll_Error(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create pipe: %v", err)
 	}
-	r.Close()
+	_ = r.Close()
 
 	result, err := readAll(r)
 	if err == nil {
@@ -2025,8 +2025,8 @@ func TestReadAll_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp file: %v", err)
 	}
-	defer os.Remove(tmpFile.Name())
-	defer tmpFile.Close()
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
+	defer func() { _ = tmpFile.Close() }()
 
 	if _, err := tmpFile.WriteString("hello world"); err != nil {
 		t.Fatalf("Failed to write to temp file: %v", err)
@@ -2069,8 +2069,8 @@ func TestWriteOutdatedActions_WorkflowFileMismatch(t *testing.T) {
 
 func TestWriteOutdatedActions_VerboseSHAResolution(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.URL.Path == "/repos/owner/repo/git/refs/tags/v4.1.2":
+		switch r.URL.Path {
+		case "/repos/owner/repo/git/refs/tags/v4.1.2":
 			w.WriteHeader(200)
 			if _, err := w.Write([]byte(`{"ref":"refs/tags/v4.1.2","object":{"sha":"abc123def456","type":"commit"}}`)); err != nil {
 				t.Errorf("failed to write response: %v", err)
@@ -2117,8 +2117,8 @@ func TestWriteOutdatedActions_ApplyUpdatesToFileError(t *testing.T) {
 		t.Skip("Skipping permission test when running as root")
 	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.URL.Path == "/repos/owner/repo/git/refs/tags/v4.1.2":
+		switch r.URL.Path {
+		case "/repos/owner/repo/git/refs/tags/v4.1.2":
 			w.WriteHeader(200)
 			if _, err := w.Write([]byte(`{"ref":"refs/tags/v4.1.2","object":{"sha":"abc123def456","type":"commit"}}`)); err != nil {
 				t.Errorf("failed to write response: %v", err)
@@ -2307,8 +2307,8 @@ func TestDetectPinnableActions(t *testing.T) {
 
 func TestPinActions(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.URL.Path == "/repos/owner/repo/git/refs/tags/v3":
+		switch r.URL.Path {
+		case "/repos/owner/repo/git/refs/tags/v3":
 			w.WriteHeader(200)
 			if _, err := w.Write([]byte(`{"ref":"refs/tags/v3","object":{"sha":"abc123def456","type":"commit"}}`)); err != nil {
 				t.Errorf("failed to write response: %v", err)
@@ -2364,8 +2364,8 @@ func TestPinActions(t *testing.T) {
 
 func TestPinActions_ActionPath(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.URL.Path == "/repos/github/codeql-action/git/refs/tags/v4.35.4":
+		switch r.URL.Path {
+		case "/repos/github/codeql-action/git/refs/tags/v4.35.4":
 			w.WriteHeader(200)
 			if _, err := w.Write([]byte(`{"ref":"refs/tags/v4.35.4","object":{"sha":"deadbeef1234","type":"commit"}}`)); err != nil {
 				t.Errorf("failed to write response: %v", err)
@@ -2474,8 +2474,8 @@ func TestPinActions_Empty(t *testing.T) {
 
 func TestPinActions_WithComments(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.URL.Path == "/repos/owner/repo/git/refs/tags/v3":
+		switch r.URL.Path {
+		case "/repos/owner/repo/git/refs/tags/v3":
 			w.WriteHeader(200)
 			if _, err := w.Write([]byte(`{"ref":"refs/tags/v3","object":{"sha":"abc123def456","type":"commit"}}`)); err != nil {
 				t.Errorf("failed to write response: %v", err)
@@ -3049,8 +3049,8 @@ func TestApplyUpdatesToFile_QuotedRefs(t *testing.T) {
 
 func TestWriteOutdatedActions_QuotedRefs(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.URL.Path == "/repos/owner/repo/releases/latest":
+		switch r.URL.Path {
+		case "/repos/owner/repo/releases/latest":
 			w.WriteHeader(200)
 			if err := json.NewEncoder(w).Encode(gh.ReleaseInfo{
 				TagName: "v4.1.2",
@@ -3058,7 +3058,7 @@ func TestWriteOutdatedActions_QuotedRefs(t *testing.T) {
 			}); err != nil {
 				t.Errorf("failed to encode release info: %v", err)
 			}
-		case r.URL.Path == "/repos/owner/repo/git/refs/tags/v4.1.2":
+		case "/repos/owner/repo/git/refs/tags/v4.1.2":
 			w.WriteHeader(200)
 			if _, err := w.Write([]byte(`{"ref":"refs/tags/v4.1.2","object":{"sha":"abc123def456","type":"commit"}}`)); err != nil {
 				t.Errorf("failed to write response: %v", err)

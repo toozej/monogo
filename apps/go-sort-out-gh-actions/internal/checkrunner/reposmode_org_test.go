@@ -11,9 +11,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/toozej/go-sort-out-gh-actions/internal/github"
-	"github.com/toozej/go-sort-out-gh-actions/internal/output"
-	"github.com/toozej/go-sort-out-gh-actions/internal/workflow"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/github"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/output"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/workflow"
 )
 
 func TestRunOrgMode(t *testing.T) {
@@ -61,7 +61,7 @@ jobs:
 			_, _ = w.Write(body)
 		case isWorkflowFileRequest(path):
 			w.WriteHeader(200)
-			fmt.Fprintf(w, `{"content": "%s"}`, encoded)
+			_, _ = fmt.Fprintf(w, `{"content": "%s"}`, encoded)
 		default:
 			w.WriteHeader(404)
 		}
@@ -139,7 +139,7 @@ jobs:
 			_, _ = w.Write(body)
 		case isWorkflowFileRequest(path):
 			w.WriteHeader(200)
-			fmt.Fprintf(w, `{"content": "%s"}`, encoded)
+			_, _ = fmt.Fprintf(w, `{"content": "%s"}`, encoded)
 		default:
 			w.WriteHeader(404)
 		}
@@ -208,7 +208,7 @@ jobs:
 			_, _ = w.Write(body)
 		case isWorkflowFileRequest(path):
 			w.WriteHeader(200)
-			fmt.Fprintf(w, `{"content": "%s"}`, encoded)
+			_, _ = fmt.Fprintf(w, `{"content": "%s"}`, encoded)
 		default:
 			w.WriteHeader(404)
 		}
@@ -277,7 +277,7 @@ jobs:
 			_, _ = w.Write(body)
 		case isWorkflowFileRequest(path):
 			w.WriteHeader(200)
-			fmt.Fprintf(w, `{"content": "%s"}`, encoded)
+			_, _ = fmt.Fprintf(w, `{"content": "%s"}`, encoded)
 		default:
 			w.WriteHeader(404)
 		}

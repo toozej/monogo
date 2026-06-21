@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/toozej/go-sort-out-gh-actions/internal/actioninfo"
-	"github.com/toozej/go-sort-out-gh-actions/internal/issue"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/actioninfo"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/issue"
 )
 
 type Format string
@@ -91,13 +91,13 @@ func (w *Writer) writeJSON(co *CheckOutput) {
 	enc := json.NewEncoder(w.Output)
 	enc.SetIndent("", "  ")
 	if err := enc.Encode(co); err != nil {
-		fmt.Fprintf(w.Output, "error encoding JSON output: %v\n", err)
+		_, _ = fmt.Fprintf(w.Output, "error encoding JSON output: %v\n", err)
 	}
 }
 
 func (w *Writer) writeText(co *CheckOutput) {
 	if !co.HasIssues && co.NoIssuesMessage != "" {
-		fmt.Fprintln(w.Output, co.NoIssuesMessage)
+		_, _ = fmt.Fprintln(w.Output, co.NoIssuesMessage)
 		return
 	}
 	if len(co.ArchivedActions) > 0 {
@@ -116,7 +116,7 @@ func (w *Writer) writeText(co *CheckOutput) {
 		FprintPinnableText(w.Output, co.PinnableActions)
 	}
 	if co.Summary != "" {
-		fmt.Fprintln(w.Output, co.Summary)
+		_, _ = fmt.Fprintln(w.Output, co.Summary)
 	}
 }
 
@@ -128,7 +128,7 @@ func PrintArchivedText(actions []issue.ArchivedActionInfo, repos []string) {
 }
 
 func FprintArchivedText(w io.Writer, actions []issue.ArchivedActionInfo, repos []string) {
-	fmt.Fprintf(w, "\n%sFound %d archived GitHub Actions in %d uses:\n\n", actioninfo.Emoji("🚨 ", "[ARCHIVED] "), len(repos), len(actions))
+	_, _ = fmt.Fprintf(w, "\n%sFound %d archived GitHub Actions in %d uses:\n\n", actioninfo.Emoji("🚨 ", "[ARCHIVED] "), len(repos), len(actions))
 
 	workflowMap := make(map[string][]issue.ArchivedActionInfo)
 	for _, action := range actions {
@@ -143,11 +143,11 @@ func FprintArchivedText(w io.Writer, actions []issue.ArchivedActionInfo, repos [
 
 	for _, wf := range workflows {
 		actions := workflowMap[wf]
-		fmt.Fprintf(w, "%s%s:\n", actioninfo.Emoji("📄 ", "[FILE] "), wf)
+		_, _ = fmt.Fprintf(w, "%s%s:\n", actioninfo.Emoji("📄 ", "[FILE] "), wf)
 		for _, action := range actions {
-			fmt.Fprintf(w, " %s%s\n", actioninfo.Emoji("❌ ", "[X] "), action.Uses)
+			_, _ = fmt.Fprintf(w, " %s%s\n", actioninfo.Emoji("❌ ", "[X] "), action.Uses)
 		}
-		fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w)
 	}
 }
 
@@ -164,7 +164,7 @@ func FprintStaleText(w io.Writer, actions []actioninfo.StaleActionInfo) {
 		uniqueStale[action.OwnerRepo] = true
 	}
 
-	fmt.Fprintf(w, "\n%sFound %d stale/deprecated GitHub Actions in %d uses:\n\n", actioninfo.Emoji("⏳ ", "[STALE] "), len(uniqueStale), len(actions))
+	_, _ = fmt.Fprintf(w, "\n%sFound %d stale/deprecated GitHub Actions in %d uses:\n\n", actioninfo.Emoji("⏳ ", "[STALE] "), len(uniqueStale), len(actions))
 
 	staleWorkflowMap := make(map[string][]actioninfo.StaleActionInfo)
 	for _, action := range actions {
@@ -179,19 +179,19 @@ func FprintStaleText(w io.Writer, actions []actioninfo.StaleActionInfo) {
 
 	for _, wf := range workflows {
 		actions := staleWorkflowMap[wf]
-		fmt.Fprintf(w, "%s%s:\n", actioninfo.Emoji("📄 ", "[FILE] "), wf)
+		_, _ = fmt.Fprintf(w, "%s%s:\n", actioninfo.Emoji("📄 ", "[FILE] "), wf)
 		for _, action := range actions {
 			if action.Deprecated {
 				msg := action.DeprecationMessage
 				if msg != "" {
 					msg = ": " + msg
 				}
-				fmt.Fprintf(w, " %s%s (DEPRECATED%s)\n", actioninfo.Emoji("⏳ ", "[STALE] "), action.FullRef, msg)
+				_, _ = fmt.Fprintf(w, " %s%s (DEPRECATED%s)\n", actioninfo.Emoji("⏳ ", "[STALE] "), action.FullRef, msg)
 			} else if action.StaleByAge {
-				fmt.Fprintf(w, " %s%s (not updated since %s)\n", actioninfo.Emoji("⏳ ", "[STALE] "), action.FullRef, action.LastUpdated.Format("2006-01-02"))
+				_, _ = fmt.Fprintf(w, " %s%s (not updated since %s)\n", actioninfo.Emoji("⏳ ", "[STALE] "), action.FullRef, action.LastUpdated.Format("2006-01-02"))
 			}
 		}
-		fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w)
 	}
 }
 
@@ -208,7 +208,7 @@ func FprintRuntimeEOLText(w io.Writer, actions []actioninfo.RuntimeEOLActionInfo
 		uniqueRuntimeEOL[action.OwnerRepo] = true
 	}
 
-	fmt.Fprintf(w, "\n%sFound %d actions using EOL runtimes in %d uses:\n\n", actioninfo.Emoji("🖥️ ", "[RUNTIME] "), len(uniqueRuntimeEOL), len(actions))
+	_, _ = fmt.Fprintf(w, "\n%sFound %d actions using EOL runtimes in %d uses:\n\n", actioninfo.Emoji("🖥️ ", "[RUNTIME] "), len(uniqueRuntimeEOL), len(actions))
 
 	runtimeWorkflowMap := make(map[string][]actioninfo.RuntimeEOLActionInfo)
 	for _, action := range actions {
@@ -223,15 +223,15 @@ func FprintRuntimeEOLText(w io.Writer, actions []actioninfo.RuntimeEOLActionInfo
 
 	for _, wf := range workflows {
 		actions := runtimeWorkflowMap[wf]
-		fmt.Fprintf(w, "%s%s:\n", actioninfo.Emoji("📄 ", "[FILE] "), wf)
+		_, _ = fmt.Fprintf(w, "%s%s:\n", actioninfo.Emoji("📄 ", "[FILE] "), wf)
 		for _, action := range actions {
 			eolDateStr := action.EOLDate.Format("2006-01-02")
 			if action.EOLDate.IsZero() {
 				eolDateStr = "unknown"
 			}
-			fmt.Fprintf(w, " %s%s (uses %s%s, EOL since %s)\n", actioninfo.Emoji("🖥️ ", "[RUNTIME] "), action.FullRef, action.Runtime, action.Version, eolDateStr)
+			_, _ = fmt.Fprintf(w, " %s%s (uses %s%s, EOL since %s)\n", actioninfo.Emoji("🖥️ ", "[RUNTIME] "), action.FullRef, action.Runtime, action.Version, eolDateStr)
 		}
-		fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w)
 	}
 }
 
@@ -248,7 +248,7 @@ func FprintOutdatedText(w io.Writer, actions []actioninfo.OutdatedActionInfo) {
 		uniqueOutdated[action.OwnerRepo] = true
 	}
 
-	fmt.Fprintf(w, "\n%sFound %d outdated GitHub Actions in %d uses:\n\n", actioninfo.Emoji("⚠️ ", "[WARN] "), len(uniqueOutdated), len(actions))
+	_, _ = fmt.Fprintf(w, "\n%sFound %d outdated GitHub Actions in %d uses:\n\n", actioninfo.Emoji("⚠️ ", "[WARN] "), len(uniqueOutdated), len(actions))
 
 	outdatedWorkflowMap := make(map[string][]actioninfo.OutdatedActionInfo)
 	for _, action := range actions {
@@ -263,15 +263,15 @@ func FprintOutdatedText(w io.Writer, actions []actioninfo.OutdatedActionInfo) {
 
 	for _, wf := range workflows {
 		actions := outdatedWorkflowMap[wf]
-		fmt.Fprintf(w, "%s%s:\n", actioninfo.Emoji("📄 ", "[FILE] "), wf)
+		_, _ = fmt.Fprintf(w, "%s%s:\n", actioninfo.Emoji("📄 ", "[FILE] "), wf)
 		for _, action := range actions {
 			refLabel := action.FullRef
 			if refLabel == "" {
 				refLabel = fmt.Sprintf("%s@%s", action.OwnerRepo, action.CurrentRef)
 			}
-			fmt.Fprintf(w, " %s%s (latest: %s)\n", actioninfo.Emoji("⚠️ ", "[WARN] "), refLabel, action.LatestTag)
+			_, _ = fmt.Fprintf(w, " %s%s (latest: %s)\n", actioninfo.Emoji("⚠️ ", "[WARN] "), refLabel, action.LatestTag)
 		}
-		fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w)
 	}
 }
 
@@ -281,7 +281,7 @@ func FprintPinnableText(w io.Writer, actions []actioninfo.PinActionInfo) {
 		uniquePinnable[action.OwnerRepo] = true
 	}
 
-	fmt.Fprintf(w, "\n%sFound %d pinnable GitHub Actions in %d uses:\n\n", actioninfo.Emoji("📌 ", "[PIN] "), len(uniquePinnable), len(actions))
+	_, _ = fmt.Fprintf(w, "\n%sFound %d pinnable GitHub Actions in %d uses:\n\n", actioninfo.Emoji("📌 ", "[PIN] "), len(uniquePinnable), len(actions))
 
 	pinnableWorkflowMap := make(map[string][]actioninfo.PinActionInfo)
 	for _, action := range actions {
@@ -296,14 +296,14 @@ func FprintPinnableText(w io.Writer, actions []actioninfo.PinActionInfo) {
 
 	for _, wf := range workflows {
 		actions := pinnableWorkflowMap[wf]
-		fmt.Fprintf(w, "%s%s:\n", actioninfo.Emoji("📄 ", "[FILE] "), filepath.Base(wf))
+		_, _ = fmt.Fprintf(w, "%s%s:\n", actioninfo.Emoji("📄 ", "[FILE] "), filepath.Base(wf))
 		for _, action := range actions {
 			refLabel := action.FullRef
 			if refLabel == "" {
 				refLabel = fmt.Sprintf("%s@%s", action.OwnerRepo, action.Version)
 			}
-			fmt.Fprintf(w, " %s%s\n", actioninfo.Emoji("📌 ", "[PIN] "), refLabel)
+			_, _ = fmt.Fprintf(w, " %s%s\n", actioninfo.Emoji("📌 ", "[PIN] "), refLabel)
 		}
-		fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w)
 	}
 }

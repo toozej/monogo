@@ -35,12 +35,12 @@ This tool scans your GitHub Actions workflows (`.github/workflows/**/*.yml` and 
 
 ### From GitHub Releases
 
-Download the latest release from [GitHub Releases](https://github.com/toozej/go-sort-out-gh-actions/releases).
+Download the latest release from [GitHub Releases](https://github.com/toozej/monogo/apps/go-sort-out-gh-actions/releases).
 
 ### Using Go
 
 ```bash
-go install github.com/toozej/go-sort-out-gh-actions@latest
+go install github.com/toozej/monogo/apps/go-sort-out-gh-actions@latest
 ```
 
 ### Docker
@@ -206,7 +206,7 @@ Add to your `.pre-commit-config.yaml`:
 
 ```yaml
 repos:
-- repo: https://github.com/toozej/go-sort-out-gh-actions
+- repo: https://github.com/toozej/monogo/apps/go-sort-out-gh-actions
   rev: main
   hooks:
   # Check for archived GitHub Actions
@@ -230,7 +230,7 @@ Or using the Docker-based hooks (no Go toolchain required):
 
 ```yaml
 repos:
-- repo: https://github.com/toozej/go-sort-out-gh-actions
+- repo: https://github.com/toozej/monogo/apps/go-sort-out-gh-actions
   rev: main
   hooks:
   # Check for archived GitHub Actions (Docker)

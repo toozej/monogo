@@ -11,16 +11,16 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/toozej/go-sort-out-gh-actions/internal/actioninfo"
-	"github.com/toozej/go-sort-out-gh-actions/internal/checkrunner"
-	"github.com/toozej/go-sort-out-gh-actions/internal/github"
-	"github.com/toozej/go-sort-out-gh-actions/internal/issue"
-	"github.com/toozej/go-sort-out-gh-actions/internal/notification"
-	"github.com/toozej/go-sort-out-gh-actions/internal/output"
-	"github.com/toozej/go-sort-out-gh-actions/internal/workflow"
-	"github.com/toozej/go-sort-out-gh-actions/pkg/config"
-	"github.com/toozej/go-sort-out-gh-actions/pkg/man"
-	"github.com/toozej/go-sort-out-gh-actions/pkg/version"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/actioninfo"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/checkrunner"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/github"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/issue"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/notification"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/output"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/workflow"
+	"github.com/toozej/monogo/pkg/go-sort-out-gh-actions/config"
+	"github.com/toozej/monogo/pkg/go-sort-out-gh-actions/man"
+	"github.com/toozej/monogo/pkg/go-sort-out-gh-actions/version"
 )
 
 var (

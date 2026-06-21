@@ -7,8 +7,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/toozej/go-sort-out-gh-actions/internal/actioninfo"
-	"github.com/toozej/go-sort-out-gh-actions/internal/github"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/actioninfo"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/github"
 )
 
 const maxRemoteConcurrency = 5

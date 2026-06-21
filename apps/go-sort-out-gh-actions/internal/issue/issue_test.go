@@ -54,11 +54,11 @@ func TestIssueCreator_CreateArchivedActionIssue(t *testing.T) {
 						}
 						w.Header().Set("Content-Type", "application/json")
 						w.WriteHeader(201)
-						fmt.Fprintln(w, `{"number":42,"title":"Replace archived GitHub Actions"}`)
+						_, _ = fmt.Fprintln(w, `{"number":42,"title":"Replace archived GitHub Actions"}`)
 					case 422:
 						w.Header().Set("Content-Type", "application/json")
 						w.WriteHeader(422)
-						fmt.Fprintln(w, `{"message":"Validation Failed"}`)
+						_, _ = fmt.Fprintln(w, `{"message":"Validation Failed"}`)
 					default:
 						w.WriteHeader(tt.statusCode)
 					}

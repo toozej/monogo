@@ -94,13 +94,13 @@ func (p *WorkflowParser) ParseWorkflowFile(filePath string) (*WorkflowFile, erro
 	if err != nil {
 		return &WorkflowFile{Path: filePath, Error: err}, err
 	}
-	defer root.Close()
+	defer func() { _ = root.Close() }()
 
 	f, err := root.Open(base)
 	if err != nil {
 		return &WorkflowFile{Path: filePath, Error: err}, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	content, err := io.ReadAll(f)
 	if err != nil {

@@ -40,10 +40,10 @@ builds:
     flags:
       - -trimpath
     ldflags:
-      - -s -w -X github.com/toozej/go-sort-out-gh-actions/pkg/version.Version={{.Version}}
-        -X github.com/toozej/go-sort-out-gh-actions/pkg/version.Commit={{.Commit}} -X github.com/toozej/go-sort-out-gh-actions/pkg/version.Branch={{.Branch}}
-        -X github.com/toozej/go-sort-out-gh-actions/pkg/version.BuiltAt={{.CommitDate}} -X
-        github.com/toozej/go-sort-out-gh-actions/pkg/version.Builder=goreleaser
+      - -s -w -X github.com/toozej/monogo/apps/go-sort-out-gh-actions/pkg/version.Version={{.Version}}
+        -X github.com/toozej/monogo/apps/go-sort-out-gh-actions/pkg/version.Commit={{.Commit}} -X github.com/toozej/monogo/apps/go-sort-out-gh-actions/pkg/version.Branch={{.Branch}}
+        -X github.com/toozej/monogo/apps/go-sort-out-gh-actions/pkg/version.BuiltAt={{.CommitDate}} -X
+        github.com/toozej/monogo/apps/go-sort-out-gh-actions/pkg/version.Builder=goreleaser
     main: ./
     binary: go-sort-out-gh-actions
 
@@ -118,7 +118,7 @@ dockers_v2:
       "index,manifest:org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/go-sort-out-gh-actions/main/README.md"
       "index,manifest:org.opencontainers.image.licenses": "GPL-3.0-only"
       "index,manifest:org.opencontainers.image.revision": "{{.FullCommit}}"
-      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/go-sort-out-gh-actions"
+      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/monogo/apps/go-sort-out-gh-actions"
       "index,manifest:org.opencontainers.image.title": "{{.ProjectName}}"
       "index,manifest:org.opencontainers.image.vendor": "James Tooze"
       "index,manifest:org.opencontainers.image.version": "{{.Version}}"
@@ -144,7 +144,7 @@ archives:
 nfpms:
   - file_name_template: '{{ .ConventionalFileName }}'
     id: packages
-    homepage: https://github.com/toozej/go-sort-out-gh-actions
+    homepage: https://github.com/toozej/monogo/apps/go-sort-out-gh-actions
     description: |-
       Find archived GitHub Actions in use in GHA Workflows with optional notifications and GH Issue creation
     maintainer: toozej
@@ -188,7 +188,7 @@ nfpms:
 
 homebrew_casks:
   - name: go-sort-out-gh-actions
-    homepage: https://github.com/toozej/go-sort-out-gh-actions
+    homepage: https://github.com/toozej/monogo/apps/go-sort-out-gh-actions
     description: "Find archived GitHub Actions in use in GHA Workflows with optional notifications\
       \ and GH Issue creation"
     license: GPLv3
@@ -203,7 +203,7 @@ homebrew_casks:
       zsh: "completions/go-sort-out-gh-actions.zsh"
       fish: "completions/go-sort-out-gh-actions.fish"
     url:
-      verified: "github.com/toozej/go-sort-out-gh-actions/releases/download"
+      verified: "github.com/toozej/monogo/apps/go-sort-out-gh-actions/releases/download"
     hooks:
       post:
         install: |
@@ -239,4 +239,4 @@ milestones:
 release:
   disable: '{{ eq (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}'
   footer: |
-    **Full Changelog**: https://github.com/toozej/go-sort-out-gh-actions/compare/{{ .PreviousTag }}...{{ .Tag }}
+    **Full Changelog**: https://github.com/toozej/monogo/apps/go-sort-out-gh-actions/compare/{{ .PreviousTag }}...{{ .Tag }}

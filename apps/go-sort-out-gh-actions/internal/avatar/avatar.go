@@ -44,7 +44,7 @@ func RenderFromURL(url string, width, height int, w io.Writer) error {
 	if err != nil {
 		return fmt.Errorf("failed to fetch avatar from %s: %w", url, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("failed to fetch avatar from %s: HTTP %d", url, resp.StatusCode)
@@ -54,7 +54,7 @@ func RenderFromURL(url string, width, height int, w io.Writer) error {
 	if err != nil {
 		return fmt.Errorf("failed to create temp file: %w", err)
 	}
-	defer os.Remove(tmpFile.Name())
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
 
 	if _, err := io.Copy(tmpFile, io.LimitReader(resp.Body, maxAvatarSize)); err != nil {
 		if cerr := tmpFile.Close(); cerr != nil {
@@ -92,7 +92,7 @@ func RenderFromFile(path string, width, height int, w io.Writer) error {
 
 // PrintFallback prints a text-based avatar fallback when image rendering fails.
 func PrintFallback(w io.Writer) {
-	fmt.Fprint(w, `
+	_, _ = fmt.Fprint(w, `
     ____ ___ ___ _____
    / ___||_ _| / _ \___ /
    | |    | | | | | ||_ \

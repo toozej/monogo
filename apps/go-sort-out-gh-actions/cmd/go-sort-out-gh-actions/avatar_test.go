@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/spf13/cobra"
-	"github.com/toozej/go-sort-out-gh-actions/internal/avatar"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/avatar"
 )
 
 func TestNewAvatarCmd_ReturnsCommand(t *testing.T) {
@@ -98,7 +98,7 @@ func TestRunAvatar_FallbackWhenNoURLOrPath(t *testing.T) {
 
 	runAvatar("", "", 40, 20)
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = origStdout
 
 	var buf bytes.Buffer
@@ -122,8 +122,8 @@ func TestRunAvatar_DefaultPathFallsBack(t *testing.T) {
 
 	runAvatar("", "./img/nonexistent-avatar.png", 40, 20)
 
-	wOut.Close()
-	wErr.Close()
+	_ = wOut.Close()
+	_ = wErr.Close()
 	os.Stdout = origStdout
 	os.Stderr = origStderr
 
@@ -154,8 +154,8 @@ func TestRunAvatar_InvalidPathFallsBack(t *testing.T) {
 
 	runAvatar("", "/nonexistent/path.png", 40, 20)
 
-	wOut.Close()
-	wErr.Close()
+	_ = wOut.Close()
+	_ = wErr.Close()
 	os.Stdout = origStdout
 	os.Stderr = origStderr
 

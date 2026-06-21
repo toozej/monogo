@@ -7,9 +7,9 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/toozej/go-sort-out-gh-actions/internal/output"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/output"
 
-	"github.com/toozej/go-sort-out-gh-actions/pkg/config"
+	"github.com/toozej/monogo/pkg/go-sort-out-gh-actions/config"
 )
 
 func TestCommandStructure(t *testing.T) {

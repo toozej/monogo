@@ -14,12 +14,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/toozej/go-sort-out-gh-actions/internal/actioninfo"
-	"github.com/toozej/go-sort-out-gh-actions/internal/github"
-	"github.com/toozej/go-sort-out-gh-actions/internal/issue"
-	"github.com/toozej/go-sort-out-gh-actions/internal/output"
-	"github.com/toozej/go-sort-out-gh-actions/internal/workflow"
-	"github.com/toozej/go-sort-out-gh-actions/pkg/config"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/actioninfo"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/github"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/issue"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/output"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/workflow"
+	"github.com/toozej/monogo/pkg/go-sort-out-gh-actions/config"
 )
 
 func TestNewRunContext_WithNotifier(t *testing.T) {
@@ -36,7 +36,7 @@ func TestNewRunContext_WithNotifier(t *testing.T) {
 	}
 
 	rc := NewRunContext("dummy-token", conf, true, false, output.FormatText, nil, false, false, 0)
-	defer rc.Close()
+	defer func() { _ = rc.Close() }()
 
 	if rc == nil {
 		t.Fatal("Expected non-nil RunContext")
@@ -63,7 +63,7 @@ func TestNewRunContext_WithNotifierAndIssueCreator(t *testing.T) {
 	}
 
 	rc := NewRunContext("dummy-token", conf, true, true, output.FormatText, nil, false, false, 0)
-	defer rc.Close()
+	defer func() { _ = rc.Close() }()
 
 	if rc.Notifier == nil {
 		t.Error("Expected Notifier to be non-nil when initNotifier=true")
@@ -75,7 +75,7 @@ func TestNewRunContext_WithNotifierAndIssueCreator(t *testing.T) {
 
 func TestNewRunContext_NoCache(t *testing.T) {
 	rc := NewRunContext("dummy-token", config.Config{}, false, false, output.FormatText, nil, true, false, 0)
-	defer rc.Close()
+	defer func() { _ = rc.Close() }()
 
 	if rc == nil {
 		t.Fatal("Expected non-nil RunContext")
@@ -87,7 +87,7 @@ func TestNewRunContext_RefreshCache(t *testing.T) {
 	t.Setenv("XDG_CACHE_HOME", tmpDir)
 
 	rc := NewRunContext("dummy-token", config.Config{}, false, false, output.FormatText, nil, false, true, 24*time.Hour)
-	defer rc.Close()
+	defer func() { _ = rc.Close() }()
 
 	if rc == nil {
 		t.Fatal("Expected non-nil RunContext")
@@ -96,7 +96,7 @@ func TestNewRunContext_RefreshCache(t *testing.T) {
 
 func TestNewRunContext_JSONFormat(t *testing.T) {
 	rc := NewRunContext("dummy-token", config.Config{}, false, false, output.FormatJSON, nil, false, false, 0)
-	defer rc.Close()
+	defer func() { _ = rc.Close() }()
 
 	if rc == nil {
 		t.Fatal("Expected non-nil RunContext")
@@ -272,7 +272,7 @@ func TestDetectRuntimeEOL_MixedArchivedAndNonArchived(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "action.yml") || strings.Contains(r.URL.Path, "action.yaml") {
 			w.WriteHeader(200)
-			fmt.Fprintf(w, `{"content": "%s"}`, encoded)
+			_, _ = fmt.Fprintf(w, `{"content": "%s"}`, encoded)
 			return
 		}
 		w.WriteHeader(404)
@@ -372,7 +372,7 @@ func TestDetectRuntimeEOL_DeduplicationBySeen(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "action.yml") || strings.Contains(r.URL.Path, "action.yaml") {
 			w.WriteHeader(200)
-			fmt.Fprintf(w, `{"content": "%s"}`, encoded)
+			_, _ = fmt.Fprintf(w, `{"content": "%s"}`, encoded)
 			return
 		}
 		w.WriteHeader(404)
@@ -806,8 +806,8 @@ func TestDetectOutdated_CommitSHAAutoUpToDate(t *testing.T) {
 
 func TestCreateArchivedIssues_WithIssueCreatorError(t *testing.T) {
 	origEnv := os.Getenv("GITHUB_REPOSITORY")
-	defer os.Setenv("GITHUB_REPOSITORY", origEnv)
-	os.Setenv("GITHUB_REPOSITORY", "owner/repo")
+	defer func() { _ = os.Setenv("GITHUB_REPOSITORY", origEnv) }()
+	_ = os.Setenv("GITHUB_REPOSITORY", "owner/repo")
 
 	ic := issue.NewTestIssueCreator(func(ctx context.Context, owner, repo string, archivedActions []issue.ArchivedActionInfo) error {
 		return fmt.Errorf("mock issue creation error: %w", fmt.Errorf("API error"))
@@ -828,8 +828,8 @@ func TestCreateArchivedIssues_WithIssueCreatorError(t *testing.T) {
 
 func TestCreateArchivedIssues_ThreePartRepoName(t *testing.T) {
 	origEnv := os.Getenv("GITHUB_REPOSITORY")
-	defer os.Setenv("GITHUB_REPOSITORY", origEnv)
-	os.Setenv("GITHUB_REPOSITORY", "org/subgroup/repo")
+	defer func() { _ = os.Setenv("GITHUB_REPOSITORY", origEnv) }()
+	_ = os.Setenv("GITHUB_REPOSITORY", "org/subgroup/repo")
 
 	var testCalled bool
 

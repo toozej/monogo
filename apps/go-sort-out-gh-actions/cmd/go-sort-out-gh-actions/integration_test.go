@@ -15,12 +15,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/toozej/go-sort-out-gh-actions/internal/actioninfo"
-	"github.com/toozej/go-sort-out-gh-actions/internal/checkrunner"
-	"github.com/toozej/go-sort-out-gh-actions/internal/github"
-	"github.com/toozej/go-sort-out-gh-actions/internal/output"
-	"github.com/toozej/go-sort-out-gh-actions/internal/workflow"
-	"github.com/toozej/go-sort-out-gh-actions/pkg/config"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/actioninfo"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/checkrunner"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/github"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/output"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/workflow"
+	"github.com/toozej/monogo/pkg/go-sort-out-gh-actions/config"
 )
 
 var defaultActionYMLContent = base64.StdEncoding.EncodeToString([]byte("name: Test\nruns:\n  using: node20\n  main: dist/index.js\n"))
@@ -58,7 +58,7 @@ func makeConfigurableGHServer(cfg *mockServerConfig) *httptest.Server {
 
 		if strings.Contains(path, "/contents/action.y") {
 			w.WriteHeader(200)
-			fmt.Fprintf(w, `{"content": "%s"}`, cfg.actionYML)
+			_, _ = fmt.Fprintf(w, `{"content": "%s"}`, cfg.actionYML)
 			return
 		}
 
@@ -2965,7 +2965,7 @@ func TestNewRunContextFromFlags_NotifyBranch(t *testing.T) {
 	if rc == nil {
 		t.Fatal("Expected non-nil RunContext")
 	}
-	rc.Close()
+	_ = rc.Close()
 }
 
 func TestNewRunContextFromFlags_CreateIssueBranch(t *testing.T) {
@@ -2994,7 +2994,7 @@ func TestNewRunContextFromFlags_CreateIssueBranch(t *testing.T) {
 	if rc == nil {
 		t.Fatal("Expected non-nil RunContext")
 	}
-	rc.Close()
+	_ = rc.Close()
 }
 
 func TestNewRunContextFromFlags_FallbackPath(t *testing.T) {
@@ -3008,7 +3008,7 @@ func TestNewRunContextFromFlags_FallbackPath(t *testing.T) {
 	if rc == nil {
 		t.Fatal("Expected non-nil RunContext")
 	}
-	rc.Close()
+	_ = rc.Close()
 }
 
 func TestNewOutdatedCmd_RunClosurePinOverride(t *testing.T) {
@@ -3083,8 +3083,8 @@ func TestWriteActionOutput_WithGITHUB_OUTPUT(t *testing.T) {
 	}
 
 	origGITHUB_OUTPUT := os.Getenv("GITHUB_OUTPUT")
-	defer os.Setenv("GITHUB_OUTPUT", origGITHUB_OUTPUT)
-	os.Setenv("GITHUB_OUTPUT", outputFile)
+	defer func() { _ = os.Setenv("GITHUB_OUTPUT", origGITHUB_OUTPUT) }()
+	_ = os.Setenv("GITHUB_OUTPUT", outputFile)
 
 	actioninfo.WriteActionOutput("test-key", "test-value")
 

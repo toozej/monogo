@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/toozej/go-sort-out-gh-actions/internal/github"
-	"github.com/toozej/go-sort-out-gh-actions/internal/output"
-	"github.com/toozej/go-sort-out-gh-actions/internal/workflow"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/github"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/output"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/workflow"
 )
 
 func TestRunRemoteRepoMode(t *testing.T) {
@@ -31,7 +31,7 @@ func TestRunRemoteRepoMode(t *testing.T) {
 			}
 			if strings.Contains(r.URL.Path, "/ci.yml") {
 				w.WriteHeader(200)
-				if _, err := w.Write([]byte(fmt.Sprintf(`{"content": "%s", "encoding": "base64"}`, encoded))); err != nil {
+				if _, err := fmt.Fprintf(w, `{"content": "%s", "encoding": "base64"}`, encoded); err != nil {
 					t.Errorf("failed to write response body: %v", err)
 				}
 				return
@@ -89,7 +89,7 @@ func TestRunRemoteRepoMode(t *testing.T) {
 			}
 			if strings.Contains(r.URL.Path, "/ci.yml") {
 				w.WriteHeader(200)
-				if _, err := w.Write([]byte(fmt.Sprintf(`{"content": "%s", "encoding": "base64"}`, encoded))); err != nil {
+				if _, err := fmt.Fprintf(w, `{"content": "%s", "encoding": "base64"}`, encoded); err != nil {
 					t.Errorf("failed to write response body: %v", err)
 				}
 				return

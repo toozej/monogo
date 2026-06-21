@@ -14,9 +14,9 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/toozej/go-sort-out-gh-actions/internal/github"
-	"github.com/toozej/go-sort-out-gh-actions/internal/version"
-	"github.com/toozej/go-sort-out-gh-actions/internal/workflow"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/github"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/version"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/workflow"
 )
 
 var IsTTY = checkTTY()
@@ -55,14 +55,14 @@ func WriteActionOutput(key, value string) {
 		log.Warnf("Failed to open root directory for GITHUB_OUTPUT: %v", err)
 		return
 	}
-	defer root.Close()
+	defer func() { _ = root.Close() }()
 
 	f, err := root.OpenFile(base, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		log.Warnf("Failed to open GITHUB_OUTPUT file: %v", err)
 		return
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	if _, err := fmt.Fprintf(f, "%s=%s\n", key, value); err != nil {
 		log.Warnf("Failed to write to GITHUB_OUTPUT file: %v", err)
 	}
@@ -137,18 +137,18 @@ func GetRepoName(workDir string) string {
 
 func LogWorkflowInfo(w io.Writer, verbose bool, workflowFiles []*workflow.WorkflowFile, allActionRefs []workflow.ActionRef) {
 	if verbose {
-		fmt.Fprintf(w, "Found %d workflow files\n", len(workflowFiles))
+		_, _ = fmt.Fprintf(w, "Found %d workflow files\n", len(workflowFiles))
 		for _, wf := range workflowFiles {
-			fmt.Fprintf(w, " - %s (%d uses)\n", wf.Path, len(wf.UsesWithVersions))
+			_, _ = fmt.Fprintf(w, " - %s (%d uses)\n", wf.Path, len(wf.UsesWithVersions))
 		}
-		fmt.Fprintf(w, "Extracted %d unique action references\n", len(allActionRefs))
+		_, _ = fmt.Fprintf(w, "Extracted %d unique action references\n", len(allActionRefs))
 		if len(allActionRefs) > 0 {
 			for _, ref := range allActionRefs {
 				if ref.FullRef != "" {
-					fmt.Fprintf(w, " - %s\n", ref.FullRef)
+					_, _ = fmt.Fprintf(w, " - %s\n", ref.FullRef)
 					continue
 				}
-				fmt.Fprintf(w, " - %s@%s\n", ref.OwnerRepo, ref.Version)
+				_, _ = fmt.Fprintf(w, " - %s@%s\n", ref.OwnerRepo, ref.Version)
 			}
 		}
 	}
@@ -383,7 +383,7 @@ func PrintOutdatedUpdateReport(w io.Writer, report OutdatedUpdateReport) {
 	failureCount := OutdatedUpdateFailureCount(report)
 
 	if updatedCount > 0 {
-		fmt.Fprintf(w, "\n%s Updated %d GitHub Action use(s):\n", Emoji("✅ ", "[OK] "), updatedCount)
+		_, _ = fmt.Fprintf(w, "\n%s Updated %d GitHub Action use(s):\n", Emoji("✅ ", "[OK] "), updatedCount)
 		filePaths := make([]string, 0, len(report.UpdatedByFile))
 		for filePath := range report.UpdatedByFile {
 			filePaths = append(filePaths, filePath)
@@ -391,15 +391,15 @@ func PrintOutdatedUpdateReport(w io.Writer, report OutdatedUpdateReport) {
 		sort.Strings(filePaths)
 
 		for _, filePath := range filePaths {
-			fmt.Fprintf(w, "  %s:\n", filePath)
+			_, _ = fmt.Fprintf(w, "  %s:\n", filePath)
 			for _, update := range report.UpdatedByFile[filePath] {
-				fmt.Fprintf(w, "    %s -> %s\n", update.OldUse, update.NewUse)
+				_, _ = fmt.Fprintf(w, "    %s -> %s\n", update.OldUse, update.NewUse)
 			}
 		}
 	}
 
 	if failureCount > 0 {
-		fmt.Fprintf(w, "\n%s Could not update %d GitHub Action use(s):\n", Emoji("⚠️ ", "[WARN] "), failureCount)
+		_, _ = fmt.Fprintf(w, "\n%s Could not update %d GitHub Action use(s):\n", Emoji("⚠️ ", "[WARN] "), failureCount)
 		failures := append([]OutdatedUpdateFailure(nil), report.FailedUpdates...)
 		sort.Slice(failures, func(i, j int) bool {
 			if failures[i].WorkflowFile != failures[j].WorkflowFile {
@@ -409,9 +409,9 @@ func PrintOutdatedUpdateReport(w io.Writer, report OutdatedUpdateReport) {
 		})
 
 		for _, failure := range failures {
-			fmt.Fprintf(w, "  %s (%s)\n", failure.OldUse, failure.WorkflowFile)
-			fmt.Fprintf(w, "    target: %s\n", failure.NewUse)
-			fmt.Fprintf(w, "    reason: %s\n", failure.Reason)
+			_, _ = fmt.Fprintf(w, "  %s (%s)\n", failure.OldUse, failure.WorkflowFile)
+			_, _ = fmt.Fprintf(w, "    target: %s\n", failure.NewUse)
+			_, _ = fmt.Fprintf(w, "    reason: %s\n", failure.Reason)
 		}
 	}
 }
@@ -601,7 +601,7 @@ func PrintPinUpdateReport(w io.Writer, report PinUpdateReport) {
 	failureCount := PinUpdateFailureCount(report)
 
 	if updatedCount > 0 {
-		fmt.Fprintf(w, "\n%s Pinned %d GitHub Action use(s) to commit SHAs:\n", Emoji("✅ ", "[OK] "), updatedCount)
+		_, _ = fmt.Fprintf(w, "\n%s Pinned %d GitHub Action use(s) to commit SHAs:\n", Emoji("✅ ", "[OK] "), updatedCount)
 		filePaths := make([]string, 0, len(report.UpdatedByFile))
 		for filePath := range report.UpdatedByFile {
 			filePaths = append(filePaths, filePath)
@@ -609,15 +609,15 @@ func PrintPinUpdateReport(w io.Writer, report PinUpdateReport) {
 		sort.Strings(filePaths)
 
 		for _, filePath := range filePaths {
-			fmt.Fprintf(w, " %s:\n", filePath)
+			_, _ = fmt.Fprintf(w, " %s:\n", filePath)
 			for _, update := range report.UpdatedByFile[filePath] {
-				fmt.Fprintf(w, " %s -> %s\n", update.OldUse, update.NewUse)
+				_, _ = fmt.Fprintf(w, " %s -> %s\n", update.OldUse, update.NewUse)
 			}
 		}
 	}
 
 	if failureCount > 0 {
-		fmt.Fprintf(w, "\n%s Could not pin %d GitHub Action use(s):\n", Emoji("⚠️ ", "[WARN] "), failureCount)
+		_, _ = fmt.Fprintf(w, "\n%s Could not pin %d GitHub Action use(s):\n", Emoji("⚠️ ", "[WARN] "), failureCount)
 		failures := append([]PinUpdateFailure(nil), report.FailedUpdates...)
 		sort.Slice(failures, func(i, j int) bool {
 			if failures[i].WorkflowFile != failures[j].WorkflowFile {
@@ -627,9 +627,9 @@ func PrintPinUpdateReport(w io.Writer, report PinUpdateReport) {
 		})
 
 		for _, failure := range failures {
-			fmt.Fprintf(w, " %s (%s)\n", failure.OldUse, failure.WorkflowFile)
-			fmt.Fprintf(w, " target: %s\n", failure.NewUse)
-			fmt.Fprintf(w, " reason: %s\n", failure.Reason)
+			_, _ = fmt.Fprintf(w, " %s (%s)\n", failure.OldUse, failure.WorkflowFile)
+			_, _ = fmt.Fprintf(w, " target: %s\n", failure.NewUse)
+			_, _ = fmt.Fprintf(w, " reason: %s\n", failure.Reason)
 		}
 	}
 }
@@ -658,13 +658,13 @@ func ApplyUpdatesToFile(filePath string, updates []FileUpdate) error {
 	if err != nil {
 		return fmt.Errorf("failed to open root directory: %w", err)
 	}
-	defer root.Close()
+	defer func() { _ = root.Close() }()
 
 	f, err := root.Open(base)
 	if err != nil {
 		return fmt.Errorf("failed to read file: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	content, err := readAll(f)
 	if err != nil {

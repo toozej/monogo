@@ -4,7 +4,7 @@ minimum_pre_commit_version: "1.15"
 
 repos:
 # check for archived, EOL, outdated, or all GitHub Actions in workflows using local Go toolchain
-  - repo: https://github.com/toozej/go-sort-out-gh-actions
+  - repo: https://github.com/toozej/monogo/apps/go-sort-out-gh-actions
     rev: main
     hooks:
       - id: go-sort-out-gh-actions
@@ -17,7 +17,7 @@ repos:
         args: [--verbose]
 
 # check for archived, EOL, outdated, or all GitHub Actions in workflows using Docker image
-  - repo: https://github.com/toozej/go-sort-out-gh-actions
+  - repo: https://github.com/toozej/monogo/apps/go-sort-out-gh-actions
     rev: main
     hooks:
       - id: go-sort-out-gh-actions-docker

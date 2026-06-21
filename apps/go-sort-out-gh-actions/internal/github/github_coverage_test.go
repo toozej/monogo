@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/toozej/go-sort-out-gh-actions/internal/runtime"
-	"github.com/toozej/go-sort-out-gh-actions/internal/workflow"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/runtime"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/workflow"
 )
 
 func newClientWithRawRedirect(rawServer *httptest.Server) *Client {
@@ -457,7 +457,7 @@ func TestClient_GetActionYML_YamlFallback(t *testing.T) {
 		}
 		if strings.Contains(r.URL.Path, "action.yaml") {
 			w.WriteHeader(200)
-			_, _ = w.Write([]byte(fmt.Sprintf(`{"content": "%s"}`, encoded)))
+			_, _ = fmt.Fprintf(w, `{"content": "%s"}`, encoded)
 			return
 		}
 		w.WriteHeader(404)
@@ -938,7 +938,7 @@ func TestClient_CheckMultipleRuntimeEOL_EOLCheckError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "action.yml") || strings.Contains(r.URL.Path, "action.yaml") {
 			w.WriteHeader(200)
-			_, _ = w.Write([]byte(fmt.Sprintf(`{"content": "%s"}`, encoded)))
+			_, _ = fmt.Fprintf(w, `{"content": "%s"}`, encoded)
 			return
 		}
 		w.WriteHeader(404)
@@ -984,7 +984,7 @@ func TestClient_CheckMultipleRuntimeEOL_NotEOL(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "action.yml") || strings.Contains(r.URL.Path, "action.yaml") {
 			w.WriteHeader(200)
-			_, _ = w.Write([]byte(fmt.Sprintf(`{"content": "%s"}`, encoded)))
+			_, _ = fmt.Fprintf(w, `{"content": "%s"}`, encoded)
 			return
 		}
 		w.WriteHeader(404)

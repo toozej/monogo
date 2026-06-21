@@ -1,0 +1,21 @@
+---
+services:
+  go-sort-out-gh-actions:
+    container_name: go-sort-out-gh-actions
+    image: toozej/go-sort-out-gh-actions:latest
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    labels:
+      - "traefik.enable=false"
+      # labels below for publishing as web service
+      # - "traefik.docker.network=traefik"
+      # - "traefik.http.routers.go-sort-out-gh-actions.rule=Host(`go-sort-out-gh-actions.test`)"
+      # - "traefik.http.routers.go-sort-out-gh-actions.middlewares=http-redirect-https@file,headers@file"
+      # - "traefik.http.routers.go-sort-out-gh-actions-secure.entrypoints=https"
+      # - "traefik.http.routers.go-sort-out-gh-actions-secure.rule=Host(`go-sort-out-gh-actions.test`)"
+      # - "traefik.http.routers.go-sort-out-gh-actions-secure.middlewares=headers@file"
+      # - "traefik.http.routers.go-sort-out-gh-actions-secure.tls=true"
+    # networks:
+      # - traefik

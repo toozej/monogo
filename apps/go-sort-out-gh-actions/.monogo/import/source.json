@@ -1,0 +1,12 @@
+{
+  "source": "toozej/go-sort-out-gh-actions",
+  "vcsHost": "github.com/",
+  "owner": "toozej",
+  "repo": "go-sort-out-gh-actions",
+  "ownerRepo": "toozej/go-sort-out-gh-actions",
+  "repoURL": "https://github.com/toozej/go-sort-out-gh-actions.git",
+  "ref": "main",
+  "oldModule": "github.com/toozej/go-sort-out-gh-actions",
+  "newModule": "github.com/toozej/monogo/apps/go-sort-out-gh-actions",
+  "tagPrefix": "apps/go-sort-out-gh-actions"
+}

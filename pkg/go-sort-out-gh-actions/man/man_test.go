@@ -73,7 +73,7 @@ func captureStdout(f func() error) (string, error) {
 
 	err := f()
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = old
 
 	var buf bytes.Buffer

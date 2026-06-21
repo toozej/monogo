@@ -14,13 +14,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/toozej/go-sort-out-gh-actions/internal/actioninfo"
-	"github.com/toozej/go-sort-out-gh-actions/internal/github"
-	"github.com/toozej/go-sort-out-gh-actions/internal/issue"
-	"github.com/toozej/go-sort-out-gh-actions/internal/notification"
-	"github.com/toozej/go-sort-out-gh-actions/internal/output"
-	"github.com/toozej/go-sort-out-gh-actions/internal/workflow"
-	"github.com/toozej/go-sort-out-gh-actions/pkg/config"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/actioninfo"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/github"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/issue"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/notification"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/output"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/workflow"
+	"github.com/toozej/monogo/pkg/go-sort-out-gh-actions/config"
 )
 
 func newTestRunContext(ghServer *httptest.Server) *RunContext {
@@ -471,7 +471,7 @@ func TestPrintArchived_Empty(t *testing.T) {
 
 	output.PrintArchivedText([]issue.ArchivedActionInfo{}, []string{})
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = oldStdout
 	_, _ = buf.ReadFrom(r)
 
@@ -492,7 +492,7 @@ func TestPrintArchived_WithActions(t *testing.T) {
 
 	output.PrintArchivedText(actions, repos)
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = oldStdout
 	var buf bytes.Buffer
 	_, _ = buf.ReadFrom(r)
@@ -513,7 +513,7 @@ func TestPrintStale_Empty(t *testing.T) {
 
 	output.PrintStaleText([]actioninfo.StaleActionInfo{})
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = oldStdout
 	var buf bytes.Buffer
 	_, _ = buf.ReadFrom(r)
@@ -540,7 +540,7 @@ func TestPrintStale_WithActions(t *testing.T) {
 
 	output.PrintStaleText(actions)
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = oldStdout
 	var buf bytes.Buffer
 	_, _ = buf.ReadFrom(r)
@@ -571,7 +571,7 @@ func TestPrintStale_StaleByAge(t *testing.T) {
 
 	output.PrintStaleText(actions)
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = oldStdout
 	var buf bytes.Buffer
 	_, _ = buf.ReadFrom(r)
@@ -589,7 +589,7 @@ func TestPrintRuntimeEOL_Empty(t *testing.T) {
 
 	output.PrintRuntimeEOLText([]actioninfo.RuntimeEOLActionInfo{})
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = oldStdout
 	var buf bytes.Buffer
 	_, _ = buf.ReadFrom(r)
@@ -617,7 +617,7 @@ func TestPrintRuntimeEOL_WithActions(t *testing.T) {
 
 	output.PrintRuntimeEOLText(actions)
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = oldStdout
 	var buf bytes.Buffer
 	_, _ = buf.ReadFrom(r)
@@ -649,7 +649,7 @@ func TestPrintRuntimeEOL_ZeroEOLDate(t *testing.T) {
 
 	output.PrintRuntimeEOLText(actions)
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = oldStdout
 	var buf bytes.Buffer
 	_, _ = buf.ReadFrom(r)
@@ -667,7 +667,7 @@ func TestPrintOutdated_Empty(t *testing.T) {
 
 	output.PrintOutdatedText([]actioninfo.OutdatedActionInfo{})
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = oldStdout
 	var buf bytes.Buffer
 	_, _ = buf.ReadFrom(r)
@@ -695,7 +695,7 @@ func TestPrintOutdated_WithActions(t *testing.T) {
 
 	output.PrintOutdatedText(actions)
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = oldStdout
 	var buf bytes.Buffer
 	_, _ = buf.ReadFrom(r)
@@ -964,7 +964,7 @@ func TestDetectRuntimeEOL_WithRuntimeResults(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "action.yml") || strings.Contains(r.URL.Path, "action.yaml") {
 			w.WriteHeader(200)
-			fmt.Fprintf(w, `{"content": "%s"}`, encoded)
+			_, _ = fmt.Fprintf(w, `{"content": "%s"}`, encoded)
 			return
 		}
 		w.WriteHeader(404)
@@ -1107,8 +1107,8 @@ func TestSendArchivedNotifications_WithNotifier(t *testing.T) {
 	defer notifyServer.Close()
 
 	origEnv := os.Getenv("GITHUB_REPOSITORY")
-	defer os.Setenv("GITHUB_REPOSITORY", origEnv)
-	os.Setenv("GITHUB_REPOSITORY", "owner/repo")
+	defer func() { _ = os.Setenv("GITHUB_REPOSITORY", origEnv) }()
+	_ = os.Setenv("GITHUB_REPOSITORY", "owner/repo")
 
 	conf := config.NotificationConfig{
 		GotifyEndpoint: notifyServer.URL,
@@ -1139,8 +1139,8 @@ func TestSendArchivedNotifications_WithNotifierError(t *testing.T) {
 	defer notifyServer.Close()
 
 	origEnv := os.Getenv("GITHUB_REPOSITORY")
-	defer os.Setenv("GITHUB_REPOSITORY", origEnv)
-	os.Setenv("GITHUB_REPOSITORY", "owner/repo")
+	defer func() { _ = os.Setenv("GITHUB_REPOSITORY", origEnv) }()
+	_ = os.Setenv("GITHUB_REPOSITORY", "owner/repo")
 
 	conf := config.NotificationConfig{
 		GotifyEndpoint: notifyServer.URL,
@@ -1166,8 +1166,8 @@ func TestSendArchivedNotifications_WithNotifierError(t *testing.T) {
 
 func TestCreateArchivedIssues_WithIssueCreator(t *testing.T) {
 	origEnv := os.Getenv("GITHUB_REPOSITORY")
-	defer os.Setenv("GITHUB_REPOSITORY", origEnv)
-	os.Setenv("GITHUB_REPOSITORY", "owner/repo")
+	defer func() { _ = os.Setenv("GITHUB_REPOSITORY", origEnv) }()
+	_ = os.Setenv("GITHUB_REPOSITORY", "owner/repo")
 
 	var testCalled bool
 	var testOwner, testRepo string
@@ -1209,8 +1209,8 @@ func TestCreateArchivedIssues_WithIssueCreator(t *testing.T) {
 
 func TestCreateArchivedIssues_InvalidRepoName(t *testing.T) {
 	origEnv := os.Getenv("GITHUB_REPOSITORY")
-	defer os.Setenv("GITHUB_REPOSITORY", origEnv)
-	os.Setenv("GITHUB_REPOSITORY", "invalid-repo-name")
+	defer func() { _ = os.Setenv("GITHUB_REPOSITORY", origEnv) }()
+	_ = os.Setenv("GITHUB_REPOSITORY", "invalid-repo-name")
 
 	var testCalled bool
 
@@ -1238,8 +1238,8 @@ func TestCreateArchivedIssues_InvalidRepoName(t *testing.T) {
 
 func TestCreateArchivedIssues_EmptyRepoName(t *testing.T) {
 	origEnv := os.Getenv("GITHUB_REPOSITORY")
-	defer os.Setenv("GITHUB_REPOSITORY", origEnv)
-	os.Unsetenv("GITHUB_REPOSITORY")
+	defer func() { _ = os.Setenv("GITHUB_REPOSITORY", origEnv) }()
+	_ = os.Unsetenv("GITHUB_REPOSITORY")
 
 	var testCalled bool
 
@@ -1512,7 +1512,7 @@ func TestDetectRuntimeEOL_VerboseLogging(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "action.yml") || strings.Contains(r.URL.Path, "action.yaml") {
 			w.WriteHeader(200)
-			fmt.Fprintf(w, `{"content": "%s"}`, encoded)
+			_, _ = fmt.Fprintf(w, `{"content": "%s"}`, encoded)
 			return
 		}
 		w.WriteHeader(404)

@@ -185,13 +185,13 @@ func TestClient_ListOrgRepos_Pagination(t *testing.T) {
 	var server *httptest.Server
 	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		callCount++
-		switch {
-		case callCount == 1:
+		switch callCount {
+		case 1:
 			w.Header().Set("Link", fmt.Sprintf(`<%s/orgs/testorg/repos?per_page=100&page=2>; rel="next"`, server.URL))
 			body, _ := json.Marshal(page1)
 			w.WriteHeader(200)
 			_, _ = w.Write(body)
-		case callCount == 2:
+		case 2:
 			w.Header().Set("Link", fmt.Sprintf(`<%s/orgs/testorg/repos?per_page=100&page=3>; rel="next"`, server.URL))
 			body, _ := json.Marshal(page2)
 			w.WriteHeader(200)

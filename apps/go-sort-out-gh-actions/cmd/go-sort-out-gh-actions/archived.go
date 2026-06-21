@@ -7,9 +7,9 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/toozej/go-sort-out-gh-actions/internal/actioninfo"
-	"github.com/toozej/go-sort-out-gh-actions/internal/checkrunner"
-	"github.com/toozej/go-sort-out-gh-actions/internal/workflow"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/actioninfo"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/checkrunner"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/workflow"
 )
 
 func newArchivedCmd() *cobra.Command {
@@ -34,7 +34,7 @@ func runArchived(staleDays int) {
 	token := resolveToken()
 	of := resolveOutputFormat()
 	rc := newRunContextFromFlags(token, of)
-	defer rc.Close()
+	defer func() { _ = rc.Close() }()
 	rc.Verbose = verbose
 	rc.Debug = debug
 

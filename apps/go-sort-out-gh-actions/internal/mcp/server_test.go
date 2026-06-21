@@ -6,8 +6,6 @@ import (
 	"os"
 	"strings"
 	"testing"
-
-	"github.com/spf13/cobra"
 )
 
 func TestNewMCPCommand_NilConfig(t *testing.T) {
@@ -101,7 +99,7 @@ func TestNewMCPCommand_Subcommands(t *testing.T) {
 func TestNewMCPCommand_ReturnsCobraCommand(t *testing.T) {
 	cmd := NewMCPCommand(nil)
 
-	var _ *cobra.Command = cmd
+	_ = cmd
 }
 
 func TestConfig_DefaultEnv(t *testing.T) {
@@ -167,7 +165,7 @@ func TestNewMCPCommand_InvalidTransport(t *testing.T) {
 		Transport: "invalid-transport",
 	}
 	cmd := NewMCPCommand(cfg)
-	w.Close()
+	_ = w.Close()
 	os.Stderr = old
 	var buf bytes.Buffer
 	if _, err := io.Copy(&buf, r); err != nil {

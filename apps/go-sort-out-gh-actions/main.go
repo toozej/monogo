@@ -5,7 +5,7 @@
 // configuration management.
 package main
 
-import cmd "github.com/toozej/go-sort-out-gh-actions/cmd/go-sort-out-gh-actions"
+import cmd "github.com/toozej/monogo/apps/go-sort-out-gh-actions/cmd/go-sort-out-gh-actions"
 
 // main is the entry point of the go-sort-out-gh-actions application.
 // It delegates execution to the cmd package which handles all

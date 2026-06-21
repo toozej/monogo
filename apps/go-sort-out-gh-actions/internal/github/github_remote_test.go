@@ -282,14 +282,14 @@ func TestClient_GetRemoteWorkflowContents(t *testing.T) {
 			}
 			if strings.Contains(r.URL.Path, "/ci.yml") {
 				w.WriteHeader(200)
-				if _, err := w.Write([]byte(fmt.Sprintf(`{"content": "%s", "encoding": "base64"}`, encoded1))); err != nil {
+				if _, err := fmt.Fprintf(w, `{"content": "%s", "encoding": "base64"}`, encoded1); err != nil {
 					t.Errorf("failed to write response body: %v", err)
 				}
 				return
 			}
 			if strings.Contains(r.URL.Path, "/release.yml") {
 				w.WriteHeader(200)
-				if _, err := w.Write([]byte(fmt.Sprintf(`{"content": "%s", "encoding": "base64"}`, encoded2))); err != nil {
+				if _, err := fmt.Fprintf(w, `{"content": "%s", "encoding": "base64"}`, encoded2); err != nil {
 					t.Errorf("failed to write response body: %v", err)
 				}
 				return
@@ -349,7 +349,7 @@ func TestClient_GetRemoteWorkflowContents(t *testing.T) {
 			}
 			if strings.Contains(r.URL.Path, "/ci.yml") {
 				w.WriteHeader(200)
-				if _, err := w.Write([]byte(fmt.Sprintf(`{"content": "%s", "encoding": "base64"}`, encoded1))); err != nil {
+				if _, err := fmt.Fprintf(w, `{"content": "%s", "encoding": "base64"}`, encoded1); err != nil {
 					t.Errorf("failed to write response body: %v", err)
 				}
 				return

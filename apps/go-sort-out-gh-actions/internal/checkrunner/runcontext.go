@@ -7,12 +7,12 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/toozej/go-sort-out-gh-actions/internal/github"
-	"github.com/toozej/go-sort-out-gh-actions/internal/issue"
-	"github.com/toozej/go-sort-out-gh-actions/internal/notification"
-	"github.com/toozej/go-sort-out-gh-actions/internal/output"
-	"github.com/toozej/go-sort-out-gh-actions/internal/workflow"
-	"github.com/toozej/go-sort-out-gh-actions/pkg/config"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/github"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/issue"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/notification"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/output"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/workflow"
+	"github.com/toozej/monogo/pkg/go-sort-out-gh-actions/config"
 )
 
 func NewRunContext(token string, conf config.Config, initNotifier, initIssueCreator bool, outputFormat output.Format, csvCfg *output.CSVConfig, noCache, refreshCache bool, cacheTTL time.Duration) *RunContext {

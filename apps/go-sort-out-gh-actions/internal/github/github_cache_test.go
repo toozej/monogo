@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/toozej/go-sort-out-gh-actions/internal/cache"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/cache"
 )
 
 func TestClient_CacheLoadAndSave(t *testing.T) {

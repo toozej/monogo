@@ -108,7 +108,7 @@ jobs:
         run: |
           cosign verify-blob \
             --bundle ./dist/checksums.txt.sigstore.json \
-            --certificate-identity-regexp '^https://github.com/toozej/go-sort-out-gh-actions/.github/workflows/(release|weekly-docker-refresh).yaml@refs/(tags/.*|heads/main)$$' \
+            --certificate-identity-regexp '^https://github.com/toozej/monogo/apps/go-sort-out-gh-actions/.github/workflows/(release|weekly-docker-refresh).yaml@refs/(tags/.*|heads/main)$$' \
             --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
             ./dist/checksums.txt
 
@@ -141,6 +141,6 @@ jobs:
       - name: Verify signatures of Docker images
         run: |
           cosign verify \
-            --certificate-identity-regexp '^https://github.com/toozej/go-sort-out-gh-actions/.github/workflows/(release|weekly-docker-refresh).yaml@refs/(tags/.*|heads/main)$$' \
+            --certificate-identity-regexp '^https://github.com/toozej/monogo/apps/go-sort-out-gh-actions/.github/workflows/(release|weekly-docker-refresh).yaml@refs/(tags/.*|heads/main)$$' \
             --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
           ${{ matrix.registry }}toozej/go-sort-out-gh-actions:${{ matrix.tag }}

@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/toozej/go-sort-out-gh-actions/internal/cache"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/cache"
 )
 
 // isRunningAsRoot reports whether the current process is running as root

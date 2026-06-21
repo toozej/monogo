@@ -36,6 +36,7 @@ jobs:
           - lego-stego
           - files2prompt
           - trails-completionist
+          - go-sort-out-gh-actions
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -143,6 +144,7 @@ jobs:
           - lego-stego
           - files2prompt
           - trails-completionist
+          - go-sort-out-gh-actions
         registry: ['', 'ghcr.io/', 'quay.io/']
         tag: ['latest', 'distroless']
     steps:

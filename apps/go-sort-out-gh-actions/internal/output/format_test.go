@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/toozej/go-sort-out-gh-actions/internal/actioninfo"
-	"github.com/toozej/go-sort-out-gh-actions/internal/issue"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/actioninfo"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/issue"
 )
 
 func TestParseFormat(t *testing.T) {
@@ -668,7 +668,7 @@ func TestPrintArchivedText_WithData(t *testing.T) {
 	PrintArchivedText([]issue.ArchivedActionInfo{
 		{Repo: "owner/repo", Workflow: "ci.yml", Uses: "owner/repo@v1"},
 	}, []string{"owner/repo"})
-	w.Close()
+	_ = w.Close()
 	os.Stdout = old
 	var buf bytes.Buffer
 	if _, err := io.Copy(&buf, r); err != nil {
@@ -687,7 +687,7 @@ func TestPrintStaleText_WithData(t *testing.T) {
 	PrintStaleText([]actioninfo.StaleActionInfo{
 		{OwnerRepo: "stale/repo", FullRef: "stale/repo@v1", Workflow: "ci.yml", Deprecated: true, DeprecationMessage: "use v2"},
 	})
-	w.Close()
+	_ = w.Close()
 	os.Stdout = old
 	var buf bytes.Buffer
 	if _, err := io.Copy(&buf, r); err != nil {
@@ -706,7 +706,7 @@ func TestPrintRuntimeEOLText_WithData(t *testing.T) {
 	PrintRuntimeEOLText([]actioninfo.RuntimeEOLActionInfo{
 		{OwnerRepo: "eol/repo", FullRef: "eol/repo@v1", Workflow: "ci.yml", Runtime: "node", Version: "14", EOLDate: time.Date(2023, 4, 30, 0, 0, 0, 0, time.UTC)},
 	})
-	w.Close()
+	_ = w.Close()
 	os.Stdout = old
 	var buf bytes.Buffer
 	if _, err := io.Copy(&buf, r); err != nil {
@@ -725,7 +725,7 @@ func TestPrintOutdatedText_WithData(t *testing.T) {
 	PrintOutdatedText([]actioninfo.OutdatedActionInfo{
 		{OwnerRepo: "outdated/repo", CurrentRef: "v1", LatestTag: "v2", Workflow: "ci.yml", FullRef: "outdated/repo@v1"},
 	})
-	w.Close()
+	_ = w.Close()
 	os.Stdout = old
 	var buf bytes.Buffer
 	if _, err := io.Copy(&buf, r); err != nil {

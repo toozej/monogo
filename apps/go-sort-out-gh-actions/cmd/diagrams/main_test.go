@@ -4,112 +4,179 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/blushft/go-diagrams/diagram"
+	"github.com/blushft/go-diagrams/nodes/generic"
+	"github.com/blushft/go-diagrams/nodes/programming"
 )
+
+func TestGeneratedAppMetadata(t *testing.T) {
+	if appName != "go-sort-out-gh-actions" {
+		t.Fatalf("appName = %q, want go-sort-out-gh-actions", appName)
+	}
+	if appBinary != "go-sort-out-gh-actions" {
+		t.Fatalf("appBinary = %q, want go-sort-out-gh-actions", appBinary)
+	}
+	if outputDir != "docs/diagrams/go-sort-out-gh-actions" {
+		t.Fatalf("outputDir = %q, want docs/diagrams/go-sort-out-gh-actions", outputDir)
+	}
+}
 
 func TestGenerateArchitectureDiagram(t *testing.T) {
 	tmpDir := t.TempDir()
-	outputDir := filepath.Join(tmpDir, "diagrams")
-	if err := os.MkdirAll(outputDir, 0750); err != nil {
-		t.Fatalf("failed to create output dir: %v", err)
-	}
-
-	if err := generateArchitectureDiagram(outputDir); err != nil {
-		t.Fatalf("generateArchitectureDiagram returned error: %v", err)
-	}
-
-	dotPath := filepath.Join(outputDir, "go-diagrams", "architecture.dot")
-	if _, err := os.Stat(dotPath); err != nil {
-		t.Errorf("expected architecture.dot at %s, got error: %v", dotPath, err)
-	}
+	withWorkingDir(t, tmpDir, func() {
+		generateArchitectureDiagram()
+		assertFileExists(t, filepath.Join(tmpDir, "go-diagrams", "architecture.dot"))
+	})
 }
 
 func TestGenerateComponentDiagram(t *testing.T) {
 	tmpDir := t.TempDir()
-	outputDir := filepath.Join(tmpDir, "diagrams")
-	if err := os.MkdirAll(outputDir, 0750); err != nil {
-		t.Fatalf("failed to create output dir: %v", err)
-	}
-
-	if err := generateComponentDiagram(outputDir); err != nil {
-		t.Fatalf("generateComponentDiagram returned error: %v", err)
-	}
-
-	dotPath := filepath.Join(outputDir, "go-diagrams", "components.dot")
-	if _, err := os.Stat(dotPath); err != nil {
-		t.Errorf("expected components.dot at %s, got error: %v", dotPath, err)
-	}
+	withWorkingDir(t, tmpDir, func() {
+		generateComponentDiagram()
+		assertFileExists(t, filepath.Join(tmpDir, "go-diagrams", "components.dot"))
+	})
 }
 
-func TestRun(t *testing.T) {
+func TestBothDiagramsGenerated(t *testing.T) {
 	tmpDir := t.TempDir()
-	outputDir := filepath.Join(tmpDir, "diagrams")
+	withWorkingDir(t, tmpDir, func() {
+		generateArchitectureDiagram()
+		generateComponentDiagram()
 
-	if err := run(outputDir); err != nil {
-		t.Fatalf("run returned error: %v", err)
-	}
+		assertFileExists(t, filepath.Join(tmpDir, "go-diagrams", "architecture.dot"))
+		assertFileExists(t, filepath.Join(tmpDir, "go-diagrams", "components.dot"))
+	})
+}
 
-	archDot := filepath.Join(outputDir, "go-diagrams", "architecture.dot")
-	compDot := filepath.Join(outputDir, "go-diagrams", "components.dot")
-	if _, err := os.Stat(archDot); err != nil {
-		t.Errorf("expected architecture.dot at %s, got error: %v", archDot, err)
+func TestDiagramCreation(t *testing.T) {
+	d, err := diagram.New(diagram.Filename("test-diagram"), diagram.Label("Test Diagram"), diagram.Direction("TB"))
+	if err != nil {
+		t.Fatalf("failed to create diagram: %v", err)
 	}
-	if _, err := os.Stat(compDot); err != nil {
-		t.Errorf("expected components.dot at %s, got error: %v", compDot, err)
+	if d == nil {
+		t.Fatal("expected diagram to be created")
 	}
 }
 
-func TestRun_MkdirAllError(t *testing.T) {
-	if os.Getuid() == 0 {
-		t.Skip("skipping test running as root")
+func TestArchitectureDiagramComponents(t *testing.T) {
+	d, err := diagram.New(diagram.Filename("arch-test"), diagram.Label("Test Architecture"), diagram.Direction("TB"))
+	if err != nil {
+		t.Fatalf("failed to create diagram: %v", err)
 	}
-	err := run("/dev/null/impossible/path")
-	if err == nil {
-		t.Error("expected error from run with invalid output dir")
-	}
-}
 
-func TestRun_ArchitectureDiagramError(t *testing.T) {
-	if os.Getuid() == 0 {
-		t.Skip("skipping test running as root")
-	}
+	user := generic.Blank.Blank(diagram.NodeLabel("User"))
+	cli := programming.Language.Go(diagram.NodeLabel(appBinary))
+
+	d.Connect(user, cli, diagram.Forward())
+
 	tmpDir := t.TempDir()
-	outputDir := filepath.Join(tmpDir, "diagrams")
-	if err := os.MkdirAll(outputDir, 0750); err != nil {
-		t.Fatalf("failed to create output dir: %v", err)
-	}
-	readOnlyDir := filepath.Join(outputDir, "go-diagrams")
-	if err := os.MkdirAll(readOnlyDir, 0555); err != nil {
-		t.Fatalf("failed to create readonly dir: %v", err)
-	}
-	if err := os.Chmod(readOnlyDir, 0555); err != nil {
-		t.Fatalf("failed to chmod readonly dir: %v", err)
+	withWorkingDir(t, tmpDir, func() {
+		if err := d.Render(); err != nil {
+			t.Fatalf("failed to render diagram: %v", err)
+		}
+
+		assertFileExists(t, filepath.Join(tmpDir, "go-diagrams", "arch-test.dot"))
+	})
+}
+
+func TestComponentDiagramConnections(t *testing.T) {
+	d, err := diagram.New(diagram.Filename("comp-test"), diagram.Label("Test Components"), diagram.Direction("LR"))
+	if err != nil {
+		t.Fatalf("failed to create diagram: %v", err)
 	}
 
-	err := generateArchitectureDiagram(outputDir)
-	if err == nil {
-		t.Error("expected error from generateArchitectureDiagram with readonly dir")
+	main := programming.Language.Go(diagram.NodeLabel("main.go"))
+	rootCmd := programming.Language.Go(diagram.NodeLabel("cmd/" + appBinary))
+
+	d.Connect(main, rootCmd, diagram.Forward())
+
+	tmpDir := t.TempDir()
+	withWorkingDir(t, tmpDir, func() {
+		if err := d.Render(); err != nil {
+			t.Fatalf("failed to render diagram: %v", err)
+		}
+
+		assertFileExists(t, filepath.Join(tmpDir, "go-diagrams", "comp-test.dot"))
+	})
+}
+
+func TestDiagramDirectionOptions(t *testing.T) {
+	for _, dir := range []string{"TB", "LR"} {
+		t.Run(dir, func(t *testing.T) {
+			d, err := diagram.New(diagram.Filename("dir-test"), diagram.Label("Direction Test"), diagram.Direction(dir))
+			if err != nil {
+				t.Fatalf("failed to create diagram with direction %s: %v", dir, err)
+			}
+			if d == nil {
+				t.Fatalf("expected diagram with direction %s to be created", dir)
+			}
+		})
 	}
 }
 
-func TestRun_ComponentDiagramError(t *testing.T) {
-	if os.Getuid() == 0 {
-		t.Skip("skipping test running as root")
+func TestDiagramNodeLabels(t *testing.T) {
+	node := generic.Blank.Blank(diagram.NodeLabel("TestNode"))
+	if node == nil {
+		t.Fatal("expected node to be created with label")
 	}
+}
+
+func TestDiagramGoNodeLabels(t *testing.T) {
+	node := programming.Language.Go(diagram.NodeLabel("GoComponent"))
+	if node == nil {
+		t.Fatal("expected Go node to be created with label")
+	}
+}
+
+func TestHasGoFiles(t *testing.T) {
 	tmpDir := t.TempDir()
-	outputDir := filepath.Join(tmpDir, "diagrams")
-	if err := os.MkdirAll(outputDir, 0750); err != nil {
-		t.Fatalf("failed to create output dir: %v", err)
-	}
-	readOnlyDir := filepath.Join(outputDir, "go-diagrams")
-	if err := os.MkdirAll(readOnlyDir, 0555); err != nil {
-		t.Fatalf("failed to create readonly dir: %v", err)
-	}
-	if err := os.Chmod(readOnlyDir, 0555); err != nil {
-		t.Fatalf("failed to chmod readonly dir: %v", err)
+	if hasGoFiles(tmpDir) {
+		t.Fatal("empty directory should not have Go files")
 	}
 
-	err := generateComponentDiagram(outputDir)
-	if err == nil {
-		t.Error("expected error from generateComponentDiagram with readonly dir")
+	if err := os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte("package main\n"), 0600); err != nil {
+		t.Fatalf("failed to write Go file: %v", err)
+	}
+
+	if !hasGoFiles(tmpDir) {
+		t.Fatal("directory with a Go file should have Go files")
+	}
+}
+
+func TestPackageNodesMissingRoot(t *testing.T) {
+	if nodes := packageNodes(filepath.Join(t.TempDir(), "missing"), "missing"); len(nodes) != 0 {
+		t.Fatalf("packageNodes returned %d nodes for missing root, want 0", len(nodes))
+	}
+}
+
+func withWorkingDir(t *testing.T, dir string, fn func()) {
+	t.Helper()
+
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("failed to change to temp directory: %v", err)
+	}
+
+	defer func() {
+		if err := os.Chdir(origDir); err != nil {
+			t.Fatalf("failed to restore working directory: %v", err)
+		}
+	}()
+
+	fn()
+}
+
+func assertFileExists(t *testing.T, path string) {
+	t.Helper()
+
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		t.Fatalf("expected file to exist at %s", path)
+	} else if err != nil {
+		t.Fatalf("failed to stat %s: %v", path, err)
 	}
 }

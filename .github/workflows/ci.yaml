@@ -33,6 +33,7 @@ jobs:
           - lego-stego
           - files2prompt
           - trails-completionist
+          - go-sort-out-gh-actions
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-go@v6

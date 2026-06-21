@@ -33,7 +33,7 @@ func saveAndCleanEnv(t *testing.T) map[string]string {
 		originalEnv[k] = os.Getenv(k)
 	}
 	for _, k := range allConfigEnvKeys {
-		os.Unsetenv(k)
+		_ = os.Unsetenv(k)
 	}
 	return originalEnv
 }
@@ -41,9 +41,9 @@ func saveAndCleanEnv(t *testing.T) map[string]string {
 func restoreEnv(originalEnv map[string]string) {
 	for key, value := range originalEnv {
 		if value != "" {
-			os.Setenv(key, value)
+			_ = os.Setenv(key, value)
 		} else {
-			os.Unsetenv(key)
+			_ = os.Unsetenv(key)
 		}
 	}
 }
@@ -182,7 +182,7 @@ func TestLoadConfig(t *testing.T) {
 			}
 
 			for key, value := range tt.mockEnv {
-				os.Setenv(key, value)
+				_ = os.Setenv(key, value)
 			}
 
 			conf, err := loadConfig()
@@ -513,7 +513,7 @@ func TestLoadConfigNotificationFields(t *testing.T) {
 			}
 
 			for key, value := range tt.mockEnv {
-				os.Setenv(key, value)
+				_ = os.Setenv(key, value)
 			}
 
 			conf, err := loadConfig()
@@ -601,13 +601,13 @@ func TestGetEnvVars(t *testing.T) {
 	originalEnv := saveAndCleanEnv(t)
 	defer restoreEnv(originalEnv)
 
-	os.Setenv("GH_TOKEN", "success_token")
+	_ = os.Setenv("GH_TOKEN", "success_token")
 	conf := GetEnvVars()
 	if conf.GitHubToken != "success_token" {
 		t.Errorf("Expected success_token, got %s", conf.GitHubToken)
 	}
 
-	os.Setenv("TELEGRAM_CHAT_ID", "not-a-number")
+	_ = os.Setenv("TELEGRAM_CHAT_ID", "not-a-number")
 
 	exitCalled := false
 	originalOsExit := osExit

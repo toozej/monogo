@@ -1,0 +1,8 @@
+# runtime image
+FROM scratch
+# Copy our static executable.
+ARG TARGETPLATFORM
+COPY $TARGETPLATFORM/go-sort-out-gh-actions /go/bin/go-sort-out-gh-actions
+# Run the binary.
+USER 65532:65532
+ENTRYPOINT ["/go/bin/go-sort-out-gh-actions"]

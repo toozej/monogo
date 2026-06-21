@@ -1,0 +1,4 @@
+github.com/toozej/monogo/apps/go-sort-out-gh-actions/pkg/config	github.com/toozej/monogo/pkg/go-sort-out-gh-actions/config
+github.com/toozej/monogo/apps/go-sort-out-gh-actions/pkg/man	github.com/toozej/monogo/pkg/go-sort-out-gh-actions/man
+apps/go-sort-out-gh-actions/pkg/README.md	apps/go-sort-out-gh-actions/.monogo/original-pkg/README.md
+github.com/toozej/monogo/apps/go-sort-out-gh-actions/pkg/version	github.com/toozej/monogo/pkg/go-sort-out-gh-actions/version

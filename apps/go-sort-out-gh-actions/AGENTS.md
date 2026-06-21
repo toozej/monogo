@@ -4,7 +4,7 @@
 
 CLI tool that scans `.github/workflows/` YAML files and detects archived, outdated, stale, and end-of-life (EOL) GitHub Actions. Resolves action references against the GitHub API and optionally auto-updates workflow files, creates GitHub issues, and sends notifications.
 
-**Module:** `github.com/toozej/go-sort-out-gh-actions`
+**Module:** `github.com/toozej/monogo/apps/go-sort-out-gh-actions`
 **Go Version:** 1.26
 **Build:** `CGO_ENABLED=0` always
 

@@ -15,7 +15,7 @@ import (
 	"github.com/nikoksr/notify/service/telegram"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/toozej/go-sort-out-gh-actions/pkg/config"
+	"github.com/toozej/monogo/pkg/go-sort-out-gh-actions/config"
 )
 
 func (g *GotifyNotifier) Notify(ctx context.Context, subject, message string) error {
@@ -43,7 +43,7 @@ func (g *GotifyNotifier) Notify(ctx context.Context, subject, message string) er
 	if err != nil {
 		return fmt.Errorf("failed to send notification: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode >= 300 {
 		return fmt.Errorf("gotify returned status code %d", resp.StatusCode)
@@ -230,10 +230,10 @@ func (m *NotificationManager) sendCondensedNotification(ctx context.Context, act
 	}
 
 	subject = fmt.Sprintf("Archived GitHub Actions found in %s", repoName)
-	message.WriteString(fmt.Sprintf("Found %d archived GitHub Actions in repository %s:\n\n", len(actions), repoName))
+	_, _ = fmt.Fprintf(&message, "Found %d archived GitHub Actions in repository %s:\n\n", len(actions), repoName)
 
 	for i, action := range actions {
-		message.WriteString(fmt.Sprintf("%d. %s (used in %s)\n", i+1, action.Uses, action.Workflow))
+		_, _ = fmt.Fprintf(&message, "%d. %s (used in %s)\n", i+1, action.Uses, action.Workflow)
 	}
 
 	message.WriteString("\nThese actions should be replaced with actively maintained alternatives.")

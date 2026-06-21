@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/toozej/go-sort-out-gh-actions/internal/cache"
-	"github.com/toozej/go-sort-out-gh-actions/internal/runtime"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/cache"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/runtime"
 )
 
 type Client struct {

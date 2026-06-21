@@ -1,9 +1,9 @@
 package checkrunner
 
 import (
-	"github.com/toozej/go-sort-out-gh-actions/internal/actioninfo"
-	"github.com/toozej/go-sort-out-gh-actions/internal/issue"
-	"github.com/toozej/go-sort-out-gh-actions/internal/output"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/actioninfo"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/issue"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/output"
 )
 
 func WriteResult(w *output.Writer, archivedActions []issue.ArchivedActionInfo, archivedRepos []string, staleActions []actioninfo.StaleActionInfo, runtimeEOLActions []actioninfo.RuntimeEOLActionInfo, outdatedActions []actioninfo.OutdatedActionInfo, pinnableActions []actioninfo.PinActionInfo, hasIssues bool, summary string, noIssuesMessage string) {

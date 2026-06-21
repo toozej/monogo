@@ -27,7 +27,7 @@ LDFLAGS = -s -w \
 	-X $(VER).Builder=$(BUILDER)
 	
 # Define the repository URL
-REPO_URL := https://github.com/toozej/go-sort-out-gh-actions
+REPO_URL := https://github.com/toozej/monogo/apps/go-sort-out-gh-actions
 IMAGE_AUTHOR = toozej
 IMAGE_NAME = go-sort-out-gh-actions
 IMAGE_TAG = latest
@@ -43,7 +43,7 @@ else
 	OPENER=open
 endif
 
-COSIGN_IDENTITY_REGEXP := '^https://github.com/toozej/go-sort-out-gh-actions/.github/workflows/(release|weekly-docker-refresh).yaml@refs/(tags/.*|heads/main)$$'
+COSIGN_IDENTITY_REGEXP := '^https://github.com/toozej/monogo/apps/go-sort-out-gh-actions/.github/workflows/(release|weekly-docker-refresh).yaml@refs/(tags/.*|heads/main)$$'
 COSIGN_OIDC_ISSUER := 'https://token.actions.githubusercontent.com'
 
 .PHONY: all vet test build verify verify-docker verify-docker-all-registries run up down install local local-vet local-test local-cover local-run local-kill local-iterate local-release-test local-release local-sign local-verify local-release-verify local-install docker-login pre-commit-install pre-commit-run pre-commit pre-reqs update-golang-version upload-secrets-to-gh upload-secrets-envfile-to-1pass docs diagrams mutation-test test-changed watch-test profile-cpu profile-mem profile-all benchmark clean demo help
@@ -99,7 +99,7 @@ down: ## Stop running Docker Compose project
 
 install: ## Install go-sort-out-gh-actions from latest GitHub release
 	if command -v go; then \
-			go install github.com/toozej/go-sort-out-gh-actions@latest ; \
+			go install github.com/toozej/monogo/apps/go-sort-out-gh-actions@latest ; \
 	else \
 			echo "Downloading go-sort-out-gh-actions binary for $(OS)-$(ARCH)..."; \
 			mkdir -p $(CURDIR)/tmp; \
@@ -242,7 +242,7 @@ pre-commit-install: ## Install pre-commit hooks and necessary binaries
 pre-commit-run: ## Run pre-commit hooks against all files
 	pre-commit run --all-files
 	# manually run the following checks since their pre-commits aren't working or don't exist
-	go-licenses report github.com/toozej/go-sort-out-gh-actions/cmd/go-sort-out-gh-actions
+	go-licenses report github.com/toozej/monogo/apps/go-sort-out-gh-actions/cmd/go-sort-out-gh-actions
 	govulncheck ./...
 
 update-golang-version: ## Update to latest Golang version across the repo

@@ -13,13 +13,13 @@
 //
 // Build-time injection example:
 //
-// go build -ldflags "-X github.com/toozej/go-sort-out-gh-actions/pkg/version.Version=v1.0.0 \
-// -X github.com/toozej/go-sort-out-gh-actions/pkg/version.Commit=abc123 \
-// -X github.com/toozej/go-sort-out-gh-actions/pkg/version.Branch=main"
+// go build -ldflags "-X github.com/toozej/monogo/apps/go-sort-out-gh-actions/pkg/version.Version=v1.0.0 \
+// -X github.com/toozej/monogo/apps/go-sort-out-gh-actions/pkg/version.Commit=abc123 \
+// -X github.com/toozej/monogo/apps/go-sort-out-gh-actions/pkg/version.Branch=main"
 //
 // Example usage:
 //
-// import "github.com/toozej/go-sort-out-gh-actions/pkg/version"
+// import "github.com/toozej/monogo/pkg/go-sort-out-gh-actions/version"
 //
 //	// Get version info programmatically
 //	info, err := version.Get()
@@ -52,7 +52,7 @@ import (
 //
 // Build-time injection example:
 //
-// go build -ldflags "-X github.com/toozej/go-sort-out-gh-actions/pkg/version.Version=v1.2.3"
+// go build -ldflags "-X github.com/toozej/monogo/apps/go-sort-out-gh-actions/pkg/version.Version=v1.2.3"
 var (
 	// Version represents the semantic version of the application.
 	// Defaults to "local" for development builds.
