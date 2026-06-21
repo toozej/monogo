@@ -14,7 +14,7 @@
 //
 // Example usage:
 //
-//	import "github.com/toozej/ghreleases2rss/cmd/ghreleases2rss"
+//	import "github.com/toozej/monogo/apps/ghreleases2rss/cmd/ghreleases2rss"
 //
 //	func main() {
 //		cmd.Execute()
@@ -28,10 +28,10 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/toozej/ghreleases2rss/internal/ghreleases2rss"
-	"github.com/toozej/ghreleases2rss/pkg/config"
-	"github.com/toozej/ghreleases2rss/pkg/man"
-	"github.com/toozej/ghreleases2rss/pkg/version"
+	"github.com/toozej/monogo/apps/ghreleases2rss/internal/ghreleases2rss"
+	"github.com/toozej/monogo/pkg/ghreleases2rss/config"
+	"github.com/toozej/monogo/pkg/ghreleases2rss/man"
+	"github.com/toozej/monogo/pkg/ghreleases2rss/version"
 )
 
 // debug controls the logging level for the application.

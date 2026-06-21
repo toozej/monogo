@@ -1,0 +1,12 @@
+{
+  "source": "toozej/ghreleases2rss",
+  "vcsHost": "github.com/",
+  "owner": "toozej",
+  "repo": "ghreleases2rss",
+  "ownerRepo": "toozej/ghreleases2rss",
+  "repoURL": "https://github.com/toozej/ghreleases2rss.git",
+  "ref": "main",
+  "oldModule": "github.com/toozej/ghreleases2rss",
+  "newModule": "github.com/toozej/monogo/apps/ghreleases2rss",
+  "tagPrefix": "apps/ghreleases2rss"
+}

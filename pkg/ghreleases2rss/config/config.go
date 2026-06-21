@@ -17,7 +17,7 @@
 //
 // Example usage:
 //
-//	import "github.com/toozej/ghreleases2rss/pkg/config"
+//	import "github.com/toozej/monogo/pkg/ghreleases2rss/config"
 //
 //	func main() {
 //		conf := config.GetEnvVars()

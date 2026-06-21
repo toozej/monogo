@@ -10,9 +10,9 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/spf13/cobra"
-	"github.com/toozej/ghreleases2rss/internal/github"
-	"github.com/toozej/ghreleases2rss/internal/miniflux"
-	"github.com/toozej/ghreleases2rss/pkg/config"
+	"github.com/toozej/monogo/apps/ghreleases2rss/internal/github"
+	"github.com/toozej/monogo/apps/ghreleases2rss/internal/miniflux"
+	"github.com/toozej/monogo/pkg/ghreleases2rss/config"
 )
 
 func Run(cmd *cobra.Command, args []string, conf config.Config) {
@@ -63,7 +63,7 @@ func Run(cmd *cobra.Command, args []string, conf config.Config) {
 	if err != nil {
 		log.Fatalf("Error opening file: %v", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {

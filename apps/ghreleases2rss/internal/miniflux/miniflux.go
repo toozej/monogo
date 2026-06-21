@@ -40,7 +40,7 @@ func GetCategoryID(apiEndpoint, apiKey, category string) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Check for a successful response
 	if resp.StatusCode != http.StatusOK {
@@ -86,7 +86,7 @@ func SubscribeToFeed(apiEndpoint string, apiKey string, categoryId int, rssFeed 
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode >= 400 {
 		log.Debugf("Got response %s with response code %d\n", resp.Status, resp.StatusCode)
@@ -115,7 +115,7 @@ func GetCategoryFeeds(apiEndpoint string, apiKey string, categoryId int) ([]int,
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Check for a valid response status
 	if resp.StatusCode != http.StatusOK {
@@ -163,7 +163,7 @@ func DeleteFeed(apiEndpoint string, apiKey string, feedId int) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Check the response status
 	if resp.StatusCode == http.StatusNoContent {

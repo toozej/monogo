@@ -4,5 +4,5 @@ FROM scratch
 ARG TARGETPLATFORM
 COPY $TARGETPLATFORM/ghreleases2rss /go/bin/ghreleases2rss
 # Run the binary.
-USER nonroot
+USER 65532:65532
 ENTRYPOINT ["/go/bin/ghreleases2rss"]

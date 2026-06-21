@@ -27,7 +27,7 @@ func TestConfigIntegration(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup environment variables for the test
 			for key, value := range tt.envVars {
-				os.Setenv(key, value)
+				_ = os.Setenv(key, value)
 			}
 
 			// Test configuration loading
@@ -40,7 +40,7 @@ func TestConfigIntegration(t *testing.T) {
 
 			// Clean up environment variables after the test
 			for key := range tt.envVars {
-				os.Unsetenv(key)
+				_ = os.Unsetenv(key)
 			}
 		})
 	}

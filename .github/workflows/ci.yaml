@@ -28,6 +28,7 @@ jobs:
           - go-find-liquor
           - photos2map
           - go-listen
+          - ghreleases2rss
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-go@v6

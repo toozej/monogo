@@ -27,7 +27,7 @@ LDFLAGS = -s -w \
 	-X $(VER).Builder=$(BUILDER)
 	
 # Define the repository URL
-REPO_URL := https://github.com/toozej/ghreleases2rss
+REPO_URL := https://github.com/toozej/monogo/apps/ghreleases2rss
 
 # Docker image info
 IMAGE_AUTHOR = toozej
@@ -83,7 +83,7 @@ release: ## Build and sign Docker image
 verify: ## Verify Docker image with Cosign
 	cosign version
 	cosign verify \
-		--certificate-identity-regexp '^https://github.com/toozej/ghreleases2rss/\.github/workflows/(release|weekly-docker-refresh)\.yaml@refs/(tags/.*|heads/main)$$' \
+		--certificate-identity-regexp '^https://github.com/toozej/monogo/apps/ghreleases2rss/\.github/workflows/(release|weekly-docker-refresh)\.yaml@refs/(tags/.*|heads/main)$$' \
 		--certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
 		$(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG)
 
@@ -113,7 +113,7 @@ distroless-run: ## Run built Docker image using distroless as final base
 
 install: ## Install ghreleases2rss from latest GitHub release
 	if command -v go; then \
-			go install github.com/toozej/ghreleases2rss@latest ; \
+			go install github.com/toozej/monogo/apps/ghreleases2rss@latest ; \
 	else \
 			echo "Downloading ghreleases2rss binary for $(OS)-$(ARCH)..."; \
 			mkdir -p $(CURDIR)/tmp; \
@@ -176,7 +176,7 @@ local-sign: local-test ## Sign locally installed golang toolchain and cosign
 local-verify: ## Verify locally compiled binary
 	if command -v cosign; then \
 		cosign verify-blob \
-			--certificate-identity-regexp '^https://github.com/toozej/ghreleases2rss/\.github/workflows/(release|weekly-docker-refresh)\.yaml@refs/(tags/.*|heads/main)$$' \
+			--certificate-identity-regexp '^https://github.com/toozej/monogo/apps/ghreleases2rss/\.github/workflows/(release|weekly-docker-refresh)\.yaml@refs/(tags/.*|heads/main)$$' \
 			--certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
 			--bundle $(CURDIR)/out/ghreleases2rss.bundle $(CURDIR)/out/ghreleases2rss; \
 	else \
@@ -255,7 +255,7 @@ pre-commit-install: ## Install pre-commit hooks and necessary binaries
 pre-commit-run: ## Run pre-commit hooks against all files
 	pre-commit run --all-files
 	# manually run the following checks since their pre-commits aren't working or don't exist
-	go-licenses report github.com/toozej/ghreleases2rss/cmd/ghreleases2rss
+	go-licenses report github.com/toozej/monogo/apps/ghreleases2rss/cmd/ghreleases2rss
 	govulncheck ./...
 
 update-golang-version: ## Update to latest Golang version across the repo

@@ -1,0 +1,4 @@
+github.com/toozej/monogo/apps/ghreleases2rss/pkg/config	github.com/toozej/monogo/pkg/ghreleases2rss/config
+github.com/toozej/monogo/apps/ghreleases2rss/pkg/man	github.com/toozej/monogo/pkg/ghreleases2rss/man
+apps/ghreleases2rss/pkg/README.md	apps/ghreleases2rss/.monogo/original-pkg/README.md
+github.com/toozej/monogo/apps/ghreleases2rss/pkg/version	github.com/toozej/monogo/pkg/ghreleases2rss/version

@@ -4,6 +4,6 @@ FROM gcr.io/distroless/static-debian13:nonroot
 ARG TARGETPLATFORM
 COPY $TARGETPLATFORM/ghreleases2rss /go/bin/ghreleases2rss
 # Expose port for publishing as web service
-# EXPOSE 8081
+# EXPOSE 8080
 # Run the binary.
 ENTRYPOINT ["/go/bin/ghreleases2rss"]

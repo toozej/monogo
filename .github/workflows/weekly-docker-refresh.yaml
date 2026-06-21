@@ -31,6 +31,7 @@ jobs:
           - go-find-liquor
           - photos2map
           - go-listen
+          - ghreleases2rss
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -133,6 +134,7 @@ jobs:
           - go-find-liquor
           - photos2map
           - go-listen
+          - ghreleases2rss
         registry: ['', 'ghcr.io/', 'quay.io/']
         tag: ['latest', 'distroless']
     steps:

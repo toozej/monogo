@@ -12,7 +12,7 @@ func TestGetCategoryID(t *testing.T) {
 	// Mock server to simulate Miniflux API
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/v1/categories" {
-			fmt.Fprintln(w, `[{"id": 1, "title": "Tech"},{"id": 2, "title": "News"}]`)
+			_, _ = fmt.Fprintln(w, `[{"id": 1, "title": "Tech"},{"id": 2, "title": "News"}]`)
 		}
 	}))
 	defer mockServer.Close()
