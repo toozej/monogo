@@ -2,11 +2,6 @@
 version: 2
 
 project_name: lego-stego
-dist: dist/lego-stego
-
-git:
-  ignore_tags:
-    - apps/*
 
 env:
   - GO111MODULE=on
@@ -18,15 +13,14 @@ env_files:
 before:
   hooks:
     - go mod tidy
-    - ./scripts/completions.sh lego-stego
-    - ./scripts/manpages.sh lego-stego
+    - ./scripts/completions.sh
+    - ./scripts/manpages.sh
 
 snapshot:
   version_template: '{{ incpatch .Version }}-next'
 
 builds:
-  - id: lego-stego
-    env:
+  - env:
       - CGO_ENABLED=0
     goos:
       - linux
@@ -48,12 +42,12 @@ builds:
     ldflags:
       - >-
         -s -w
-        -X github.com/toozej/monogo/pkg/version.Version={{.Version}}
-        -X github.com/toozej/monogo/pkg/version.Commit={{.Commit}}
-        -X github.com/toozej/monogo/pkg/version.Branch={{.Branch}}
-        -X github.com/toozej/monogo/pkg/version.BuiltAt={{.CommitDate}}
-        -X github.com/toozej/monogo/pkg/version.Builder=goreleaser
-    main: ./apps/lego-stego
+        -X github.com/toozej/monogo/apps/lego-stego/pkg/version.Version={{.Version}}
+        -X github.com/toozej/monogo/apps/lego-stego/pkg/version.Commit={{.Commit}}
+        -X github.com/toozej/monogo/apps/lego-stego/pkg/version.Branch={{.Branch}}
+        -X github.com/toozej/monogo/apps/lego-stego/pkg/version.BuiltAt={{.CommitDate}}
+        -X github.com/toozej/monogo/apps/lego-stego/pkg/version.Builder=goreleaser
+    main: ./
     binary: lego-stego
 
 universal_binaries:
@@ -61,9 +55,6 @@ universal_binaries:
 
 checksum:
   name_template: 'checksums.txt'
-
-docker_digest:
-  name_template: 'digests.txt'
 
 changelog:
   sort: asc
@@ -105,32 +96,35 @@ dockers_v2:
       - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ .Version
         }}{{ end }}'
       - "latest"
-    dockerfile: apps/lego-stego/Dockerfile.goreleaser
+      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}v{{ .Version
+        }}-distroless{{ end }}'
+      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ .Version
+        }}-distroless{{ end }}'
+      - "distroless"
+    dockerfile: Dockerfile.goreleaser
     labels:
-      "io.artifacthub.package.readme-url": "https://github.com/toozej/monogo/raw/main/README.md"
+      "io.artifacthub.package.readme-url": "https://raw.githubusercontent.com/toozej/lego-stego/main/README.md"
       "io.artifacthub.package.maintainers": "[{\"name\":\"toozej\"}]"
       "io.artifacthub.package.license": "GPLv3"
-      "org.opencontainers.image.description": >-
-        Go-based CLI tool for Steganography
+      "org.opencontainers.image.description": "Go-based CLI tool for steganography"
       "org.opencontainers.image.created": "{{.Date}}"
       "org.opencontainers.image.name": "{{.ProjectName}}"
       "org.opencontainers.image.revision": "{{.FullCommit}}"
       "org.opencontainers.image.version": "{{.Version}}"
       "org.opencontainers.image.source": "{{.GitURL}}"
       "org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
-      "org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
+      "org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/lego-stego/main/README.md"
       "org.opencontainers.image.licenses": "GPL-3.0-only"
       "org.opencontainers.image.title": "{{.ProjectName}}"
       "org.opencontainers.image.vendor": "James Tooze"
     annotations:
       "index,manifest:org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
       "index,manifest:org.opencontainers.image.created": "{{.Date}}"
-      "index,manifest:org.opencontainers.image.description": >-
-        Go-based CLI tool for Steganography
-      "index,manifest:org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
+      "index,manifest:org.opencontainers.image.description": "Go-based CLI tool for steganography"
+      "index,manifest:org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/lego-stego/main/README.md"
       "index,manifest:org.opencontainers.image.licenses": "GPL-3.0-only"
       "index,manifest:org.opencontainers.image.revision": "{{.FullCommit}}"
-      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/monogo"
+      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/monogo/apps/lego-stego"
       "index,manifest:org.opencontainers.image.title": "{{.ProjectName}}"
       "index,manifest:org.opencontainers.image.vendor": "James Tooze"
       "index,manifest:org.opencontainers.image.version": "{{.Version}}"
@@ -147,32 +141,30 @@ dockers_v2:
       - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ .Version
         }}-distroless{{ end }}'
       - "distroless"
-    dockerfile: apps/lego-stego/Dockerfile.goreleaser.distroless
+    dockerfile: Dockerfile.goreleaser.distroless
     labels:
-      "io.artifacthub.package.readme-url": "https://github.com/toozej/monogo/raw/main/README.md"
+      "io.artifacthub.package.readme-url": "https://raw.githubusercontent.com/toozej/lego-stego/main/README.md"
       "io.artifacthub.package.maintainers": "[{\"name\":\"toozej\"}]"
       "io.artifacthub.package.license": "GPLv3"
-      "org.opencontainers.image.description": >-
-        Go-based CLI tool for Steganography
+      "org.opencontainers.image.description": "Go-based CLI tool for steganography"
       "org.opencontainers.image.created": "{{.Date}}"
       "org.opencontainers.image.name": "{{.ProjectName}}"
       "org.opencontainers.image.revision": "{{.FullCommit}}"
       "org.opencontainers.image.version": "{{.Version}}"
       "org.opencontainers.image.source": "{{.GitURL}}"
       "org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
-      "org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
+      "org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/lego-stego/main/README.md"
       "org.opencontainers.image.licenses": "GPL-3.0-only"
       "org.opencontainers.image.title": "{{.ProjectName}}"
       "org.opencontainers.image.vendor": "James Tooze"
     annotations:
       "index,manifest:org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
       "index,manifest:org.opencontainers.image.created": "{{.Date}}"
-      "index,manifest:org.opencontainers.image.description": >-
-        Go-based CLI tool for Steganography
-      "index,manifest:org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
+      "index,manifest:org.opencontainers.image.description": "Go-based CLI tool for steganography"
+      "index,manifest:org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/lego-stego/main/README.md"
       "index,manifest:org.opencontainers.image.licenses": "GPL-3.0-only"
       "index,manifest:org.opencontainers.image.revision": "{{.FullCommit}}"
-      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/monogo"
+      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/monogo/apps/lego-stego"
       "index,manifest:org.opencontainers.image.title": "{{.ProjectName}}"
       "index,manifest:org.opencontainers.image.vendor": "James Tooze"
       "index,manifest:org.opencontainers.image.version": "{{.Version}}"
@@ -192,20 +184,18 @@ archives:
     files:
       - README.md
       - LICENSE
-      - completions/lego-stego.bash
-      - completions/lego-stego.fish
-      - completions/lego-stego.zsh
-      - manpages/lego-stego.1.gz
+      - completions/*
+      - manpages/*
 
 nfpms:
   - file_name_template: '{{ .ConventionalFileName }}'
     id: packages
-    homepage: https://github.com/toozej/monogo
+    homepage: https://github.com/toozej/monogo/apps/lego-stego
     description: |-
-      Go-based CLI tool for Steganography
+      Go-based CLI tool for steganography
     maintainer: toozej
     license: GPLv3
-    vendor: monogo
+    vendor: lego-stego
     bindir: /usr/bin
     section: utils
     contents:
@@ -244,9 +234,8 @@ nfpms:
 
 homebrew_casks:
   - name: lego-stego
-    homepage: https://github.com/toozej/monogo
-    description: >-
-      Go-based CLI tool for Steganography
+    homepage: https://github.com/toozej/monogo/apps/lego-stego
+    description: "Go-based CLI tool for steganography"
     license: GPLv3
     repository:
       owner: toozej
@@ -259,7 +248,7 @@ homebrew_casks:
       zsh: "completions/lego-stego.zsh"
       fish: "completions/lego-stego.fish"
     url:
-      verified: "github.com/toozej/monogo/releases/download"
+      verified: "github.com/toozej/monogo/apps/lego-stego/releases/download"
     hooks:
       post:
         install: |
@@ -294,7 +283,6 @@ milestones:
   - close: true
 
 release:
-  mode: append
   disable: '{{ eq (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}'
   footer: |
-    **Full Changelog**: https://github.com/toozej/monogo/compare/{{ .PreviousTag }}...{{ .Tag }}
+    **Full Changelog**: https://github.com/toozej/monogo/apps/lego-stego/compare/{{ .PreviousTag }}...{{ .Tag }}

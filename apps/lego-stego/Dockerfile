@@ -3,23 +3,25 @@ FROM golang:1.26-trixie AS init
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-WORKDIR /go/lego-stego/
+WORKDIR /workspace/
 
 COPY go.mod* go.sum* ./
 RUN go mod download
 
-COPY . ./
+# Copy only the selected app and shared packages so unrelated apps stay out of the build context
+COPY apps/lego-stego ./apps/lego-stego
+COPY pkg ./pkg
 
 FROM init AS vet
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-RUN go vet ./...
+RUN go vet ./apps/lego-stego/... ./pkg/...
 
 # run tests
 FROM init AS test
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-RUN go test -coverprofile c.out -v ./... && \
-	echo "Statements missing coverage" && \
-	grep -v -e " 1$" c.out
+RUN go test -coverprofile c.out -v ./apps/lego-stego/... ./pkg/... && \
+    echo "Statements missing coverage" && \
+    grep -v -e " 1$" c.out
 
 # build binary
 FROM init AS build
@@ -30,17 +32,15 @@ ARG BRANCH=unknown
 ARG BUILT_AT=unknown
 ARG BUILDER=unknown
 
-RUN PKG=$(head -n 1 go.mod | cut -c 8-) && \
-    LDFLAGS="-s -w -X ${PKG}/pkg/version.Version=${VERSION} -X ${PKG}/pkg/version.Commit=${COMMIT} -X ${PKG}/pkg/version.Branch=${BRANCH} -X ${PKG}/pkg/version.BuiltAt=${BUILT_AT} -X ${PKG}/pkg/version.Builder=${BUILDER}" && \
-    CGO_ENABLED=0 go build -ldflags="${LDFLAGS}"
-
-# Install coreutils for sleep and other utilities utilized in devcontainer
-RUN apt-get update && apt-get install --no-install-recommends -y coreutils
+RUN LDFLAGS="-s -w -X github.com/toozej/monogo/pkg/version.Version=${VERSION} -X github.com/toozej/monogo/pkg/version.Commit=${COMMIT} -X github.com/toozej/monogo/pkg/version.Branch=${BRANCH} -X github.com/toozej/monogo/pkg/version.BuiltAt=${BUILT_AT} -X github.com/toozej/monogo/pkg/version.Builder=${BUILDER}" && \
+    CGO_ENABLED=0 go build -o /out/lego-stego -ldflags="${LDFLAGS}" ./apps/lego-stego
 
 # runtime image
 FROM scratch
-# Copy our static executable.
-COPY --from=build /go/lego-stego/lego-stego /go/bin/lego-stego
+# Copy our executable.
+COPY --from=build /out/lego-stego /go/bin/lego-stego
+# Expose port for publishing as web service
+# EXPOSE 8081
 # Run the binary.
-USER nonroot
+USER 65532:65532
 ENTRYPOINT ["/go/bin/lego-stego"]

@@ -27,7 +27,7 @@ LDFLAGS = -s -w \
 	-X $(VER).Builder=$(BUILDER)
 	
 # Define the repository URL
-REPO_URL := https://github.com/toozej/lego-stego
+REPO_URL := https://github.com/toozej/monogo/apps/lego-stego
 
 # Define Docker image info
 IMAGE_AUTHOR = toozej
@@ -82,7 +82,7 @@ release: ## Build and sign Docker image
 
 verify: ## Verify Docker image with Cosign
 	cosign verify \
-		--certificate-identity-regexp '^https://github.com/toozej/lego-stego/.github/workflows/(release|weekly-docker-refresh)\.yaml@refs/(tags/.*|heads/main)$$' \
+		--certificate-identity-regexp '^https://github.com/toozej/monogo/apps/lego-stego/.github/workflows/(release|weekly-docker-refresh)\.yaml@refs/(tags/.*|heads/main)$$' \
 		--certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
 		$(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG)
 
@@ -112,7 +112,7 @@ distroless-run: ## Run built Docker image using distroless as final base
 
 install: ## Install lego-stego from latest GitHub release
 	if command -v go; then \
-			go install github.com/toozej/lego-stego@latest ; \
+			go install github.com/toozej/monogo/apps/lego-stego@latest ; \
 	else \
 			echo "Downloading lego-stego binary for $(OS)-$(ARCH)..."; \
 			mkdir -p $(CURDIR)/tmp; \
@@ -176,7 +176,7 @@ local-verify: ## Verify locally compiled binary
 	@if test -e $(CURDIR)/out/lego-stego.bundle; then \
 		echo "Verifying locally compiled binary with keyless signature..."; \
 		cosign verify-blob \
-			--certificate-identity-regexp '^https://github.com/toozej/lego-stego/.github/workflows/release.yaml@refs/tags/.*$$' \
+			--certificate-identity-regexp '^https://github.com/toozej/monogo/apps/lego-stego/.github/workflows/release.yaml@refs/tags/.*$$' \
 			--certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
 			--bundle $(CURDIR)/out/lego-stego.bundle \
 			$(CURDIR)/out/lego-stego; \
@@ -256,7 +256,7 @@ pre-commit-install: ## Install pre-commit hooks and necessary binaries
 pre-commit-run: ## Run pre-commit hooks against all files
 	pre-commit run --all-files
 	# manually run the following checks since their pre-commits aren't working or don't exist
-	go-licenses report github.com/toozej/lego-stego/cmd/lego-stego
+	go-licenses report github.com/toozej/monogo/apps/lego-stego/cmd/lego-stego
 	govulncheck ./...
 
 update-golang-version: ## Update to latest Golang version across the repo

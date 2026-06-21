@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/toozej/lego-stego/internal/steg"
+	"github.com/toozej/monogo/apps/lego-stego/internal/steg"
 )
 
 var infoInput string

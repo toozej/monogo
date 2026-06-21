@@ -1,0 +1,5 @@
+github.com/toozej/monogo/apps/lego-stego/pkg/api	github.com/toozej/monogo/apps/lego-stego/internal/api
+github.com/toozej/monogo/apps/lego-stego/pkg/config	github.com/toozej/monogo/pkg/lego-stego/config
+github.com/toozej/monogo/apps/lego-stego/pkg/man	github.com/toozej/monogo/pkg/lego-stego/man
+apps/lego-stego/pkg/README.md	apps/lego-stego/.monogo/original-pkg/README.md
+github.com/toozej/monogo/apps/lego-stego/pkg/version	github.com/toozej/monogo/pkg/lego-stego/version

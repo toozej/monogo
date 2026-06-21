@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/toozej/lego-stego/internal/ecc"
+	"github.com/toozej/monogo/apps/lego-stego/internal/ecc"
 )
 
 func TestECCRecovery(t *testing.T) {

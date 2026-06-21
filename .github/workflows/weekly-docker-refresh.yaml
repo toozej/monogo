@@ -32,6 +32,8 @@ jobs:
           - photos2map
           - go-listen
           - ghreleases2rss
+          - terranotate
+          - lego-stego
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -135,6 +137,8 @@ jobs:
           - photos2map
           - go-listen
           - ghreleases2rss
+          - terranotate
+          - lego-stego
         registry: ['', 'ghcr.io/', 'quay.io/']
         tag: ['latest', 'distroless']
     steps:

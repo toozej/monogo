@@ -17,7 +17,7 @@
 //
 // Example usage:
 //
-//	import "github.com/toozej/lego-stego/pkg/config"
+//	import "github.com/toozej/monogo/pkg/lego-stego/config"
 //
 //	func main() {
 //		conf := config.GetEnvVars()

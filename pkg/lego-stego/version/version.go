@@ -13,13 +13,13 @@
 //
 // Build-time injection example:
 //
-//	go build -ldflags "-X github.com/toozej/lego-stego/pkg/version.Version=v1.0.0 \
-//	  -X github.com/toozej/lego-stego/pkg/version.Commit=abc123 \
-//	  -X github.com/toozej/lego-stego/pkg/version.Branch=main"
+//	go build -ldflags "-X github.com/toozej/monogo/apps/lego-stego/pkg/version.Version=v1.0.0 \
+//	  -X github.com/toozej/monogo/apps/lego-stego/pkg/version.Commit=abc123 \
+//	  -X github.com/toozej/monogo/apps/lego-stego/pkg/version.Branch=main"
 //
 // Example usage:
 //
-//	import "github.com/toozej/lego-stego/pkg/version"
+//	import "github.com/toozej/monogo/pkg/lego-stego/version"
 //
 //	// Get version info programmatically
 //	info, err := version.Get()
@@ -52,7 +52,7 @@ import (
 //
 // Build-time injection example:
 //
-//	go build -ldflags "-X github.com/toozej/lego-stego/pkg/version.Version=v1.2.3"
+//	go build -ldflags "-X github.com/toozej/monogo/apps/lego-stego/pkg/version.Version=v1.2.3"
 var (
 	// Version represents the semantic version of the application.
 	// Defaults to "local" for development builds.

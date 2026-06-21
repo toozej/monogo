@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/toozej/lego-stego/internal/steg"
+	"github.com/toozej/monogo/apps/lego-stego/internal/steg"
 )
 
 func createNoisyGrayCarrier(w, h int) image.Image {

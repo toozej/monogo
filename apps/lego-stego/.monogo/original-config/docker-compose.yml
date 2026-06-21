@@ -1,0 +1,21 @@
+---
+services:
+  lego-stego:
+    container_name: lego-stego
+    image: toozej/lego-stego:latest
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    labels:
+      - "traefik.enable=false"
+      # labels below for publishing as web service
+      # - "traefik.docker.network=traefik"
+      # - "traefik.http.routers.lego-stego.rule=Host(`lego-stego.test`)"
+      # - "traefik.http.routers.lego-stego.middlewares=http-redirect-https@file,headers@file"
+      # - "traefik.http.routers.lego-stego-secure.entrypoints=https"
+      # - "traefik.http.routers.lego-stego-secure.rule=Host(`lego-stego.test`)"
+      # - "traefik.http.routers.lego-stego-secure.middlewares=headers@file"
+      # - "traefik.http.routers.lego-stego-secure.tls=true"
+    # networks:
+      # - traefik

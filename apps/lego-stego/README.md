@@ -1,7 +1,7 @@
 # lego-stego
 
 ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/toozej/lego-stego)
-[![Go Report Card](https://goreportcard.com/badge/github.com/toozej/lego-stego)](https://goreportcard.com/report/github.com/toozej/lego-stego)
+[![Go Report Card](https://goreportcard.com/badge/github.com/toozej/monogo/apps/lego-stego)](https://goreportcard.com/report/github.com/toozej/monogo/apps/lego-stego)
 ![GitHub Actions CI Workflow Status](https://img.shields.io/github/actions/workflow/status/toozej/lego-stego/ci.yaml)
 ![GitHub Actions Release Workflow Status](https://img.shields.io/github/actions/workflow/status/toozej/lego-stego/release.yaml)
 ![GitHub Actions Weekly Docker Refresh Workflow Status](https://img.shields.io/github/actions/workflow/status/toozej/lego-stego/weekly-docker-refresh.yaml)

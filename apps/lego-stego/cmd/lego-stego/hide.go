@@ -4,7 +4,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/toozej/lego-stego/pkg/api"
+	"github.com/toozej/monogo/apps/lego-stego/internal/api"
 )
 
 var hideInput, hideOutput, hideFile, hidePassword string

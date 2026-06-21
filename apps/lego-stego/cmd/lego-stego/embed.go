@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"github.com/spf13/cobra"
-	"github.com/toozej/lego-stego/pkg/api"
+	"github.com/toozej/monogo/apps/lego-stego/internal/api"
 )
 
 var embedInput, embedOutput, embedURL, embedPassword string

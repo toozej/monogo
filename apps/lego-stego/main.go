@@ -5,7 +5,7 @@
 // configuration management.
 package main
 
-import cmd "github.com/toozej/lego-stego/cmd/lego-stego"
+import cmd "github.com/toozej/monogo/apps/lego-stego/cmd/lego-stego"
 
 // main is the entry point of the lego-stego application.
 // It delegates execution to the cmd package which handles all

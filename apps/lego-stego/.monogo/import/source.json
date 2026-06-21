@@ -1,0 +1,12 @@
+{
+  "source": "toozej/lego-stego",
+  "vcsHost": "github.com/",
+  "owner": "toozej",
+  "repo": "lego-stego",
+  "ownerRepo": "toozej/lego-stego",
+  "repoURL": "https://github.com/toozej/lego-stego.git",
+  "ref": "main",
+  "oldModule": "github.com/toozej/lego-stego",
+  "newModule": "github.com/toozej/monogo/apps/lego-stego",
+  "tagPrefix": "apps/lego-stego"
+}

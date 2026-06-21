@@ -114,6 +114,6 @@ jobs:
         run: |
           cosign version
           cosign verify \
-            --certificate-identity-regexp '^https://github.com/toozej/lego-stego/\.github/workflows/(release|weekly-docker-refresh)\.yaml@refs/(tags/.*|heads/main)$' \
+            --certificate-identity-regexp '^https://github.com/toozej/monogo/apps/lego-stego/\.github/workflows/(release|weekly-docker-refresh)\.yaml@refs/(tags/.*|heads/main)$' \
             --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
             ${{ matrix.registry }}toozej/lego-stego:${{ matrix.tag }}

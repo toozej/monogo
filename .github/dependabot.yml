@@ -165,3 +165,31 @@ updates:
     patterns:
       - "*"
     multi-ecosystem-group: "combined"
+  - package-ecosystem: "docker"
+    directory: "/apps/terranotate"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    patterns:
+      - "*"
+    multi-ecosystem-group: "combined"
+  - package-ecosystem: "docker"
+    directory: "/apps/lego-stego"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    patterns:
+      - "*"
+    multi-ecosystem-group: "combined"

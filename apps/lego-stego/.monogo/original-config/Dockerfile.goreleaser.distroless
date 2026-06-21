@@ -1,8 +1,9 @@
-# runtime image
-FROM scratch
+# runtime image including CA certs and tzdata
+FROM gcr.io/distroless/static-debian13:nonroot
 # Copy our static executable.
 ARG TARGETPLATFORM
 COPY $TARGETPLATFORM/lego-stego /go/bin/lego-stego
+# Expose port for publishing as web service
+# EXPOSE 8081
 # Run the binary.
-USER 65532:65532
 ENTRYPOINT ["/go/bin/lego-stego"]

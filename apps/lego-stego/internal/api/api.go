@@ -6,7 +6,7 @@ import (
 	"image/png"
 	"os"
 
-	"github.com/toozej/lego-stego/internal/steg"
+	"github.com/toozej/monogo/apps/lego-stego/internal/steg"
 )
 
 func EmbedQR(in, out, url string, password string) error {

@@ -29,6 +29,8 @@ jobs:
           - photos2map
           - go-listen
           - ghreleases2rss
+          - terranotate
+          - lego-stego
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-go@v6

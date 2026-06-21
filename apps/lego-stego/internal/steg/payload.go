@@ -4,8 +4,8 @@ import (
 	"errors"
 	"math"
 
-	"github.com/toozej/lego-stego/internal/crypto"
-	"github.com/toozej/lego-stego/internal/ecc"
+	"github.com/toozej/monogo/apps/lego-stego/internal/crypto"
+	"github.com/toozej/monogo/apps/lego-stego/internal/ecc"
 )
 
 func BuildPayload(data []byte, password string, channels uint8) ([]byte, error) {

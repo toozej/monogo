@@ -2,7 +2,8 @@ package cmd
 
 import (
 	"github.com/spf13/cobra"
-	"github.com/toozej/lego-stego/pkg/version"
+	"github.com/toozej/monogo/pkg/lego-stego/man"
+	"github.com/toozej/monogo/pkg/lego-stego/version"
 )
 
 var rootCmd = &cobra.Command{
@@ -11,7 +12,10 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(version.Command())
+	rootCmd.AddCommand(
+		man.NewManCmd(),
+		version.Command(),
+	)
 }
 
 func Execute() {

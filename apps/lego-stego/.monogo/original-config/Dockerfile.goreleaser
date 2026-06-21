@@ -4,5 +4,4 @@ FROM scratch
 ARG TARGETPLATFORM
 COPY $TARGETPLATFORM/lego-stego /go/bin/lego-stego
 # Run the binary.
-USER 65532:65532
 ENTRYPOINT ["/go/bin/lego-stego"]
