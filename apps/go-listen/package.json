@@ -1,0 +1,26 @@
+{
+  "name": "go-listen",
+  "version": "1.0.0",
+  "description": "JavaScript tests for go-listen web interface",
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "devDependencies": {
+    "jest": "^30.3.0",
+    "jest-environment-jsdom": "^30.3.0"
+  },
+  "jest": {
+    "testEnvironment": "jsdom",
+    "testMatch": [
+      "**/static/js/**/*.test.js"
+    ],
+    "collectCoverageFrom": [
+      "internal/server/static/js/app.js"
+    ],
+    "setupFilesAfterEnv": [
+      "<rootDir>/jest.setup.js"
+    ]
+  }
+}

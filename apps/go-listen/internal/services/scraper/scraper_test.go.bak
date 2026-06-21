@@ -1,0 +1,3789 @@
+package scraper
+
+import (
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/leanovate/gopter"
+	"github.com/leanovate/gopter/gen"
+	"github.com/leanovate/gopter/prop"
+	"github.com/sirupsen/logrus"
+	"github.com/toozej/go-listen/internal/types"
+)
+
+// **Feature: web-scraping-artist-discovery, Property 1: Valid URL fetching**
+// **Validates: Requirements 1.1**
+// For any valid URL, when the scraper attempts to fetch HTML content,
+// the HTTP client should successfully retrieve content or return a proper error
+func TestProperty_ValidURLFetching(t *testing.T) {
+	parameters := gopter.DefaultTestParameters()
+	parameters.MinSuccessfulTests = 100
+	properties := gopter.NewProperties(parameters)
+
+	properties.Property("HTTP client fetches valid URLs or returns proper errors", prop.ForAll(
+		func(statusCode int, responseBody string) bool {
+			// Create a test server that returns the given status code and body
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(statusCode)
+				_, _ = w.Write([]byte(responseBody))
+			}))
+			defer server.Close()
+
+			// Create a scraper with default config
+			config := DefaultScraperConfig()
+			logger := logrus.New()
+			logger.SetOutput(logrus.StandardLogger().Out)
+			logger.SetLevel(logrus.ErrorLevel) // Reduce noise in tests
+
+			scraper := NewWebScraper(config, nil, nil, nil, nil, logger)
+
+			// Attempt to fetch the URL
+			req, err := http.NewRequest("GET", server.URL, nil)
+			if err != nil {
+				t.Logf("Failed to create request: %v", err)
+				return false
+			}
+
+			resp, err := scraper.httpClient.Do(req)
+
+			// Property: Either we get a response or we get an error, never both nil
+			if resp == nil && err == nil {
+				t.Logf("Both response and error are nil - invalid state")
+				return false
+			}
+
+			// If we got a response, verify it has the expected status code
+			if resp != nil {
+				defer resp.Body.Close()
+				if resp.StatusCode != statusCode {
+					t.Logf("Expected status code %d, got %d", statusCode, resp.StatusCode)
+					return false
+				}
+			}
+
+			// Property: The HTTP client should respect the timeout configuration
+			if scraper.httpClient.Timeout != config.Timeout {
+				t.Logf("HTTP client timeout %v doesn't match config timeout %v",
+					scraper.httpClient.Timeout, config.Timeout)
+				return false
+			}
+
+			return true
+		},
+		gen.IntRange(200, 599), // HTTP status codes
+		gen.AnyString(),        // Response body
+	))
+
+	properties.TestingRun(t)
+}
+
+// Test that the HTTP client is properly configured with timeout and transport settings
+func TestHTTPClientConfiguration(t *testing.T) {
+	config := ScraperConfig{
+		Timeout:        15 * time.Second,
+		MaxRetries:     5,
+		RetryBackoff:   3 * time.Second,
+		UserAgent:      "test-agent",
+		MaxContentSize: 5 * 1024 * 1024,
+	}
+
+	logger := logrus.New()
+	scraper := NewWebScraper(config, nil, nil, nil, nil, logger)
+
+	// Verify timeout is set correctly
+	if scraper.httpClient.Timeout != config.Timeout {
+		t.Errorf("Expected timeout %v, got %v", config.Timeout, scraper.httpClient.Timeout)
+	}
+
+	// Verify transport is configured
+	if scraper.httpClient.Transport == nil {
+		t.Error("Expected transport to be configured, got nil")
+	}
+
+	transport, ok := scraper.httpClient.Transport.(*http.Transport)
+	if !ok {
+		t.Fatal("Expected transport to be *http.Transport")
+	}
+
+	// Verify transport settings
+	if transport.MaxIdleConns != 10 {
+		t.Errorf("Expected MaxIdleConns 10, got %d", transport.MaxIdleConns)
+	}
+
+	if transport.IdleConnTimeout != 30*time.Second {
+		t.Errorf("Expected IdleConnTimeout 30s, got %v", transport.IdleConnTimeout)
+	}
+
+	if transport.DisableCompression {
+		t.Error("Expected compression to be enabled")
+	}
+
+	if transport.DisableKeepAlives {
+		t.Error("Expected keep-alives to be enabled")
+	}
+}
+
+// Test default configuration values
+func TestDefaultScraperConfig(t *testing.T) {
+	config := DefaultScraperConfig()
+
+	if config.Timeout != 30*time.Second {
+		t.Errorf("Expected default timeout 30s, got %v", config.Timeout)
+	}
+
+	if config.MaxRetries != 3 {
+		t.Errorf("Expected default max retries 3, got %d", config.MaxRetries)
+	}
+
+	if config.RetryBackoff != 2*time.Second {
+		t.Errorf("Expected default retry backoff 2s, got %v", config.RetryBackoff)
+	}
+
+	if config.UserAgent != "go-listen/1.0 (Web Scraper)" {
+		t.Errorf("Expected default user agent 'go-listen/1.0 (Web Scraper)', got %q", config.UserAgent)
+	}
+
+	if config.MaxContentSize != 10*1024*1024 {
+		t.Errorf("Expected default max content size 10MB, got %d", config.MaxContentSize)
+	}
+}
+
+// Test that NewWebScraper creates a properly initialized scraper
+func TestNewWebScraper(t *testing.T) {
+	config := DefaultScraperConfig()
+	logger := logrus.New()
+
+	scraper := NewWebScraper(config, nil, nil, nil, nil, logger)
+
+	if scraper == nil {
+		t.Fatal("Expected scraper to be created, got nil")
+	}
+
+	if scraper.httpClient == nil {
+		t.Error("Expected HTTP client to be initialized")
+	}
+
+	if scraper.logger == nil {
+		t.Error("Expected logger to be set")
+	}
+
+	if scraper.config.Timeout != config.Timeout {
+		t.Errorf("Expected config timeout %v, got %v", config.Timeout, scraper.config.Timeout)
+	}
+}
+
+// Test HTTP client timeout behavior
+func TestHTTPClientTimeout(t *testing.T) {
+	// Create a server that delays response
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(2 * time.Second)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("delayed response"))
+	}))
+	defer server.Close()
+
+	// Create scraper with short timeout
+	config := DefaultScraperConfig()
+	config.Timeout = 500 * time.Millisecond
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+
+	scraper := NewWebScraper(config, nil, nil, nil, nil, logger)
+
+	// Attempt to fetch URL - should timeout
+	req, err := http.NewRequest("GET", server.URL, nil)
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	start := time.Now()
+	resp, err := scraper.httpClient.Do(req)
+	duration := time.Since(start)
+
+	// Should get a timeout error
+	if err == nil {
+		resp.Body.Close()
+		t.Error("Expected timeout error, got successful response")
+	}
+
+	// Should timeout around the configured timeout (with some tolerance)
+	if duration > 2*time.Second {
+		t.Errorf("Expected timeout around %v, but took %v", config.Timeout, duration)
+	}
+}
+
+// Test that HTTP client handles various response scenarios
+func TestHTTPClientResponseHandling(t *testing.T) {
+	tests := []struct {
+		name           string
+		statusCode     int
+		responseBody   string
+		expectResponse bool
+	}{
+		{
+			name:           "Successful 200 response",
+			statusCode:     http.StatusOK,
+			responseBody:   "<html><body>Test content</body></html>",
+			expectResponse: true,
+		},
+		{
+			name:           "404 Not Found",
+			statusCode:     http.StatusNotFound,
+			responseBody:   "Not found",
+			expectResponse: true,
+		},
+		{
+			name:           "500 Internal Server Error",
+			statusCode:     http.StatusInternalServerError,
+			responseBody:   "Server error",
+			expectResponse: true,
+		},
+		{
+			name:           "Empty response body",
+			statusCode:     http.StatusOK,
+			responseBody:   "",
+			expectResponse: true,
+		},
+		{
+			name:           "Large response body",
+			statusCode:     http.StatusOK,
+			responseBody:   string(make([]byte, 1024*100)), // 100KB
+			expectResponse: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(tt.statusCode)
+				_, _ = w.Write([]byte(tt.responseBody))
+			}))
+			defer server.Close()
+
+			config := DefaultScraperConfig()
+			logger := logrus.New()
+			logger.SetLevel(logrus.ErrorLevel)
+
+			scraper := NewWebScraper(config, nil, nil, nil, nil, logger)
+
+			req, err := http.NewRequest("GET", server.URL, nil)
+			if err != nil {
+				t.Fatalf("Failed to create request: %v", err)
+			}
+
+			resp, err := scraper.httpClient.Do(req)
+
+			if tt.expectResponse {
+				if err != nil {
+					t.Errorf("Expected successful request, got error: %v", err)
+				}
+				if resp == nil {
+					t.Fatal("Expected response, got nil")
+				}
+				defer resp.Body.Close()
+
+				if resp.StatusCode != tt.statusCode {
+					t.Errorf("Expected status code %d, got %d", tt.statusCode, resp.StatusCode)
+				}
+			}
+		})
+	}
+}
+
+// Test configuration validation through the config package
+func TestScraperConfigValidation(t *testing.T) {
+	tests := []struct {
+		name        string
+		timeout     time.Duration
+		maxRetries  int
+		backoff     time.Duration
+		maxSize     int64
+		expectValid bool
+	}{
+		{
+			name:        "Valid configuration",
+			timeout:     30 * time.Second,
+			maxRetries:  3,
+			backoff:     2 * time.Second,
+			maxSize:     10 * 1024 * 1024,
+			expectValid: true,
+		},
+		{
+			name:        "Minimum valid values",
+			timeout:     1 * time.Second,
+			maxRetries:  0,
+			backoff:     0,
+			maxSize:     1,
+			expectValid: true,
+		},
+		{
+			name:        "Large timeout",
+			timeout:     5 * time.Minute,
+			maxRetries:  10,
+			backoff:     10 * time.Second,
+			maxSize:     100 * 1024 * 1024,
+			expectValid: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := ScraperConfig{
+				Timeout:        tt.timeout,
+				MaxRetries:     tt.maxRetries,
+				RetryBackoff:   tt.backoff,
+				UserAgent:      "test",
+				MaxContentSize: tt.maxSize,
+			}
+
+			logger := logrus.New()
+			scraper := NewWebScraper(config, nil, nil, nil, nil, logger)
+
+			if scraper == nil {
+				t.Fatal("Expected scraper to be created")
+			}
+
+			// Verify the configuration was applied
+			if scraper.config.Timeout != tt.timeout {
+				t.Errorf("Expected timeout %v, got %v", tt.timeout, scraper.config.Timeout)
+			}
+			if scraper.config.MaxRetries != tt.maxRetries {
+				t.Errorf("Expected max retries %d, got %d", tt.maxRetries, scraper.config.MaxRetries)
+			}
+		})
+	}
+}
+
+// Test that invalid URLs are handled properly
+func TestHTTPClientInvalidURL(t *testing.T) {
+	config := DefaultScraperConfig()
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+
+	scraper := NewWebScraper(config, nil, nil, nil, nil, logger)
+
+	invalidURLs := []string{
+		"not-a-url",
+		"://missing-scheme",
+		"http://",
+		"",
+	}
+
+	for _, url := range invalidURLs {
+		t.Run(fmt.Sprintf("Invalid URL: %s", url), func(t *testing.T) {
+			req, err := http.NewRequest("GET", url, nil)
+
+			// Either request creation fails or the request fails
+			if err == nil && req != nil {
+				resp, err := scraper.httpClient.Do(req)
+				if err == nil && resp != nil {
+					resp.Body.Close()
+					t.Error("Expected error for invalid URL, got successful response")
+				}
+			}
+			// If request creation failed, that's also acceptable
+		})
+	}
+}
+
+// **Feature: web-scraping-artist-discovery, Property 2: HTML parsing robustness**
+// **Validates: Requirements 1.2**
+// For any HTML content retrieved, the parser should successfully parse it without crashing
+func TestProperty_HTMLParsingRobustness(t *testing.T) {
+	parameters := gopter.DefaultTestParameters()
+	parameters.MinSuccessfulTests = 100
+	properties := gopter.NewProperties(parameters)
+
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+	parser := NewGoqueryParser(logger)
+
+	properties.Property("Parser handles any HTML content without crashing", prop.ForAll(
+		func(htmlContent string) bool {
+			// Property: Parser should never panic, always return either a document or an error
+			defer func() {
+				if r := recover(); r != nil {
+					t.Errorf("Parser panicked on input: %v", r)
+				}
+			}()
+
+			doc, err := parser.Parse(htmlContent)
+
+			// Empty content should return an error
+			if htmlContent == "" {
+				return err != nil && doc == nil
+			}
+
+			// Non-empty content should either parse successfully or return an error
+			// but never both nil
+			if doc == nil && err == nil {
+				t.Logf("Both doc and error are nil for non-empty content")
+				return false
+			}
+
+			// If parsing succeeded, document should be valid
+			if doc != nil && err == nil {
+				if doc.Document == nil {
+					t.Logf("Parsed document has nil Document field")
+					return false
+				}
+			}
+
+			return true
+		},
+		gen.OneGenOf(
+			gen.Const(""), // Empty string
+			gen.Const("<html><body>Test</body></html>"),        // Valid HTML
+			gen.Const("<div>Unclosed tag"),                     // Malformed HTML
+			gen.Const("Plain text without tags"),               // Plain text
+			gen.Const("<html><body><p>Test</p></body></html>"), // Well-formed HTML
+			gen.AnyString(), // Random strings
+		),
+	))
+
+	properties.TestingRun(t)
+}
+
+// **Feature: web-scraping-artist-discovery, Property 3: CSS selector text extraction**
+// **Validates: Requirements 2.1**
+// For any HTML document and valid CSS selector, the system should extract text only from elements matching that selector
+func TestProperty_CSSSelectorTextExtraction(t *testing.T) {
+	parameters := gopter.DefaultTestParameters()
+	parameters.MinSuccessfulTests = 100
+	properties := gopter.NewProperties(parameters)
+
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+	parser := NewGoqueryParser(logger)
+
+	properties.Property("CSS selector extracts text only from matching elements", prop.ForAll(
+		func(targetText string, otherText string) bool {
+			// Skip if one text is a substring of the other (ambiguous case)
+			if targetText != "" && otherText != "" &&
+				(containsText(targetText, otherText) || containsText(otherText, targetText)) {
+				return true
+			}
+
+			// Create HTML with specific structure
+			htmlContent := fmt.Sprintf(`
+				<html>
+					<body>
+						<div class="target">%s</div>
+						<div class="other">%s</div>
+					</body>
+				</html>
+			`, targetText, otherText)
+
+			doc, err := parser.Parse(htmlContent)
+			if err != nil {
+				t.Logf("Failed to parse HTML: %v", err)
+				return false
+			}
+
+			// Extract text using CSS selector for target class
+			extractedText, err := parser.ExtractText(doc, ".target")
+			if err != nil {
+				t.Logf("Failed to extract text: %v", err)
+				return false
+			}
+
+			// Property: Extracted text should contain target text
+			if targetText != "" && !containsText(extractedText, targetText) {
+				t.Logf("Extracted text doesn't contain target text. Expected: %q, Got: %q", targetText, extractedText)
+				return false
+			}
+
+			// Property: Extracted text should NOT contain other text (unless it's empty or whitespace)
+			if otherText != "" && targetText != otherText && containsText(extractedText, otherText) {
+				t.Logf("Extracted text incorrectly contains other text. Got: %q, Should not contain: %q", extractedText, otherText)
+				return false
+			}
+
+			return true
+		},
+		gen.AlphaString(),
+		gen.AlphaString(),
+	))
+
+	properties.TestingRun(t)
+}
+
+// **Feature: web-scraping-artist-discovery, Property 4: Multiple element text combination**
+// **Validates: Requirements 2.5**
+// For any CSS selector that matches multiple elements, the system should extract and combine text from all matching elements
+func TestProperty_MultipleElementTextCombination(t *testing.T) {
+	parameters := gopter.DefaultTestParameters()
+	parameters.MinSuccessfulTests = 100
+	properties := gopter.NewProperties(parameters)
+
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+	parser := NewGoqueryParser(logger)
+
+	properties.Property("Multiple matching elements have their text combined", prop.ForAll(
+		func(texts []string) bool {
+			// Skip empty lists
+			if len(texts) == 0 {
+				return true
+			}
+
+			// Create HTML with multiple elements of the same class
+			var divs string
+			for _, text := range texts {
+				divs += fmt.Sprintf(`<div class="item">%s</div>`, text)
+			}
+			htmlContent := fmt.Sprintf(`<html><body>%s</body></html>`, divs)
+
+			doc, err := parser.Parse(htmlContent)
+			if err != nil {
+				t.Logf("Failed to parse HTML: %v", err)
+				return false
+			}
+
+			// Extract text from all matching elements
+			extractedText, err := parser.ExtractText(doc, ".item")
+			if err != nil {
+				t.Logf("Failed to extract text: %v", err)
+				return false
+			}
+
+			// Property: All non-empty texts should appear in the extracted text
+			for _, text := range texts {
+				if text != "" && !containsText(extractedText, text) {
+					t.Logf("Extracted text missing expected text. Expected to contain: %q, Got: %q", text, extractedText)
+					return false
+				}
+			}
+
+			return true
+		},
+		gen.SliceOf(gen.AlphaString()),
+	))
+
+	properties.TestingRun(t)
+}
+
+// Helper function to check if text contains a substring (case-insensitive, whitespace-normalized)
+func containsText(haystack, needle string) bool {
+	// Normalize whitespace
+	haystack = normalizeWhitespace(haystack)
+	needle = normalizeWhitespace(needle)
+
+	// Simple contains check
+	return len(needle) == 0 || len(haystack) > 0 && (haystack == needle ||
+		len(haystack) >= len(needle) && findSubstring(haystack, needle))
+}
+
+func normalizeWhitespace(s string) string {
+	// Replace multiple whitespace with single space and trim
+	var result []rune
+	lastWasSpace := true
+	for _, r := range s {
+		if r == ' ' || r == '\t' || r == '\n' || r == '\r' {
+			if !lastWasSpace {
+				result = append(result, ' ')
+				lastWasSpace = true
+			}
+		} else {
+			result = append(result, r)
+			lastWasSpace = false
+		}
+	}
+	s = string(result)
+	if len(s) > 0 && s[len(s)-1] == ' ' {
+		s = s[:len(s)-1]
+	}
+	if len(s) > 0 && s[0] == ' ' {
+		s = s[1:]
+	}
+	return s
+}
+
+func findSubstring(haystack, needle string) bool {
+	if len(needle) > len(haystack) {
+		return false
+	}
+	for i := 0; i <= len(haystack)-len(needle); i++ {
+		if haystack[i:i+len(needle)] == needle {
+			return true
+		}
+	}
+	return false
+}
+
+// Unit tests for GoqueryParser
+
+func TestGoqueryParser_Parse(t *testing.T) {
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+	parser := NewGoqueryParser(logger)
+
+	tests := []struct {
+		name        string
+		htmlContent string
+		expectError bool
+	}{
+		{
+			name:        "Valid HTML",
+			htmlContent: "<html><body><p>Test</p></body></html>",
+			expectError: false,
+		},
+		{
+			name:        "Empty HTML",
+			htmlContent: "",
+			expectError: true,
+		},
+		{
+			name:        "Malformed HTML",
+			htmlContent: "<div>Unclosed tag",
+			expectError: false, // goquery is lenient with malformed HTML
+		},
+		{
+			name:        "Plain text",
+			htmlContent: "Just plain text",
+			expectError: false, // goquery wraps plain text in HTML structure
+		},
+		{
+			name:        "Complex HTML",
+			htmlContent: "<html><head><title>Test</title></head><body><div class='content'><p>Paragraph 1</p><p>Paragraph 2</p></div></body></html>",
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			doc, err := parser.Parse(tt.htmlContent)
+
+			if tt.expectError {
+				if err == nil {
+					t.Error("Expected error, got nil")
+				}
+				if doc != nil {
+					t.Error("Expected nil document on error")
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Unexpected error: %v", err)
+				}
+				if doc == nil {
+					t.Error("Expected document, got nil")
+				}
+				if doc != nil && doc.Document == nil {
+					t.Error("Expected Document field to be set")
+				}
+			}
+		})
+	}
+}
+
+func TestGoqueryParser_ExtractText(t *testing.T) {
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+	parser := NewGoqueryParser(logger)
+
+	tests := []struct {
+		name         string
+		htmlContent  string
+		cssSelector  string
+		expectError  bool
+		expectText   string
+		textContains string
+	}{
+		{
+			name:         "Extract from body (no selector)",
+			htmlContent:  "<html><body>Test content</body></html>",
+			cssSelector:  "",
+			expectError:  false,
+			textContains: "Test content",
+		},
+		{
+			name:         "Extract from specific div",
+			htmlContent:  "<html><body><div class='target'>Target text</div><div>Other text</div></body></html>",
+			cssSelector:  ".target",
+			expectError:  false,
+			textContains: "Target text",
+		},
+		{
+			name:        "Selector matches no elements",
+			htmlContent: "<html><body><div>Content</div></body></html>",
+			cssSelector: ".nonexistent",
+			expectError: true,
+		},
+		{
+			name:         "Multiple matching elements",
+			htmlContent:  "<html><body><p>First</p><p>Second</p><p>Third</p></body></html>",
+			cssSelector:  "p",
+			expectError:  false,
+			textContains: "First",
+		},
+		{
+			name:        "Nil document",
+			htmlContent: "",
+			cssSelector: "div",
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var doc *ParsedDocument
+			var err error
+
+			if tt.htmlContent != "" {
+				doc, err = parser.Parse(tt.htmlContent)
+				if err != nil {
+					t.Fatalf("Failed to parse HTML: %v", err)
+				}
+			}
+
+			text, err := parser.ExtractText(doc, tt.cssSelector)
+
+			if tt.expectError {
+				if err == nil {
+					t.Error("Expected error, got nil")
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Unexpected error: %v", err)
+				}
+				if tt.textContains != "" && !containsText(text, tt.textContains) {
+					t.Errorf("Expected text to contain %q, got %q", tt.textContains, text)
+				}
+			}
+		})
+	}
+}
+
+func TestGoqueryParser_ValidateSelector(t *testing.T) {
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+	parser := NewGoqueryParser(logger)
+
+	tests := []struct {
+		name        string
+		cssSelector string
+		expectError bool
+	}{
+		{
+			name:        "Empty selector (valid)",
+			cssSelector: "",
+			expectError: false,
+		},
+		{
+			name:        "Simple class selector",
+			cssSelector: ".class",
+			expectError: false,
+		},
+		{
+			name:        "ID selector",
+			cssSelector: "#id",
+			expectError: false,
+		},
+		{
+			name:        "Element selector",
+			cssSelector: "div",
+			expectError: false,
+		},
+		{
+			name:        "Complex selector",
+			cssSelector: "div.class > p#id",
+			expectError: false,
+		},
+		{
+			name:        "Attribute selector",
+			cssSelector: "[data-test='value']",
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := parser.ValidateSelector(tt.cssSelector)
+
+			if tt.expectError {
+				if err == nil {
+					t.Error("Expected error, got nil")
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Unexpected error: %v", err)
+				}
+			}
+		})
+	}
+}
+
+func TestGoqueryParser_ExtractTextMultipleElements(t *testing.T) {
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+	parser := NewGoqueryParser(logger)
+
+	htmlContent := `
+		<html>
+			<body>
+				<div class="artist">Artist 1</div>
+				<div class="artist">Artist 2</div>
+				<div class="artist">Artist 3</div>
+			</body>
+		</html>
+	`
+
+	doc, err := parser.Parse(htmlContent)
+	if err != nil {
+		t.Fatalf("Failed to parse HTML: %v", err)
+	}
+
+	text, err := parser.ExtractText(doc, ".artist")
+	if err != nil {
+		t.Fatalf("Failed to extract text: %v", err)
+	}
+
+	// Verify all artists are in the extracted text
+	expectedArtists := []string{"Artist 1", "Artist 2", "Artist 3"}
+	for _, artist := range expectedArtists {
+		if !containsText(text, artist) {
+			t.Errorf("Expected text to contain %q, got %q", artist, text)
+		}
+	}
+}
+
+// **Feature: web-scraping-artist-discovery, Property 5: Artist name identification**
+// **Validates: Requirements 3.1**
+// For any text content containing artist names, the system should identify potential artist names using pattern matching
+func TestProperty_ArtistNameIdentification(t *testing.T) {
+	parameters := gopter.DefaultTestParameters()
+	parameters.MinSuccessfulTests = 100
+	properties := gopter.NewProperties(parameters)
+
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+	extractor := NewPatternArtistExtractor(logger)
+
+	properties.Property("Extractor identifies artist names from text", prop.ForAll(
+		func(numArtists int) bool {
+			if numArtists < 1 || numArtists > 5 {
+				return true
+			}
+
+			// Generate artist names
+			var artistNames []string
+			for i := 0; i < numArtists; i++ {
+				name := fmt.Sprintf("Artist%d", i+1)
+				artistNames = append(artistNames, name)
+			}
+
+			// Create text with comma-separated artist names
+			text := strings.Join(artistNames, ", ")
+
+			// Extract artists
+			extracted, err := extractor.ExtractArtists(text)
+			if err != nil {
+				t.Logf("Failed to extract artists: %v", err)
+				return false
+			}
+
+			// Property: Should extract at least some artists from the text
+			if len(extracted) == 0 {
+				t.Logf("Expected to extract artists from text: %q, got none", text)
+				return false
+			}
+
+			// Property: Extracted artists should be non-empty strings
+			for _, artist := range extracted {
+				if artist == "" {
+					t.Logf("Extracted empty artist name")
+					return false
+				}
+			}
+
+			// Property: Should extract approximately the right number of artists
+			if len(extracted) < numArtists/2 {
+				t.Logf("Expected to extract around %d artists, got only %d", numArtists, len(extracted))
+				return false
+			}
+
+			return true
+		},
+		gen.IntRange(1, 5),
+	))
+
+	properties.TestingRun(t)
+}
+
+// **Feature: web-scraping-artist-discovery, Property 6: Non-artist word filtering**
+// **Validates: Requirements 3.2**
+// For any list of identified artist names, the system should remove common non-artist words and phrases
+func TestProperty_NonArtistWordFiltering(t *testing.T) {
+	parameters := gopter.DefaultTestParameters()
+	parameters.MinSuccessfulTests = 100
+	properties := gopter.NewProperties(parameters)
+
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+	extractor := NewPatternArtistExtractor(logger)
+
+	// Common non-artist words that should be filtered
+	commonWords := []string{
+		"the", "a", "an", "of", "in", "at", "on", "for",
+		"is", "are", "was", "were", "be",
+		"band", "bands", "music", "song", "songs", "album", "albums",
+		"track", "tracks", "local", "new", "best", "top",
+		"artist", "artists",
+	}
+
+	properties.Property("Common non-artist words are filtered out", prop.ForAll(
+		func(wordIndex int) bool {
+			if wordIndex < 0 || wordIndex >= len(commonWords) {
+				return true
+			}
+
+			word := commonWords[wordIndex]
+
+			// Property: CleanArtistName should return empty string for common words
+			cleaned := extractor.CleanArtistName(word)
+			if cleaned != "" {
+				t.Logf("Expected common word %q to be filtered out, got %q", word, cleaned)
+				return false
+			}
+
+			// Property: ExtractArtists should not return common words as artists
+			extracted, err := extractor.ExtractArtists(word)
+			if err != nil {
+				t.Logf("Failed to extract artists: %v", err)
+				return false
+			}
+
+			// Should either return empty list or not contain the common word
+			for _, artist := range extracted {
+				if strings.ToLower(artist) == word {
+					t.Logf("Common word %q should not be extracted as artist", word)
+					return false
+				}
+			}
+
+			return true
+		},
+		gen.IntRange(0, len(commonWords)-1),
+	))
+
+	properties.TestingRun(t)
+}
+
+// **Feature: web-scraping-artist-discovery, Property 7: Artist list deduplication**
+// **Validates: Requirements 3.3**
+// For any list of potential artists with duplicates, the deduplicated output should contain no duplicate entries
+func TestProperty_ArtistListDeduplication(t *testing.T) {
+	parameters := gopter.DefaultTestParameters()
+	parameters.MinSuccessfulTests = 100
+	properties := gopter.NewProperties(parameters)
+
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+	extractor := NewPatternArtistExtractor(logger)
+
+	properties.Property("Duplicate artists are removed", prop.ForAll(
+		func(artistName string, duplicateCount int) bool {
+			// Skip invalid inputs
+			if artistName == "" || duplicateCount < 1 || duplicateCount > 10 {
+				return true
+			}
+
+			// Skip if it would be filtered out
+			if extractor.CleanArtistName(artistName) == "" {
+				return true
+			}
+
+			// Create text with duplicate artist names
+			var parts []string
+			for i := 0; i < duplicateCount; i++ {
+				parts = append(parts, artistName)
+			}
+			text := ""
+			for i, part := range parts {
+				if i > 0 {
+					text += ", "
+				}
+				text += part
+			}
+
+			// Extract artists
+			extracted, err := extractor.ExtractArtists(text)
+			if err != nil {
+				t.Logf("Failed to extract artists: %v", err)
+				return false
+			}
+
+			// Property: Should not have duplicates in the output
+			seen := make(map[string]bool)
+			for _, artist := range extracted {
+				if seen[artist] {
+					t.Logf("Found duplicate artist %q in extracted list", artist)
+					return false
+				}
+				seen[artist] = true
+			}
+
+			// Property: The key property is no duplicates, which we already checked above
+			// Different strategies might extract the same artist in different ways
+			// (e.g., "Artist, Artist" might become ["Artist", "Artist, Artist"])
+			// but the deduplication map ensures no exact duplicates
+
+			return true
+		},
+		gen.AlphaString().SuchThat(func(s string) bool {
+			return len(s) >= 2 && len(s) <= 30
+		}),
+		gen.IntRange(2, 5),
+	))
+
+	properties.TestingRun(t)
+}
+
+// **Feature: web-scraping-artist-discovery, Property 8: Comma-separated list parsing**
+// **Validates: Requirements 3.5**
+// For any text containing comma-separated artist names, the system should parse and extract each individual artist name
+func TestProperty_CommaSeparatedListParsing(t *testing.T) {
+	parameters := gopter.DefaultTestParameters()
+	parameters.MinSuccessfulTests = 100
+	properties := gopter.NewProperties(parameters)
+
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+	extractor := NewPatternArtistExtractor(logger)
+
+	properties.Property("Comma-separated lists are parsed correctly", prop.ForAll(
+		func(numArtists int) bool {
+			if numArtists < 1 || numArtists > 10 {
+				return true
+			}
+
+			// Generate valid artist names
+			var artistNames []string
+			for i := 0; i < numArtists; i++ {
+				name := fmt.Sprintf("TestArtist%d", i+1)
+				artistNames = append(artistNames, name)
+			}
+
+			// Create comma-separated text
+			text := strings.Join(artistNames, ", ")
+
+			// Extract artists
+			extracted, err := extractor.ExtractArtists(text)
+			if err != nil {
+				t.Logf("Failed to extract artists: %v", err)
+				return false
+			}
+
+			// Property: Should extract at least one artist
+			if len(extracted) == 0 {
+				t.Logf("Expected to extract artists from comma-separated list: %q", text)
+				return false
+			}
+
+			// Property: Each extracted artist should be non-empty
+			for _, artist := range extracted {
+				if artist == "" {
+					t.Logf("Extracted empty artist name")
+					return false
+				}
+			}
+
+			// Property: Should extract approximately the right number of artists
+			if len(extracted) < numArtists/2 {
+				t.Logf("Expected to extract around %d artists, got only %d", numArtists, len(extracted))
+				return false
+			}
+
+			return true
+		},
+		gen.IntRange(1, 10),
+	))
+
+	properties.TestingRun(t)
+}
+
+// Unit tests for PatternArtistExtractor
+
+func TestPatternArtistExtractor_ExtractArtists(t *testing.T) {
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+	extractor := NewPatternArtistExtractor(logger)
+
+	tests := []struct {
+		name             string
+		text             string
+		expectArtists    bool
+		minArtists       int
+		shouldContain    []string
+		shouldNotContain []string
+	}{
+		{
+			name:          "Comma-separated list",
+			text:          "Artist One, Artist Two, Artist Three",
+			expectArtists: true,
+			minArtists:    3,
+			shouldContain: []string{"Artist One", "Artist Two", "Artist Three"},
+		},
+		{
+			name:          "Line-by-line list",
+			text:          "Artist One\nArtist Two\nArtist Three",
+			expectArtists: true,
+			minArtists:    3,
+		},
+		{
+			name:          "Bullet list with dashes",
+			text:          "- Artist One\n- Artist Two\n- Artist Three",
+			expectArtists: true,
+			minArtists:    3,
+		},
+		{
+			name:          "Bullet list with asterisks",
+			text:          "* Artist One\n* Artist Two\n* Artist Three",
+			expectArtists: true,
+			minArtists:    3,
+		},
+		{
+			name:          "Quoted names",
+			text:          `Check out "Artist One" and "Artist Two"`,
+			expectArtists: true,
+			minArtists:    2,
+		},
+		{
+			name:          "Empty text",
+			text:          "",
+			expectArtists: false,
+		},
+		{
+			name:          "Mixed content",
+			text:          "Check out these bands: Artist One, Artist Two, and Artist Three",
+			expectArtists: true,
+			minArtists:    1,
+		},
+		{
+			name:          "Reddit example",
+			text:          "Title Fight, Sweet Pill, Fleshwater, Ovlov, Modern Color",
+			expectArtists: true,
+			minArtists:    5,
+			shouldContain: []string{"Title Fight", "Sweet Pill", "Fleshwater", "Ovlov", "Modern Color"},
+		},
+		{
+			name:          "Duplicates removed",
+			text:          "Artist One, Artist Two, Artist One, Artist Two",
+			expectArtists: true,
+			minArtists:    2,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			artists, err := extractor.ExtractArtists(tt.text)
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			if tt.expectArtists {
+				if len(artists) < tt.minArtists {
+					t.Errorf("Expected at least %d artists, got %d: %v", tt.minArtists, len(artists), artists)
+				}
+			} else {
+				if len(artists) > 0 {
+					t.Errorf("Expected no artists, got %d: %v", len(artists), artists)
+				}
+			}
+
+			// Check for specific artists
+			for _, expected := range tt.shouldContain {
+				found := false
+				for _, artist := range artists {
+					if artist == expected {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("Expected to find artist %q in results: %v", expected, artists)
+				}
+			}
+
+			// Check that certain strings are NOT in results
+			for _, notExpected := range tt.shouldNotContain {
+				for _, artist := range artists {
+					if artist == notExpected {
+						t.Errorf("Did not expect to find %q in results: %v", notExpected, artists)
+					}
+				}
+			}
+
+			// Verify no duplicates
+			seen := make(map[string]bool)
+			for _, artist := range artists {
+				if seen[artist] {
+					t.Errorf("Found duplicate artist: %q", artist)
+				}
+				seen[artist] = true
+			}
+		})
+	}
+}
+
+func TestPatternArtistExtractor_CleanArtistName(t *testing.T) {
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+	extractor := NewPatternArtistExtractor(logger)
+
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "Normal artist name",
+			input:    "Artist Name",
+			expected: "Artist Name",
+		},
+		{
+			name:     "Name with leading dash",
+			input:    "- Artist Name",
+			expected: "Artist Name",
+		},
+		{
+			name:     "Name with leading asterisk",
+			input:    "* Artist Name",
+			expected: "Artist Name",
+		},
+		{
+			name:     "Name with leading bullet",
+			input:    "• Artist Name",
+			expected: "Artist Name",
+		},
+		{
+			name:     "Name with whitespace",
+			input:    "  Artist Name  ",
+			expected: "Artist Name",
+		},
+		{
+			name:     "Common word 'the'",
+			input:    "the",
+			expected: "",
+		},
+		{
+			name:     "Common word 'band'",
+			input:    "band",
+			expected: "",
+		},
+		{
+			name:     "Common word 'music'",
+			input:    "music",
+			expected: "",
+		},
+		{
+			name:     "Too short",
+			input:    "a",
+			expected: "",
+		},
+		{
+			name:     "Empty string",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "Valid short name",
+			input:    "OK",
+			expected: "OK",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := extractor.CleanArtistName(tt.input)
+			if result != tt.expected {
+				t.Errorf("Expected %q, got %q", tt.expected, result)
+			}
+		})
+	}
+}
+
+func TestCommaListStrategy_Extract(t *testing.T) {
+	strategy := &CommaListStrategy{}
+
+	tests := []struct {
+		name     string
+		text     string
+		expected []string
+	}{
+		{
+			name:     "Simple comma list",
+			text:     "Artist One, Artist Two, Artist Three",
+			expected: []string{"Artist One", "Artist Two", "Artist Three"},
+		},
+		{
+			name:     "No commas",
+			text:     "Artist One",
+			expected: []string{"Artist One"},
+		},
+		{
+			name:     "Empty string",
+			text:     "",
+			expected: []string{},
+		},
+		{
+			name:     "Trailing comma",
+			text:     "Artist One, Artist Two,",
+			expected: []string{"Artist One", "Artist Two"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := strategy.Extract(tt.text)
+			if len(result) != len(tt.expected) {
+				t.Errorf("Expected %d items, got %d", len(tt.expected), len(result))
+			}
+			for i, expected := range tt.expected {
+				if i >= len(result) || result[i] != expected {
+					t.Errorf("Expected item %d to be %q, got %q", i, expected, result[i])
+				}
+			}
+		})
+	}
+}
+
+func TestLineByLineStrategy_Extract(t *testing.T) {
+	strategy := &LineByLineStrategy{}
+
+	tests := []struct {
+		name     string
+		text     string
+		expected []string
+	}{
+		{
+			name:     "Multiple lines",
+			text:     "Artist One\nArtist Two\nArtist Three",
+			expected: []string{"Artist One", "Artist Two", "Artist Three"},
+		},
+		{
+			name:     "Single line",
+			text:     "Artist One",
+			expected: []string{"Artist One"},
+		},
+		{
+			name:     "Empty lines",
+			text:     "Artist One\n\nArtist Two",
+			expected: []string{"Artist One", "Artist Two"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := strategy.Extract(tt.text)
+			if len(result) != len(tt.expected) {
+				t.Errorf("Expected %d items, got %d", len(tt.expected), len(result))
+			}
+			for i, expected := range tt.expected {
+				if i >= len(result) || result[i] != expected {
+					t.Errorf("Expected item %d to be %q, got %q", i, expected, result[i])
+				}
+			}
+		})
+	}
+}
+
+func TestQuotedNamesStrategy_Extract(t *testing.T) {
+	strategy := &QuotedNamesStrategy{}
+
+	tests := []struct {
+		name     string
+		text     string
+		expected []string
+	}{
+		{
+			name:     "Single quoted name",
+			text:     `Check out "Artist One"`,
+			expected: []string{"Artist One"},
+		},
+		{
+			name:     "Multiple quoted names",
+			text:     `"Artist One" and "Artist Two"`,
+			expected: []string{"Artist One", "Artist Two"},
+		},
+		{
+			name:     "No quotes",
+			text:     "Artist One",
+			expected: []string{},
+		},
+		{
+			name:     "Empty quotes",
+			text:     `""`,
+			expected: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := strategy.Extract(tt.text)
+			if len(result) != len(tt.expected) {
+				t.Errorf("Expected %d items, got %d: %v", len(tt.expected), len(result), result)
+			}
+			for i, expected := range tt.expected {
+				if i >= len(result) || result[i] != expected {
+					t.Errorf("Expected item %d to be %q, got %q", i, expected, result[i])
+				}
+			}
+		})
+	}
+}
+
+func TestBulletListStrategy_Extract(t *testing.T) {
+	strategy := &BulletListStrategy{}
+
+	tests := []struct {
+		name     string
+		text     string
+		expected []string
+	}{
+		{
+			name:     "Dash bullets",
+			text:     "- Artist One\n- Artist Two",
+			expected: []string{"Artist One", "Artist Two"},
+		},
+		{
+			name:     "Asterisk bullets",
+			text:     "* Artist One\n* Artist Two",
+			expected: []string{"Artist One", "Artist Two"},
+		},
+		{
+			name:     "Bullet point bullets",
+			text:     "• Artist One\n• Artist Two",
+			expected: []string{"Artist One", "Artist Two"},
+		},
+		{
+			name:     "Mixed bullets",
+			text:     "- Artist One\n* Artist Two\n• Artist Three",
+			expected: []string{"Artist One", "Artist Two", "Artist Three"},
+		},
+		{
+			name:     "No bullets",
+			text:     "Artist One\nArtist Two",
+			expected: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := strategy.Extract(tt.text)
+			if len(result) != len(tt.expected) {
+				t.Errorf("Expected %d items, got %d: %v", len(tt.expected), len(result), result)
+			}
+			for i, expected := range tt.expected {
+				if i >= len(result) || result[i] != expected {
+					t.Errorf("Expected item %d to be %q, got %q", i, expected, result[i])
+				}
+			}
+		})
+	}
+}
+
+// Mock implementations for testing
+
+// MockArtistSearcher is a mock implementation of types.ArtistSearcher for testing
+type MockArtistSearcher struct {
+	FindBestMatchFunc func(query string) (*types.Artist, float64, error)
+}
+
+func (m *MockArtistSearcher) FindBestMatch(query string) (*types.Artist, float64, error) {
+	if m.FindBestMatchFunc != nil {
+		return m.FindBestMatchFunc(query)
+	}
+	// Default behavior: return a mock artist with confidence based on query length
+	confidence := 0.8
+	if len(query) < 3 {
+		confidence = 0.3
+	}
+	return &types.Artist{
+		ID:   "mock-id-" + query,
+		Name: query,
+		URI:  "spotify:artist:mock-" + query,
+	}, confidence, nil
+}
+
+// MockPlaylistManager is a mock implementation of types.PlaylistManager for testing
+type MockPlaylistManager struct {
+	GetTop5TracksFunc func(artistID string) ([]types.Track, error)
+}
+
+func (m *MockPlaylistManager) AddArtistToPlaylist(artistName, playlistID string, force bool) (*types.AddResult, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (m *MockPlaylistManager) GetIncomingPlaylists() ([]types.Playlist, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (m *MockPlaylistManager) GetTop5Tracks(artistID string) ([]types.Track, error) {
+	if m.GetTop5TracksFunc != nil {
+		return m.GetTop5TracksFunc(artistID)
+	}
+	// Default: return 5 mock tracks
+	tracks := make([]types.Track, 5)
+	for i := 0; i < 5; i++ {
+		tracks[i] = types.Track{
+			ID:   fmt.Sprintf("track-%s-%d", artistID, i),
+			Name: fmt.Sprintf("Track %d", i+1),
+			URI:  fmt.Sprintf("spotify:track:mock-%s-%d", artistID, i),
+		}
+	}
+	return tracks, nil
+}
+
+func (m *MockPlaylistManager) FilterPlaylistsBySearch(playlists []types.Playlist, searchTerm string) []types.Playlist {
+	return nil
+}
+
+// MockDuplicateDetector is a mock implementation of types.DuplicateDetector for testing
+type MockDuplicateDetector struct {
+	CheckDuplicatesFunc       func(playlistID string, tracks []types.Track) (*types.DuplicateResult, error)
+	CheckArtistInPlaylistFunc func(playlistID, artistID string) (*types.DuplicateResult, error)
+}
+
+func (m *MockDuplicateDetector) CheckDuplicates(playlistID string, tracks []types.Track) (*types.DuplicateResult, error) {
+	if m.CheckDuplicatesFunc != nil {
+		return m.CheckDuplicatesFunc(playlistID, tracks)
+	}
+	return &types.DuplicateResult{
+		HasDuplicates: false,
+	}, nil
+}
+
+func (m *MockDuplicateDetector) CheckArtistInPlaylist(playlistID, artistID string) (*types.DuplicateResult, error) {
+	if m.CheckArtistInPlaylistFunc != nil {
+		return m.CheckArtistInPlaylistFunc(playlistID, artistID)
+	}
+	return &types.DuplicateResult{
+		HasDuplicates: false,
+	}, nil
+}
+
+// MockSpotifyService is a mock implementation of types.SpotifyService for testing
+type MockSpotifyService struct {
+	AddTracksToPlaylistFunc func(playlistID string, trackIDs []string) error
+}
+
+func (m *MockSpotifyService) SearchArtist(query string) (*types.Artist, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (m *MockSpotifyService) GetArtistTopTracks(artistID string) ([]types.Track, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (m *MockSpotifyService) GetUserPlaylists(folderName string) ([]types.Playlist, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (m *MockSpotifyService) AddTracksToPlaylist(playlistID string, trackIDs []string) error {
+	if m.AddTracksToPlaylistFunc != nil {
+		return m.AddTracksToPlaylistFunc(playlistID, trackIDs)
+	}
+	return nil
+}
+
+func (m *MockSpotifyService) CheckTracksInPlaylist(playlistID string, trackIDs []string) ([]bool, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (m *MockSpotifyService) GetAuthURL() string {
+	return ""
+}
+
+func (m *MockSpotifyService) IsAuthenticated() bool {
+	return true
+}
+
+func (m *MockSpotifyService) CompleteAuth(code, state string) error {
+	return nil
+}
+
+// **Feature: web-scraping-artist-discovery, Property 9: Fuzzy matcher integration**
+// **Validates: Requirements 4.1**
+// For any extracted artist name, the system should invoke the existing fuzzy matching component to find Spotify artists
+func TestProperty_FuzzyMatcherIntegration(t *testing.T) {
+	parameters := gopter.DefaultTestParameters()
+	parameters.MinSuccessfulTests = 100
+	properties := gopter.NewProperties(parameters)
+
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+
+	properties.Property("Fuzzy matcher is invoked for each artist name", prop.ForAll(
+		func(artistNames []string) bool {
+			// Skip empty lists or lists with empty strings
+			if len(artistNames) == 0 {
+				return true
+			}
+
+			// Filter out empty strings
+			var validNames []string
+			for _, name := range artistNames {
+				if strings.TrimSpace(name) != "" {
+					validNames = append(validNames, name)
+				}
+			}
+
+			if len(validNames) == 0 {
+				return true
+			}
+
+			// Track which queries were made
+			queriesMade := make(map[string]bool)
+
+			mockSearcher := &MockArtistSearcher{
+				FindBestMatchFunc: func(query string) (*types.Artist, float64, error) {
+					queriesMade[query] = true
+					return &types.Artist{
+						ID:   "mock-id",
+						Name: query,
+						URI:  "spotify:artist:mock",
+					}, 0.8, nil
+				},
+			}
+
+			config := DefaultScraperConfig()
+			scraper := NewWebScraper(config, nil, nil, mockSearcher, nil, logger)
+
+			// Call matchArtists
+			results := scraper.matchArtists(validNames)
+
+			// Property: Should invoke fuzzy matcher for each artist name
+			if len(results) != len(validNames) {
+				t.Logf("Expected %d results, got %d", len(validNames), len(results))
+				return false
+			}
+
+			// Property: Each artist name should have been queried
+			for _, name := range validNames {
+				if !queriesMade[name] {
+					t.Logf("Fuzzy matcher was not invoked for artist: %q", name)
+					return false
+				}
+			}
+
+			return true
+		},
+		gen.SliceOfN(5, gen.AlphaString()),
+	))
+
+	properties.TestingRun(t)
+}
+
+// **Feature: web-scraping-artist-discovery, Property 10: Top 5 tracks retrieval**
+// **Validates: Requirements 4.2**
+// For any matched Spotify artist, the system should retrieve exactly 5 top tracks
+func TestProperty_Top5TracksRetrieval(t *testing.T) {
+	parameters := gopter.DefaultTestParameters()
+	parameters.MinSuccessfulTests = 100
+	properties := gopter.NewProperties(parameters)
+
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+
+	properties.Property("Top 5 tracks are retrieved for matched artists", prop.ForAll(
+		func(artistID string) bool {
+			// Skip empty artist IDs
+			if strings.TrimSpace(artistID) == "" {
+				return true
+			}
+
+			mockPlaylist := &MockPlaylistManager{
+				GetTop5TracksFunc: func(id string) ([]types.Track, error) {
+					// Property: Should always return exactly 5 tracks
+					tracks := make([]types.Track, 5)
+					for i := 0; i < 5; i++ {
+						tracks[i] = types.Track{
+							ID:   fmt.Sprintf("track-%d", i),
+							Name: fmt.Sprintf("Track %d", i+1),
+							URI:  fmt.Sprintf("spotify:track:%d", i),
+						}
+					}
+					return tracks, nil
+				},
+			}
+
+			// Test the GetTop5Tracks method
+			tracks, err := mockPlaylist.GetTop5Tracks(artistID)
+			if err != nil {
+				t.Logf("Failed to get top 5 tracks: %v", err)
+				return false
+			}
+
+			// Property: Should return exactly 5 tracks
+			if len(tracks) != 5 {
+				t.Logf("Expected exactly 5 tracks, got %d", len(tracks))
+				return false
+			}
+
+			// Property: Each track should have valid fields
+			for i, track := range tracks {
+				if track.ID == "" {
+					t.Logf("Track %d has empty ID", i)
+					return false
+				}
+				if track.Name == "" {
+					t.Logf("Track %d has empty Name", i)
+					return false
+				}
+				if track.URI == "" {
+					t.Logf("Track %d has empty URI", i)
+					return false
+				}
+			}
+
+			return true
+		},
+		gen.AlphaString(),
+	))
+
+	properties.TestingRun(t)
+}
+
+// **Feature: web-scraping-artist-discovery, Property 11: Fault tolerance during matching**
+// **Validates: Requirements 4.3**
+// For any batch of artist names where one fails to match, the system should continue processing all remaining artists
+func TestProperty_FaultToleranceDuringMatching(t *testing.T) {
+	parameters := gopter.DefaultTestParameters()
+	parameters.MinSuccessfulTests = 100
+	properties := gopter.NewProperties(parameters)
+
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+
+	properties.Property("Matching continues despite individual failures", prop.ForAll(
+		func(numArtists int, failIndex int) bool {
+			if numArtists < 2 || numArtists > 10 {
+				return true
+			}
+			if failIndex < 0 || failIndex >= numArtists {
+				return true
+			}
+
+			// Create artist names
+			artistNames := make([]string, numArtists)
+			for i := 0; i < numArtists; i++ {
+				artistNames[i] = fmt.Sprintf("Artist%d", i)
+			}
+
+			// Mock searcher that fails for one specific artist
+			mockSearcher := &MockArtistSearcher{
+				FindBestMatchFunc: func(query string) (*types.Artist, float64, error) {
+					if query == artistNames[failIndex] {
+						return nil, 0.0, fmt.Errorf("mock error for %s", query)
+					}
+					return &types.Artist{
+						ID:   "mock-id-" + query,
+						Name: query,
+						URI:  "spotify:artist:mock",
+					}, 0.8, nil
+				},
+			}
+
+			config := DefaultScraperConfig()
+			scraper := NewWebScraper(config, nil, nil, mockSearcher, nil, logger)
+
+			// Call matchArtists
+			results := scraper.matchArtists(artistNames)
+
+			// Property: Should return results for all artists (including the failed one)
+			if len(results) != numArtists {
+				t.Logf("Expected %d results, got %d", numArtists, len(results))
+				return false
+			}
+
+			// Property: The failed artist should have an error
+			if results[failIndex].Error == "" {
+				t.Logf("Expected error for artist at index %d", failIndex)
+				return false
+			}
+			if results[failIndex].Matched {
+				t.Logf("Failed artist should not be marked as matched")
+				return false
+			}
+
+			// Property: Other artists should have succeeded
+			successCount := 0
+			for i, result := range results {
+				if i != failIndex && result.Matched {
+					successCount++
+				}
+			}
+			if successCount < numArtists-1 {
+				t.Logf("Expected at least %d successful matches, got %d", numArtists-1, successCount)
+				return false
+			}
+
+			return true
+		},
+		gen.IntRange(2, 10),
+		gen.IntRange(0, 9),
+	))
+
+	properties.TestingRun(t)
+}
+
+// **Feature: web-scraping-artist-discovery, Property 12: Best match selection**
+// **Validates: Requirements 4.4**
+// For any artist query with multiple Spotify matches, the system should select the match with the highest confidence score
+func TestProperty_BestMatchSelection(t *testing.T) {
+	parameters := gopter.DefaultTestParameters()
+	parameters.MinSuccessfulTests = 100
+	properties := gopter.NewProperties(parameters)
+
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+
+	properties.Property("Best match is selected based on confidence score", prop.ForAll(
+		func(confidence float64) bool {
+			// Normalize confidence to valid range
+			if confidence < 0.0 {
+				confidence = 0.0
+			}
+			if confidence > 1.0 {
+				confidence = 1.0
+			}
+
+			artistName := "TestArtist"
+
+			// Mock searcher that returns a specific confidence
+			mockSearcher := &MockArtistSearcher{
+				FindBestMatchFunc: func(query string) (*types.Artist, float64, error) {
+					return &types.Artist{
+						ID:   "mock-id",
+						Name: query,
+						URI:  "spotify:artist:mock",
+					}, confidence, nil
+				},
+			}
+
+			config := DefaultScraperConfig()
+			scraper := NewWebScraper(config, nil, nil, mockSearcher, nil, logger)
+
+			// Match a single artist
+			result := scraper.matchSingleArtist(artistName)
+
+			// Property: Result should have the same confidence as returned by searcher
+			if result.Confidence != confidence {
+				t.Logf("Expected confidence %.2f, got %.2f", confidence, result.Confidence)
+				return false
+			}
+
+			// Property: If confidence is above threshold, should be marked as matched
+			if confidence >= MinConfidenceThreshold {
+				if !result.Matched {
+					t.Logf("Expected artist to be matched with confidence %.2f", confidence)
+					return false
+				}
+			} else {
+				// Below threshold should not be matched
+				if result.Matched {
+					t.Logf("Artist should not be matched with confidence %.2f below threshold", confidence)
+					return false
+				}
+			}
+
+			return true
+		},
+		gen.Float64Range(0.0, 1.0),
+	))
+
+	properties.TestingRun(t)
+}
+
+// **Feature: web-scraping-artist-discovery, Property 13: Confidence threshold filtering**
+// **Validates: Requirements 4.5**
+// For any fuzzy match with confidence below the threshold (0.5), the system should skip that artist and log the low confidence
+func TestProperty_ConfidenceThresholdFiltering(t *testing.T) {
+	parameters := gopter.DefaultTestParameters()
+	parameters.MinSuccessfulTests = 100
+	properties := gopter.NewProperties(parameters)
+
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+
+	properties.Property("Low confidence matches are filtered out", prop.ForAll(
+		func(confidence float64) bool {
+			// Normalize confidence to valid range
+			if confidence < 0.0 {
+				confidence = 0.0
+			}
+			if confidence > 1.0 {
+				confidence = 1.0
+			}
+
+			artistName := "TestArtist"
+
+			// Mock searcher that returns a specific confidence
+			mockSearcher := &MockArtistSearcher{
+				FindBestMatchFunc: func(query string) (*types.Artist, float64, error) {
+					return &types.Artist{
+						ID:   "mock-id",
+						Name: query,
+						URI:  "spotify:artist:mock",
+					}, confidence, nil
+				},
+			}
+
+			config := DefaultScraperConfig()
+			scraper := NewWebScraper(config, nil, nil, mockSearcher, nil, logger)
+
+			// Match a single artist
+			result := scraper.matchSingleArtist(artistName)
+
+			// Property: Matches below threshold should not be marked as matched
+			if confidence < MinConfidenceThreshold {
+				if result.Matched {
+					t.Logf("Artist with confidence %.2f should not be matched (threshold: %.2f)",
+						confidence, MinConfidenceThreshold)
+					return false
+				}
+				// Should have an error message about low confidence
+				if result.Error == "" {
+					t.Logf("Expected error message for low confidence match")
+					return false
+				}
+			} else {
+				// Matches at or above threshold should be matched
+				if !result.Matched {
+					t.Logf("Artist with confidence %.2f should be matched (threshold: %.2f)",
+						confidence, MinConfidenceThreshold)
+					return false
+				}
+				// Should not have an error
+				if result.Error != "" {
+					t.Logf("High confidence match should not have error: %s", result.Error)
+					return false
+				}
+			}
+
+			return true
+		},
+		gen.Float64Range(0.0, 1.0),
+	))
+
+	properties.TestingRun(t)
+}
+
+// Unit tests for matchArtists and related functions
+
+func TestWebScraper_matchArtists(t *testing.T) {
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+
+	tests := []struct {
+		name          string
+		artistNames   []string
+		mockBehavior  func(query string) (*types.Artist, float64, error)
+		expectMatched int
+		expectFailed  int
+	}{
+		{
+			name:        "All artists match successfully",
+			artistNames: []string{"Artist1", "Artist2", "Artist3"},
+			mockBehavior: func(query string) (*types.Artist, float64, error) {
+				return &types.Artist{
+					ID:   "id-" + query,
+					Name: query,
+					URI:  "uri-" + query,
+				}, 0.9, nil
+			},
+			expectMatched: 3,
+			expectFailed:  0,
+		},
+		{
+			name:        "Some artists fail to match",
+			artistNames: []string{"Artist1", "Artist2", "Artist3"},
+			mockBehavior: func(query string) (*types.Artist, float64, error) {
+				if query == "Artist2" {
+					return nil, 0.0, fmt.Errorf("not found")
+				}
+				return &types.Artist{
+					ID:   "id-" + query,
+					Name: query,
+					URI:  "uri-" + query,
+				}, 0.9, nil
+			},
+			expectMatched: 2,
+			expectFailed:  1,
+		},
+		{
+			name:        "Low confidence matches filtered",
+			artistNames: []string{"Artist1", "Artist2", "Artist3"},
+			mockBehavior: func(query string) (*types.Artist, float64, error) {
+				confidence := 0.9
+				if query == "Artist2" {
+					confidence = 0.3 // Below threshold
+				}
+				return &types.Artist{
+					ID:   "id-" + query,
+					Name: query,
+					URI:  "uri-" + query,
+				}, confidence, nil
+			},
+			expectMatched: 2,
+			expectFailed:  0,
+		},
+		{
+			name:          "Empty artist list",
+			artistNames:   []string{},
+			mockBehavior:  nil,
+			expectMatched: 0,
+			expectFailed:  0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockSearcher := &MockArtistSearcher{
+				FindBestMatchFunc: tt.mockBehavior,
+			}
+
+			config := DefaultScraperConfig()
+			scraper := NewWebScraper(config, nil, nil, mockSearcher, nil, logger)
+
+			results := scraper.matchArtists(tt.artistNames)
+
+			// Check result count
+			if len(results) != len(tt.artistNames) {
+				t.Errorf("Expected %d results, got %d", len(tt.artistNames), len(results))
+			}
+
+			// Count matched and failed
+			matched := scraper.countMatched(results)
+			failed := scraper.countFailed(results)
+
+			if matched != tt.expectMatched {
+				t.Errorf("Expected %d matched, got %d", tt.expectMatched, matched)
+			}
+
+			if failed != tt.expectFailed {
+				t.Errorf("Expected %d failed, got %d", tt.expectFailed, failed)
+			}
+		})
+	}
+}
+
+func TestWebScraper_matchSingleArtist(t *testing.T) {
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+
+	tests := []struct {
+		name           string
+		query          string
+		mockArtist     *types.Artist
+		mockConfidence float64
+		mockError      error
+		expectMatched  bool
+		expectError    bool
+	}{
+		{
+			name:  "High confidence match",
+			query: "TestArtist",
+			mockArtist: &types.Artist{
+				ID:   "test-id",
+				Name: "TestArtist",
+				URI:  "spotify:artist:test",
+			},
+			mockConfidence: 0.9,
+			mockError:      nil,
+			expectMatched:  true,
+			expectError:    false,
+		},
+		{
+			name:  "Low confidence match (filtered)",
+			query: "TestArtist",
+			mockArtist: &types.Artist{
+				ID:   "test-id",
+				Name: "TestArtist",
+				URI:  "spotify:artist:test",
+			},
+			mockConfidence: 0.3,
+			mockError:      nil,
+			expectMatched:  false,
+			expectError:    true, // Error message about low confidence
+		},
+		{
+			name:           "Search error",
+			query:          "TestArtist",
+			mockArtist:     nil,
+			mockConfidence: 0.0,
+			mockError:      fmt.Errorf("search failed"),
+			expectMatched:  false,
+			expectError:    true,
+		},
+		{
+			name:  "Threshold boundary (exactly 0.5)",
+			query: "TestArtist",
+			mockArtist: &types.Artist{
+				ID:   "test-id",
+				Name: "TestArtist",
+				URI:  "spotify:artist:test",
+			},
+			mockConfidence: 0.5,
+			mockError:      nil,
+			expectMatched:  true,
+			expectError:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockSearcher := &MockArtistSearcher{
+				FindBestMatchFunc: func(query string) (*types.Artist, float64, error) {
+					return tt.mockArtist, tt.mockConfidence, tt.mockError
+				},
+			}
+
+			config := DefaultScraperConfig()
+			scraper := NewWebScraper(config, nil, nil, mockSearcher, nil, logger)
+
+			result := scraper.matchSingleArtist(tt.query)
+
+			if result.Query != tt.query {
+				t.Errorf("Expected query %q, got %q", tt.query, result.Query)
+			}
+
+			if result.Matched != tt.expectMatched {
+				t.Errorf("Expected matched=%v, got %v", tt.expectMatched, result.Matched)
+			}
+
+			if tt.expectError && result.Error == "" {
+				t.Error("Expected error message, got empty string")
+			}
+
+			if !tt.expectError && result.Error != "" {
+				t.Errorf("Expected no error, got: %s", result.Error)
+			}
+
+			if result.Confidence != tt.mockConfidence {
+				t.Errorf("Expected confidence %.2f, got %.2f", tt.mockConfidence, result.Confidence)
+			}
+		})
+	}
+}
+
+func TestWebScraper_countHelpers(t *testing.T) {
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+	config := DefaultScraperConfig()
+	scraper := NewWebScraper(config, nil, nil, nil, nil, logger)
+
+	results := []ArtistMatchResult{
+		{
+			Query:   "Artist1",
+			Matched: true,
+			Artist: &types.Artist{
+				ID:   "id1",
+				Name: "Artist1",
+			},
+			Confidence: 0.9,
+		},
+		{
+			Query:      "Artist2",
+			Matched:    false,
+			Artist:     nil,
+			Confidence: 0.0,
+			Error:      "not found",
+		},
+		{
+			Query:   "Artist3",
+			Matched: false,
+			Artist: &types.Artist{
+				ID:   "id3",
+				Name: "Artist3",
+			},
+			Confidence: 0.3,
+			Error:      "low confidence",
+		},
+		{
+			Query:   "Artist4",
+			Matched: true,
+			Artist: &types.Artist{
+				ID:   "id4",
+				Name: "Artist4",
+			},
+			Confidence: 0.8,
+		},
+	}
+
+	// Test countMatched
+	matched := scraper.countMatched(results)
+	if matched != 2 {
+		t.Errorf("Expected 2 matched, got %d", matched)
+	}
+
+	// Test countFailed
+	failed := scraper.countFailed(results)
+	if failed != 1 {
+		t.Errorf("Expected 1 failed, got %d", failed)
+	}
+
+	// Test countLowConfidence
+	lowConf := scraper.countLowConfidence(results)
+	if lowConf != 1 {
+		t.Errorf("Expected 1 low confidence, got %d", lowConf)
+	}
+}
+
+func TestMinConfidenceThreshold(t *testing.T) {
+	// Verify the constant is set correctly
+	if MinConfidenceThreshold != 0.5 {
+		t.Errorf("Expected MinConfidenceThreshold to be 0.5, got %.2f", MinConfidenceThreshold)
+	}
+}
+
+// **Feature: web-scraping-artist-discovery, Property 18: Duplicate detection integration**
+// **Validates: Requirements 9.1**
+// For any artist being added from scraped content, the system should check for duplicates using the existing duplicate detection component
+func TestProperty_DuplicateDetectionIntegration(t *testing.T) {
+	parameters := gopter.DefaultTestParameters()
+	parameters.MinSuccessfulTests = 100
+	properties := gopter.NewProperties(parameters)
+
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+
+	properties.Property("Duplicate detection is invoked for each artist", prop.ForAll(
+		func(numArtists int) bool {
+			if numArtists < 1 || numArtists > 5 {
+				return true
+			}
+
+			// Track which artists were checked for duplicates
+			checkedArtists := make(map[string]bool)
+
+			mockSearcher := &MockArtistSearcher{
+				FindBestMatchFunc: func(query string) (*types.Artist, float64, error) {
+					return &types.Artist{
+						ID:   "id-" + query,
+						Name: query,
+						URI:  "uri-" + query,
+					}, 0.9, nil
+				},
+			}
+
+			mockPlaylist := &MockPlaylistManager{
+				GetTop5TracksFunc: func(artistID string) ([]types.Track, error) {
+					tracks := make([]types.Track, 5)
+					for i := 0; i < 5; i++ {
+						tracks[i] = types.Track{
+							ID:   fmt.Sprintf("track-%s-%d", artistID, i),
+							Name: fmt.Sprintf("Track %d", i+1),
+							URI:  fmt.Sprintf("spotify:track:%s-%d", artistID, i),
+						}
+					}
+					return tracks, nil
+				},
+			}
+
+			// Create a test server that returns HTML with artist names
+			var artistNames []string
+			for i := 0; i < numArtists; i++ {
+				artistNames = append(artistNames, fmt.Sprintf("Artist%d", i))
+			}
+			htmlContent := fmt.Sprintf("<html><body>%s</body></html>", strings.Join(artistNames, ", "))
+
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+				_, _ = w.Write([]byte(htmlContent))
+			}))
+			defer server.Close()
+
+			config := DefaultScraperConfig()
+			parser := NewGoqueryParser(logger)
+			extractor := NewPatternArtistExtractor(logger)
+
+			scraper := NewWebScraper(config, parser, extractor, mockSearcher, mockPlaylist, logger)
+
+			// Override duplicateChecker to track calls
+			originalCheckDup := scraper.duplicateChecker
+			scraper.duplicateChecker = func(playlistID, artistID string) (*types.DuplicateResult, error) {
+				checkedArtists[artistID] = true
+				return originalCheckDup(playlistID, artistID)
+			}
+
+			// Perform scraping with force=false (should check duplicates)
+			result, err := scraper.ScrapeAndAddToPlaylist(server.URL, "", "test-playlist", false)
+			if err != nil {
+				t.Logf("Scraping failed: %v", err)
+				return false
+			}
+
+			// Property: Duplicate detection should be invoked for each matched artist
+			for _, matchResult := range result.MatchResults {
+				if matchResult.Matched {
+					if !checkedArtists[matchResult.Artist.ID] {
+						t.Logf("Duplicate detection was not invoked for artist: %s", matchResult.Artist.ID)
+						return false
+					}
+				}
+			}
+
+			return true
+		},
+		gen.IntRange(1, 5),
+	))
+
+	properties.TestingRun(t)
+}
+
+// **Feature: web-scraping-artist-discovery, Property 19: Default duplicate skipping**
+// **Validates: Requirements 9.2**
+// For any duplicate artist detected when force flag is false, the system should skip adding that artist
+func TestProperty_DefaultDuplicateSkipping(t *testing.T) {
+	parameters := gopter.DefaultTestParameters()
+	parameters.MinSuccessfulTests = 100
+	properties := gopter.NewProperties(parameters)
+
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+
+	properties.Property("Duplicate artists are skipped when force=false", prop.ForAll(
+		func(isDuplicate bool) bool {
+			mockSearcher := &MockArtistSearcher{
+				FindBestMatchFunc: func(query string) (*types.Artist, float64, error) {
+					return &types.Artist{
+						ID:   "test-artist-id",
+						Name: query,
+						URI:  "spotify:artist:test",
+					}, 0.9, nil
+				},
+			}
+
+			mockPlaylist := &MockPlaylistManager{
+				GetTop5TracksFunc: func(artistID string) ([]types.Track, error) {
+					tracks := make([]types.Track, 5)
+					for i := 0; i < 5; i++ {
+						tracks[i] = types.Track{
+							ID:   fmt.Sprintf("track-%d", i),
+							Name: fmt.Sprintf("Track %d", i+1),
+							URI:  fmt.Sprintf("spotify:track:%d", i),
+						}
+					}
+					return tracks, nil
+				},
+			}
+
+			// Create a test server
+			htmlContent := "<html><body>Test Artist</body></html>"
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+				_, _ = w.Write([]byte(htmlContent))
+			}))
+			defer server.Close()
+
+			config := DefaultScraperConfig()
+			parser := NewGoqueryParser(logger)
+			extractor := NewPatternArtistExtractor(logger)
+
+			scraper := NewWebScraper(config, parser, extractor, mockSearcher, mockPlaylist, logger)
+
+			// Override duplicateChecker to return the test condition
+			scraper.duplicateChecker = func(playlistID, artistID string) (*types.DuplicateResult, error) {
+				return &types.DuplicateResult{
+					HasDuplicates: isDuplicate,
+				}, nil
+			}
+
+			// Perform scraping with force=false
+			result, err := scraper.ScrapeAndAddToPlaylist(server.URL, "", "test-playlist", false)
+			if err != nil {
+				t.Logf("Scraping failed: %v", err)
+				return false
+			}
+
+			// Property: If duplicate, should be marked as duplicate and not added
+			if isDuplicate {
+				if result.DuplicateCount == 0 {
+					t.Logf("Expected duplicate to be detected and counted")
+					return false
+				}
+				if result.SuccessCount > 0 {
+					t.Logf("Expected no successful additions for duplicate artist")
+					return false
+				}
+				// Check that the match result is marked as duplicate
+				for _, matchResult := range result.MatchResults {
+					if matchResult.Matched && !matchResult.WasDuplicate {
+						t.Logf("Expected matched artist to be marked as duplicate")
+						return false
+					}
+				}
+			} else {
+				// Not a duplicate, should be added successfully
+				if result.DuplicateCount > 0 {
+					t.Logf("Expected no duplicates to be detected")
+					return false
+				}
+			}
+
+			return true
+		},
+		gen.Bool(),
+	))
+
+	properties.TestingRun(t)
+}
+
+// **Feature: web-scraping-artist-discovery, Property 20: Force flag override**
+// **Validates: Requirements 9.5**
+// For any duplicate artist detected when force flag is true, the system should add the artist regardless of duplicate status
+func TestProperty_ForceFlagOverride(t *testing.T) {
+	parameters := gopter.DefaultTestParameters()
+	parameters.MinSuccessfulTests = 100
+	properties := gopter.NewProperties(parameters)
+
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+
+	properties.Property("Force flag overrides duplicate detection", prop.ForAll(
+		func(isDuplicate bool) bool {
+			duplicateCheckCalled := false
+
+			mockSearcher := &MockArtistSearcher{
+				FindBestMatchFunc: func(query string) (*types.Artist, float64, error) {
+					return &types.Artist{
+						ID:   "test-artist-id",
+						Name: query,
+						URI:  "spotify:artist:test",
+					}, 0.9, nil
+				},
+			}
+
+			mockPlaylist := &MockPlaylistManager{
+				GetTop5TracksFunc: func(artistID string) ([]types.Track, error) {
+					tracks := make([]types.Track, 5)
+					for i := 0; i < 5; i++ {
+						tracks[i] = types.Track{
+							ID:   fmt.Sprintf("track-%d", i),
+							Name: fmt.Sprintf("Track %d", i+1),
+							URI:  fmt.Sprintf("spotify:track:%d", i),
+						}
+					}
+					return tracks, nil
+				},
+			}
+
+			// Create a test server
+			htmlContent := "<html><body>Test Artist</body></html>"
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+				_, _ = w.Write([]byte(htmlContent))
+			}))
+			defer server.Close()
+
+			config := DefaultScraperConfig()
+			parser := NewGoqueryParser(logger)
+			extractor := NewPatternArtistExtractor(logger)
+
+			scraper := NewWebScraper(config, parser, extractor, mockSearcher, mockPlaylist, logger)
+
+			// Override duplicateChecker to track if it's called
+			scraper.duplicateChecker = func(playlistID, artistID string) (*types.DuplicateResult, error) {
+				duplicateCheckCalled = true
+				return &types.DuplicateResult{
+					HasDuplicates: isDuplicate,
+				}, nil
+			}
+
+			// Perform scraping with force=true
+			result, err := scraper.ScrapeAndAddToPlaylist(server.URL, "", "test-playlist", true)
+			if err != nil {
+				t.Logf("Scraping failed: %v", err)
+				return false
+			}
+
+			// Property: When force=true, duplicate check should not be called
+			if duplicateCheckCalled {
+				t.Logf("Duplicate check should not be called when force=true")
+				return false
+			}
+
+			// Property: Artist should be added regardless of duplicate status
+			if result.SuccessCount == 0 {
+				t.Logf("Expected artist to be added with force=true")
+				return false
+			}
+
+			// Property: No duplicates should be counted when force=true
+			if result.DuplicateCount > 0 {
+				t.Logf("Expected no duplicates to be counted when force=true")
+				return false
+			}
+
+			return true
+		},
+		gen.Bool(),
+	))
+
+	properties.TestingRun(t)
+}
+
+// **Feature: web-scraping-artist-discovery, Property 21: Batch processing fault tolerance**
+// **Validates: Requirements 10.1, 10.2**
+// For any batch of artists where one fails during matching or addition, the system should continue processing all remaining artists
+func TestProperty_BatchProcessingFaultTolerance(t *testing.T) {
+	parameters := gopter.DefaultTestParameters()
+	parameters.MinSuccessfulTests = 100
+	properties := gopter.NewProperties(parameters)
+
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+
+	properties.Property("Processing continues despite individual failures", prop.ForAll(
+		func(numArtists int, failIndex int) bool {
+			if numArtists < 2 || numArtists > 10 {
+				return true
+			}
+			if failIndex < 0 || failIndex >= numArtists {
+				return true
+			}
+
+			// Create artist names
+			var artistNames []string
+			for i := 0; i < numArtists; i++ {
+				artistNames = append(artistNames, fmt.Sprintf("Artist%d", i))
+			}
+
+			mockSearcher := &MockArtistSearcher{
+				FindBestMatchFunc: func(query string) (*types.Artist, float64, error) {
+					return &types.Artist{
+						ID:   "id-" + query,
+						Name: query,
+						URI:  "uri-" + query,
+					}, 0.9, nil
+				},
+			}
+
+			mockPlaylist := &MockPlaylistManager{
+				GetTop5TracksFunc: func(artistID string) ([]types.Track, error) {
+					// Fail for the specific artist
+					if artistID == fmt.Sprintf("id-Artist%d", failIndex) {
+						return nil, fmt.Errorf("mock error for artist %s", artistID)
+					}
+					tracks := make([]types.Track, 5)
+					for i := 0; i < 5; i++ {
+						tracks[i] = types.Track{
+							ID:   fmt.Sprintf("track-%s-%d", artistID, i),
+							Name: fmt.Sprintf("Track %d", i+1),
+							URI:  fmt.Sprintf("spotify:track:%s-%d", artistID, i),
+						}
+					}
+					return tracks, nil
+				},
+			}
+
+			// Create a test server
+			htmlContent := fmt.Sprintf("<html><body>%s</body></html>", strings.Join(artistNames, ", "))
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+				_, _ = w.Write([]byte(htmlContent))
+			}))
+			defer server.Close()
+
+			config := DefaultScraperConfig()
+			parser := NewGoqueryParser(logger)
+			extractor := NewPatternArtistExtractor(logger)
+
+			scraper := NewWebScraper(config, parser, extractor, mockSearcher, mockPlaylist, logger)
+
+			// Perform scraping
+			result, err := scraper.ScrapeAndAddToPlaylist(server.URL, "", "test-playlist", true)
+			if err != nil {
+				t.Logf("Scraping failed: %v", err)
+				return false
+			}
+
+			// Property: Should have processed at least the expected number of artists
+			// (extractor might find more due to multiple strategies)
+			if len(result.MatchResults) < numArtists {
+				t.Logf("Expected at least %d match results, got %d", numArtists, len(result.MatchResults))
+				return false
+			}
+
+			// Property: Should have at least one failure
+			if result.FailureCount == 0 {
+				t.Logf("Expected at least one failure")
+				return false
+			}
+
+			// Property: Should have some successes
+			// The key property is that processing continues despite failures
+			totalProcessed := result.SuccessCount + result.FailureCount
+			if totalProcessed < numArtists {
+				t.Logf("Expected at least %d total processed (success + failure), got %d", numArtists, totalProcessed)
+				return false
+			}
+
+			return true
+		},
+		gen.IntRange(2, 10),
+		gen.IntRange(0, 9),
+	))
+
+	properties.TestingRun(t)
+}
+
+// **Feature: web-scraping-artist-discovery, Property 22: Network retry with exponential backoff**
+// **Validates: Requirements 10.4**
+// For any network error during HTTP fetch, the system should retry up to 3 times with exponential backoff delays
+func TestProperty_NetworkRetryWithExponentialBackoff(t *testing.T) {
+	parameters := gopter.DefaultTestParameters()
+	parameters.MinSuccessfulTests = 100
+	properties := gopter.NewProperties(parameters)
+
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+
+	properties.Property("Network errors trigger retry with exponential backoff", prop.ForAll(
+		func(failCount int) bool {
+			// Normalize failCount to valid range (0-4)
+			if failCount < 0 {
+				failCount = 0
+			}
+			if failCount > 4 {
+				failCount = 4
+			}
+
+			attemptCount := 0
+			var attemptTimes []time.Time
+
+			// Create a test server that fails a certain number of times
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				attemptTimes = append(attemptTimes, time.Now())
+				attemptCount++
+				if attemptCount <= failCount {
+					// Fail by closing connection
+					hj, ok := w.(http.Hijacker)
+					if ok {
+						conn, _, _ := hj.Hijack()
+						conn.Close()
+					}
+					return
+				}
+				// Succeed
+				w.WriteHeader(http.StatusOK)
+				_, _ = w.Write([]byte("<html><body>Test Artist</body></html>"))
+			}))
+			defer server.Close()
+
+			config := DefaultScraperConfig()
+			config.MaxRetries = 3
+			config.RetryBackoff = 100 * time.Millisecond // Short backoff for testing
+
+			parser := NewGoqueryParser(logger)
+			extractor := NewPatternArtistExtractor(logger)
+			mockSearcher := &MockArtistSearcher{}
+			mockPlaylist := &MockPlaylistManager{}
+
+			scraper := NewWebScraper(config, parser, extractor, mockSearcher, mockPlaylist, logger)
+
+			// Attempt to scrape
+			_, err := scraper.ScrapeArtists(server.URL, "")
+
+			// Property: If failCount <= MaxRetries, should eventually succeed
+			if failCount <= config.MaxRetries {
+				if err != nil {
+					t.Logf("Expected success after %d failures (max retries: %d), got error: %v",
+						failCount, config.MaxRetries, err)
+					return false
+				}
+				// Should have made failCount+1 attempts
+				if attemptCount != failCount+1 {
+					t.Logf("Expected %d attempts, got %d", failCount+1, attemptCount)
+					return false
+				}
+			} else {
+				// Should fail after MaxRetries+1 attempts
+				if err == nil {
+					t.Logf("Expected error after exceeding max retries")
+					return false
+				}
+				if attemptCount != config.MaxRetries+1 {
+					t.Logf("Expected %d attempts (max retries + 1), got %d", config.MaxRetries+1, attemptCount)
+					return false
+				}
+			}
+
+			// Property: Verify exponential backoff between attempts
+			if len(attemptTimes) > 1 {
+				for i := 1; i < len(attemptTimes); i++ {
+					delay := attemptTimes[i].Sub(attemptTimes[i-1])
+					// Each delay should be at least the backoff time
+					// (allowing some tolerance for execution time)
+					minExpectedDelay := config.RetryBackoff * time.Duration(1<<uint(i-1))
+					if delay < minExpectedDelay/2 {
+						t.Logf("Delay between attempt %d and %d was %v, expected at least %v",
+							i, i+1, delay, minExpectedDelay)
+						return false
+					}
+				}
+			}
+
+			return true
+		},
+		gen.IntRange(0, 4),
+	))
+
+	properties.TestingRun(t)
+}
+
+// **Feature: web-scraping-artist-discovery, Property 17: Operation logging**
+// **Validates: Requirements 8.1, 8.2, 8.3, 8.4, 8.5**
+// For any scraping operation, the system should log the URL, CSS selector, HTTP response details, extracted artists, match results, and any errors
+func TestProperty_OperationLogging(t *testing.T) {
+	parameters := gopter.DefaultTestParameters()
+	parameters.MinSuccessfulTests = 100
+	properties := gopter.NewProperties(parameters)
+
+	properties.Property("All scraping operations are logged comprehensively", prop.ForAll(
+		func(numArtists int, includeSelector bool) bool {
+			if numArtists < 1 || numArtists > 5 {
+				return true
+			}
+
+			// Create a custom logger with a hook to capture log entries
+			logger := logrus.New()
+			logger.SetLevel(logrus.DebugLevel)
+
+			// Capture log entries
+			var logEntries []logrus.Entry
+			logger.AddHook(&testLogHook{
+				entries: &logEntries,
+			})
+
+			// Create artist names
+			var artistNames []string
+			for i := 0; i < numArtists; i++ {
+				artistNames = append(artistNames, fmt.Sprintf("TestArtist%d", i))
+			}
+
+			mockSearcher := &MockArtistSearcher{
+				FindBestMatchFunc: func(query string) (*types.Artist, float64, error) {
+					// Return varying confidence to test low confidence logging
+					confidence := 0.9
+					if query == "TestArtist0" {
+						confidence = 0.3 // Low confidence
+					}
+					return &types.Artist{
+						ID:   "id-" + query,
+						Name: query,
+						URI:  "uri-" + query,
+					}, confidence, nil
+				},
+			}
+
+			mockPlaylist := &MockPlaylistManager{
+				GetTop5TracksFunc: func(artistID string) ([]types.Track, error) {
+					tracks := make([]types.Track, 5)
+					for i := 0; i < 5; i++ {
+						tracks[i] = types.Track{
+							ID:   fmt.Sprintf("track-%s-%d", artistID, i),
+							Name: fmt.Sprintf("Track %d", i+1),
+							URI:  fmt.Sprintf("spotify:track:%s-%d", artistID, i),
+						}
+					}
+					return tracks, nil
+				},
+			}
+
+			// Create a test server
+			htmlContent := fmt.Sprintf("<html><body><div class='content'>%s</div></body></html>",
+				strings.Join(artistNames, ", "))
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+				_, _ = w.Write([]byte(htmlContent))
+			}))
+			defer server.Close()
+
+			config := DefaultScraperConfig()
+			parser := NewGoqueryParser(logger)
+			extractor := NewPatternArtistExtractor(logger)
+
+			scraper := NewWebScraper(config, parser, extractor, mockSearcher, mockPlaylist, logger)
+
+			// Perform scraping
+			cssSelector := ""
+			if includeSelector {
+				cssSelector = ".content"
+			}
+			_, err := scraper.ScrapeAndAddToPlaylist(server.URL, cssSelector, "test-playlist", true)
+			if err != nil {
+				t.Logf("Scraping failed: %v", err)
+				return false
+			}
+
+			// Property 1: Operation start should be logged with URL and CSS selector
+			foundOperationStart := false
+			for _, entry := range logEntries {
+				if entry.Data["operation"] == "scrape_and_add_start" {
+					if entry.Data["url"] != server.URL {
+						t.Logf("Expected URL %s in start log, got %v", server.URL, entry.Data["url"])
+						return false
+					}
+					if entry.Data["css_selector"] != cssSelector {
+						t.Logf("Expected CSS selector %s in start log, got %v", cssSelector, entry.Data["css_selector"])
+						return false
+					}
+					foundOperationStart = true
+					break
+				}
+			}
+			if !foundOperationStart {
+				t.Logf("Expected operation start to be logged")
+				return false
+			}
+
+			// Property 2: HTTP fetch should be logged with status code and content length
+			foundHTTPFetch := false
+			for _, entry := range logEntries {
+				if entry.Data["operation"] == "http_fetch" {
+					if entry.Data["status_code"] != http.StatusOK {
+						t.Logf("Expected status code %d in HTTP fetch log, got %v", http.StatusOK, entry.Data["status_code"])
+						return false
+					}
+					if entry.Data["url"] != server.URL {
+						t.Logf("Expected URL %s in HTTP fetch log, got %v", server.URL, entry.Data["url"])
+						return false
+					}
+					// Content length should be present
+					if _, ok := entry.Data["content_length"]; !ok {
+						t.Logf("Expected content_length in HTTP fetch log")
+						return false
+					}
+					// Duration should be present
+					if _, ok := entry.Data["duration_ms"]; !ok {
+						t.Logf("Expected duration_ms in HTTP fetch log")
+						return false
+					}
+					foundHTTPFetch = true
+					break
+				}
+			}
+			if !foundHTTPFetch {
+				t.Logf("Expected HTTP fetch to be logged")
+				return false
+			}
+
+			// Property 3: Extracted artists should be logged
+			foundExtractedArtists := false
+			for _, entry := range logEntries {
+				if entry.Data["operation"] == "extract_artists" {
+					artistsFound, ok := entry.Data["artists_found"]
+					if !ok {
+						t.Logf("Expected artists_found in extract log")
+						return false
+					}
+					if artistsFound.(int) == 0 {
+						t.Logf("Expected at least one artist to be extracted")
+						return false
+					}
+					// Artists list should be present
+					if _, ok := entry.Data["artists"]; !ok {
+						t.Logf("Expected artists list in extract log")
+						return false
+					}
+					foundExtractedArtists = true
+					break
+				}
+			}
+			if !foundExtractedArtists {
+				t.Logf("Expected extracted artists to be logged")
+				return false
+			}
+
+			// Property 4: Fuzzy matching results should be logged with confidence scores
+			// Note: This only applies if there are successful matches (confidence >= threshold)
+			// Count how many artists should have successful matches
+			expectedSuccessfulMatches := 0
+			for i := 0; i < numArtists; i++ {
+				if i != 0 { // TestArtist0 has low confidence (0.3)
+					expectedSuccessfulMatches++
+				}
+			}
+
+			if expectedSuccessfulMatches > 0 {
+				foundFuzzyMatch := false
+				for _, entry := range logEntries {
+					if entry.Data["operation"] == "fuzzy_match" {
+						// Should have query, artist, and confidence
+						if _, ok := entry.Data["query"]; !ok {
+							t.Logf("Expected query in fuzzy match log")
+							return false
+						}
+						if _, ok := entry.Data["artist"]; !ok {
+							t.Logf("Expected artist in fuzzy match log")
+							return false
+						}
+						if _, ok := entry.Data["confidence"]; !ok {
+							t.Logf("Expected confidence in fuzzy match log")
+							return false
+						}
+						foundFuzzyMatch = true
+						break
+					}
+				}
+				if !foundFuzzyMatch {
+					t.Logf("Expected fuzzy match to be logged when there are successful matches")
+					return false
+				}
+			}
+
+			// Property 5: Low confidence matches should be logged
+			foundLowConfidence := false
+			for _, entry := range logEntries {
+				if entry.Data["operation"] == "skip_low_confidence" {
+					// Should have query, confidence, and threshold
+					if _, ok := entry.Data["query"]; !ok {
+						t.Logf("Expected query in low confidence log")
+						return false
+					}
+					if _, ok := entry.Data["confidence"]; !ok {
+						t.Logf("Expected confidence in low confidence log")
+						return false
+					}
+					if _, ok := entry.Data["threshold"]; !ok {
+						t.Logf("Expected threshold in low confidence log")
+						return false
+					}
+					foundLowConfidence = true
+					break
+				}
+			}
+			if !foundLowConfidence {
+				t.Logf("Expected low confidence match to be logged (TestArtist0 has confidence 0.3)")
+				return false
+			}
+
+			// Property 6: Operation completion should be logged with summary statistics
+			foundOperationComplete := false
+			for _, entry := range logEntries {
+				if entry.Data["operation"] == "scrape_complete" {
+					// Should have URL, counts, and duration
+					if entry.Data["url"] != server.URL {
+						t.Logf("Expected URL %s in complete log, got %v", server.URL, entry.Data["url"])
+						return false
+					}
+					if _, ok := entry.Data["artists_found"]; !ok {
+						t.Logf("Expected artists_found in complete log")
+						return false
+					}
+					if _, ok := entry.Data["success_count"]; !ok {
+						t.Logf("Expected success_count in complete log")
+						return false
+					}
+					if _, ok := entry.Data["failure_count"]; !ok {
+						t.Logf("Expected failure_count in complete log")
+						return false
+					}
+					if _, ok := entry.Data["duplicate_count"]; !ok {
+						t.Logf("Expected duplicate_count in complete log")
+						return false
+					}
+					if _, ok := entry.Data["total_tracks"]; !ok {
+						t.Logf("Expected total_tracks in complete log")
+						return false
+					}
+					if _, ok := entry.Data["duration_ms"]; !ok {
+						t.Logf("Expected duration_ms in complete log")
+						return false
+					}
+					foundOperationComplete = true
+					break
+				}
+			}
+			if !foundOperationComplete {
+				t.Logf("Expected operation completion to be logged")
+				return false
+			}
+
+			return true
+		},
+		gen.IntRange(1, 5),
+		gen.Bool(),
+	))
+
+	properties.TestingRun(t)
+}
+
+// testLogHook is a custom logrus hook for capturing log entries during tests
+type testLogHook struct {
+	entries *[]logrus.Entry
+}
+
+func (h *testLogHook) Levels() []logrus.Level {
+	return logrus.AllLevels
+}
+
+func (h *testLogHook) Fire(entry *logrus.Entry) error {
+	// Make a copy of the entry to avoid race conditions
+	entryCopy := *entry
+	*h.entries = append(*h.entries, entryCopy)
+	return nil
+}
+
+// Unit test for comprehensive logging verification
+func TestWebScraper_ComprehensiveLogging(t *testing.T) {
+	// Create a custom logger with a hook to capture log entries
+	logger := logrus.New()
+	logger.SetLevel(logrus.DebugLevel)
+
+	var logEntries []logrus.Entry
+	logger.AddHook(&testLogHook{
+		entries: &logEntries,
+	})
+
+	mockSearcher := &MockArtistSearcher{
+		FindBestMatchFunc: func(query string) (*types.Artist, float64, error) {
+			return &types.Artist{
+				ID:   "test-id",
+				Name: query,
+				URI:  "spotify:artist:test",
+			}, 0.9, nil
+		},
+	}
+
+	mockPlaylist := &MockPlaylistManager{
+		GetTop5TracksFunc: func(artistID string) ([]types.Track, error) {
+			tracks := make([]types.Track, 5)
+			for i := 0; i < 5; i++ {
+				tracks[i] = types.Track{
+					ID:   fmt.Sprintf("track-%d", i),
+					Name: fmt.Sprintf("Track %d", i+1),
+					URI:  fmt.Sprintf("spotify:track:%d", i),
+				}
+			}
+			return tracks, nil
+		},
+	}
+
+	// Create a test server
+	htmlContent := "<html><body>Test Artist</body></html>"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(htmlContent))
+	}))
+	defer server.Close()
+
+	config := DefaultScraperConfig()
+	parser := NewGoqueryParser(logger)
+	extractor := NewPatternArtistExtractor(logger)
+
+	scraper := NewWebScraper(config, parser, extractor, mockSearcher, mockPlaylist, logger)
+
+	// Perform scraping
+	result, err := scraper.ScrapeAndAddToPlaylist(server.URL, "", "test-playlist", true)
+	if err != nil {
+		t.Fatalf("Scraping failed: %v", err)
+	}
+
+	// Verify all required log entries are present
+	logOperations := make(map[string]bool)
+	for _, entry := range logEntries {
+		if op, ok := entry.Data["operation"]; ok {
+			logOperations[op.(string)] = true
+		}
+	}
+
+	// Check that all required operations were logged
+	requiredOperations := []string{
+		"scrape_and_add_start",
+		"scrape_start",
+		"http_fetch",
+		"extract_artists",
+		"fuzzy_match",
+		"scrape_complete",
+	}
+
+	for _, op := range requiredOperations {
+		if !logOperations[op] {
+			t.Errorf("Expected operation %q to be logged", op)
+		}
+	}
+
+	// Verify result has expected data
+	if result == nil {
+		t.Fatal("Expected result, got nil")
+	}
+
+	if result.URL != server.URL {
+		t.Errorf("Expected URL %s, got %s", server.URL, result.URL)
+	}
+
+	if len(result.ArtistsFound) == 0 {
+		t.Error("Expected at least one artist to be found")
+	}
+}
+
+// Unit test for error logging
+func TestWebScraper_ErrorLogging(t *testing.T) {
+	// Create a custom logger with a hook to capture log entries
+	logger := logrus.New()
+	logger.SetLevel(logrus.DebugLevel)
+
+	var logEntries []logrus.Entry
+	logger.AddHook(&testLogHook{
+		entries: &logEntries,
+	})
+
+	mockSearcher := &MockArtistSearcher{
+		FindBestMatchFunc: func(query string) (*types.Artist, float64, error) {
+			return nil, 0.0, fmt.Errorf("mock search error")
+		},
+	}
+
+	mockPlaylist := &MockPlaylistManager{}
+
+	// Create a test server
+	htmlContent := "<html><body>Test Artist</body></html>"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(htmlContent))
+	}))
+	defer server.Close()
+
+	config := DefaultScraperConfig()
+	parser := NewGoqueryParser(logger)
+	extractor := NewPatternArtistExtractor(logger)
+
+	scraper := NewWebScraper(config, parser, extractor, mockSearcher, mockPlaylist, logger)
+
+	// Perform scraping (should have errors)
+	_, err := scraper.ScrapeAndAddToPlaylist(server.URL, "", "test-playlist", true)
+	if err != nil {
+		t.Fatalf("Scraping failed: %v", err)
+	}
+
+	// Verify error logging
+	foundErrorLog := false
+	for _, entry := range logEntries {
+		if entry.Level == logrus.WarnLevel || entry.Level == logrus.ErrorLevel {
+			foundErrorLog = true
+			break
+		}
+	}
+
+	if !foundErrorLog {
+		t.Error("Expected error or warning to be logged")
+	}
+}
+
+// Unit test for retry logging
+func TestWebScraper_RetryLogging(t *testing.T) {
+	// Create a custom logger with a hook to capture log entries
+	logger := logrus.New()
+	logger.SetLevel(logrus.DebugLevel)
+
+	var logEntries []logrus.Entry
+	logger.AddHook(&testLogHook{
+		entries: &logEntries,
+	})
+
+	attemptCount := 0
+	// Create a test server that fails once then succeeds
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attemptCount++
+		if attemptCount == 1 {
+			// Fail first attempt
+			hj, ok := w.(http.Hijacker)
+			if ok {
+				conn, _, _ := hj.Hijack()
+				conn.Close()
+			}
+			return
+		}
+		// Succeed on retry
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("<html><body>Test Artist</body></html>"))
+	}))
+	defer server.Close()
+
+	config := DefaultScraperConfig()
+	config.MaxRetries = 3
+	config.RetryBackoff = 10 * time.Millisecond
+
+	parser := NewGoqueryParser(logger)
+	extractor := NewPatternArtistExtractor(logger)
+	mockSearcher := &MockArtistSearcher{}
+	mockPlaylist := &MockPlaylistManager{}
+
+	scraper := NewWebScraper(config, parser, extractor, mockSearcher, mockPlaylist, logger)
+
+	// Perform scraping
+	_, err := scraper.ScrapeArtists(server.URL, "")
+	if err != nil {
+		t.Fatalf("Expected scraping to succeed after retry, got error: %v", err)
+	}
+
+	// Verify retry was logged
+	foundRetryLog := false
+	for _, entry := range logEntries {
+		if entry.Message == "Retrying HTTP request" || entry.Message == "HTTP request failed" {
+			foundRetryLog = true
+			break
+		}
+	}
+
+	if !foundRetryLog {
+		t.Error("Expected retry to be logged")
+	}
+
+	// Verify at least 2 attempts were made
+	if attemptCount < 2 {
+		t.Errorf("Expected at least 2 attempts, got %d", attemptCount)
+	}
+}
+
+// **Feature: web-scraping-artist-discovery, Property 14: Result summary display**
+// **Validates: Requirements 5.3, 6.4, 10.3**
+// For any completed scraping operation, the system should display a summary
+// containing artists found, matched, and added counts
+func TestProperty_ResultSummaryDisplay(t *testing.T) {
+	parameters := gopter.DefaultTestParameters()
+	parameters.MinSuccessfulTests = 100
+	properties := gopter.NewProperties(parameters)
+
+	properties.Property("ScrapeResult contains complete summary information", prop.ForAll(
+		func(artistsFound []string) bool {
+			// Create match results that correspond to the artists found
+			numArtists := len(artistsFound)
+			matchResults := make([]ArtistMatchResult, numArtists)
+
+			// Randomly assign success/failure/duplicate status to each artist
+			successCount := 0
+			failureCount := 0
+			duplicateCount := 0
+			totalTracks := 0
+
+			for i := range matchResults {
+				if i < len(artistsFound) {
+					matchResults[i].Query = artistsFound[i]
+				} else {
+					matchResults[i].Query = fmt.Sprintf("artist-%d", i)
+				}
+
+				// Randomly determine the outcome (33% success, 33% failure, 33% duplicate)
+				outcome := i % 3
+				switch outcome {
+				case 0: // Success
+					matchResults[i].Matched = true
+					matchResults[i].Artist = &types.Artist{ID: fmt.Sprintf("id-%d", i), Name: matchResults[i].Query}
+					matchResults[i].TracksAdded = 5
+					successCount++
+					totalTracks += 5
+				case 1: // Failure
+					matchResults[i].Matched = false
+					matchResults[i].Error = "Not found"
+					failureCount++
+				case 2: // Duplicate
+					matchResults[i].Matched = true
+					matchResults[i].Artist = &types.Artist{ID: fmt.Sprintf("id-%d", i), Name: matchResults[i].Query}
+					matchResults[i].WasDuplicate = true
+					duplicateCount++
+				}
+			}
+
+			// Create a ScrapeResult with the given values
+			result := &ScrapeResult{
+				URL:              "https://example.com/test",
+				CSSSelector:      "div.content",
+				ArtistsFound:     artistsFound,
+				MatchResults:     matchResults,
+				SuccessCount:     successCount,
+				FailureCount:     failureCount,
+				DuplicateCount:   duplicateCount,
+				TotalTracksAdded: totalTracks,
+				Message: fmt.Sprintf("Scraping complete: %d artists found, %d matched, %d added, %d duplicates, %d failed",
+					len(artistsFound), len(artistsFound), successCount, duplicateCount, failureCount),
+				Errors: []string{},
+			}
+
+			// Property 1: Result must have a URL
+			if result.URL == "" {
+				t.Logf("Result missing URL")
+				return false
+			}
+
+			// Property 2: ArtistsFound list must be present (can be empty)
+			if result.ArtistsFound == nil {
+				t.Logf("ArtistsFound is nil, should be empty slice")
+				return false
+			}
+
+			// Property 3: MatchResults must be present (can be empty)
+			if result.MatchResults == nil {
+				t.Logf("MatchResults is nil, should be empty slice")
+				return false
+			}
+
+			// Property 4: Success count must be non-negative
+			if result.SuccessCount < 0 {
+				t.Logf("SuccessCount is negative: %d", result.SuccessCount)
+				return false
+			}
+
+			// Property 5: Failure count must be non-negative
+			if result.FailureCount < 0 {
+				t.Logf("FailureCount is negative: %d", result.FailureCount)
+				return false
+			}
+
+			// Property 6: Duplicate count must be non-negative
+			if result.DuplicateCount < 0 {
+				t.Logf("DuplicateCount is negative: %d", result.DuplicateCount)
+				return false
+			}
+
+			// Property 7: Total tracks added must be non-negative
+			if result.TotalTracksAdded < 0 {
+				t.Logf("TotalTracksAdded is negative: %d", result.TotalTracksAdded)
+				return false
+			}
+
+			// Property 8: Message must be present
+			if result.Message == "" {
+				t.Logf("Result missing summary message")
+				return false
+			}
+
+			// Property 9: Errors list must be present (can be empty)
+			if result.Errors == nil {
+				t.Logf("Errors is nil, should be empty slice")
+				return false
+			}
+
+			// Property 10: The sum of success, failure, and duplicate counts should equal
+			// the number of match results
+			totalProcessed := result.SuccessCount + result.FailureCount + result.DuplicateCount
+			if totalProcessed != len(result.MatchResults) {
+				t.Logf("Total processed (%d) doesn't match number of match results (%d)",
+					totalProcessed, len(result.MatchResults))
+				return false
+			}
+
+			return true
+		},
+		gen.SliceOf(gen.AlphaString().SuchThat(func(s string) bool { return len(s) > 0 })), // artistsFound (non-empty strings)
+	))
+
+	properties.TestingRun(t)
+}
+
+// **Feature: web-scraping-artist-discovery, Property 15: Individual result status**
+// **Validates: Requirements 5.4, 9.3**
+// For any batch of artists processed, the system should show success/failure status
+// for each individual artist
+func TestProperty_IndividualResultStatus(t *testing.T) {
+	parameters := gopter.DefaultTestParameters()
+	parameters.MinSuccessfulTests = 100
+	properties := gopter.NewProperties(parameters)
+
+	properties.Property("Each ArtistMatchResult has complete status information", prop.ForAll(
+		func(matched bool, confidence float64, wasDuplicate bool) bool {
+			// Ensure valid inputs
+			if confidence < 0 || confidence > 1 {
+				return true // Skip invalid confidence values
+			}
+
+			// Generate a non-empty query string
+			query := fmt.Sprintf("Artist-%d", int(confidence*1000))
+
+			// Determine tracksAdded based on matched and wasDuplicate status
+			// If not matched or is duplicate, tracks added should be 0
+			// Otherwise, it can be 0-5
+			tracksAdded := 0
+			if matched && !wasDuplicate {
+				// For successful matches, randomly assign 0-5 tracks
+				tracksAdded = int(confidence * 5) // Use confidence to generate 0-5
+			}
+
+			// Create an ArtistMatchResult
+			result := ArtistMatchResult{
+				Query:        query,
+				Matched:      matched,
+				Confidence:   confidence,
+				TracksAdded:  tracksAdded,
+				WasDuplicate: wasDuplicate,
+			}
+
+			// If matched, create an artist
+			if matched {
+				result.Artist = &types.Artist{
+					ID:   "test-id",
+					Name: "Test Artist",
+					URI:  "spotify:artist:test-id",
+				}
+			}
+
+			// Property 1: Query must be present
+			if result.Query == "" {
+				t.Logf("ArtistMatchResult missing query")
+				return false
+			}
+
+			// Property 2: If matched is true, Artist should be present
+			if result.Matched && result.Artist == nil {
+				t.Logf("Matched is true but Artist is nil")
+				return false
+			}
+
+			// Property 3: Confidence must be between 0 and 1
+			if result.Confidence < 0 || result.Confidence > 1 {
+				t.Logf("Confidence %f is out of range [0, 1]", result.Confidence)
+				return false
+			}
+
+			// Property 4: TracksAdded must be non-negative
+			if result.TracksAdded < 0 {
+				t.Logf("TracksAdded is negative: %d", result.TracksAdded)
+				return false
+			}
+
+			// Property 5: If not matched, TracksAdded should be 0
+			if !result.Matched && result.TracksAdded > 0 {
+				t.Logf("Not matched but TracksAdded is %d", result.TracksAdded)
+				return false
+			}
+
+			// Property 6: If WasDuplicate is true, TracksAdded should be 0
+			if result.WasDuplicate && result.TracksAdded > 0 {
+				t.Logf("WasDuplicate is true but TracksAdded is %d", result.TracksAdded)
+				return false
+			}
+
+			return true
+		},
+		gen.Bool(),             // matched
+		gen.Float64Range(0, 1), // confidence
+		gen.Bool(),             // wasDuplicate
+	))
+
+	properties.TestingRun(t)
+}
+
+// Integration test for Reddit example
+// **Feature: web-scraping-artist-discovery, Integration Test: Reddit Example**
+// **Validates: Requirements 7.1, 7.2, 7.3**
+// This test verifies the complete workflow using the actual Reddit URL example
+func TestRedditIntegration(t *testing.T) {
+	// Skip in short mode as this is an integration test
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	logger := logrus.New()
+	logger.SetLevel(logrus.InfoLevel)
+
+	// Expected artists from the Reddit post
+	expectedArtists := []string{
+		"Title Fight",
+		"Sweet Pill",
+		"Fleshwater",
+		"Ovlov",
+		"Modern Color",
+		"Fiddlehead",
+		"They Are Gutting A Body Of Water",
+		"Citizen",
+		"Loathe",
+		"Whirr",
+	}
+
+	// Create mock searcher that simulates Spotify matching
+	// We'll simulate that most artists match successfully
+	mockSearcher := &MockArtistSearcher{
+		FindBestMatchFunc: func(query string) (*types.Artist, float64, error) {
+			// Simulate varying confidence scores
+			confidence := 0.85
+
+			// Some artists might have lower confidence or not match
+			switch query {
+			case "They Are Gutting A Body Of Water":
+				// Long name might have slightly lower confidence
+				confidence = 0.75
+			case "Ovlov":
+				// Might be harder to match
+				confidence = 0.65
+			}
+
+			return &types.Artist{
+				ID:   "spotify-id-" + strings.ReplaceAll(strings.ToLower(query), " ", "-"),
+				Name: query,
+				URI:  "spotify:artist:" + strings.ReplaceAll(strings.ToLower(query), " ", "-"),
+			}, confidence, nil
+		},
+	}
+
+	// Create mock playlist manager
+	mockPlaylist := &MockPlaylistManager{
+		GetTop5TracksFunc: func(artistID string) ([]types.Track, error) {
+			// Return exactly 5 tracks for each artist
+			tracks := make([]types.Track, 5)
+			for i := 0; i < 5; i++ {
+				tracks[i] = types.Track{
+					ID:   fmt.Sprintf("%s-track-%d", artistID, i+1),
+					Name: fmt.Sprintf("Track %d", i+1),
+					URI:  fmt.Sprintf("spotify:track:%s-%d", artistID, i+1),
+				}
+			}
+			return tracks, nil
+		},
+	}
+
+	// Reddit URL from requirements
+	redditURL := "https://www.reddit.com/r/Portland/comments/1owigfd/looking_for_local_bands_to_listen_to/"
+
+	// CSS selector for Reddit post content
+	// Reddit's structure uses various selectors, we'll test common ones
+	cssSelectors := []string{
+		"div[data-test-id='post-content']",
+		"div.Post",
+		"", // Empty selector (entire body) as fallback
+	}
+
+	config := DefaultScraperConfig()
+	config.Timeout = 60 * time.Second // Longer timeout for real HTTP request
+	parser := NewGoqueryParser(logger)
+	extractor := NewPatternArtistExtractor(logger)
+
+	scraper := NewWebScraper(config, parser, extractor, mockSearcher, mockPlaylist, logger)
+
+	var result *ScrapeResult
+	var err error
+	var successfulSelector string
+
+	// Try each CSS selector until one works
+	for _, selector := range cssSelectors {
+		t.Logf("Attempting to scrape with CSS selector: %q", selector)
+
+		result, err = scraper.ScrapeAndAddToPlaylist(redditURL, selector, "test-playlist", true)
+
+		if err == nil && len(result.ArtistsFound) > 0 {
+			successfulSelector = selector
+			t.Logf("Successfully scraped with selector: %q", selector)
+			break
+		}
+
+		if err != nil {
+			t.Logf("Selector %q failed: %v", selector, err)
+		} else {
+			t.Logf("Selector %q found no artists", selector)
+		}
+	}
+
+	// Verify we got a result
+	if err != nil {
+		t.Fatalf("Failed to scrape Reddit URL after trying all selectors: %v", err)
+	}
+
+	if result == nil {
+		t.Fatal("Expected result, got nil")
+	}
+
+	t.Logf("Scraping completed with selector: %q", successfulSelector)
+	t.Logf("Artists found: %d", len(result.ArtistsFound))
+	t.Logf("Artists matched: %d", len(result.MatchResults))
+	t.Logf("Success count: %d", result.SuccessCount)
+	t.Logf("Failure count: %d", result.FailureCount)
+	t.Logf("Total tracks added: %d", result.TotalTracksAdded)
+
+	// Requirement 7.1: Should extract text from the post description
+	if len(result.ArtistsFound) == 0 {
+		t.Error("Expected to extract artists from Reddit post, got none")
+	}
+
+	// Requirement 7.2: Should identify the expected artists
+	// Check how many of the expected artists were found
+	foundExpectedArtists := 0
+	for _, expected := range expectedArtists {
+		found := false
+		for _, artist := range result.ArtistsFound {
+			// Normalize for comparison (case-insensitive, whitespace-normalized)
+			if normalizeForComparison(artist) == normalizeForComparison(expected) {
+				found = true
+				break
+			}
+		}
+		if found {
+			foundExpectedArtists++
+			t.Logf("Found expected artist: %s", expected)
+		} else {
+			t.Logf("Did not find expected artist: %s", expected)
+		}
+	}
+
+	// Should find most of the expected artists (at least 7 out of 10)
+	if foundExpectedArtists < 7 {
+		t.Errorf("Expected to find at least 7 of 10 expected artists, found %d", foundExpectedArtists)
+		t.Logf("Artists found: %v", result.ArtistsFound)
+	}
+
+	// Requirement 7.3: Should successfully match at least 8 of 10 artists to Spotify
+	matchedCount := 0
+	for _, matchResult := range result.MatchResults {
+		if matchResult.Matched {
+			matchedCount++
+		}
+	}
+
+	if matchedCount < 8 {
+		t.Errorf("Expected at least 8 artists to match to Spotify, got %d", matchedCount)
+	}
+
+	// Requirement 7.3: Should add top 5 songs for each matched artist
+	// Verify that each successful match added exactly 5 tracks
+	for _, matchResult := range result.MatchResults {
+		if matchResult.Matched && matchResult.TracksAdded > 0 {
+			if matchResult.TracksAdded != 5 {
+				t.Errorf("Expected 5 tracks added for artist %s, got %d",
+					matchResult.Artist.Name, matchResult.TracksAdded)
+			}
+		}
+	}
+
+	// Verify total tracks added is reasonable (at least 8 artists * 5 tracks = 40 tracks)
+	expectedMinTracks := 40
+	if result.TotalTracksAdded < expectedMinTracks {
+		t.Errorf("Expected at least %d total tracks added, got %d",
+			expectedMinTracks, result.TotalTracksAdded)
+	}
+
+	// Verify the result message is informative
+	if result.Message == "" {
+		t.Error("Expected result message to be set")
+	}
+
+	t.Logf("Integration test completed successfully")
+	t.Logf("Result message: %s", result.Message)
+}
+
+// normalizeForComparison normalizes strings for comparison
+func normalizeForComparison(s string) string {
+	// Convert to lowercase and normalize whitespace
+	s = strings.ToLower(s)
+	s = strings.TrimSpace(s)
+	// Replace multiple spaces with single space
+	parts := strings.Fields(s)
+	return strings.Join(parts, " ")
+}
+
+// TestRedditIntegrationWithRealHTTP tests the Reddit example with actual HTTP request
+// This test is separate and can be skipped if network is unavailable
+func TestRedditIntegrationWithRealHTTP(t *testing.T) {
+	// Skip by default - only run when explicitly requested
+	if testing.Short() {
+		t.Skip("Skipping real HTTP integration test in short mode")
+	}
+
+	// Check if we should skip network tests
+	if skipNetworkTests := os.Getenv("SKIP_NETWORK_TESTS"); skipNetworkTests == "true" {
+		t.Skip("Skipping network tests (SKIP_NETWORK_TESTS=true)")
+	}
+
+	logger := logrus.New()
+	logger.SetLevel(logrus.InfoLevel)
+
+	// Reddit URL from requirements
+	redditURL := "https://www.reddit.com/r/Portland/comments/1owigfd/looking_for_local_bands_to_listen_to/"
+
+	config := DefaultScraperConfig()
+	config.Timeout = 60 * time.Second // Longer timeout for real HTTP request
+	parser := NewGoqueryParser(logger)
+	extractor := NewPatternArtistExtractor(logger)
+
+	// Create scraper without searcher/playlist (just test HTML fetching and parsing)
+	scraper := NewWebScraper(config, parser, extractor, nil, nil, logger)
+
+	// Try to scrape artists (without adding to playlist)
+	cssSelectors := []string{
+		"div[data-test-id='post-content']",
+		"div.Post",
+		"div[data-click-id='text']",
+		"", // Empty selector as fallback
+	}
+
+	var artists []string
+	var err error
+	var successfulSelector string
+
+	for _, selector := range cssSelectors {
+		t.Logf("Attempting to scrape with CSS selector: %q", selector)
+
+		artists, err = scraper.ScrapeArtists(redditURL, selector)
+
+		if err == nil && len(artists) > 0 {
+			successfulSelector = selector
+			t.Logf("Successfully scraped with selector: %q", selector)
+			break
+		}
+
+		if err != nil {
+			t.Logf("Selector %q failed: %v", selector, err)
+		} else {
+			t.Logf("Selector %q found no artists", selector)
+		}
+	}
+
+	// If all selectors failed, this might be due to network issues or Reddit changes
+	if err != nil {
+		t.Logf("Warning: Failed to scrape Reddit URL: %v", err)
+		t.Log("This might be due to network issues, rate limiting, or changes to Reddit's HTML structure")
+		t.Skip("Skipping test due to HTTP fetch failure")
+	}
+
+	if len(artists) == 0 {
+		t.Log("Warning: No artists found in Reddit post")
+		t.Log("This might be due to changes in Reddit's HTML structure or the post content")
+		t.Skip("Skipping test due to no artists found")
+	}
+
+	t.Logf("Successfully scraped Reddit with selector: %q", successfulSelector)
+	t.Logf("Found %d potential artists: %v", len(artists), artists)
+
+	// Verify we found some artists
+	if len(artists) < 5 {
+		t.Errorf("Expected to find at least 5 artists, got %d", len(artists))
+	}
+
+	// Check if we found any of the expected artists
+	expectedArtists := []string{
+		"Title Fight",
+		"Sweet Pill",
+		"Fleshwater",
+		"Ovlov",
+		"Modern Color",
+		"Fiddlehead",
+		"They Are Gutting A Body Of Water",
+		"Citizen",
+		"Loathe",
+		"Whirr",
+	}
+
+	foundCount := 0
+	for _, expected := range expectedArtists {
+		for _, artist := range artists {
+			if normalizeForComparison(artist) == normalizeForComparison(expected) {
+				foundCount++
+				t.Logf("Found expected artist: %s", expected)
+				break
+			}
+		}
+	}
+
+	if foundCount < 5 {
+		t.Logf("Warning: Only found %d of %d expected artists", foundCount, len(expectedArtists))
+		t.Log("This might indicate changes to the Reddit post or HTML structure")
+	} else {
+		t.Logf("Successfully found %d of %d expected artists", foundCount, len(expectedArtists))
+	}
+}

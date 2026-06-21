@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <meta name="description" content="Add artists to your Spotify playlists with go-listen">
+    <meta name="theme-color" content="#1db954">
+    <title>go-listen - Spotify Playlist Manager</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="preconnect" href="https://open.spotify.com">
+</head>
+<body>
+    <div class="container">
+        <header role="banner">
+            <h1>go-listen</h1>
+            <p>Add artists to your Spotify playlists</p>
+        </header>
+
+        <main role="main">
+            <section class="search-section" aria-labelledby="search-heading">
+                <h2 id="search-heading" class="visually-hidden">Artist Search</h2>
+                <form id="artist-form" novalidate onsubmit="return false;">
+                    <div class="form-group">
+                        <label for="artist-name">Artist Name:</label>
+                        <input 
+                            type="text" 
+                            id="artist-name" 
+                            name="artist_name" 
+                            required 
+                            autocomplete="off"
+                            placeholder="Enter artist name..."
+                            aria-describedby="artist-help"
+                        >
+                        <small id="artist-help" class="form-help">Search for any artist to add their top 5 songs</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="playlist-select">Select Playlist:</label>
+                        <div class="select-wrapper">
+                            <select id="playlist-select" name="playlist_id" required aria-describedby="playlist-help">
+                                <option value="">Loading playlists...</option>
+                            </select>
+                            <div class="select-arrow" aria-hidden="true"></div>
+                        </div>
+                        <small id="playlist-help" class="form-help">Choose from your "Incoming" folder playlists</small>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button type="submit" id="add-button" class="btn btn-primary">
+                            <span class="btn-text">Add Artist</span>
+                            <span class="btn-spinner" aria-hidden="true"></span>
+                        </button>
+                        <button type="button" id="override-button" class="btn btn-warning" style="display: none;">
+                            Add Anyway
+                        </button>
+                    </div>
+                </form>
+                
+                <div id="message-area" class="message-area" role="alert" aria-live="polite"></div>
+            </section>
+
+            <section class="scrape-section" aria-labelledby="scrape-heading">
+                <h2 id="scrape-heading">Discover Artists from Web</h2>
+                <form id="scrape-form" novalidate onsubmit="return false;">
+                    <div class="form-group">
+                        <label for="scrape-url">Website URL:</label>
+                        <input 
+                            type="url" 
+                            id="scrape-url" 
+                            name="url" 
+                            required 
+                            autocomplete="off"
+                            placeholder="https://example.com/artist-recommendations"
+                            aria-describedby="url-help"
+                        >
+                        <small id="url-help" class="form-help">Enter a URL containing artist names (e.g., Reddit posts, music blogs)</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="css-selector">CSS Selector (optional):</label>
+                        <input 
+                            type="text" 
+                            id="css-selector" 
+                            name="css_selector" 
+                            autocomplete="off"
+                            placeholder="div.content, article.post"
+                            aria-describedby="selector-help"
+                        >
+                        <small id="selector-help" class="form-help">Target specific page sections (leave empty to scrape entire page)</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="scrape-playlist-select">Select Playlist:</label>
+                        <div class="select-wrapper">
+                            <select id="scrape-playlist-select" name="playlist_id" required aria-describedby="scrape-playlist-help">
+                                <option value="">Loading playlists...</option>
+                            </select>
+                            <div class="select-arrow" aria-hidden="true"></div>
+                        </div>
+                        <small id="scrape-playlist-help" class="form-help">Choose where to add discovered artists</small>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button type="submit" id="scrape-button" class="btn btn-primary">
+                            <span class="btn-text">Scrape & Add Artists</span>
+                            <span class="btn-spinner" aria-hidden="true"></span>
+                        </button>
+                    </div>
+                </form>
+                
+                <div id="scrape-message-area" class="message-area" role="alert" aria-live="polite"></div>
+                <div id="scrape-results" class="scrape-results"></div>
+            </section>
+
+            <section class="player-section" aria-labelledby="player-heading">
+                <h2 id="player-heading" class="visually-hidden">Spotify Player</h2>
+                <div id="spotify-player" class="player-container">
+                    <div class="player-placeholder">
+                        <svg class="spotify-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path fill="currentColor" d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.42 1.56-.299.421-1.02.599-1.559.3z"/>
+                        </svg>
+                        <p>Select a playlist to see the embedded player</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer role="contentinfo" class="footer">
+            <p>&copy; 2024 go-listen. Powered by Spotify Web API.</p>
+        </footer>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
