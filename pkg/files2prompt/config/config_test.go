@@ -20,14 +20,14 @@ func TestGetEnvVars(t *testing.T) {
 	assert.False(t, conf.LineNumbers)
 
 	// Test with environment variables set
-	os.Setenv("PATHS", "path1,path2")
-	os.Setenv("EXTENSIONS", ".go,.txt")
-	os.Setenv("INCLUDE_HIDDEN", "true")
-	os.Setenv("IGNORE_GITIGNORE", "false")
-	os.Setenv("IGNORE_PATTERNS", "node_modules,vendor")
-	os.Setenv("OUTPUT_FILE", "output.md")
-	os.Setenv("CLAUDE_XML", "true")
-	os.Setenv("LINE_NUMBERS", "false")
+	_ = os.Setenv("PATHS", "path1,path2")
+	_ = os.Setenv("EXTENSIONS", ".go,.txt")
+	_ = os.Setenv("INCLUDE_HIDDEN", "true")
+	_ = os.Setenv("IGNORE_GITIGNORE", "false")
+	_ = os.Setenv("IGNORE_PATTERNS", "node_modules,vendor")
+	_ = os.Setenv("OUTPUT_FILE", "output.md")
+	_ = os.Setenv("CLAUDE_XML", "true")
+	_ = os.Setenv("LINE_NUMBERS", "false")
 
 	conf = GetEnvVars()
 	assert.Equal(t, []string{"path1", "path2"}, conf.Paths)
@@ -40,14 +40,14 @@ func TestGetEnvVars(t *testing.T) {
 	assert.False(t, conf.LineNumbers)
 
 	// Unset env vars
-	os.Unsetenv("PATHS")
-	os.Unsetenv("EXTENSIONS")
-	os.Unsetenv("INCLUDE_HIDDEN")
-	os.Unsetenv("IGNORE_GITIGNORE")
-	os.Unsetenv("IGNORE_PATTERNS")
-	os.Unsetenv("OUTPUT_FILE")
-	os.Unsetenv("CLAUDE_XML")
-	os.Unsetenv("LINE_NUMBERS")
+	_ = os.Unsetenv("PATHS")
+	_ = os.Unsetenv("EXTENSIONS")
+	_ = os.Unsetenv("INCLUDE_HIDDEN")
+	_ = os.Unsetenv("IGNORE_GITIGNORE")
+	_ = os.Unsetenv("IGNORE_PATTERNS")
+	_ = os.Unsetenv("OUTPUT_FILE")
+	_ = os.Unsetenv("CLAUDE_XML")
+	_ = os.Unsetenv("LINE_NUMBERS")
 }
 
 func TestGetEnvVarsWithDotEnv(t *testing.T) {
@@ -62,7 +62,7 @@ CLAUDE_XML=true
 LINE_NUMBERS=false`
 	err := os.WriteFile(".env", []byte(envContent), 0644)
 	assert.NoError(t, err)
-	defer os.Remove(".env")
+	defer func() { _ = os.Remove(".env") }()
 
 	conf := GetEnvVars()
 	assert.Equal(t, []string{"path1", "path2"}, conf.Paths)

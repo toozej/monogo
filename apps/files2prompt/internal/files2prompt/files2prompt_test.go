@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/toozej/files2prompt/pkg/config"
+	"github.com/toozej/monogo/pkg/files2prompt/config"
 )
 
 func TestReadGitignore(t *testing.T) {

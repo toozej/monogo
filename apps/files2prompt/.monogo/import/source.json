@@ -1,0 +1,12 @@
+{
+  "source": "toozej/files2prompt",
+  "vcsHost": "github.com/",
+  "owner": "toozej",
+  "repo": "files2prompt",
+  "ownerRepo": "toozej/files2prompt",
+  "repoURL": "https://github.com/toozej/files2prompt.git",
+  "ref": "main",
+  "oldModule": "github.com/toozej/files2prompt",
+  "newModule": "github.com/toozej/monogo/apps/files2prompt",
+  "tagPrefix": "apps/files2prompt"
+}

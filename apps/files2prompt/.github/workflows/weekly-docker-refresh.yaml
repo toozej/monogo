@@ -114,6 +114,6 @@ jobs:
         run: |
           cosign version
           cosign verify \
-            --certificate-identity-regexp '^https://github.com/toozej/files2prompt/\.github/workflows/(release|weekly-docker-refresh)\.yaml@refs/(tags/.*|heads/main)$' \
+            --certificate-identity-regexp '^https://github.com/toozej/monogo/apps/files2prompt/\.github/workflows/(release|weekly-docker-refresh)\.yaml@refs/(tags/.*|heads/main)$' \
             --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
             ${{ matrix.registry }}toozej/files2prompt:${{ matrix.tag }}

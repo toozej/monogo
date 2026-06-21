@@ -11,7 +11,7 @@ import (
 
 	"github.com/bmatcuk/doublestar/v4"
 	log "github.com/sirupsen/logrus"
-	"github.com/toozej/files2prompt/pkg/config"
+	"github.com/toozej/monogo/pkg/files2prompt/config"
 )
 
 // Standard OS functions
@@ -240,7 +240,7 @@ func processFile(filePath string, config config.Config, writer io.Writer, global
 		format := fmt.Sprintf("%% %dd │ %%s\n", padding)
 
 		for i, line := range lines {
-			processedContent.WriteString(fmt.Sprintf(format, i+1, line))
+			fmt.Fprintf(&processedContent, format, i+1, line)
 		}
 	} else {
 		processedContent.WriteString(string(content))
@@ -273,7 +273,7 @@ func processFile(filePath string, config config.Config, writer io.Writer, global
 func Run(config config.Config) error {
 	log.Debugf("files2prompt pkg Run config config struct contains: %v\n", config)
 
-	var writer io.Writer = osStdout
+	var writer = osStdout
 	var file *os.File
 
 	if config.OutputFile != "" {
@@ -282,7 +282,7 @@ func Run(config config.Config) error {
 		if err != nil {
 			log.Fatalf("Failed to create output file: %v", err)
 		}
-		defer file.Close()
+		defer func() { _ = file.Close() }()
 		writer = file
 	}
 

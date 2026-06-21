@@ -1,0 +1,21 @@
+---
+services:
+  files2prompt:
+    container_name: files2prompt
+    image: toozej/files2prompt:latest
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    labels:
+      - "traefik.enable=false"
+      # labels below for publishing as web service
+      # - "traefik.docker.network=traefik"
+      # - "traefik.http.routers.files2prompt.rule=Host(`files2prompt.test`)"
+      # - "traefik.http.routers.files2prompt.middlewares=http-redirect-https@file,headers@file"
+      # - "traefik.http.routers.files2prompt-secure.entrypoints=https"
+      # - "traefik.http.routers.files2prompt-secure.rule=Host(`files2prompt.test`)"
+      # - "traefik.http.routers.files2prompt-secure.middlewares=headers@file"
+      # - "traefik.http.routers.files2prompt-secure.tls=true"
+    # networks:
+      # - traefik

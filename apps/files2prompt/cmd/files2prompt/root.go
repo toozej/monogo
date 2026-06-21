@@ -12,7 +12,7 @@
 //
 // Example usage:
 //
-//	import "github.com/toozej/files2prompt/cmd/files2prompt"
+//	import "github.com/toozej/monogo/apps/files2prompt/cmd/files2prompt"
 //
 //	func main() {
 //		cmd.Execute()
@@ -28,10 +28,10 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/toozej/files2prompt/internal/files2prompt"
-	"github.com/toozej/files2prompt/pkg/config"
-	"github.com/toozej/files2prompt/pkg/man"
-	"github.com/toozej/files2prompt/pkg/version"
+	"github.com/toozej/monogo/apps/files2prompt/internal/files2prompt"
+	"github.com/toozej/monogo/pkg/files2prompt/config"
+	"github.com/toozej/monogo/pkg/files2prompt/man"
+	"github.com/toozej/monogo/pkg/files2prompt/version"
 )
 
 // conf holds the application configuration loaded from environment variables.

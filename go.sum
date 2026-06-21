@@ -68,6 +68,8 @@ github.com/blacktop/go-termimg v0.1.26/go.mod h1:SpU/O59RTjDAUA0Esj+dIzHEKixewFV
 github.com/blushft/go-diagrams v0.0.0-20250322201119-d91ac4ca5de4 h1:snpNl6kH7imyHOkzGWbq01y20WzyLFa1EIID10usZRE=
 github.com/blushft/go-diagrams v0.0.0-20250322201119-d91ac4ca5de4/go.mod h1:nDeXEIaeDV+mAK1gBD3/RJH67DYPC0GdaznWN7sB07s=
 github.com/bmatcuk/doublestar v1.1.1/go.mod h1:UD6OnuiIn0yFxxA2le/rnRU1G4RaI4UvFv1sNto9p6w=
+github.com/bmatcuk/doublestar/v4 v4.10.0 h1:zU9WiOla1YA122oLM6i4EXvGW62DvKZVxIe6TYWexEs=
+github.com/bmatcuk/doublestar/v4 v4.10.0/go.mod h1:xBQ8jztBU6kakFMg+8WGxn0c6z1fTSPVIjEY1Wr7jzc=
 github.com/bwmarrin/discordgo v0.29.0 h1:FmWeXFaKUwrcL3Cx65c20bTRW+vOb6k8AnaP+EgjDno=
 github.com/bwmarrin/discordgo v0.29.0/go.mod h1:NJZpH+1AfhIcyQsPeuBKsUtYrRnjkyu0kIVMCHkZtRY=
 github.com/caarlos0/env/v11 v11.4.1 h1:fYwH0sWEsBSMPG7t4e/PEfTFzrWrpjyygXyUnWiSwEw=

@@ -1,7 +1,7 @@
 # files2prompt
 
 ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/toozej/files2prompt)
-[![Go Report Card](https://goreportcard.com/badge/github.com/toozej/files2prompt)](https://goreportcard.com/report/github.com/toozej/files2prompt)
+[![Go Report Card](https://goreportcard.com/badge/github.com/toozej/monogo/apps/files2prompt)](https://goreportcard.com/report/github.com/toozej/monogo/apps/files2prompt)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/toozej/files2prompt/cicd.yaml)
 ![Docker Pulls](https://img.shields.io/docker/pulls/toozej/files2prompt)
 ![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/toozej/files2prompt/total)

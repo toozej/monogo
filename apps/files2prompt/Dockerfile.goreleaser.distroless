@@ -1,0 +1,9 @@
+# runtime image including CA certs and tzdata
+FROM gcr.io/distroless/static-debian13:nonroot
+# Copy our static executable.
+ARG TARGETPLATFORM
+COPY $TARGETPLATFORM/files2prompt /go/bin/files2prompt
+# Expose port for publishing as web service
+# EXPOSE 8081
+# Run the binary.
+ENTRYPOINT ["/go/bin/files2prompt"]

@@ -2,6 +2,11 @@
 version: 2
 
 project_name: files2prompt
+dist: dist/files2prompt
+
+git:
+  ignore_tags:
+    - apps/*
 
 env:
   - GO111MODULE=on
@@ -13,14 +18,15 @@ env_files:
 before:
   hooks:
     - go mod tidy
-    - ./scripts/completions.sh
-    - ./scripts/manpages.sh
+    - ./scripts/completions.sh files2prompt
+    - ./scripts/manpages.sh files2prompt
 
 snapshot:
   version_template: '{{ incpatch .Version }}-next'
 
 builds:
-  - env:
+  - id: files2prompt
+    env:
       - CGO_ENABLED=0
     goos:
       - linux
@@ -42,12 +48,12 @@ builds:
     ldflags:
       - >-
         -s -w
-        -X github.com/toozej/monogo/apps/files2prompt/pkg/version.Version={{.Version}}
-        -X github.com/toozej/monogo/apps/files2prompt/pkg/version.Commit={{.Commit}}
-        -X github.com/toozej/monogo/apps/files2prompt/pkg/version.Branch={{.Branch}}
-        -X github.com/toozej/monogo/apps/files2prompt/pkg/version.BuiltAt={{.CommitDate}}
-        -X github.com/toozej/monogo/apps/files2prompt/pkg/version.Builder=goreleaser
-    main: ./
+        -X github.com/toozej/monogo/pkg/version.Version={{.Version}}
+        -X github.com/toozej/monogo/pkg/version.Commit={{.Commit}}
+        -X github.com/toozej/monogo/pkg/version.Branch={{.Branch}}
+        -X github.com/toozej/monogo/pkg/version.BuiltAt={{.CommitDate}}
+        -X github.com/toozej/monogo/pkg/version.Builder=goreleaser
+    main: ./apps/files2prompt
     binary: files2prompt
 
 universal_binaries:
@@ -55,6 +61,9 @@ universal_binaries:
 
 checksum:
   name_template: 'checksums.txt'
+
+docker_digest:
+  name_template: 'digests.txt'
 
 changelog:
   sort: asc
@@ -96,31 +105,32 @@ dockers_v2:
       - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ .Version
         }}{{ end }}'
       - "latest"
-    dockerfile: Dockerfile.goreleaser
+    dockerfile: apps/files2prompt/Dockerfile.goreleaser
     labels:
-      "io.artifacthub.package.readme-url": "https://raw.githubusercontent.com/toozej/files2prompt/main/README.md"
+      "io.artifacthub.package.readme-url": "https://github.com/toozej/monogo/raw/main/README.md"
       "io.artifacthub.package.maintainers": "[{\"name\":\"toozej\"}]"
       "io.artifacthub.package.license": "GPLv3"
-      "org.opencontainers.image.description": "LLM Prompt Generator From Local Files"
+      "org.opencontainers.image.description": >-
+        LLM Prompt Generator From Local Files
       "org.opencontainers.image.created": "{{.Date}}"
       "org.opencontainers.image.name": "{{.ProjectName}}"
       "org.opencontainers.image.revision": "{{.FullCommit}}"
       "org.opencontainers.image.version": "{{.Version}}"
       "org.opencontainers.image.source": "{{.GitURL}}"
       "org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
-      "org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/files2prompt/main/README.md"
+      "org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
       "org.opencontainers.image.licenses": "GPL-3.0-only"
       "org.opencontainers.image.title": "{{.ProjectName}}"
       "org.opencontainers.image.vendor": "James Tooze"
     annotations:
       "index,manifest:org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
       "index,manifest:org.opencontainers.image.created": "{{.Date}}"
-      "index,manifest:org.opencontainers.image.description": "LLM Prompt Generator From Local\
-        \ Files"
-      "index,manifest:org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/files2prompt/main/README.md"
+      "index,manifest:org.opencontainers.image.description": >-
+        LLM Prompt Generator From Local Files
+      "index,manifest:org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
       "index,manifest:org.opencontainers.image.licenses": "GPL-3.0-only"
       "index,manifest:org.opencontainers.image.revision": "{{.FullCommit}}"
-      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/monogo/apps/files2prompt"
+      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/monogo"
       "index,manifest:org.opencontainers.image.title": "{{.ProjectName}}"
       "index,manifest:org.opencontainers.image.vendor": "James Tooze"
       "index,manifest:org.opencontainers.image.version": "{{.Version}}"
@@ -137,31 +147,32 @@ dockers_v2:
       - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ .Version
         }}-distroless{{ end }}'
       - "distroless"
-    dockerfile: Dockerfile.goreleaser.distroless
+    dockerfile: apps/files2prompt/Dockerfile.goreleaser.distroless
     labels:
-      "io.artifacthub.package.readme-url": "https://raw.githubusercontent.com/toozej/files2prompt/main/README.md"
+      "io.artifacthub.package.readme-url": "https://github.com/toozej/monogo/raw/main/README.md"
       "io.artifacthub.package.maintainers": "[{\"name\":\"toozej\"}]"
       "io.artifacthub.package.license": "GPLv3"
-      "org.opencontainers.image.description": "LLM Prompt Generator From Local Files"
+      "org.opencontainers.image.description": >-
+        LLM Prompt Generator From Local Files
       "org.opencontainers.image.created": "{{.Date}}"
       "org.opencontainers.image.name": "{{.ProjectName}}"
       "org.opencontainers.image.revision": "{{.FullCommit}}"
       "org.opencontainers.image.version": "{{.Version}}"
       "org.opencontainers.image.source": "{{.GitURL}}"
       "org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
-      "org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/files2prompt/main/README.md"
+      "org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
       "org.opencontainers.image.licenses": "GPL-3.0-only"
       "org.opencontainers.image.title": "{{.ProjectName}}"
       "org.opencontainers.image.vendor": "James Tooze"
     annotations:
       "index,manifest:org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
       "index,manifest:org.opencontainers.image.created": "{{.Date}}"
-      "index,manifest:org.opencontainers.image.description": "LLM Prompt Generator From Local\
-        \ Files"
-      "index,manifest:org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/files2prompt/main/README.md"
+      "index,manifest:org.opencontainers.image.description": >-
+        LLM Prompt Generator From Local Files
+      "index,manifest:org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
       "index,manifest:org.opencontainers.image.licenses": "GPL-3.0-only"
       "index,manifest:org.opencontainers.image.revision": "{{.FullCommit}}"
-      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/monogo/apps/files2prompt"
+      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/monogo"
       "index,manifest:org.opencontainers.image.title": "{{.ProjectName}}"
       "index,manifest:org.opencontainers.image.vendor": "James Tooze"
       "index,manifest:org.opencontainers.image.version": "{{.Version}}"
@@ -181,18 +192,20 @@ archives:
     files:
       - README.md
       - LICENSE
-      - completions/*
-      - manpages/*
+      - completions/files2prompt.bash
+      - completions/files2prompt.fish
+      - completions/files2prompt.zsh
+      - manpages/files2prompt.1.gz
 
 nfpms:
   - file_name_template: '{{ .ConventionalFileName }}'
     id: packages
-    homepage: https://github.com/toozej/monogo/apps/files2prompt
+    homepage: https://github.com/toozej/monogo
     description: |-
       LLM Prompt Generator From Local Files
     maintainer: toozej
     license: GPLv3
-    vendor: files2prompt
+    vendor: monogo
     bindir: /usr/bin
     section: utils
     contents:
@@ -231,8 +244,9 @@ nfpms:
 
 homebrew_casks:
   - name: files2prompt
-    homepage: https://github.com/toozej/monogo/apps/files2prompt
-    description: "LLM Prompt Generator From Local Files"
+    homepage: https://github.com/toozej/monogo
+    description: >-
+      LLM Prompt Generator From Local Files
     license: GPLv3
     repository:
       owner: toozej
@@ -245,7 +259,7 @@ homebrew_casks:
       zsh: "completions/files2prompt.zsh"
       fish: "completions/files2prompt.fish"
     url:
-      verified: "github.com/toozej/monogo/apps/files2prompt/releases/download"
+      verified: "github.com/toozej/monogo/releases/download"
     hooks:
       post:
         install: |
@@ -280,6 +294,7 @@ milestones:
   - close: true
 
 release:
+  mode: append
   disable: '{{ eq (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}'
   footer: |
-    **Full Changelog**: https://github.com/toozej/monogo/apps/files2prompt/compare/{{ .PreviousTag }}...{{ .Tag }}
+    **Full Changelog**: https://github.com/toozej/monogo/compare/{{ .PreviousTag }}...{{ .Tag }}

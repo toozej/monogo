@@ -1,0 +1,4 @@
+github.com/toozej/monogo/apps/files2prompt/pkg/config	github.com/toozej/monogo/pkg/files2prompt/config
+github.com/toozej/monogo/apps/files2prompt/pkg/man	github.com/toozej/monogo/pkg/files2prompt/man
+apps/files2prompt/pkg/README.md	apps/files2prompt/.monogo/original-pkg/README.md
+github.com/toozej/monogo/apps/files2prompt/pkg/version	github.com/toozej/monogo/pkg/files2prompt/version

@@ -27,7 +27,7 @@ LDFLAGS = -s -w \
 	-X $(VER).Builder=$(BUILDER)
 
 # Define the repository URL
-REPO_URL := https://github.com/toozej/files2prompt
+REPO_URL := https://github.com/toozej/monogo/apps/files2prompt
 
 # Docker image
 IMAGE_AUTHOR = toozej
@@ -84,7 +84,7 @@ release: ## Build and sign Docker image
 
 verify: ## Verify Docker image with Cosign
 	cosign verify \
-		--certificate-identity-regexp '^https://github.com/toozej/files2prompt/\.github/workflows/(release|weekly-docker-refresh)\.yaml@refs/(tags/.*|heads/main)$$' \
+		--certificate-identity-regexp '^https://github.com/toozej/monogo/apps/files2prompt/\.github/workflows/(release|weekly-docker-refresh)\.yaml@refs/(tags/.*|heads/main)$$' \
 		--certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
 		$(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG)
 
@@ -114,7 +114,7 @@ distroless-run: ## Run built Docker image using distroless as final base
 
 install: ## Install files2prompt from latest GitHub release
 	if command -v go; then \
-		go install github.com/toozej/files2prompt@latest ; \
+		go install github.com/toozej/monogo/apps/files2prompt@latest ; \
 	else \
 		echo "Downloading files2prompt binary for $(OS)-$(ARCH)..."; \
 		mkdir -p $(CURDIR)/tmp; \
@@ -176,7 +176,7 @@ local-sign: local-test ## Sign locally installed golang toolchain and cosign
 
 local-verify: ## Verify locally compiled binary
 	@echo "Keyless verification requires OIDC identity. Use:"
-	@echo "  cosign verify-blob --certificate-identity-regexp '^https://github.com/toozej/files2prompt/\\.github/workflows/release\\.yaml@refs/tags/.*$$' --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' --bundle $(CURDIR)/out/files2prompt.bundle $(CURDIR)/out/files2prompt"
+	@echo "  cosign verify-blob --certificate-identity-regexp '^https://github.com/toozej/monogo/apps/files2prompt/\\.github/workflows/release\\.yaml@refs/tags/.*$$' --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' --bundle $(CURDIR)/out/files2prompt.bundle $(CURDIR)/out/files2prompt"
 
 local-install: local-build ## Install compiled binary to local machine
 	sudo cp $(CURDIR)/out/files2prompt /usr/local/bin/files2prompt
@@ -250,7 +250,7 @@ pre-commit-install: ## Install pre-commit hooks and necessary binaries
 pre-commit-run: ## Run pre-commit hooks against all files
 	pre-commit run --all-files
 	# manually run the following checks since their pre-commits aren't working or don't exist
-	go-licenses report github.com/toozej/files2prompt/cmd/files2prompt
+	go-licenses report github.com/toozej/monogo/apps/files2prompt/cmd/files2prompt
 	govulncheck ./...
 
 update-golang-version: ## Update to latest Golang version across the repo
