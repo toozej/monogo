@@ -1,0 +1,7 @@
+# runtime image
+FROM scratch
+# Copy our static executable.
+ARG TARGETPLATFORM
+COPY $TARGETPLATFORM/url2anki /go/bin/url2anki
+# Run the binary.
+ENTRYPOINT ["/go/bin/url2anki"]
