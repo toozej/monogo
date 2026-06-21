@@ -1,0 +1,7 @@
+# runtime image
+FROM scratch
+# Copy our static executable.
+ARG TARGETPLATFORM
+COPY $TARGETPLATFORM/lego-stego /go/bin/lego-stego
+# Run the binary.
+ENTRYPOINT ["/go/bin/lego-stego"]
