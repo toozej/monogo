@@ -4,13 +4,13 @@ import (
 	"testing"
 
 	"github.com/sirupsen/logrus"
-	"github.com/toozej/kmhd2spotify/internal/types"
+	"github.com/toozej/kmhd2playlist/internal/types"
 )
 
-// MockSongSpotifyService for testing song search functionality
-type MockSongSpotifyService struct{}
+// MockSongMusicService for testing song search functionality
+type MockSongMusicService struct{}
 
-func (m *MockSongSpotifyService) SearchArtist(query string) (*types.Artist, error) {
+func (m *MockSongMusicService) SearchArtist(query string) (*types.Artist, error) {
 	return &types.Artist{
 		ID:     "test-artist-id",
 		Name:   "Test Artist",
@@ -19,7 +19,7 @@ func (m *MockSongSpotifyService) SearchArtist(query string) (*types.Artist, erro
 	}, nil
 }
 
-func (m *MockSongSpotifyService) GetArtistTopTracks(artistID string) ([]types.Track, error) {
+func (m *MockSongMusicService) GetArtistTopTracks(artistID string) ([]types.Track, error) {
 	return []types.Track{
 		{
 			ID:   "test-track-1",
@@ -96,31 +96,31 @@ func (m *MockSongSpotifyService) GetArtistTopTracks(artistID string) ([]types.Tr
 	}, nil
 }
 
-func (m *MockSongSpotifyService) GetUserPlaylists(folderName string) ([]types.Playlist, error) {
+func (m *MockSongMusicService) GetUserPlaylists(folderName string) ([]types.Playlist, error) {
 	return []types.Playlist{}, nil
 }
 
-func (m *MockSongSpotifyService) AddTracksToPlaylist(playlistID string, trackIDs []string) error {
+func (m *MockSongMusicService) AddTracksToPlaylist(playlistID string, trackIDs []string) error {
 	return nil
 }
 
-func (m *MockSongSpotifyService) CheckTracksInPlaylist(playlistID string, trackIDs []string) ([]bool, error) {
+func (m *MockSongMusicService) CheckTracksInPlaylist(playlistID string, trackIDs []string) ([]bool, error) {
 	return []bool{false}, nil
 }
 
-func (m *MockSongSpotifyService) GetAuthURL() string {
+func (m *MockSongMusicService) GetAuthURL() string {
 	return "http://test.com/auth"
 }
 
-func (m *MockSongSpotifyService) IsAuthenticated() bool {
+func (m *MockSongMusicService) IsAuthenticated() bool {
 	return true
 }
 
-func (m *MockSongSpotifyService) CompleteAuth(code, state string) error {
+func (m *MockSongMusicService) CompleteAuth(code, state string) error {
 	return nil
 }
 
-func (m *MockSongSpotifyService) CreatePlaylist(name, description string, public bool) (*types.Playlist, error) {
+func (m *MockSongMusicService) CreatePlaylist(name, description string, public bool) (*types.Playlist, error) {
 	return &types.Playlist{
 		ID:         "test-playlist-id",
 		Name:       name,
@@ -132,7 +132,7 @@ func (m *MockSongSpotifyService) CreatePlaylist(name, description string, public
 }
 
 func TestFuzzySongSearcher_FindBestSongMatch(t *testing.T) {
-	mockSpotify := &MockSongSpotifyService{}
+	mockSpotify := &MockSongMusicService{}
 	logger := logrus.New()
 	logger.SetLevel(logrus.ErrorLevel) // Reduce noise
 
@@ -172,7 +172,7 @@ func TestFuzzySongSearcher_FindBestSongMatch(t *testing.T) {
 }
 
 func TestFuzzySongSearcher_FindBestSongMatchWithAlbum(t *testing.T) {
-	mockSpotify := &MockSongSpotifyService{}
+	mockSpotify := &MockSongMusicService{}
 	logger := logrus.New()
 	logger.SetLevel(logrus.ErrorLevel) // Reduce noise
 
@@ -240,7 +240,7 @@ func TestFuzzySongSearcher_FindBestSongMatchWithAlbum(t *testing.T) {
 }
 
 func TestFuzzySongSearcher_calculateAlbumConfidence(t *testing.T) {
-	mockSpotify := &MockSongSpotifyService{}
+	mockSpotify := &MockSongMusicService{}
 	logger := logrus.New()
 	logger.SetLevel(logrus.ErrorLevel) // Reduce noise
 
@@ -308,7 +308,7 @@ func TestFuzzySongSearcher_calculateAlbumConfidence(t *testing.T) {
 }
 
 func TestFuzzySongSearcher_EnhancedConfidenceCalculation(t *testing.T) {
-	mockSpotify := &MockSongSpotifyService{}
+	mockSpotify := &MockSongMusicService{}
 	logger := logrus.New()
 	logger.SetLevel(logrus.ErrorLevel) // Reduce noise
 
@@ -356,7 +356,7 @@ func TestFuzzySongSearcher_EnhancedConfidenceCalculation(t *testing.T) {
 }
 
 func TestFuzzySongSearcher_AlbumMatchingScenarios(t *testing.T) {
-	mockSpotify := &MockSongSpotifyService{}
+	mockSpotify := &MockSongMusicService{}
 	logger := logrus.New()
 	logger.SetLevel(logrus.ErrorLevel) // Reduce noise
 
@@ -387,7 +387,7 @@ func TestFuzzySongSearcher_AlbumMatchingScenarios(t *testing.T) {
 }
 
 func TestFuzzySongSearcher_BackwardCompatibility(t *testing.T) {
-	mockSpotify := &MockSongSpotifyService{}
+	mockSpotify := &MockSongMusicService{}
 	logger := logrus.New()
 	logger.SetLevel(logrus.ErrorLevel) // Reduce noise
 
@@ -464,7 +464,7 @@ func TestSongMatch_ConfidenceMethods(t *testing.T) {
 	}
 }
 func TestFuzzySongSearcher_IntegrationWithAlbumData(t *testing.T) {
-	mockSpotify := &MockSongSpotifyService{}
+	mockSpotify := &MockSongMusicService{}
 	logger := logrus.New()
 	logger.SetLevel(logrus.ErrorLevel) // Reduce noise
 
@@ -526,7 +526,7 @@ func TestFuzzySongSearcher_IntegrationWithAlbumData(t *testing.T) {
 }
 
 func TestFuzzySongSearcher_EdgeCasesWithAlbumData(t *testing.T) {
-	mockSpotify := &MockSongSpotifyService{}
+	mockSpotify := &MockSongMusicService{}
 	logger := logrus.New()
 	logger.SetLevel(logrus.ErrorLevel) // Reduce noise
 
@@ -573,7 +573,7 @@ func TestFuzzySongSearcher_EdgeCasesWithAlbumData(t *testing.T) {
 }
 
 func TestFuzzySongSearcher_AlbumMatchingAccuracy(t *testing.T) {
-	mockSpotify := &MockSongSpotifyService{}
+	mockSpotify := &MockSongMusicService{}
 	logger := logrus.New()
 	logger.SetLevel(logrus.ErrorLevel) // Reduce noise
 
@@ -609,7 +609,7 @@ func TestFuzzySongSearcher_AlbumMatchingAccuracy(t *testing.T) {
 }
 
 func TestFuzzySongSearcher_ConfidenceWeightingValidation(t *testing.T) {
-	mockSpotify := &MockSongSpotifyService{}
+	mockSpotify := &MockSongMusicService{}
 	logger := logrus.New()
 	logger.SetLevel(logrus.ErrorLevel) // Reduce noise
 
@@ -652,7 +652,7 @@ func abs(x float64) float64 {
 
 // Performance test to measure impact of album matching
 func BenchmarkFuzzySongSearcher_WithoutAlbum(b *testing.B) {
-	mockSpotify := &MockSongSpotifyService{}
+	mockSpotify := &MockSongMusicService{}
 	logger := logrus.New()
 	logger.SetLevel(logrus.ErrorLevel) // Reduce noise
 
@@ -668,7 +668,7 @@ func BenchmarkFuzzySongSearcher_WithoutAlbum(b *testing.B) {
 }
 
 func BenchmarkFuzzySongSearcher_WithAlbum(b *testing.B) {
-	mockSpotify := &MockSongSpotifyService{}
+	mockSpotify := &MockSongMusicService{}
 	logger := logrus.New()
 	logger.SetLevel(logrus.ErrorLevel) // Reduce noise
 
@@ -684,7 +684,7 @@ func BenchmarkFuzzySongSearcher_WithAlbum(b *testing.B) {
 }
 
 func BenchmarkFuzzySongSearcher_AlbumConfidenceCalculation(b *testing.B) {
-	mockSpotify := &MockSongSpotifyService{}
+	mockSpotify := &MockSongMusicService{}
 	logger := logrus.New()
 	logger.SetLevel(logrus.ErrorLevel) // Reduce noise
 

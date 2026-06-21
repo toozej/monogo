@@ -33,8 +33,8 @@ func TestRootCmdRun(t *testing.T) {
 
 	// Check that log contains expected messages
 	output := buf.String()
-	assert.Contains(t, output, "Use 'kmhd2spotify sync' to sync KMHD playlist to Spotify")
-	assert.Contains(t, output, "Use 'kmhd2spotify search <query>' to search for songs")
+	assert.Contains(t, output, "Use 'kmhd2playlist sync' to sync KMHD playlist to Spotify")
+	assert.Contains(t, output, "Use 'kmhd2playlist search <query>' to search for songs")
 }
 
 func TestRootCmdPreRun(t *testing.T) {

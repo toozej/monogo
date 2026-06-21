@@ -1,4 +1,4 @@
-// Package cmd provides the sync command implementation for kmhd2spotify.
+// Package cmd provides the sync command implementation for kmhd2playlist.
 package cmd
 
 import (
@@ -12,18 +12,18 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/toozej/kmhd2spotify/internal/search"
-	"github.com/toozej/kmhd2spotify/internal/types"
+	"github.com/toozej/kmhd2playlist/internal/search"
+	"github.com/toozej/kmhd2playlist/internal/types"
 )
 
-// newSyncCmd creates the sync command for synchronizing KMHD playlist with Spotify.
+// newSyncCmd creates the sync command for synchronizing KMHD playlist with a music service.
 func newSyncCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "sync",
-		Short: "Sync KMHD playlist to Spotify",
-		Long: `Sync the latest songs from KMHD jazz radio to your Spotify playlist.
+		Short: "Sync KMHD playlist to music service",
+		Long: `Sync the latest songs from KMHD jazz radio to your music service playlist.
 This command fetches songs from the KMHD JSON API and adds them
-to your specified Spotify playlist using fuzzy matching.`,
+to your specified playlist using fuzzy matching.`,
 		Run: runSync,
 	}
 
@@ -39,33 +39,40 @@ func runSync(cmd *cobra.Command, args []string) {
 	interval, _ := cmd.Flags().GetDuration("interval")
 
 	if continuous {
-		log.WithField("interval", interval).Info("Starting continuous KMHD to Spotify sync operation")
+		log.WithField("interval", interval).Info("Starting continuous KMHD to music service sync operation")
 	} else {
-		log.Info("Starting single KMHD to Spotify sync operation")
+		log.Info("Starting single KMHD to music service sync operation")
 	}
 
 	// Initialize services using configuration
-	kmhdScraper, spotifyService, fuzzySongSearcher, err := initializeAllServices()
+	kmhdScraper, musicService, fuzzySongSearcher, err := initializeAllServices()
 	if err != nil {
 		log.WithError(err).Fatal("Failed to initialize services")
 		return
 	}
 
-	// Check if Spotify is authenticated, if not, start auth flow
-	if !spotifyService.IsAuthenticated() {
-		log.Info("Spotify authentication required. Starting authentication flow...")
+	// Check if music service is authenticated, if not, start auth flow
+	if !musicService.IsAuthenticated() {
+		log.Info("Music service authentication required. Starting authentication flow...")
 
-		err := authenticateSpotify(spotifyService)
+		err := authenticateMusicService(musicService)
 		if err != nil {
-			log.WithError(err).Fatal("Failed to authenticate with Spotify")
+			log.WithError(err).Fatal("Failed to authenticate with music service")
 			return
 		}
 
-		log.Info("Spotify authentication completed successfully")
+		log.Info("Music service authentication completed successfully")
 	}
 
 	// Get or create target playlist for current month
-	targetPlaylist, err := getOrCreateMonthlyPlaylist(spotifyService, conf.Spotify.PlaylistNamePrefix)
+	var playlistPrefix string
+	switch conf.MusicClient {
+	case "youtube":
+		playlistPrefix = conf.YouTubeMusic.PlaylistNamePrefix
+	default:
+		playlistPrefix = conf.Spotify.PlaylistNamePrefix
+	}
+	targetPlaylist, err := getOrCreateMonthlyPlaylist(musicService, playlistPrefix)
 	if err != nil {
 		log.WithError(err).Error("Failed to get or create monthly playlist")
 		return
@@ -75,30 +82,27 @@ func runSync(cmd *cobra.Command, args []string) {
 
 	// For radio monitoring, we don't need to track "seen songs" across cycles
 	// since the same song can legitimately play multiple times and users might want it added each time
-	// The Spotify duplicate checking will handle preventing actual duplicates in the playlist
+	// The duplicate checking will handle preventing actual duplicates in the playlist
 
 	// Run sync operation
 	if continuous {
-		runContinuousSync(kmhdScraper, spotifyService, fuzzySongSearcher, targetPlaylist, interval)
+		runContinuousSync(kmhdScraper, musicService, fuzzySongSearcher, targetPlaylist, interval)
 	} else {
 		// For single sync, use a seenSongs map to avoid processing the same song multiple times within one batch
 		seenSongs := make(map[string]bool)
-		runSingleSync(kmhdScraper, spotifyService, fuzzySongSearcher, targetPlaylist, seenSongs)
+		runSingleSync(kmhdScraper, musicService, fuzzySongSearcher, targetPlaylist, seenSongs)
 	}
 }
 
-// initializeAllServices creates and initializes all required services using configuration
-// This function is shared between search and sync commands
-
 // runContinuousSync runs the sync operation continuously at the specified interval with randomization
-func runContinuousSync(kmhdScraper types.KMHDScraper, spotifyService types.SpotifyService, fuzzySongSearcher *search.FuzzySongSearcher, targetPlaylist types.Playlist, interval time.Duration) {
+func runContinuousSync(kmhdScraper types.KMHDScraper, musicService types.MusicService, fuzzySongSearcher *search.FuzzySongSearcher, targetPlaylist types.Playlist, interval time.Duration) {
 	log.Info("🎵 Starting continuous sync mode - monitoring KMHD for new songs...")
 	fmt.Printf("🎵 Monitoring KMHD every %v (with randomization) for new songs...\n", interval)
 	fmt.Printf("Press Ctrl+C to stop\n\n")
 
 	// Run initial sync
 	cycleSeen := make(map[string]bool)
-	runSingleSync(kmhdScraper, spotifyService, fuzzySongSearcher, targetPlaylist, cycleSeen)
+	runSingleSync(kmhdScraper, musicService, fuzzySongSearcher, targetPlaylist, cycleSeen)
 
 	// Continue monitoring with randomized intervals
 	for {
@@ -121,7 +125,7 @@ func runContinuousSync(kmhdScraper types.KMHDScraper, spotifyService types.Spoti
 		// Create a fresh cycle-specific seenSongs map for each cycle
 		// Global tracking prevents cross-day duplicates in long-running sessions
 		cycleSeen := make(map[string]bool)
-		runSingleSync(kmhdScraper, spotifyService, fuzzySongSearcher, targetPlaylist, cycleSeen)
+		runSingleSync(kmhdScraper, musicService, fuzzySongSearcher, targetPlaylist, cycleSeen)
 	}
 }
 
@@ -148,7 +152,7 @@ func generateSecureRandomInt(max int64) int64 {
 }
 
 // runSingleSync runs a single sync operation
-func runSingleSync(kmhdScraper types.KMHDScraper, spotifyService types.SpotifyService, fuzzySongSearcher *search.FuzzySongSearcher, targetPlaylist types.Playlist, seenSongs map[string]bool) {
+func runSingleSync(kmhdScraper types.KMHDScraper, musicService types.MusicService, fuzzySongSearcher *search.FuzzySongSearcher, targetPlaylist types.Playlist, seenSongs map[string]bool) {
 	// Fetch KMHD playlist from JSON API
 	log.Debug("Fetching KMHD playlist from JSON API...")
 	songCollection, err := kmhdScraper.ScrapePlaylist()
@@ -203,13 +207,13 @@ func runSingleSync(kmhdScraper types.KMHDScraper, spotifyService types.SpotifySe
 
 	log.WithField("new_song_count", len(newSongs)).Info("Found new songs to sync")
 
-	// Sync new songs to Spotify
-	syncSongsToSpotify(newSongs, spotifyService, fuzzySongSearcher, targetPlaylist, seenSongs)
+	// Sync new songs to music service
+	syncSongsToService(newSongs, musicService, fuzzySongSearcher, targetPlaylist, seenSongs)
 }
 
 // filterNewSongs returns only songs that haven't been seen in this cycle or globally
 // This prevents duplicate processing within the same batch and across multiple days
-// in long-running sessions. Spotify duplicate checking provides additional protection.
+// in long-running sessions. Duplicate checking provides additional protection.
 func filterNewSongs(songs []types.Song, seenSongs map[string]bool) []types.Song {
 	var newSongs []types.Song
 
@@ -283,9 +287,9 @@ func filterNewSongs(songs []types.Song, seenSongs map[string]bool) []types.Song 
 	return newSongs
 }
 
-// syncSongsToSpotify syncs the API-fetched songs to the specified Spotify playlist
-func syncSongsToSpotify(songs []types.Song, spotifyService types.SpotifyService, fuzzySongSearcher *search.FuzzySongSearcher, targetPlaylist types.Playlist, seenSongs map[string]bool) {
-	log.WithField("playlist", targetPlaylist.Name).Debug("Starting sync to Spotify playlist")
+// syncSongsToService syncs the API-fetched songs to the specified music service playlist
+func syncSongsToService(songs []types.Song, musicService types.MusicService, fuzzySongSearcher *search.FuzzySongSearcher, targetPlaylist types.Playlist, seenSongs map[string]bool) {
+	log.WithField("playlist", targetPlaylist.Name).Debug("Starting sync to music service playlist")
 
 	syncedCount := 0
 	skippedCount := 0
@@ -299,14 +303,14 @@ func syncSongsToSpotify(songs []types.Song, spotifyService types.SpotifyService,
 			"kmhd_song":   song.String(),
 		}).Info("Processing song from KMHD")
 
-		// Search for artist, song, and album on Spotify using the enhanced fuzzy song searcher
+		// Search for artist, song, and album on the music service using the enhanced fuzzy song searcher
 		songMatch, err := fuzzySongSearcher.FindBestSongMatchWithAlbum(song.Artist, song.Title, song.Album)
 		if err != nil {
 			log.WithFields(log.Fields{
 				"kmhd_song": song.String(),
 				"error":     err.Error(),
 			}).Warn("Failed to find song match, skipping song")
-			fmt.Printf("   ❌ Could not find song on Spotify: %s\n", err.Error())
+			fmt.Printf("   ❌ Could not find song on music service: %s\n", err.Error())
 			skippedCount++
 			continue
 		}
@@ -332,7 +336,7 @@ func syncSongsToSpotify(songs []types.Song, spotifyService types.SpotifyService,
 		trackIDs := []string{songMatch.Track.ID}
 
 		// Check if tracks are already in playlist
-		existing, err := spotifyService.CheckTracksInPlaylist(targetPlaylist.ID, trackIDs)
+		existing, err := musicService.CheckTracksInPlaylist(targetPlaylist.ID, trackIDs)
 		if err != nil {
 			log.WithFields(log.Fields{
 				"playlist": targetPlaylist.Name,
@@ -349,7 +353,7 @@ func syncSongsToSpotify(songs []types.Song, spotifyService types.SpotifyService,
 		}
 
 		// Add track to playlist
-		err = spotifyService.AddTracksToPlaylist(targetPlaylist.ID, trackIDs)
+		err = musicService.AddTracksToPlaylist(targetPlaylist.ID, trackIDs)
 		if err != nil {
 			log.WithFields(log.Fields{
 				"kmhd_song": song.String(),
@@ -365,7 +369,7 @@ func syncSongsToSpotify(songs []types.Song, spotifyService types.SpotifyService,
 			"kmhd_song": song.String(),
 			"playlist":  targetPlaylist.Name,
 			"track":     songMatch.Track.Name,
-		}).Info("Successfully synced song to Spotify")
+		}).Info("Successfully synced song to music service")
 
 		fmt.Printf("   ✅ Added to playlist: %s\n", songMatch.Track.Name)
 		syncedCount++
@@ -385,9 +389,9 @@ func syncSongsToSpotify(songs []types.Song, spotifyService types.SpotifyService,
 // getOrCreateMonthlyPlaylist finds or creates a monthly playlist based on the configured prefix.
 // Creates playlists with format: "{prefix}-YYYY-MM" (e.g., "KMHD-2025-10")
 // If no prefix is configured, it returns the first existing playlist.
-func getOrCreateMonthlyPlaylist(spotifyService types.SpotifyService, playlistNamePrefix string) (types.Playlist, error) {
+func getOrCreateMonthlyPlaylist(musicService types.MusicService, playlistNamePrefix string) (types.Playlist, error) {
 	// Get user's playlists
-	playlists, err := spotifyService.GetUserPlaylists("")
+	playlists, err := musicService.GetUserPlaylists("")
 	if err != nil {
 		return types.Playlist{}, fmt.Errorf("failed to get user playlists: %w", err)
 	}
@@ -430,7 +434,7 @@ func getOrCreateMonthlyPlaylist(spotifyService types.SpotifyService, playlistNam
 	}).Info("Monthly playlist not found, creating new one")
 
 	description := fmt.Sprintf("KMHD jazz radio songs for %s %d. Organize into '%s' folder for better management.", now.Month().String(), now.Year(), playlistNamePrefix)
-	newPlaylist, err := spotifyService.CreatePlaylist(monthlyPlaylistName, description, false)
+	newPlaylist, err := musicService.CreatePlaylist(monthlyPlaylistName, description, false)
 	if err != nil {
 		return types.Playlist{}, fmt.Errorf("failed to create monthly playlist '%s': %w", monthlyPlaylistName, err)
 	}
@@ -446,20 +450,20 @@ func getOrCreateMonthlyPlaylist(spotifyService types.SpotifyService, playlistNam
 	log.WithFields(log.Fields{
 		"playlist_name": newPlaylist.Name,
 		"folder_name":   playlistNamePrefix,
-	}).Info("💡 Tip: In Spotify Desktop, create a folder named '" + playlistNamePrefix + "' and drag this playlist into it for better organization")
+	}).Info("💡 Tip: In your music service app, create a folder named '" + playlistNamePrefix + "' and drag this playlist into it for better organization")
 
 	// Also print to console for user visibility
-	fmt.Printf("📁 Organization Tip: In Spotify Desktop, create a folder named '%s' and drag the playlist '%s' into it for better organization.\n", playlistNamePrefix, newPlaylist.Name)
+	fmt.Printf("📁 Organization Tip: In your music service app, create a folder named '%s' and drag the playlist '%s' into it for better organization.\n", playlistNamePrefix, newPlaylist.Name)
 
 	return *newPlaylist, nil
 }
 
-// authenticateSpotify handles the OAuth authentication flow by starting a temporary server
-func authenticateSpotify(spotifyService types.SpotifyService) error {
-	authURL := spotifyService.GetAuthURL()
+// authenticateMusicService handles the OAuth authentication flow by starting a temporary server
+func authenticateMusicService(musicService types.MusicService) error {
+	authURL := musicService.GetAuthURL()
 
-	log.WithField("auth_url", authURL).Info("Please visit this URL to authenticate with Spotify")
-	fmt.Printf("\n🔐 Spotify Authentication Required\n")
+	log.WithField("auth_url", authURL).Info("Please visit this URL to authenticate with the music service")
+	fmt.Printf("\n🔐 Music Service Authentication Required\n")
 	fmt.Printf("Please visit this URL to authenticate:\n%s\n\n", authURL)
 	fmt.Printf("Waiting for authentication... (Press Ctrl+C to cancel)\n")
 
@@ -469,7 +473,7 @@ func authenticateSpotify(spotifyService types.SpotifyService) error {
 	// Set up HTTP server to handle the callback
 	mux := http.NewServeMux()
 	mux.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
-		handleSpotifyCallback(w, r, spotifyService, authComplete)
+		handleAuthCallback(w, r, musicService, authComplete)
 	})
 
 	// Use the server configuration from config instead of parsing redirect URI
@@ -517,16 +521,16 @@ func authenticateSpotify(spotifyService types.SpotifyService) error {
 	}
 }
 
-// handleSpotifyCallback handles the OAuth callback from Spotify
-func handleSpotifyCallback(w http.ResponseWriter, r *http.Request, spotifyService types.SpotifyService, authComplete chan<- error) {
+// handleAuthCallback handles the OAuth callback from the music service
+func handleAuthCallback(w http.ResponseWriter, r *http.Request, musicService types.MusicService, authComplete chan<- error) {
 	code := r.URL.Query().Get("code")
 	state := r.URL.Query().Get("state")
 	errorParam := r.URL.Query().Get("error")
 
 	if errorParam != "" {
-		log.WithField("error", errorParam).Error("Spotify authentication error")
+		log.WithField("error", errorParam).Error("Music service authentication error")
 		http.Error(w, "Authentication failed: "+errorParam, http.StatusBadRequest)
-		authComplete <- fmt.Errorf("spotify authentication error: %s", errorParam)
+		authComplete <- fmt.Errorf("music service authentication error: %s", errorParam)
 		return
 	}
 
@@ -538,9 +542,9 @@ func handleSpotifyCallback(w http.ResponseWriter, r *http.Request, spotifyServic
 	}
 
 	// Complete the authentication
-	err := spotifyService.CompleteAuth(code, state)
+	err := musicService.CompleteAuth(code, state)
 	if err != nil {
-		log.WithError(err).Error("Failed to complete Spotify authentication")
+		log.WithError(err).Error("Failed to complete music service authentication")
 		http.Error(w, "Authentication failed", http.StatusInternalServerError)
 		authComplete <- fmt.Errorf("failed to complete authentication: %w", err)
 		return
@@ -572,6 +576,6 @@ func handleSpotifyCallback(w http.ResponseWriter, r *http.Request, spotifyServic
 		log.WithError(err).Warn("Failed to write success response")
 	}
 
-	log.Info("Spotify authentication completed successfully via callback")
+	log.Info("Music service authentication completed successfully via callback")
 	authComplete <- nil
 }

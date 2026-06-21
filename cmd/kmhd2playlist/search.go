@@ -1,4 +1,4 @@
-// Package cmd provides the search command implementation for kmhd2spotify.
+// Package cmd provides the search command implementation for kmhd2playlist.
 package cmd
 
 import (
@@ -8,10 +8,11 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/toozej/kmhd2spotify/internal/api"
-	"github.com/toozej/kmhd2spotify/internal/search"
-	"github.com/toozej/kmhd2spotify/internal/spotify"
-	"github.com/toozej/kmhd2spotify/internal/types"
+	"github.com/toozej/kmhd2playlist/internal/api"
+	"github.com/toozej/kmhd2playlist/internal/search"
+	"github.com/toozej/kmhd2playlist/internal/spotify"
+	"github.com/toozej/kmhd2playlist/internal/types"
+	"github.com/toozej/kmhd2playlist/internal/youtubemusic"
 )
 
 // newSearchCmd creates the search command for searching songs in KMHD playlist.
@@ -81,20 +82,26 @@ func initializeKMHDAPIClient() (*api.KMHDAPIClient, error) {
 }
 
 // initializeAllServices creates and initializes all required services using configuration
-func initializeAllServices() (types.KMHDScraper, types.SpotifyService, *search.FuzzySongSearcher, error) {
+func initializeAllServices() (types.KMHDScraper, types.MusicService, *search.FuzzySongSearcher, error) {
 	// Create logger
 	logger := log.StandardLogger()
 
 	// Initialize KMHD API client (replaces scraper)
 	kmhdAPIClient := api.NewKMHDAPIClient(conf.KMHD)
 
-	// Initialize Spotify service
-	spotifyService := spotify.NewService(conf.Spotify, logger)
+	// Initialize music service based on MUSIC_CLIENT configuration
+	var musicService types.MusicService
+	switch conf.MusicClient {
+	case "youtube":
+		musicService = youtubemusic.NewService(conf.YouTubeMusic, logger)
+	default:
+		musicService = spotify.NewService(conf.Spotify, logger)
+	}
 
 	// Initialize fuzzy song searcher
-	fuzzySongSearcher := search.NewFuzzySongSearcher(spotifyService, logger)
+	fuzzySongSearcher := search.NewFuzzySongSearcher(musicService, logger)
 
-	return kmhdAPIClient, spotifyService, fuzzySongSearcher, nil
+	return kmhdAPIClient, musicService, fuzzySongSearcher, nil
 }
 
 // searchSongs searches for songs matching the query in the song collection

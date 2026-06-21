@@ -1,7 +1,7 @@
 ---
 version: 2
 
-project_name: kmhd2spotify
+project_name: kmhd2playlist
 
 env:
   - GO111MODULE=on
@@ -42,13 +42,13 @@ builds:
     ldflags:
       - >-
         -s -w
-        -X github.com/toozej/kmhd2spotify/pkg/version.Version={{.Version}}
-        -X github.com/toozej/kmhd2spotify/pkg/version.Commit={{.Commit}}
-        -X github.com/toozej/kmhd2spotify/pkg/version.Branch={{.Branch}}
-        -X github.com/toozej/kmhd2spotify/pkg/version.BuiltAt={{.CommitDate}}
-        -X github.com/toozej/kmhd2spotify/pkg/version.Builder=goreleaser
+        -X github.com/toozej/kmhd2playlist/pkg/version.Version={{.Version}}
+        -X github.com/toozej/kmhd2playlist/pkg/version.Commit={{.Commit}}
+        -X github.com/toozej/kmhd2playlist/pkg/version.Branch={{.Branch}}
+        -X github.com/toozej/kmhd2playlist/pkg/version.BuiltAt={{.CommitDate}}
+        -X github.com/toozej/kmhd2playlist/pkg/version.Builder=goreleaser
     main: ./
-    binary: kmhd2spotify
+    binary: kmhd2playlist
 
 universal_binaries:
   - replace: false
@@ -85,11 +85,11 @@ changelog:
       order: 9999
 
 dockers_v2:
-  - id: kmhd2spotify
+  - id: kmhd2playlist
     images:
-      - 'toozej/kmhd2spotify'
-      - 'ghcr.io/toozej/kmhd2spotify'
-      - 'quay.io/toozej/kmhd2spotify'
+      - 'toozej/kmhd2playlist'
+      - 'ghcr.io/toozej/kmhd2playlist'
+      - 'quay.io/toozej/kmhd2playlist'
     tags:
       - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}v{{ .Version
         }}{{ end }}'
@@ -103,7 +103,7 @@ dockers_v2:
       - "distroless"
     dockerfile: Dockerfile.goreleaser
     labels:
-      "io.artifacthub.package.readme-url": "https://raw.githubusercontent.com/toozej/kmhd2spotify/main/README.md"
+      "io.artifacthub.package.readme-url": "https://raw.githubusercontent.com/toozej/kmhd2playlist/main/README.md"
       "io.artifacthub.package.maintainers": "[{\"name\":\"toozej\"}]"
       "io.artifacthub.package.license": "GPLv3"
       "org.opencontainers.image.description": "Automatically sync songs from KMHD jazz radio\
@@ -114,7 +114,7 @@ dockers_v2:
       "org.opencontainers.image.version": "{{.Version}}"
       "org.opencontainers.image.source": "{{.GitURL}}"
       "org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
-      "org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/kmhd2spotify/main/README.md"
+      "org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/kmhd2playlist/main/README.md"
       "org.opencontainers.image.licenses": "GPL-3.0-only"
       "org.opencontainers.image.title": "{{.ProjectName}}"
       "org.opencontainers.image.vendor": "James Tooze"
@@ -123,10 +123,10 @@ dockers_v2:
       "index,manifest:org.opencontainers.image.created": "{{.Date}}"
       "index,manifest:org.opencontainers.image.description": "Automatically sync songs from\
         \ KMHD jazz radio to your Spotify playlists"
-      "index,manifest:org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/kmhd2spotify/main/README.md"
+      "index,manifest:org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/kmhd2playlist/main/README.md"
       "index,manifest:org.opencontainers.image.licenses": "GPL-3.0-only"
       "index,manifest:org.opencontainers.image.revision": "{{.FullCommit}}"
-      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/kmhd2spotify"
+      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/kmhd2playlist"
       "index,manifest:org.opencontainers.image.title": "{{.ProjectName}}"
       "index,manifest:org.opencontainers.image.vendor": "James Tooze"
       "index,manifest:org.opencontainers.image.version": "{{.Version}}"
@@ -152,33 +152,33 @@ archives:
 nfpms:
   - file_name_template: '{{ .ConventionalFileName }}'
     id: packages
-    homepage: https://github.com/toozej/kmhd2spotify
+    homepage: https://github.com/toozej/kmhd2playlist
     description: |-
       Automatically sync songs from KMHD jazz radio to your Spotify playlists
     maintainer: toozej
     license: GPLv3
-    vendor: kmhd2spotify
+    vendor: kmhd2playlist
     bindir: /usr/bin
     section: utils
     contents:
-      - src: ./completions/kmhd2spotify.bash
-        dst: /usr/share/bash-completion/completions/kmhd2spotify
+      - src: ./completions/kmhd2playlist.bash
+        dst: /usr/share/bash-completion/completions/kmhd2playlist
         file_info:
           mode: 0644
-      - src: ./completions/kmhd2spotify.fish
-        dst: /usr/share/fish/completions/kmhd2spotify.fish
+      - src: ./completions/kmhd2playlist.fish
+        dst: /usr/share/fish/completions/kmhd2playlist.fish
         file_info:
           mode: 0644
-      - src: ./completions/kmhd2spotify.zsh
-        dst: /usr/share/zsh/vendor-completions/_kmhd2spotify
+      - src: ./completions/kmhd2playlist.zsh
+        dst: /usr/share/zsh/vendor-completions/_kmhd2playlist
         file_info:
           mode: 0644
-      - src: ./manpages/kmhd2spotify.1.gz
-        dst: /usr/share/man/man1/kmhd2spotify.1.gz
+      - src: ./manpages/kmhd2playlist.1.gz
+        dst: /usr/share/man/man1/kmhd2playlist.1.gz
         file_info:
           mode: 0644
       - src: ./LICENSE
-        dst: /usr/share/doc/kmhd2spotify/copyright
+        dst: /usr/share/doc/kmhd2playlist/copyright
         file_info:
           mode: 0644
     formats:
@@ -195,8 +195,8 @@ nfpms:
         - changelog-file-missing-in-native-package
 
 homebrew_casks:
-  - name: kmhd2spotify
-    homepage: https://github.com/toozej/kmhd2spotify
+  - name: kmhd2playlist
+    homepage: https://github.com/toozej/kmhd2playlist
     description: "Automatically sync songs from KMHD jazz radio to your Spotify playlists"
     license: GPLv3
     repository:
@@ -204,18 +204,18 @@ homebrew_casks:
       name: homebrew-tap
       token: "{{ .Env.TAP_GITHUB_TOKEN }}"
     manpages:
-      - "manpages/kmhd2spotify.1.gz"
+      - "manpages/kmhd2playlist.1.gz"
     completions:
-      bash: "completions/kmhd2spotify.bash"
-      zsh: "completions/kmhd2spotify.zsh"
-      fish: "completions/kmhd2spotify.fish"
+      bash: "completions/kmhd2playlist.bash"
+      zsh: "completions/kmhd2playlist.zsh"
+      fish: "completions/kmhd2playlist.fish"
     url:
-      verified: "github.com/toozej/kmhd2spotify/releases/download"
+      verified: "github.com/toozej/kmhd2playlist/releases/download"
     hooks:
       post:
         install: |
           if OS.mac?
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/kmhd2spotify"]
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/kmhd2playlist"]
           end
 
 sboms:
@@ -230,16 +230,14 @@ signs:
       - '--bundle=${signature}'
       - '${artifact}'
       - '--yes'
-    artifacts: all
+    artifacts: checksum
 
 docker_signs:
   - cmd: cosign
     artifacts: all
-    stdin: '{{ .Env.COSIGN_PASSWORD }}'
     output: true
     args:
       - 'sign'
-      - '--key=env://COSIGN_PRIVATE_KEY'
       - '--yes'
       - '${artifact}'
 
@@ -249,4 +247,4 @@ milestones:
 release:
   disable: '{{ eq (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}'
   footer: |
-    **Full Changelog**: https://github.com/toozej/kmhd2spotify/compare/{{ .PreviousTag }}...{{ .Tag }}
+    **Full Changelog**: https://github.com/toozej/kmhd2playlist/compare/{{ .PreviousTag }}...{{ .Tag }}

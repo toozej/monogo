@@ -17,5 +17,5 @@ checkmake.ini
 Makefile
 Dockerfile*
 docker-compose.yml
-kmhd2spotify
-kmhd2spotify.key
+kmhd2playlist
+

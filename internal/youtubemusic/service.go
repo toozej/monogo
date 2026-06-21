@@ -1,4 +1,4 @@
-package spotify
+package youtubemusic
 
 import (
 	"errors"
@@ -8,48 +8,19 @@ import (
 	"github.com/toozej/kmhd2playlist/pkg/config"
 )
 
-// Service implements the types.MusicService interface
 type Service struct {
 	client *Client
 	logger *logrus.Logger
 }
 
-// GetAuthURL returns the URL for user authentication
-func (s *Service) GetAuthURL() string {
-	if s.client == nil {
-		return ""
-	}
-	return s.client.GetAuthURL()
-}
-
-// IsAuthenticated returns whether the user is authenticated
-func (s *Service) IsAuthenticated() bool {
-	if s.client == nil {
-		return false
-	}
-	return s.client.IsAuthenticated()
-}
-
-// CompleteAuth completes the authentication process
-func (s *Service) CompleteAuth(code, state string) error {
-	if s.client == nil {
-		return errors.New("spotify client not available")
-	}
-	return s.client.CompleteAuth(code, state)
-}
-
-// NewService creates a new Spotify service that implements types.MusicService
-func NewService(cfg config.SpotifyConfig, logger *logrus.Logger) *Service {
+func NewService(cfg config.YouTubeMusicConfig, logger *logrus.Logger) *Service {
 	logger.WithFields(logrus.Fields{
-		"client_id":     cfg.ClientID,
-		"client_secret": cfg.ClientSecret != "",
-		"redirect_url":  cfg.RedirectURL,
-	}).Debug("Creating Spotify service with config")
+		"has_cookie": cfg.Cookie != "",
+	}).Debug("Creating YouTube Music service with config")
 
 	client, err := NewClient(cfg, logger)
 	if err != nil {
-		logger.WithError(err).Error("Failed to create Spotify client")
-		// Return service with nil client for now - will be handled in actual implementation
+		logger.WithError(err).Error("Failed to create YouTube Music client")
 		return &Service{
 			client: nil,
 			logger: logger,
@@ -62,14 +33,34 @@ func NewService(cfg config.SpotifyConfig, logger *logrus.Logger) *Service {
 	}
 }
 
-// SearchArtist searches for an artist by name and returns the best match
+func (s *Service) GetAuthURL() string {
+	if s.client == nil {
+		return ""
+	}
+	return s.client.GetAuthURL()
+}
+
+func (s *Service) IsAuthenticated() bool {
+	if s.client == nil {
+		return false
+	}
+	return s.client.IsAuthenticated()
+}
+
+func (s *Service) CompleteAuth(code, state string) error {
+	if s.client == nil {
+		return errors.New("youtube music client not available")
+	}
+	return s.client.CompleteAuth(code, state)
+}
+
 func (s *Service) SearchArtist(query string) (*types.Artist, error) {
 	if s.client == nil {
-		return nil, errors.New("spotify client not available")
+		return nil, errors.New("youtube music client not available")
 	}
 
 	s.logger.WithFields(logrus.Fields{
-		"component": "spotify_service",
+		"component": "youtubemusic_service",
 		"operation": "search_artist",
 		"query":     query,
 	}).Debug("Searching for artist")
@@ -77,7 +68,7 @@ func (s *Service) SearchArtist(query string) (*types.Artist, error) {
 	artist, err := s.client.SearchArtist(query)
 	if err != nil {
 		s.logger.WithFields(logrus.Fields{
-			"component": "spotify_service",
+			"component": "youtubemusic_service",
 			"operation": "search_artist",
 			"query":     query,
 		}).WithError(err).Error("Failed to search for artist")
@@ -85,7 +76,7 @@ func (s *Service) SearchArtist(query string) (*types.Artist, error) {
 	}
 
 	s.logger.WithFields(logrus.Fields{
-		"component":      "spotify_service",
+		"component":      "youtubemusic_service",
 		"operation":      "search_artist",
 		"query":          query,
 		"matched_artist": artist.Name,
@@ -100,14 +91,13 @@ func (s *Service) SearchArtist(query string) (*types.Artist, error) {
 	}, nil
 }
 
-// GetArtistTopTracks retrieves the top 5 tracks for an artist
 func (s *Service) GetArtistTopTracks(artistID string) ([]types.Track, error) {
 	if s.client == nil {
-		return nil, errors.New("spotify client not available")
+		return nil, errors.New("youtube music client not available")
 	}
 
 	s.logger.WithFields(logrus.Fields{
-		"component": "spotify_service",
+		"component": "youtubemusic_service",
 		"operation": "get_top_tracks",
 		"artist_id": artistID,
 	}).Debug("Retrieving artist top tracks")
@@ -115,7 +105,7 @@ func (s *Service) GetArtistTopTracks(artistID string) ([]types.Track, error) {
 	tracks, err := s.client.GetArtistTopTracks(artistID)
 	if err != nil {
 		s.logger.WithFields(logrus.Fields{
-			"component": "spotify_service",
+			"component": "youtubemusic_service",
 			"operation": "get_top_tracks",
 			"artist_id": artistID,
 		}).WithError(err).Error("Failed to retrieve artist top tracks")
@@ -125,7 +115,6 @@ func (s *Service) GetArtistTopTracks(artistID string) ([]types.Track, error) {
 	serverTracks := make([]types.Track, len(tracks))
 	trackNames := make([]string, len(tracks))
 	for i, track := range tracks {
-		// Convert artists
 		artists := make([]types.Artist, len(track.Artists))
 		for j, artist := range track.Artists {
 			artists[j] = types.Artist{
@@ -152,7 +141,7 @@ func (s *Service) GetArtistTopTracks(artistID string) ([]types.Track, error) {
 	}
 
 	s.logger.WithFields(logrus.Fields{
-		"component":   "spotify_service",
+		"component":   "youtubemusic_service",
 		"operation":   "get_top_tracks",
 		"artist_id":   artistID,
 		"track_count": len(serverTracks),
@@ -162,14 +151,13 @@ func (s *Service) GetArtistTopTracks(artistID string) ([]types.Track, error) {
 	return serverTracks, nil
 }
 
-// GetUserPlaylists retrieves playlists from a specific folder
 func (s *Service) GetUserPlaylists(folderName string) ([]types.Playlist, error) {
 	if s.client == nil {
-		return nil, errors.New("spotify client not available")
+		return nil, errors.New("youtube music client not available")
 	}
 
 	s.logger.WithFields(logrus.Fields{
-		"component":   "spotify_service",
+		"component":   "youtubemusic_service",
 		"operation":   "get_playlists",
 		"folder_name": folderName,
 	}).Debug("Retrieving user playlists")
@@ -177,7 +165,7 @@ func (s *Service) GetUserPlaylists(folderName string) ([]types.Playlist, error) 
 	playlists, err := s.client.GetUserPlaylists(folderName)
 	if err != nil {
 		s.logger.WithFields(logrus.Fields{
-			"component":   "spotify_service",
+			"component":   "youtubemusic_service",
 			"operation":   "get_playlists",
 			"folder_name": folderName,
 		}).WithError(err).Error("Failed to retrieve user playlists")
@@ -199,7 +187,7 @@ func (s *Service) GetUserPlaylists(folderName string) ([]types.Playlist, error) 
 	}
 
 	s.logger.WithFields(logrus.Fields{
-		"component":      "spotify_service",
+		"component":      "youtubemusic_service",
 		"operation":      "get_playlists",
 		"folder_name":    folderName,
 		"playlist_count": len(serverPlaylists),
@@ -209,14 +197,13 @@ func (s *Service) GetUserPlaylists(folderName string) ([]types.Playlist, error) 
 	return serverPlaylists, nil
 }
 
-// AddTracksToPlaylist adds tracks to a specified playlist
 func (s *Service) AddTracksToPlaylist(playlistID string, trackIDs []string) error {
 	if s.client == nil {
-		return errors.New("spotify client not available")
+		return errors.New("youtube music client not available")
 	}
 
 	s.logger.WithFields(logrus.Fields{
-		"component":   "spotify_service",
+		"component":   "youtubemusic_service",
 		"operation":   "add_tracks",
 		"playlist_id": playlistID,
 		"track_count": len(trackIDs),
@@ -226,7 +213,7 @@ func (s *Service) AddTracksToPlaylist(playlistID string, trackIDs []string) erro
 	err := s.client.AddTracksToPlaylist(playlistID, trackIDs)
 	if err != nil {
 		s.logger.WithFields(logrus.Fields{
-			"component":   "spotify_service",
+			"component":   "youtubemusic_service",
 			"operation":   "add_tracks",
 			"playlist_id": playlistID,
 			"track_count": len(trackIDs),
@@ -235,7 +222,7 @@ func (s *Service) AddTracksToPlaylist(playlistID string, trackIDs []string) erro
 	}
 
 	s.logger.WithFields(logrus.Fields{
-		"component":   "spotify_service",
+		"component":   "youtubemusic_service",
 		"operation":   "add_tracks",
 		"playlist_id": playlistID,
 		"track_count": len(trackIDs),
@@ -244,14 +231,13 @@ func (s *Service) AddTracksToPlaylist(playlistID string, trackIDs []string) erro
 	return nil
 }
 
-// CheckTracksInPlaylist checks if tracks already exist in a playlist
 func (s *Service) CheckTracksInPlaylist(playlistID string, trackIDs []string) ([]bool, error) {
 	if s.client == nil {
-		return nil, errors.New("spotify client not available")
+		return nil, errors.New("youtube music client not available")
 	}
 
 	s.logger.WithFields(logrus.Fields{
-		"component":   "spotify_service",
+		"component":   "youtubemusic_service",
 		"operation":   "check_tracks",
 		"playlist_id": playlistID,
 		"track_count": len(trackIDs),
@@ -260,7 +246,7 @@ func (s *Service) CheckTracksInPlaylist(playlistID string, trackIDs []string) ([
 	results, err := s.client.CheckTracksInPlaylist(playlistID, trackIDs)
 	if err != nil {
 		s.logger.WithFields(logrus.Fields{
-			"component":   "spotify_service",
+			"component":   "youtubemusic_service",
 			"operation":   "check_tracks",
 			"playlist_id": playlistID,
 			"track_count": len(trackIDs),
@@ -276,7 +262,7 @@ func (s *Service) CheckTracksInPlaylist(playlistID string, trackIDs []string) ([
 	}
 
 	s.logger.WithFields(logrus.Fields{
-		"component":       "spotify_service",
+		"component":       "youtubemusic_service",
 		"operation":       "check_tracks",
 		"playlist_id":     playlistID,
 		"track_count":     len(trackIDs),
@@ -286,14 +272,13 @@ func (s *Service) CheckTracksInPlaylist(playlistID string, trackIDs []string) ([
 	return results, nil
 }
 
-// CreatePlaylist creates a new playlist with the given name and description
 func (s *Service) CreatePlaylist(name, description string, public bool) (*types.Playlist, error) {
 	if s.client == nil {
-		return nil, errors.New("spotify client not available")
+		return nil, errors.New("youtube music client not available")
 	}
 
 	s.logger.WithFields(logrus.Fields{
-		"component":     "spotify_service",
+		"component":     "youtubemusic_service",
 		"operation":     "create_playlist",
 		"playlist_name": name,
 		"description":   description,
@@ -303,7 +288,7 @@ func (s *Service) CreatePlaylist(name, description string, public bool) (*types.
 	playlist, err := s.client.CreatePlaylist(name, description, public)
 	if err != nil {
 		s.logger.WithFields(logrus.Fields{
-			"component":     "spotify_service",
+			"component":     "youtubemusic_service",
 			"operation":     "create_playlist",
 			"playlist_name": name,
 		}).WithError(err).Error("Failed to create playlist")
@@ -311,7 +296,7 @@ func (s *Service) CreatePlaylist(name, description string, public bool) (*types.
 	}
 
 	s.logger.WithFields(logrus.Fields{
-		"component":     "spotify_service",
+		"component":     "youtubemusic_service",
 		"operation":     "create_playlist",
 		"playlist_id":   playlist.ID,
 		"playlist_name": playlist.Name,

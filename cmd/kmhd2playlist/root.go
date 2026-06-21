@@ -1,18 +1,18 @@
-// Package cmd provides command-line interface functionality for the kmhd2spotify application.
+// Package cmd provides command-line interface functionality for the kmhd2playlist application.
 //
 // This package implements the root command and manages the command-line interface
 // using the cobra library. It handles configuration, logging setup, and command
-// execution for the kmhd2spotify application.
+// execution for the kmhd2playlist application.
 //
 // The package integrates with several components:
 //   - Configuration management through pkg/config
-//   - Core functionality through internal/kmhd2spotify
+//   - Core functionality through internal/kmhd2playlist
 //   - Manual pages through pkg/man
 //   - Version information through pkg/version
 //
 // Example usage:
 //
-//	import "github.com/toozej/kmhd2spotify/cmd/kmhd2spotify"
+//	import "github.com/toozej/kmhd2playlist/cmd/kmhd2playlist"
 //
 //	func main() {
 //		cmd.Execute()
@@ -26,9 +26,9 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/toozej/kmhd2spotify/pkg/config"
-	"github.com/toozej/kmhd2spotify/pkg/man"
-	"github.com/toozej/kmhd2spotify/pkg/version"
+	"github.com/toozej/kmhd2playlist/pkg/config"
+	"github.com/toozej/kmhd2playlist/pkg/man"
+	"github.com/toozej/kmhd2playlist/pkg/version"
 )
 
 // conf holds the application configuration loaded from environment variables.
@@ -40,17 +40,17 @@ var (
 	debug bool
 )
 
-// rootCmd defines the base command for the kmhd2spotify CLI application.
+// rootCmd defines the base command for the kmhd2playlist CLI application.
 // It serves as the entry point for all command-line operations and establishes
 // the application's structure, flags, and subcommands.
 //
 // The command accepts no positional arguments and delegates its main functionality
-// to the kmhd2spotify package. It supports persistent flags that are inherited by
+// to the kmhd2playlist package. It supports persistent flags that are inherited by
 // all subcommands.
 var rootCmd = &cobra.Command{
-	Use:              "kmhd2spotify",
+	Use:              "kmhd2playlist",
 	Short:            "Sync KMHD jazz radio playlist to Spotify",
-	Long:             `kmhd2spotify is a command-line application that fetches the KMHD jazz radio playlist via JSON API and automatically adds newly played songs to a specified Spotify playlist. It uses fuzzy matching to identify songs and avoid duplicates.`,
+	Long:             `kmhd2playlist is a command-line application that fetches the KMHD jazz radio playlist via JSON API and automatically adds newly played songs to a specified Spotify playlist. It uses fuzzy matching to identify songs and avoid duplicates.`,
 	Args:             cobra.ExactArgs(0),
 	PersistentPreRun: rootCmdPreRun,
 	Run:              rootCmdRun,
@@ -63,8 +63,8 @@ var rootCmd = &cobra.Command{
 //   - cmd: The cobra command being executed
 //   - args: Command-line arguments (unused, as root command takes no args)
 func rootCmdRun(cmd *cobra.Command, args []string) {
-	log.Info("Use 'kmhd2spotify sync' to sync KMHD playlist to Spotify")
-	log.Info("Use 'kmhd2spotify search <query>' to search for songs")
+	log.Info("Use 'kmhd2playlist sync' to sync KMHD playlist to Spotify")
+	log.Info("Use 'kmhd2playlist search <query>' to search for songs")
 }
 
 // rootCmdPreRun performs setup operations before executing the root command.

@@ -86,26 +86,6 @@ EOF
 #     echo "GITHUB_FG_TOKEN=$TOKEN" >> .env || handle_error "Failed to write GitHub token to .env."
 # }
 
-# Helper function to generate cosign key-pair
-generate_cosign_keys() {
-    echo "Generating cosign key-pair..."
-    COSIGN_PASSPHRASE=$(openssl rand -base64 48 | tr -d "=+/" | cut -c1-32) || handle_error "Failed to generate cosign passphrase."
-
-    # Export passphrase for cosign to use
-    export COSIGN_PASSWORD=${COSIGN_PASSPHRASE}
-    export COSIGN_PASSPHRASE=${COSIGN_PASSPHRASE}
-
-    # Generate key-pair
-    cosign generate-key-pair || handle_error "Cosign key generation failed."
-
-    # Rename the cosign keys
-    mv cosign.key "${NEW_PROJECT_NAME}.key" || handle_error "Failed to rename cosign key."
-    mv cosign.pub "${NEW_PROJECT_NAME}.pub" || handle_error "Failed to rename cosign pub key."
-
-    # Add cosign passphrase to .env
-    echo "COSIGN_PASSWORD=${COSIGN_PASSPHRASE}" >> .env || handle_error "Failed to write cosign passphrase to .env."
-}
-
 # --- Main Script ---
 
 # Validate script arguments
@@ -113,7 +93,7 @@ if [[ $# -lt 1 ]]; then
     handle_error "Usage: $0 <new_project_name> [github_username]"
 fi
 
-OLD_PROJECT_NAME="kmhd2spotify"
+OLD_PROJECT_NAME="kmhd2playlist"
 NEW_PROJECT_NAME="${1}"
 GITHUB_USERNAME="${2:-toozej}"
 
@@ -131,7 +111,7 @@ EOF
 echo "Updating project from ${OLD_PROJECT_NAME} to ${NEW_PROJECT_NAME}..."
 
 # Truncate existing CREDITS.md file and replace its contents with link to template repo's CREDITS.md file
-echo -e "# Credits and Acknowledgements\n\n- https://raw.githubusercontent.com/toozej/kmhd2spotify/main/CREDITS.md" > CREDITS.md
+echo -e "# Credits and Acknowledgements\n\n- https://raw.githubusercontent.com/toozej/kmhd2playlist/main/CREDITS.md" > CREDITS.md
 
 # Remove old public key if it exists
 rm -f "./${OLD_PROJECT_NAME}.pub" || handle_error "Failed to remove ${OLD_PROJECT_NAME}.pub"
@@ -162,9 +142,6 @@ fetch_credentials
 # Generate GitHub fine-grained token
 # TODO re-enable generate_github_token function once verified working
 # generate_github_token
-
-# Generate cosign key-pair
-generate_cosign_keys
 
 # Store generated secrets in 1Password
 ./scripts/upload_secrets_to_1password.sh secrets "${NEW_PROJECT_NAME}"

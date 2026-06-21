@@ -1,4 +1,4 @@
-module github.com/toozej/kmhd2spotify
+module github.com/toozej/kmhd2playlist
 
 go 1.26
 

@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/toozej/kmhd2spotify/pkg/config"
+	"github.com/toozej/kmhd2playlist/pkg/config"
 )
 
 func createTestConfig() config.KMHDConfig {

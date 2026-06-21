@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/toozej/kmhd2spotify/pkg/config"
+	"github.com/toozej/kmhd2playlist/pkg/config"
 )
 
 func TestSpotifyConfigGetTokenFilePath(t *testing.T) {
@@ -22,9 +22,9 @@ func TestSpotifyConfigGetTokenFilePath(t *testing.T) {
 		},
 		{
 			name:           "default path with tilde",
-			tokenFilePath:  "~/.config/kmhd2spotify/spotify_token.json",
+			tokenFilePath:  "~/.config/kmhd2playlist/spotify_token.json",
 			expectError:    false,
-			expectContains: ".config/kmhd2spotify/spotify_token.json",
+			expectContains: ".config/kmhd2playlist/spotify_token.json",
 		},
 		{
 			name:           "relative path",
