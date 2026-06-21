@@ -1,0 +1,7 @@
+# runtime image
+FROM scratch
+# Copy our static executable.
+ARG TARGETPLATFORM
+COPY $TARGETPLATFORM/terranotate /go/bin/terranotate
+# Run the binary.
+ENTRYPOINT ["/go/bin/terranotate"]

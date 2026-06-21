@@ -1,0 +1,221 @@
+---
+# Terraform Comment Validation Schema
+# Defines required and optional comment fields for different resource types
+
+# Global rules apply to all resources unless overridden
+global:
+  required_prefixes:
+    - "@metadata"
+
+  prefix_rules:
+    "@metadata":
+      required_fields:
+        - owner
+        - team
+      optional_fields:
+        - priority
+        - cost_center
+        - department
+        - tags
+      nested_fields:
+        contact:
+          required_fields:
+            - email
+          optional_fields:
+            - slack
+            - phone
+
+    "@docs":
+      optional_fields:
+        - description
+
+    "@validation":
+      optional_fields:
+        - required
+        - environment
+      nested_fields:
+        compliance:
+          optional_fields:
+            - soc2
+            - hipaa
+            - pci
+            - gdpr
+        security:
+          optional_fields:
+            - encrypted
+            - backup
+
+    "@config":
+      optional_fields:
+        - autoscaling
+        - min_instances
+        - max_instances
+      nested_fields:
+        monitoring:
+          optional_fields:
+            - enabled
+            - interval
+        scaling:
+          optional_fields:
+            - cpu_threshold
+            - memory_threshold
+
+# Resource-specific rules override global rules
+resource_types:
+  aws_instance:
+    required_prefixes:
+      - "@metadata"
+      - "@validation"
+
+    prefix_rules:
+      "@metadata":
+        required_fields:
+          - owner
+          - team
+          - priority
+        nested_fields:
+          contact:
+            required_fields:
+              - email
+              - slack
+
+      "@validation":
+        required_fields:
+          - required
+          - environment
+        nested_fields:
+          compliance:
+            required_fields:
+              - soc2
+          security:
+            required_fields:
+              - encrypted
+              - backup
+
+      "@config":
+        optional_fields:
+          - autoscaling
+        nested_fields:
+          monitoring:
+            required_fields:
+              - enabled
+
+  aws_rds_cluster:
+    required_prefixes:
+      - "@metadata"
+      - "@validation"
+      - "@config"
+
+    prefix_rules:
+      "@metadata":
+        required_fields:
+          - owner
+          - team
+          - priority
+          - emergency_contact
+        nested_fields:
+          contact:
+            required_fields:
+              - primary.email
+          sla:
+            required_fields:
+              - uptime
+
+      "@validation":
+        required_fields:
+          - backup_required
+          - point_in_time_recovery
+        nested_fields:
+          security:
+            required_fields:
+              - encryption_at_rest
+              - encryption_in_transit
+
+      "@config":
+        nested_fields:
+          ha:
+            required_fields:
+              - enabled
+              - replicas
+
+  aws_s3_bucket:
+    required_prefixes:
+      - "@metadata"
+      - "@validation"
+
+    prefix_rules:
+      "@metadata":
+        required_fields:
+          - owner
+          - team
+        nested_fields:
+          contact:
+            required_fields:
+              - email
+
+      "@validation":
+        required_fields:
+          - encryption
+          - versioning
+        nested_fields:
+          compliance:
+            optional_fields:
+              - gdpr
+              - hipaa
+
+  aws_iam_role:
+    required_prefixes:
+      - "@metadata"
+      - "@validation"
+
+    prefix_rules:
+      "@validation":
+        required_fields:
+          - mfa_required
+          - password_policy
+
+# Field value validations
+field_validations:
+  priority:
+    type: string
+    allowed_values:
+      - low
+      - medium
+      - high
+      - critical
+
+  environment:
+    type: string
+    allowed_values:
+      - development
+      - staging
+      - production
+
+  owner:
+    type: string
+    pattern: "^[a-z]+\\.[a-z]+$"  # firstname.lastname format
+
+  team:
+    type: string
+    min_length: 3
+
+  email:
+    type: string
+    pattern: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+
+  enabled:
+    type: boolean
+
+  replicas:
+    type: integer
+    min: 1
+    max: 10
+
+  uptime:
+    type: float
+    min: 0.0
+    max: 100.0
+
+  tags:
+    type: array
+    min_items: 1

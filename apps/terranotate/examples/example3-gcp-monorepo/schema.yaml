@@ -1,0 +1,12 @@
+---
+global:
+  required_prefixes:
+    - "@metadata"
+  prefix_rules:
+    "@metadata":
+      required_fields:
+        - owner
+      nested_fields:
+        contact:
+          required_fields:
+            - email

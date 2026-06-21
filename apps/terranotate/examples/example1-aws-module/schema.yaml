@@ -1,0 +1,20 @@
+---
+global:
+  required_prefixes:
+    - "@metadata"
+  prefix_rules:
+    "@metadata":
+      required_fields:
+        - owner
+      optional_fields:
+        - team
+
+resource_types:
+  aws_vpc:
+    required_prefixes:
+      - "@metadata"
+    prefix_rules:
+      "@metadata":
+        required_fields:
+          - owner
+          - team

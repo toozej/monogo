@@ -1,0 +1,32 @@
+---
+global:
+  required_prefixes:
+    - "@metadata"
+  prefix_rules:
+    "@metadata":
+      required_fields:
+        - owner
+      nested_fields:
+        contact:
+          required_fields:
+            - email
+
+field_validations:
+  priority:
+    type: string
+    allowed_values: [low, medium, high]
+  backup_required:
+    type: boolean
+
+resource_types:
+  aws_instance:
+    required_prefixes:
+      - "@metadata"
+      - "@validation"
+  aws_rds_cluster:
+    required_prefixes:
+      - "@validation"
+    prefix_rules:
+      "@validation":
+        required_fields:
+          - backup_required

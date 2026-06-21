@@ -1,0 +1,21 @@
+---
+global:
+  required_prefixes:
+    - "@metadata"
+    - "@validation"
+  prefix_rules:
+    "@metadata":
+      required_fields:
+        - owner
+      nested_fields:
+        contact:
+          required_fields:
+            - email
+    "@validation":
+      required_fields:
+        - priority
+
+field_validations:
+  priority:
+    type: string
+    allowed_values: [low, medium, high]

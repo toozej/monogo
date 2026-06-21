@@ -1,0 +1,93 @@
+---
+name: test-examples
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    name: Build Binary
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7.0.0
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+          cache: true
+
+      - name: Build
+        run: make local-build
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v7
+        with:
+          name: terranotate-binary
+          path: out/terranotate
+
+  test-examples:
+    name: Test ${{ matrix.example.name }}
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        example:
+          - name: "Example 1 (AWS Module)"
+            command: "validate ./examples/example1-aws-module/vpc ./examples/example1-aws-module/schema.yaml"
+            expected_fail: false
+          - name: "Example 2 (AWS Workspace)"
+            command: "validate ./examples/example2-aws-workspace/infrastructure ./examples/example2-aws-workspace/schema.yaml"
+            expected_fail: true
+          - name: "Example 3 (GCP Monorepo)"
+            command: "validate ./examples/example3-gcp-monorepo ./examples/example3-gcp-monorepo/schema.yaml"
+            expected_fail: true
+          - name: "Example 4 (GCP Module - Validate)"
+            command: "validate ./examples/example4-gcp-module/storage ./examples/example4-gcp-module/schema.yaml"
+            expected_fail: true
+          - name: "Example 4 (GCP Module - Fix)"
+            command: "fix ./examples/example4-gcp-module/storage ./examples/example4-gcp-module/schema.yaml"
+            expected_fail: false
+          - name: "Example 1 (Generate)"
+            command: "generate ./examples/example1-aws-module/vpc ./examples/example1-aws-module/schema.yaml"
+            expected_fail: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7.0.0
+
+      - name: Download binary
+        uses: actions/download-artifact@v8
+        with:
+          name: terranotate-binary
+          path: out
+
+      - name: Make binary executable
+        run: chmod +x out/terranotate
+
+      - name: Run Validation
+        id: run_validation
+        run: |
+          ./out/terranotate ${{ matrix.example.command }}
+        # We allow expected failures to pass the step, but we still want to know if it failed unexpectedly
+        continue-on-error: ${{ matrix.example.expected_fail }}
+
+      - name: Verify Result
+        if: always()
+        run: |
+          EXIT_CODE=${{ steps.run_validation.outputs.exit_code || (steps.run_validation.outcome == 'failure' && 1 || 0) }}
+          EXPECTED_FAIL=${{ matrix.example.expected_fail }}
+
+          if [ "$EXIT_CODE" -eq 0 ] && [ "$EXPECTED_FAIL" = "true" ]; then
+            echo "Error: Example was expected to fail but passed!"
+            exit 1
+          elif [ "$EXIT_CODE" -ne 0 ] && [ "$EXPECTED_FAIL" = "false" ]; then
+            echo "Error: Example was expected to pass but failed!"
+            exit 1
+          fi
+          echo "Example validation result matched expectation."

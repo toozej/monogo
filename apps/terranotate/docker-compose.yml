@@ -1,0 +1,21 @@
+---
+services:
+  terranotate:
+    container_name: terranotate
+    image: toozej/terranotate:latest
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    labels:
+      - "traefik.enable=false"
+      # labels below for publishing as web service
+      # - "traefik.docker.network=traefik"
+      # - "traefik.http.routers.terranotate.rule=Host(`terranotate.test`)"
+      # - "traefik.http.routers.terranotate.middlewares=http-redirect-https@file,headers@file"
+      # - "traefik.http.routers.terranotate-secure.entrypoints=https"
+      # - "traefik.http.routers.terranotate-secure.rule=Host(`terranotate.test`)"
+      # - "traefik.http.routers.terranotate-secure.middlewares=headers@file"
+      # - "traefik.http.routers.terranotate-secure.tls=true"
+    # networks:
+      # - traefik
