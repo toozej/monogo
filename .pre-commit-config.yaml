@@ -85,11 +85,17 @@ repos:
     hooks:
       - id: go-sec-mod
       - id: go-staticcheck-mod
+      # testdata holds fixtures (incl. intentionally-invalid .go files used as test
+      # inputs) that the Go toolchain ignores; the per-file hooks below would
+      # otherwise try to parse/format them and fail.
       - id: go-critic
+        exclude: '(^|/)testdata/'
       # disabled until https://github.com/orijtech/structslop/pull/63 is merged
       # - id: go-structslop-mod
       - id: go-fmt
+        exclude: '(^|/)testdata/'
       - id: go-imports
+        exclude: '(^|/)testdata/'
       - id: golangci-lint-mod
       - id: go-test-mod
         args: [-race]
