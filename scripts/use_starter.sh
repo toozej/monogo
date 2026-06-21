@@ -86,26 +86,6 @@ EOF
 #     echo "GITHUB_FG_TOKEN=$TOKEN" >> .env || handle_error "Failed to write GitHub token to .env."
 # }
 
-# Helper function to generate cosign key-pair
-generate_cosign_keys() {
-    echo "Generating cosign key-pair..."
-    COSIGN_PASSPHRASE=$(openssl rand -base64 48 | tr -d "=+/" | cut -c1-32) || handle_error "Failed to generate cosign passphrase."
-
-    # Export passphrase for cosign to use
-    export COSIGN_PASSWORD=${COSIGN_PASSPHRASE}
-    export COSIGN_PASSPHRASE=${COSIGN_PASSPHRASE}
-
-    # Generate key-pair
-    cosign generate-key-pair || handle_error "Cosign key generation failed."
-
-    # Rename the cosign keys
-    mv cosign.key "${NEW_PROJECT_NAME}.key" || handle_error "Failed to rename cosign key."
-    mv cosign.pub "${NEW_PROJECT_NAME}.pub" || handle_error "Failed to rename cosign pub key."
-
-    # Add cosign passphrase to .env
-    echo "COSIGN_PASSWORD=${COSIGN_PASSPHRASE}" >> .env || handle_error "Failed to write cosign passphrase to .env."
-}
-
 # Helper function to store secrets in 1Password
 store_in_1password() {
     echo "Storing secrets in 1Password..."
@@ -120,9 +100,6 @@ store_in_1password() {
 
     # Update the 1Password item with generated secrets
     op item edit "${NEW_PROJECT_NAME}" \
-        "Cosign.Passphrase[password]=${COSIGN_PASSPHRASE}" \
-        "Cosign.Private Key[file]=${NEW_PROJECT_NAME}.key" \
-        "Cosign.Public Key[file]=${NEW_PROJECT_NAME}.pub" \
         "GH PAT[password]=${GITHUB_TOKEN}" \
         || handle_error "Failed to update 1Password item with secrets."
 
@@ -181,9 +158,6 @@ fetch_credentials
 # Generate GitHub fine-grained token
 # TODO re-enable generate_github_token function once verified working
 # generate_github_token
-
-# Generate cosign key-pair
-generate_cosign_keys
 
 # Store generated secrets in 1Password
 ./scripts/upload_secrets_to_1password.sh secrets "${NEW_PROJECT_NAME}"
