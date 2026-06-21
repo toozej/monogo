@@ -17,7 +17,7 @@
 //
 // Example usage:
 //
-//	import "github.com/toozej/RSSFFS/pkg/config"
+//	import "github.com/toozej/monogo/pkg/RSSFFS/config"
 //
 //	func main() {
 //		conf := config.GetEnvVars()

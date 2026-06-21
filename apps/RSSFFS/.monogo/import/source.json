@@ -1,0 +1,12 @@
+{
+  "source": "toozej/RSSFFS",
+  "vcsHost": "github.com/",
+  "owner": "toozej",
+  "repo": "RSSFFS",
+  "ownerRepo": "toozej/RSSFFS",
+  "repoURL": "https://github.com/toozej/RSSFFS.git",
+  "ref": "main",
+  "oldModule": "github.com/toozej/RSSFFS",
+  "newModule": "github.com/toozej/monogo/apps/RSSFFS",
+  "tagPrefix": "apps/RSSFFS"
+}

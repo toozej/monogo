@@ -13,8 +13,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/toozej/RSSFFS/internal/web"
-	"github.com/toozej/RSSFFS/pkg/config"
+	"github.com/toozej/monogo/apps/RSSFFS/internal/web"
+	"github.com/toozej/monogo/pkg/RSSFFS/config"
 )
 
 // ServeCommand holds configuration options for the serve command

@@ -16,7 +16,7 @@
 //
 // Example usage:
 //
-//	import "github.com/toozej/RSSFFS/pkg/man"
+//	import "github.com/toozej/monogo/pkg/RSSFFS/man"
 //
 //	// Add man command to root command
 //	rootCmd.AddCommand(man.NewManCmd())

@@ -27,7 +27,7 @@ LDFLAGS = -s -w \
 	-X $(VER).Builder=$(BUILDER)
 	
 # Define the repository URL
-REPO_URL := https://github.com/toozej/RSSFFS
+REPO_URL := https://github.com/toozej/monogo/apps/RSSFFS
 
 # Docker image info
 IMAGE_AUTHOR = toozej
@@ -82,7 +82,7 @@ release: ## Build and sign Docker image
 
 verify: ## Verify Docker image with Cosign
 	cosign verify \
-		--certificate-identity-regexp '^https://github.com/toozej/RSSFFS/.github/workflows/(release|weekly-docker-refresh)\.yaml@refs/(tags/.*|heads/main)$$' \
+		--certificate-identity-regexp '^https://github.com/toozej/monogo/apps/RSSFFS/.github/workflows/(release|weekly-docker-refresh)\.yaml@refs/(tags/.*|heads/main)$$' \
 		--certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
 		$(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG)
 
@@ -122,7 +122,7 @@ down-prod: ## Stop running production Docker Compose project
 
 install: ## Install RSSFFS from latest GitHub release
 	if command -v go; then \
-			go install github.com/toozej/RSSFFS@latest ; \
+			go install github.com/toozej/monogo/apps/RSSFFS@latest ; \
 	else \
 			echo "Downloading RSSFFS binary for $(OS)-$(ARCH)..."; \
 			mkdir -p $(CURDIR)/tmp; \
@@ -187,7 +187,7 @@ local-verify: ## Verify locally compiled binary
 	@echo "Verifying locally compiled binary..."
 	@if test -f $(CURDIR)/out/RSSFFS.bundle; then \
 		cosign verify-blob \
-			--certificate-identity-regexp '^https://github.com/toozej/RSSFFS/.github/workflows/(release|weekly-docker-refresh)\.yaml@refs/(tags/.*|heads/main)$$' \
+			--certificate-identity-regexp '^https://github.com/toozej/monogo/apps/RSSFFS/.github/workflows/(release|weekly-docker-refresh)\.yaml@refs/(tags/.*|heads/main)$$' \
 			--certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
 			--bundle $(CURDIR)/out/RSSFFS.bundle \
 			$(CURDIR)/out/RSSFFS; \
@@ -267,7 +267,7 @@ pre-commit-install: ## Install pre-commit hooks and necessary binaries
 pre-commit-run: ## Run pre-commit hooks against all files
 	pre-commit run --all-files
 	# manually run the following checks since their pre-commits aren't working or don't exist
-	go-licenses report github.com/toozej/RSSFFS/cmd/RSSFFS
+	go-licenses report github.com/toozej/monogo/apps/RSSFFS/cmd/RSSFFS
 	govulncheck ./...
 
 update-golang-version: ## Update to latest Golang version across the repo

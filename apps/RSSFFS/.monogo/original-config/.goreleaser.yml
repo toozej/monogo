@@ -2,11 +2,6 @@
 version: 2
 
 project_name: RSSFFS
-dist: dist/RSSFFS
-
-git:
-  ignore_tags:
-    - apps/*
 
 env:
   - GO111MODULE=on
@@ -18,15 +13,14 @@ env_files:
 before:
   hooks:
     - go mod tidy
-    - ./scripts/completions.sh RSSFFS
-    - ./scripts/manpages.sh RSSFFS
+    - ./scripts/completions.sh
+    - ./scripts/manpages.sh
 
 snapshot:
   version_template: '{{ incpatch .Version }}-next'
 
 builds:
-  - id: RSSFFS
-    env:
+  - env:
       - CGO_ENABLED=0
     goos:
       - linux
@@ -48,12 +42,12 @@ builds:
     ldflags:
       - >-
         -s -w
-        -X github.com/toozej/monogo/pkg/version.Version={{.Version}}
-        -X github.com/toozej/monogo/pkg/version.Commit={{.Commit}}
-        -X github.com/toozej/monogo/pkg/version.Branch={{.Branch}}
-        -X github.com/toozej/monogo/pkg/version.BuiltAt={{.CommitDate}}
-        -X github.com/toozej/monogo/pkg/version.Builder=goreleaser
-    main: ./apps/RSSFFS
+        -X github.com/toozej/monogo/apps/RSSFFS/pkg/version.Version={{.Version}}
+        -X github.com/toozej/monogo/apps/RSSFFS/pkg/version.Commit={{.Commit}}
+        -X github.com/toozej/monogo/apps/RSSFFS/pkg/version.Branch={{.Branch}}
+        -X github.com/toozej/monogo/apps/RSSFFS/pkg/version.BuiltAt={{.CommitDate}}
+        -X github.com/toozej/monogo/apps/RSSFFS/pkg/version.Builder=goreleaser
+    main: ./
     binary: RSSFFS
 
 universal_binaries:
@@ -61,9 +55,6 @@ universal_binaries:
 
 checksum:
   name_template: 'checksums.txt'
-
-docker_digest:
-  name_template: 'digests.txt'
 
 changelog:
   sort: asc
@@ -96,83 +87,44 @@ changelog:
 dockers_v2:
   - id: RSSFFS
     images:
-      - 'toozej/RSSFFS'
-      - 'ghcr.io/toozej/RSSFFS'
-      - 'quay.io/toozej/RSSFFS'
+      - 'toozej/rssffs'
+      - 'ghcr.io/toozej/rssffs'
+      - 'quay.io/toozej/rssffs'
     tags:
       - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}v{{ .Version
         }}{{ end }}'
       - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ .Version
         }}{{ end }}'
       - "latest"
-    dockerfile: apps/RSSFFS/Dockerfile.goreleaser
-    labels:
-      "io.artifacthub.package.readme-url": "https://github.com/toozej/monogo/raw/main/README.md"
-      "io.artifacthub.package.maintainers": "[{\"name\":\"toozej\"}]"
-      "io.artifacthub.package.license": "GPLv3"
-      "org.opencontainers.image.description": >-
-        RSS Feed Finder [and] Subscriber
-      "org.opencontainers.image.created": "{{.Date}}"
-      "org.opencontainers.image.name": "{{.ProjectName}}"
-      "org.opencontainers.image.revision": "{{.FullCommit}}"
-      "org.opencontainers.image.version": "{{.Version}}"
-      "org.opencontainers.image.source": "{{.GitURL}}"
-      "org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
-      "org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
-      "org.opencontainers.image.licenses": "GPL-3.0-only"
-      "org.opencontainers.image.title": "{{.ProjectName}}"
-      "org.opencontainers.image.vendor": "James Tooze"
-    annotations:
-      "index,manifest:org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
-      "index,manifest:org.opencontainers.image.created": "{{.Date}}"
-      "index,manifest:org.opencontainers.image.description": >-
-        RSS Feed Finder [and] Subscriber
-      "index,manifest:org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
-      "index,manifest:org.opencontainers.image.licenses": "GPL-3.0-only"
-      "index,manifest:org.opencontainers.image.revision": "{{.FullCommit}}"
-      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/monogo"
-      "index,manifest:org.opencontainers.image.title": "{{.ProjectName}}"
-      "index,manifest:org.opencontainers.image.vendor": "James Tooze"
-      "index,manifest:org.opencontainers.image.version": "{{.Version}}"
-    extra_files:
-      - scripts/goreleaser_entrypoint.sh
-  - id: RSSFFS-distroless
-    images:
-      - 'toozej/RSSFFS'
-      - 'ghcr.io/toozej/RSSFFS'
-      - 'quay.io/toozej/RSSFFS'
-    tags:
       - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}v{{ .Version
         }}-distroless{{ end }}'
       - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ .Version
         }}-distroless{{ end }}'
       - "distroless"
-    dockerfile: apps/RSSFFS/Dockerfile.goreleaser.distroless
+    dockerfile: Dockerfile.goreleaser
     labels:
-      "io.artifacthub.package.readme-url": "https://github.com/toozej/monogo/raw/main/README.md"
+      "io.artifacthub.package.readme-url": "https://raw.githubusercontent.com/toozej/RSSFFS/main/README.md"
       "io.artifacthub.package.maintainers": "[{\"name\":\"toozej\"}]"
       "io.artifacthub.package.license": "GPLv3"
-      "org.opencontainers.image.description": >-
-        RSS Feed Finder [and] Subscriber
+      "org.opencontainers.image.description": "RSS Feed Finder [and] Subscriber"
       "org.opencontainers.image.created": "{{.Date}}"
       "org.opencontainers.image.name": "{{.ProjectName}}"
       "org.opencontainers.image.revision": "{{.FullCommit}}"
       "org.opencontainers.image.version": "{{.Version}}"
       "org.opencontainers.image.source": "{{.GitURL}}"
       "org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
-      "org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
+      "org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/RSSFFS/main/README.md"
       "org.opencontainers.image.licenses": "GPL-3.0-only"
       "org.opencontainers.image.title": "{{.ProjectName}}"
       "org.opencontainers.image.vendor": "James Tooze"
     annotations:
       "index,manifest:org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
       "index,manifest:org.opencontainers.image.created": "{{.Date}}"
-      "index,manifest:org.opencontainers.image.description": >-
-        RSS Feed Finder [and] Subscriber
-      "index,manifest:org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
+      "index,manifest:org.opencontainers.image.description": "RSS Feed Finder [and] Subscriber"
+      "index,manifest:org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/RSSFFS/main/README.md"
       "index,manifest:org.opencontainers.image.licenses": "GPL-3.0-only"
       "index,manifest:org.opencontainers.image.revision": "{{.FullCommit}}"
-      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/monogo"
+      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/monogo/apps/RSSFFS"
       "index,manifest:org.opencontainers.image.title": "{{.ProjectName}}"
       "index,manifest:org.opencontainers.image.vendor": "James Tooze"
       "index,manifest:org.opencontainers.image.version": "{{.Version}}"
@@ -192,20 +144,18 @@ archives:
     files:
       - README.md
       - LICENSE
-      - completions/RSSFFS.bash
-      - completions/RSSFFS.fish
-      - completions/RSSFFS.zsh
-      - manpages/RSSFFS.1.gz
+      - completions/*
+      - manpages/*
 
 nfpms:
   - file_name_template: '{{ .ConventionalFileName }}'
     id: packages
-    homepage: https://github.com/toozej/monogo
+    homepage: https://github.com/toozej/monogo/apps/RSSFFS
     description: |-
       RSS Feed Finder [and] Subscriber
     maintainer: toozej
     license: GPLv3
-    vendor: monogo
+    vendor: RSSFFS
     bindir: /usr/bin
     section: utils
     contents:
@@ -244,9 +194,8 @@ nfpms:
 
 homebrew_casks:
   - name: RSSFFS
-    homepage: https://github.com/toozej/monogo
-    description: >-
-      RSS Feed Finder [and] Subscriber
+    homepage: https://github.com/toozej/monogo/apps/RSSFFS
+    description: "RSS Feed Finder [and] Subscriber"
     license: GPLv3
     repository:
       owner: toozej
@@ -259,7 +208,7 @@ homebrew_casks:
       zsh: "completions/RSSFFS.zsh"
       fish: "completions/RSSFFS.fish"
     url:
-      verified: "github.com/toozej/monogo/releases/download"
+      verified: "github.com/toozej/monogo/apps/RSSFFS/releases/download"
     hooks:
       post:
         install: |
@@ -294,7 +243,6 @@ milestones:
   - close: true
 
 release:
-  mode: append
   disable: '{{ eq (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}'
   footer: |
-    **Full Changelog**: https://github.com/toozej/monogo/compare/{{ .PreviousTag }}...{{ .Tag }}
+    **Full Changelog**: https://github.com/toozej/monogo/apps/RSSFFS/compare/{{ .PreviousTag }}...{{ .Tag }}

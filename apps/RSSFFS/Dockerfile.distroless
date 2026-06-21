@@ -8,7 +8,7 @@ WORKDIR /workspace/
 COPY go.mod* go.sum* ./
 RUN go mod download
 
-# Copy only the selected app and shared packages so unrelated apps stay out of the build context
+# Copy only the selected app and shared packages so unrelated apps/* stay out of the build context
 COPY apps/RSSFFS ./apps/RSSFFS
 COPY pkg ./pkg
 
@@ -19,9 +19,7 @@ RUN go vet ./apps/RSSFFS/... ./pkg/...
 # run tests
 FROM init AS test
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-RUN go test -coverprofile c.out -v ./apps/RSSFFS/... ./pkg/... && \
-    echo "Statements missing coverage" && \
-    grep -v -e " 1$" c.out
+RUN go test -coverprofile c.out -v ./apps/RSSFFS/... ./pkg/...
 
 # build binary
 FROM init AS build
@@ -35,12 +33,11 @@ ARG BUILDER=unknown
 RUN LDFLAGS="-s -w -X github.com/toozej/monogo/pkg/version.Version=${VERSION} -X github.com/toozej/monogo/pkg/version.Commit=${COMMIT} -X github.com/toozej/monogo/pkg/version.Branch=${BRANCH} -X github.com/toozej/monogo/pkg/version.BuiltAt=${BUILT_AT} -X github.com/toozej/monogo/pkg/version.Builder=${BUILDER}" && \
     CGO_ENABLED=0 go build -o /out/RSSFFS -ldflags="${LDFLAGS}" ./apps/RSSFFS
 
-# runtime image
-FROM scratch
+# runtime image including CA certs and tzdata
+FROM gcr.io/distroless/static-debian13:nonroot
 # Copy our executable.
 COPY --from=build /out/RSSFFS /go/bin/RSSFFS
 # Expose port for publishing as web service
 # EXPOSE 8081
 # Run the binary.
-USER 65532:65532
 ENTRYPOINT ["/go/bin/RSSFFS"]

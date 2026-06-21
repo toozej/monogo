@@ -13,7 +13,7 @@
 //
 // Example usage:
 //
-//	import "github.com/toozej/RSSFFS/cmd/RSSFFS"
+//	import "github.com/toozej/monogo/apps/RSSFFS/cmd/RSSFFS"
 //
 //	func main() {
 //		cmd.Execute()
@@ -28,10 +28,10 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/toozej/RSSFFS/internal/RSSFFS"
-	"github.com/toozej/RSSFFS/pkg/config"
-	"github.com/toozej/RSSFFS/pkg/man"
-	"github.com/toozej/RSSFFS/pkg/version"
+	"github.com/toozej/monogo/apps/RSSFFS/internal/RSSFFS"
+	"github.com/toozej/monogo/pkg/RSSFFS/config"
+	"github.com/toozej/monogo/pkg/RSSFFS/man"
+	"github.com/toozej/monogo/pkg/RSSFFS/version"
 )
 
 // Command-line flag variables that store user input from CLI flags.

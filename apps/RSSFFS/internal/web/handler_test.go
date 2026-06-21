@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/toozej/RSSFFS/pkg/config"
+	"github.com/toozej/monogo/pkg/RSSFFS/config"
 )
 
 // Helper function to create a request with a valid CSRF token (cookie and header)

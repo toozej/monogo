@@ -12,7 +12,7 @@ import (
 	"unicode/utf8"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/toozej/RSSFFS/internal/RSSFFS"
+	"github.com/toozej/monogo/apps/RSSFFS/internal/RSSFFS"
 )
 
 // SubmitRequest represents the form submission data

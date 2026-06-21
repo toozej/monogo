@@ -27,6 +27,7 @@ jobs:
           - monogo
           - gotts-it
           - url2anki
+          - RSSFFS
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -125,6 +126,7 @@ jobs:
           - monogo
           - gotts-it
           - url2anki
+          - RSSFFS
         registry: ['', 'ghcr.io/', 'quay.io/']
         tag: ['latest', 'distroless']
     steps:

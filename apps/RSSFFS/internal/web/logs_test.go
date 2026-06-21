@@ -9,7 +9,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/toozej/RSSFFS/pkg/config"
+	"github.com/toozej/monogo/pkg/RSSFFS/config"
 )
 
 func TestLogBuffer(t *testing.T) {

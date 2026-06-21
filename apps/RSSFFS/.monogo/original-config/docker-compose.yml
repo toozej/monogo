@@ -2,11 +2,15 @@
 services:
   RSSFFS:
     container_name: RSSFFS
-    image: toozej/RSSFFS:latest
+    image: toozej/rssffs:latest
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
     read_only: true
+    command: ["serve"]
+    env_file: .env
+    ports:
+      - 8080:8080
     labels:
       - "traefik.enable=false"
       # labels below for publishing as web service

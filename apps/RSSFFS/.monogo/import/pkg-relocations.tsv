@@ -1,0 +1,4 @@
+github.com/toozej/monogo/apps/RSSFFS/pkg/config	github.com/toozej/monogo/pkg/RSSFFS/config
+github.com/toozej/monogo/apps/RSSFFS/pkg/man	github.com/toozej/monogo/pkg/RSSFFS/man
+apps/RSSFFS/pkg/README.md	apps/RSSFFS/.monogo/original-pkg/README.md
+github.com/toozej/monogo/apps/RSSFFS/pkg/version	github.com/toozej/monogo/pkg/RSSFFS/version

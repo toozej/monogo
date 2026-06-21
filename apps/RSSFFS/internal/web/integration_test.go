@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/toozej/RSSFFS/pkg/config"
+	"github.com/toozej/monogo/pkg/RSSFFS/config"
 )
 
 // Helper to extract cookie value from a response
