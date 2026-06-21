@@ -88,6 +88,28 @@ type RuntimeEOLResult struct {
 	IsEOL     bool
 }
 
+type ListOrgReposOptions struct {
+	IncludeForks bool
+	OnlyActive   bool
+}
+
+type RepoEntry struct {
+	FullName string `json:"full_name"`
+	Name     string `json:"name"`
+	Archived bool   `json:"archived"`
+	Private  bool   `json:"private"`
+	Fork     bool   `json:"fork"`
+}
+
+type ContentEntry struct {
+	Name        string `json:"name"`
+	Path        string `json:"path"`
+	Type        string `json:"type"`
+	Content     string `json:"content,omitempty"`
+	Encoding    string `json:"encoding,omitempty"`
+	DownloadURL string `json:"download_url,omitempty"`
+}
+
 type actionYML struct {
 	Runs struct {
 		Using string `yaml:"using"`

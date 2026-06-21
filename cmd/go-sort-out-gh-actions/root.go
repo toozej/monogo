@@ -30,6 +30,11 @@ var (
 	workflowPath string
 	workflowsDir string
 	reposDir     string
+	remoteRepo   string
+	remoteRef    string
+	orgName      string
+	userName     string
+	includeForks bool
 	githubToken  string
 	notify       bool
 	createIssue  bool
@@ -87,6 +92,11 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&workflowPath, "workflow", "", "Path to specific workflow file to check")
 	rootCmd.PersistentFlags().StringVar(&workflowsDir, "workflows-dir", "", "Path to directory containing workflow yaml files")
 	rootCmd.PersistentFlags().StringVar(&reposDir, "repos-dir", "", "Path to base directory containing multiple repos to scan")
+	rootCmd.PersistentFlags().StringVar(&remoteRepo, "remote", "", "GitHub repository to scan remotely (e.g. owner/repo)")
+	rootCmd.PersistentFlags().StringVar(&remoteRef, "ref", "", "Git ref (branch/tag/SHA) for remote repo scan (default: default branch)")
+	rootCmd.PersistentFlags().StringVar(&orgName, "org", "", "GitHub organization to scan (scans all repos in the org)")
+	rootCmd.PersistentFlags().StringVar(&userName, "user", "", "GitHub user to scan (scans all user repos)")
+	rootCmd.PersistentFlags().BoolVar(&includeForks, "include-forks", false, "Include forked repositories when scanning org or user repos")
 	rootCmd.PersistentFlags().StringVarP(&outputFormat, "output-format", "o", "text", "Output format: text, json, or csv")
 	rootCmd.PersistentFlags().BoolVar(&noCache, "no-cache", conf.NoCache, "Disable reading and writing cache files")
 	rootCmd.PersistentFlags().BoolVar(&refreshCache, "refresh-cache", conf.RefreshCache, "Ignore existing cache and overwrite after run")

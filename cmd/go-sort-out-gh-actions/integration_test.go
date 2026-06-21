@@ -25,17 +25,112 @@ import (
 
 var defaultActionYMLContent = base64.StdEncoding.EncodeToString([]byte("name: Test\nruns:\n  using: node20\n  main: dist/index.js\n"))
 
+type mockServerConfig struct {
+	archivedRepos map[string]bool
+	releases      map[string]*github.ReleaseInfo
+	repoInfo      map[string]*github.RepoInfo
+	actionYML     string
+	orgRepos      map[string][]github.RepoEntry
+	userRepos     map[string][]github.RepoEntry
+	remoteFiles   map[string]string
+}
+
 func makeCmdGHServer(archivedRepos map[string]bool, releases map[string]*github.ReleaseInfo, repoInfo map[string]*github.RepoInfo) *httptest.Server {
 	return makeCmdGHServerWithActionYML(archivedRepos, releases, repoInfo, defaultActionYMLContent)
 }
 
 func makeCmdGHServerWithActionYML(archivedRepos map[string]bool, releases map[string]*github.ReleaseInfo, repoInfo map[string]*github.RepoInfo, actionYMLContent string) *httptest.Server {
+	cfg := &mockServerConfig{
+		archivedRepos: archivedRepos,
+		releases:      releases,
+		repoInfo:      repoInfo,
+		actionYML:     actionYMLContent,
+	}
+	return makeConfigurableGHServer(cfg)
+}
+
+func makeConfigurableGHServer(cfg *mockServerConfig) *httptest.Server {
+	if cfg.actionYML == "" {
+		cfg.actionYML = defaultActionYMLContent
+	}
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
 
 		if strings.Contains(path, "/contents/action.y") {
 			w.WriteHeader(200)
-			fmt.Fprintf(w, `{"content": "%s"}`, actionYMLContent)
+			fmt.Fprintf(w, `{"content": "%s"}`, cfg.actionYML)
+			return
+		}
+
+		if strings.Contains(path, "/orgs/") && strings.Contains(path, "/repos") {
+			parts := strings.Split(path, "/orgs/")
+			if len(parts) == 2 {
+				orgName := strings.Split(parts[1], "/repos")[0]
+				if repos, ok := cfg.orgRepos[orgName]; ok {
+					w.WriteHeader(200)
+					body, _ := json.Marshal(repos)
+					_, _ = w.Write(body)
+					return
+				}
+			}
+			w.WriteHeader(200)
+			body, _ := json.Marshal([]github.RepoEntry{})
+			_, _ = w.Write(body)
+			return
+		}
+
+		if strings.Contains(path, "/users/") && strings.Contains(path, "/repos") {
+			parts := strings.Split(path, "/users/")
+			if len(parts) == 2 {
+				userName := strings.Split(parts[1], "/repos")[0]
+				if repos, ok := cfg.userRepos[userName]; ok {
+					w.WriteHeader(200)
+					body, _ := json.Marshal(repos)
+					_, _ = w.Write(body)
+					return
+				}
+			}
+			w.WriteHeader(200)
+			body, _ := json.Marshal([]github.RepoEntry{})
+			_, _ = w.Write(body)
+			return
+		}
+
+		if strings.Contains(path, "/contents/.github") {
+			w.WriteHeader(200)
+			dirListing := []map[string]string{
+				{"name": "workflows", "path": ".github/workflows", "type": "dir"},
+			}
+			body, _ := json.Marshal(dirListing)
+			_, _ = w.Write(body)
+			return
+		}
+
+		if strings.Contains(path, "/contents/.github/workflows") {
+			w.WriteHeader(200)
+			fileList := []map[string]string{
+				{"name": "ci.yml", "path": ".github/workflows/ci.yml", "type": "file"},
+			}
+			body, _ := json.Marshal(fileList)
+			_, _ = w.Write(body)
+			return
+		}
+
+		if strings.Contains(path, "/contents/.github/workflows/ci.yml") {
+			w.WriteHeader(200)
+			content := cfg.remoteFiles["ci.yml"]
+			if content == "" {
+				content = base64.StdEncoding.EncodeToString([]byte(simpleWorkflowContent))
+			}
+			resp := map[string]interface{}{
+				"name":     "ci.yml",
+				"path":     ".github/workflows/ci.yml",
+				"type":     "file",
+				"content":  content,
+				"encoding": "base64",
+			}
+			body, _ := json.Marshal(resp)
+			_, _ = w.Write(body)
 			return
 		}
 
@@ -54,13 +149,13 @@ func makeCmdGHServerWithActionYML(archivedRepos map[string]bool, releases map[st
 			parts := strings.Split(path, "/repos/")
 			if len(parts) == 2 {
 				ownerRepo := parts[1]
-				if info, ok := repoInfo[ownerRepo]; ok {
+				if info, ok := cfg.repoInfo[ownerRepo]; ok {
 					w.WriteHeader(200)
 					body, _ := json.Marshal(info)
 					_, _ = w.Write(body)
 					return
 				}
-				if isArchived, ok := archivedRepos[ownerRepo]; ok {
+				if isArchived, ok := cfg.archivedRepos[ownerRepo]; ok {
 					resp := map[string]interface{}{
 						"full_name":           ownerRepo,
 						"archived":            isArchived,
@@ -83,7 +178,7 @@ func makeCmdGHServerWithActionYML(archivedRepos map[string]bool, releases map[st
 			parts := strings.Split(path, "/repos/")
 			if len(parts) == 2 {
 				ownerRepo := strings.Split(parts[1], "/releases")[0]
-				if release, ok := releases[ownerRepo]; ok {
+				if release, ok := cfg.releases[ownerRepo]; ok {
 					w.WriteHeader(200)
 					body, _ := json.Marshal(release)
 					_, _ = w.Write(body)
@@ -3052,12 +3147,537 @@ func TestNewOutdatedCmd_RunClosureInProcess(t *testing.T) {
 	}
 }
 
+func setupOrgUserRemoteGlobals(server *httptest.Server) {
+	saveGlobals()
+	conf = config.Config{GitHubToken: "test-token"}
+	githubToken = "test-token"
+	workflowPath = ""
+	workflowsDir = ""
+	reposDir = ""
+	orgName = ""
+	userName = ""
+	remoteRepo = ""
+	remoteRef = ""
+	includeForks = false
+	notify = false
+	createIssue = false
+	outputFormat = "text"
+	noCache = true
+	refreshCache = false
+	cacheTTL = 0
+	verbose = false
+	debug = false
+	exitCode = 0
+	ghAPIBaseURL = server.URL
+	ghAPIClient = server.Client()
+	eolAPIBaseURL = ""
+	eolAPIClient = nil
+}
+
+func TestRunArchived_RemoteRepoMode(t *testing.T) {
+	archivedRepos := map[string]bool{
+		"actions/checkout": false,
+	}
+	server := makeCmdGHServer(archivedRepos, nil, nil)
+	defer server.Close()
+
+	setupOrgUserRemoteGlobals(server)
+	defer restoreGlobals()
+
+	remoteRepo = "owner/repo"
+
+	runArchived(365)
+
+	if exitCode != 0 {
+		t.Errorf("Expected exitCode 0 with remoteRepo, got %d", exitCode)
+	}
+}
+
+func TestRunArchived_OrgMode(t *testing.T) {
+	cfg := &mockServerConfig{
+		archivedRepos: map[string]bool{
+			"actions/checkout": false,
+		},
+		orgRepos: map[string][]github.RepoEntry{
+			"testorg": {
+				{FullName: "testorg/repo1", Name: "repo1", Archived: false, Fork: false},
+			},
+		},
+	}
+	server := makeConfigurableGHServer(cfg)
+	defer server.Close()
+
+	setupOrgUserRemoteGlobals(server)
+	defer restoreGlobals()
+
+	orgName = "testorg"
+
+	runArchived(365)
+
+	if exitCode != 0 {
+		t.Errorf("Expected exitCode 0 with orgName, got %d", exitCode)
+	}
+}
+
+func TestRunArchived_UserMode(t *testing.T) {
+	cfg := &mockServerConfig{
+		archivedRepos: map[string]bool{
+			"actions/checkout": false,
+		},
+		userRepos: map[string][]github.RepoEntry{
+			"testuser": {
+				{FullName: "testuser/repo1", Name: "repo1", Archived: false, Fork: false},
+			},
+		},
+	}
+	server := makeConfigurableGHServer(cfg)
+	defer server.Close()
+
+	setupOrgUserRemoteGlobals(server)
+	defer restoreGlobals()
+
+	userName = "testuser"
+
+	runArchived(365)
+
+	if exitCode != 0 {
+		t.Errorf("Expected exitCode 0 with userName, got %d", exitCode)
+	}
+}
+
+func TestRunArchived_OrgModeEmpty(t *testing.T) {
+	cfg := &mockServerConfig{
+		archivedRepos: map[string]bool{},
+		orgRepos: map[string][]github.RepoEntry{
+			"testorg": {},
+		},
+	}
+	server := makeConfigurableGHServer(cfg)
+	defer server.Close()
+
+	setupOrgUserRemoteGlobals(server)
+	defer restoreGlobals()
+
+	orgName = "testorg"
+
+	runArchived(365)
+
+	if exitCode != 0 {
+		t.Errorf("Expected exitCode 0 with empty org, got %d", exitCode)
+	}
+}
+
+func TestRunOutdated_RemoteRepoMode(t *testing.T) {
+	archivedRepos := map[string]bool{
+		"actions/checkout": false,
+	}
+	repoInfo := map[string]*github.RepoInfo{
+		"actions/checkout": {
+			FullName:  "actions/checkout",
+			Archived:  false,
+			UpdatedAt: time.Now().Format(time.RFC3339),
+		},
+	}
+	releases := map[string]*github.ReleaseInfo{
+		"actions/checkout": {TagName: "v3", Name: "v3", HTMLURL: "https://github.com/actions/checkout/releases/tag/v3"},
+	}
+	server := makeCmdGHServer(archivedRepos, releases, repoInfo)
+	defer server.Close()
+
+	setupOrgUserRemoteGlobals(server)
+	defer restoreGlobals()
+
+	remoteRepo = "owner/repo"
+
+	runOutdated(false, false)
+
+	if exitCode != 0 {
+		t.Errorf("Expected exitCode 0 with remoteRepo, got %d", exitCode)
+	}
+}
+
+func TestRunOutdated_OrgMode(t *testing.T) {
+	cfg := &mockServerConfig{
+		archivedRepos: map[string]bool{
+			"actions/checkout": false,
+		},
+		repoInfo: map[string]*github.RepoInfo{
+			"actions/checkout": {
+				FullName:  "actions/checkout",
+				Archived:  false,
+				UpdatedAt: time.Now().Format(time.RFC3339),
+			},
+		},
+		releases: map[string]*github.ReleaseInfo{
+			"actions/checkout": {TagName: "v3", Name: "v3", HTMLURL: "https://github.com/actions/checkout/releases/tag/v3"},
+		},
+		orgRepos: map[string][]github.RepoEntry{
+			"testorg": {
+				{FullName: "testorg/repo1", Name: "repo1", Archived: false, Fork: false},
+			},
+		},
+	}
+	server := makeConfigurableGHServer(cfg)
+	defer server.Close()
+
+	setupOrgUserRemoteGlobals(server)
+	defer restoreGlobals()
+
+	orgName = "testorg"
+
+	runOutdated(false, false)
+
+	if exitCode != 0 {
+		t.Errorf("Expected exitCode 0 with orgName, got %d", exitCode)
+	}
+}
+
+func TestRunOutdated_UserMode(t *testing.T) {
+	cfg := &mockServerConfig{
+		archivedRepos: map[string]bool{
+			"actions/checkout": false,
+		},
+		repoInfo: map[string]*github.RepoInfo{
+			"actions/checkout": {
+				FullName:  "actions/checkout",
+				Archived:  false,
+				UpdatedAt: time.Now().Format(time.RFC3339),
+			},
+		},
+		releases: map[string]*github.ReleaseInfo{
+			"actions/checkout": {TagName: "v3", Name: "v3", HTMLURL: "https://github.com/actions/checkout/releases/tag/v3"},
+		},
+		userRepos: map[string][]github.RepoEntry{
+			"testuser": {
+				{FullName: "testuser/repo1", Name: "repo1", Archived: false, Fork: false},
+			},
+		},
+	}
+	server := makeConfigurableGHServer(cfg)
+	defer server.Close()
+
+	setupOrgUserRemoteGlobals(server)
+	defer restoreGlobals()
+
+	userName = "testuser"
+
+	runOutdated(false, false)
+
+	if exitCode != 0 {
+		t.Errorf("Expected exitCode 0 with userName, got %d", exitCode)
+	}
+}
+
+func makeCmdEOLServerForRemote() *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		body, _ := json.Marshal([]map[string]interface{}{
+			{
+				"cycle": map[string]interface{}{
+					"name":    "nodejs",
+					"release": "2023-10-18",
+					"eol":     false,
+					"lts":     "2025-10-28",
+				},
+				"runtimeStatus": "active",
+				"releaseDate":   "2023-10-18",
+				"releaseLabel":  "v20",
+			},
+		})
+		_, _ = w.Write(body)
+	}))
+}
+
+func TestRunEOL_RemoteRepoMode(t *testing.T) {
+	archivedRepos := map[string]bool{
+		"actions/checkout": false,
+	}
+	server := makeCmdGHServer(archivedRepos, nil, nil)
+	defer server.Close()
+
+	eolServer := makeCmdEOLServerForRemote()
+	defer eolServer.Close()
+
+	setupOrgUserRemoteGlobals(server)
+	defer restoreGlobals()
+
+	eolAPIBaseURL = eolServer.URL
+	eolAPIClient = eolServer.Client()
+
+	remoteRepo = "owner/repo"
+
+	runEOL(false, 365)
+
+	if exitCode != 0 {
+		t.Errorf("Expected exitCode 0 with remoteRepo, got %d", exitCode)
+	}
+}
+
+func TestRunEOL_OrgMode(t *testing.T) {
+	cfg := &mockServerConfig{
+		archivedRepos: map[string]bool{
+			"actions/checkout": false,
+		},
+		orgRepos: map[string][]github.RepoEntry{
+			"testorg": {
+				{FullName: "testorg/repo1", Name: "repo1", Archived: false, Fork: false},
+			},
+		},
+	}
+	server := makeConfigurableGHServer(cfg)
+	defer server.Close()
+
+	eolServer := makeCmdEOLServerForRemote()
+	defer eolServer.Close()
+
+	setupOrgUserRemoteGlobals(server)
+	defer restoreGlobals()
+
+	eolAPIBaseURL = eolServer.URL
+	eolAPIClient = eolServer.Client()
+
+	orgName = "testorg"
+
+	runEOL(false, 365)
+
+	if exitCode != 0 {
+		t.Errorf("Expected exitCode 0 with orgName, got %d", exitCode)
+	}
+}
+
+func TestRunEOL_UserMode(t *testing.T) {
+	cfg := &mockServerConfig{
+		archivedRepos: map[string]bool{
+			"actions/checkout": false,
+		},
+		userRepos: map[string][]github.RepoEntry{
+			"testuser": {
+				{FullName: "testuser/repo1", Name: "repo1", Archived: false, Fork: false},
+			},
+		},
+	}
+	server := makeConfigurableGHServer(cfg)
+	defer server.Close()
+
+	eolServer := makeCmdEOLServerForRemote()
+	defer eolServer.Close()
+
+	setupOrgUserRemoteGlobals(server)
+	defer restoreGlobals()
+
+	eolAPIBaseURL = eolServer.URL
+	eolAPIClient = eolServer.Client()
+
+	userName = "testuser"
+
+	runEOL(false, 365)
+
+	if exitCode != 0 {
+		t.Errorf("Expected exitCode 0 with userName, got %d", exitCode)
+	}
+}
+
+func TestRunCheck_RemoteRepoMode(t *testing.T) {
+	archivedRepos := map[string]bool{
+		"actions/checkout": false,
+	}
+	repoInfo := map[string]*github.RepoInfo{
+		"actions/checkout": {
+			FullName:  "actions/checkout",
+			Archived:  false,
+			UpdatedAt: time.Now().Format(time.RFC3339),
+		},
+	}
+	releases := map[string]*github.ReleaseInfo{
+		"actions/checkout": {TagName: "v3", Name: "v3", HTMLURL: "https://github.com/actions/checkout/releases/tag/v3"},
+	}
+	server := makeCmdGHServer(archivedRepos, releases, repoInfo)
+	defer server.Close()
+
+	eolServer := makeCmdEOLServerForRemote()
+	defer eolServer.Close()
+
+	setupOrgUserRemoteGlobals(server)
+	defer restoreGlobals()
+
+	eolAPIBaseURL = eolServer.URL
+	eolAPIClient = eolServer.Client()
+
+	remoteRepo = "owner/repo"
+
+	runCheck(false, false, 365)
+
+	if exitCode != 0 {
+		t.Errorf("Expected exitCode 0 with remoteRepo, got %d", exitCode)
+	}
+}
+
+func TestRunCheck_OrgMode(t *testing.T) {
+	cfg := &mockServerConfig{
+		archivedRepos: map[string]bool{
+			"actions/checkout": false,
+		},
+		repoInfo: map[string]*github.RepoInfo{
+			"actions/checkout": {
+				FullName:  "actions/checkout",
+				Archived:  false,
+				UpdatedAt: time.Now().Format(time.RFC3339),
+			},
+		},
+		releases: map[string]*github.ReleaseInfo{
+			"actions/checkout": {TagName: "v3", Name: "v3", HTMLURL: "https://github.com/actions/checkout/releases/tag/v3"},
+		},
+		orgRepos: map[string][]github.RepoEntry{
+			"testorg": {
+				{FullName: "testorg/repo1", Name: "repo1", Archived: false, Fork: false},
+			},
+		},
+	}
+	server := makeConfigurableGHServer(cfg)
+	defer server.Close()
+
+	eolServer := makeCmdEOLServerForRemote()
+	defer eolServer.Close()
+
+	setupOrgUserRemoteGlobals(server)
+	defer restoreGlobals()
+
+	eolAPIBaseURL = eolServer.URL
+	eolAPIClient = eolServer.Client()
+
+	orgName = "testorg"
+
+	runCheck(false, false, 365)
+
+	if exitCode != 0 {
+		t.Errorf("Expected exitCode 0 with orgName, got %d", exitCode)
+	}
+}
+
+func TestRunCheck_UserMode(t *testing.T) {
+	cfg := &mockServerConfig{
+		archivedRepos: map[string]bool{
+			"actions/checkout": false,
+		},
+		repoInfo: map[string]*github.RepoInfo{
+			"actions/checkout": {
+				FullName:  "actions/checkout",
+				Archived:  false,
+				UpdatedAt: time.Now().Format(time.RFC3339),
+			},
+		},
+		releases: map[string]*github.ReleaseInfo{
+			"actions/checkout": {TagName: "v3", Name: "v3", HTMLURL: "https://github.com/actions/checkout/releases/tag/v3"},
+		},
+		userRepos: map[string][]github.RepoEntry{
+			"testuser": {
+				{FullName: "testuser/repo1", Name: "repo1", Archived: false, Fork: false},
+			},
+		},
+	}
+	server := makeConfigurableGHServer(cfg)
+	defer server.Close()
+
+	eolServer := makeCmdEOLServerForRemote()
+	defer eolServer.Close()
+
+	setupOrgUserRemoteGlobals(server)
+	defer restoreGlobals()
+
+	eolAPIBaseURL = eolServer.URL
+	eolAPIClient = eolServer.Client()
+
+	userName = "testuser"
+
+	runCheck(false, false, 365)
+
+	if exitCode != 0 {
+		t.Errorf("Expected exitCode 0 with userName, got %d", exitCode)
+	}
+}
+
+func TestRunPin_RemoteRepoMode(t *testing.T) {
+	archivedRepos := map[string]bool{
+		"actions/checkout": false,
+	}
+	server := makeCmdGHServer(archivedRepos, nil, nil)
+	defer server.Close()
+
+	setupOrgUserRemoteGlobals(server)
+	defer restoreGlobals()
+
+	remoteRepo = "owner/repo"
+
+	runPin(false)
+
+	if exitCode != 0 {
+		t.Errorf("Expected exitCode 0 with remoteRepo, got %d", exitCode)
+	}
+}
+
+func TestRunPin_OrgMode(t *testing.T) {
+	cfg := &mockServerConfig{
+		archivedRepos: map[string]bool{
+			"actions/checkout": false,
+		},
+		orgRepos: map[string][]github.RepoEntry{
+			"testorg": {
+				{FullName: "testorg/repo1", Name: "repo1", Archived: false, Fork: false},
+			},
+		},
+	}
+	server := makeConfigurableGHServer(cfg)
+	defer server.Close()
+
+	setupOrgUserRemoteGlobals(server)
+	defer restoreGlobals()
+
+	orgName = "testorg"
+
+	runPin(false)
+
+	if exitCode != 0 {
+		t.Errorf("Expected exitCode 0 with orgName, got %d", exitCode)
+	}
+}
+
+func TestRunPin_UserMode(t *testing.T) {
+	cfg := &mockServerConfig{
+		archivedRepos: map[string]bool{
+			"actions/checkout": false,
+		},
+		userRepos: map[string][]github.RepoEntry{
+			"testuser": {
+				{FullName: "testuser/repo1", Name: "repo1", Archived: false, Fork: false},
+			},
+		},
+	}
+	server := makeConfigurableGHServer(cfg)
+	defer server.Close()
+
+	setupOrgUserRemoteGlobals(server)
+	defer restoreGlobals()
+
+	userName = "testuser"
+
+	runPin(false)
+
+	if exitCode != 0 {
+		t.Errorf("Expected exitCode 0 with userName, got %d", exitCode)
+	}
+}
+
 var savedGlobals struct {
 	conf          config.Config
 	githubToken   string
 	workflowPath  string
 	workflowsDir  string
 	reposDir      string
+	orgName       string
+	userName      string
+	remoteRepo    string
+	remoteRef     string
+	includeForks  bool
 	notify        bool
 	createIssue   bool
 	outputFormat  string
@@ -3079,6 +3699,11 @@ func saveGlobals() {
 	savedGlobals.workflowPath = workflowPath
 	savedGlobals.workflowsDir = workflowsDir
 	savedGlobals.reposDir = reposDir
+	savedGlobals.orgName = orgName
+	savedGlobals.userName = userName
+	savedGlobals.remoteRepo = remoteRepo
+	savedGlobals.remoteRef = remoteRef
+	savedGlobals.includeForks = includeForks
 	savedGlobals.notify = notify
 	savedGlobals.createIssue = createIssue
 	savedGlobals.outputFormat = outputFormat
@@ -3100,6 +3725,11 @@ func restoreGlobals() {
 	workflowPath = savedGlobals.workflowPath
 	workflowsDir = savedGlobals.workflowsDir
 	reposDir = savedGlobals.reposDir
+	orgName = savedGlobals.orgName
+	userName = savedGlobals.userName
+	remoteRepo = savedGlobals.remoteRepo
+	remoteRef = savedGlobals.remoteRef
+	includeForks = savedGlobals.includeForks
 	notify = savedGlobals.notify
 	createIssue = savedGlobals.createIssue
 	outputFormat = savedGlobals.outputFormat

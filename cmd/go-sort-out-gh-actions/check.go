@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/toozej/go-sort-out-gh-actions/internal/actioninfo"
@@ -48,6 +49,38 @@ func runCheck(writeFlag bool, semverFlag bool, staleDays int) {
 
 	processFunc := func(rc *checkrunner.RunContext, workflowFiles []*workflow.WorkflowFile, allActionRefs []workflow.ActionRef, workDir string) bool {
 		return processCheck(rc, workflowFiles, allActionRefs, workDir, writeFlag, semverFlag, staleDays)
+	}
+
+	if orgName != "" {
+		hasIssues, err := checkrunner.RunOrgMode(rc, orgName, includeForks, processFunc)
+		if err != nil {
+			log.Errorf("Failed to run org mode: %v", err)
+			exitCode = 1
+			return
+		}
+		if hasIssues {
+			exitCode = 1
+		}
+		return
+	}
+	if userName != "" {
+		hasIssues, err := checkrunner.RunUserMode(rc, userName, includeForks, processFunc)
+		if err != nil {
+			log.Errorf("Failed to run user mode: %v", err)
+			exitCode = 1
+			return
+		}
+		if hasIssues {
+			exitCode = 1
+		}
+		return
+	}
+
+	if remoteRepo != "" {
+		if checkrunner.RunRemoteRepoMode(rc, remoteRepo, remoteRef, processFunc) {
+			exitCode = 1
+		}
+		return
 	}
 
 	if reposDir != "" {

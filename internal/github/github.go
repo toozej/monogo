@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -697,8 +698,8 @@ func (c *Client) GetActionYML(ctx context.Context, ownerRepo, actionPath, ref st
 	}
 
 	for _, manifestPath := range actionManifestPaths(actionPath) {
-		url := fmt.Sprintf("%s/repos/%s/%s/contents/%s?ref=%s", c.baseURL, owner, repo, manifestPath, ref)
-		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+		apiURL := fmt.Sprintf("%s/repos/%s/%s/contents/%s?ref=%s", c.baseURL, owner, repo, manifestPath, url.QueryEscape(ref))
+		req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
 		if err != nil {
 			return "", fmt.Errorf("failed to create request: %w", err)
 		}
@@ -952,10 +953,276 @@ func (c *Client) FlushCache() error {
 	return nil
 }
 
+func (c *Client) ListOrgRepos(ctx context.Context, org string, opts *ListOrgReposOptions) ([]RepoEntry, error) {
+	if opts == nil {
+		opts = &ListOrgReposOptions{}
+	}
+
+	startURL := fmt.Sprintf("%s/orgs/%s/repos?per_page=100&type=all&sort=full_name", c.baseURL, org)
+	notFoundErr := fmt.Errorf("organization %s not found", org)
+
+	return c.listEntityRepos(ctx, startURL, notFoundErr, opts)
+}
+
+func (c *Client) ListUserRepos(ctx context.Context, username string, opts *ListOrgReposOptions) ([]RepoEntry, error) {
+	if opts == nil {
+		opts = &ListOrgReposOptions{}
+	}
+
+	startURL := fmt.Sprintf("%s/users/%s/repos?per_page=100&type=all&sort=full_name", c.baseURL, username)
+	notFoundErr := fmt.Errorf("user %s not found", username)
+
+	return c.listEntityRepos(ctx, startURL, notFoundErr, opts)
+}
+
+func (c *Client) listEntityRepos(ctx context.Context, startURL string, notFoundErr error, opts *ListOrgReposOptions) ([]RepoEntry, error) {
+	var allRepos []RepoEntry
+	nextURL := startURL
+
+	for nextURL != "" {
+		req, err := http.NewRequestWithContext(ctx, "GET", nextURL, nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create request: %w", err)
+		}
+		req.Header.Set("Accept", "application/vnd.github.v3+json")
+		req.Header.Set("User-Agent", "go-sort-out-gh-actions")
+
+		resp, err := c.httpClient.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("failed to make request: %w", err)
+		}
+
+		c.logRateLimits(resp)
+
+		if err := c.handleRateLimit(resp); err != nil {
+			_ = resp.Body.Close()
+			return nil, err
+		}
+
+		if resp.StatusCode == 404 {
+			_ = resp.Body.Close()
+			return nil, notFoundErr
+		}
+
+		if resp.StatusCode != 200 {
+			_ = resp.Body.Close()
+			return nil, fmt.Errorf("GitHub API returned status %d", resp.StatusCode)
+		}
+
+		var page []RepoEntry
+		if err := json.NewDecoder(resp.Body).Decode(&page); err != nil {
+			_ = resp.Body.Close()
+			return nil, fmt.Errorf("failed to decode response: %w", err)
+		}
+		_ = resp.Body.Close()
+
+		allRepos = append(allRepos, page...)
+
+		nextURL = parseNextLink(resp.Header.Get("Link"), c.baseURLHost())
+	}
+
+	return filterRepos(allRepos, opts), nil
+}
+
+func parseNextLink(linkHeader, allowedHost string) string {
+	for _, part := range strings.Split(linkHeader, ",") {
+		part = strings.TrimSpace(part)
+		if strings.HasSuffix(part, `rel="next"`) {
+			start := strings.Index(part, "<")
+			end := strings.Index(part, ">")
+			if start != -1 && end != -1 && end > start {
+				nextURL := part[start+1 : end]
+				if parsed, err := url.Parse(nextURL); err == nil && parsed.Host == allowedHost {
+					return nextURL
+				}
+				log.WithFields(log.Fields{
+					"next_url":     nextURL,
+					"allowed_host": allowedHost,
+				}).Warn("Skipping pagination link with unexpected host")
+				return ""
+			}
+		}
+	}
+	return ""
+}
+
+func filterRepos(repos []RepoEntry, opts *ListOrgReposOptions) []RepoEntry {
+	var filtered []RepoEntry
+	for _, repo := range repos {
+		if opts.OnlyActive && repo.Archived {
+			continue
+		}
+		if !opts.IncludeForks && repo.Fork {
+			continue
+		}
+		filtered = append(filtered, repo)
+	}
+	return filtered
+}
+
 // Close flushes any in-memory cache to disk and releases resources.
+func (c *Client) ListWorkflowFiles(ctx context.Context, ownerRepo, ref string) ([]ContentEntry, error) {
+	owner, repo, err := parseOwnerRepo(ownerRepo)
+	if err != nil {
+		return nil, err
+	}
+
+	apiURL := fmt.Sprintf("%s/repos/%s/%s/contents/.github/workflows", c.baseURL, owner, repo)
+	if ref != "" {
+		apiURL += "?ref=" + url.QueryEscape(ref)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Accept", "application/vnd.github.v3+json")
+	req.Header.Set("User-Agent", "go-sort-out-gh-actions")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to make request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	c.logRateLimits(resp)
+
+	if err := c.handleRateLimit(resp); err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode == 404 {
+		return []ContentEntry{}, nil
+	}
+
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("GitHub API returned status %d", resp.StatusCode)
+	}
+
+	var entries []ContentEntry
+	if err := json.NewDecoder(resp.Body).Decode(&entries); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	var workflowFiles []ContentEntry
+	for _, entry := range entries {
+		if entry.Type == "file" && (strings.HasSuffix(entry.Name, ".yml") || strings.HasSuffix(entry.Name, ".yaml")) {
+			workflowFiles = append(workflowFiles, entry)
+		}
+	}
+
+	return workflowFiles, nil
+}
+
+func (c *Client) GetFileContent(ctx context.Context, ownerRepo, path, ref string) (string, error) {
+	owner, repo, err := parseOwnerRepo(ownerRepo)
+	if err != nil {
+		return "", err
+	}
+
+	apiURL := fmt.Sprintf("%s/repos/%s/%s/contents/%s", c.baseURL, owner, repo, path)
+	if ref != "" {
+		apiURL += "?ref=" + url.QueryEscape(ref)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Accept", "application/vnd.github.v3+json")
+	req.Header.Set("User-Agent", "go-sort-out-gh-actions")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to make request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	c.logRateLimits(resp)
+
+	if err := c.handleRateLimit(resp); err != nil {
+		return "", err
+	}
+
+	if resp.StatusCode == 404 {
+		return "", fmt.Errorf("file %s not found in %s", path, ownerRepo)
+	}
+
+	if resp.StatusCode != 200 {
+		return "", fmt.Errorf("GitHub API returned status %d", resp.StatusCode)
+	}
+
+	var contentResp struct {
+		Content  string `json:"content"`
+		Encoding string `json:"encoding"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&contentResp); err != nil {
+		return "", fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	if contentResp.Content == "" {
+		return "", fmt.Errorf("empty content returned for %s", path)
+	}
+
+	decoded, err := base64.StdEncoding.DecodeString(strings.ReplaceAll(contentResp.Content, "\n", ""))
+	if err != nil {
+		return "", fmt.Errorf("failed to decode base64 content: %w", err)
+	}
+
+	return string(decoded), nil
+}
+
+func (c *Client) GetRemoteWorkflowContents(ctx context.Context, ownerRepo, ref string) (map[string]string, error) {
+	entries, err := c.ListWorkflowFiles(ctx, ownerRepo, ref)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list workflow files: %w", err)
+	}
+
+	if len(entries) == 0 {
+		return map[string]string{}, nil
+	}
+
+	contents := make(map[string]string)
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, maxConcurrency)
+
+	for _, entry := range entries {
+		wg.Add(1)
+		go func(entry ContentEntry) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			content, err := c.GetFileContent(ctx, ownerRepo, entry.Path, ref)
+			if err != nil {
+				log.WithFields(log.Fields{
+					"path":  entry.Path,
+					"error": err,
+				}).Warn("Failed to fetch workflow file content")
+				return
+			}
+
+			mu.Lock()
+			contents[entry.Path] = content
+			mu.Unlock()
+		}(entry)
+	}
+
+	wg.Wait()
+	return contents, nil
+}
+
 func (c *Client) Close() error {
 	if err := c.FlushCache(); err != nil {
 		return err
 	}
 	return nil
+}
+
+func (c *Client) baseURLHost() string {
+	if parsed, err := url.Parse(c.baseURL); err == nil {
+		return parsed.Host
+	}
+	return ""
 }

@@ -1,5 +1,11 @@
 package workflow
 
+import "context"
+
+type RemoteContentFetcher interface {
+	GetRemoteWorkflowContents(ctx context.Context, ownerRepo, ref string) (map[string]string, error)
+}
+
 type ActionRef struct {
 	OwnerRepo  string
 	ActionPath string

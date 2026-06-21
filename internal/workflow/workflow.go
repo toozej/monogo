@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -14,6 +15,20 @@ import (
 
 func NewParser() *WorkflowParser {
 	return &WorkflowParser{}
+}
+
+func (p *WorkflowParser) ParseWorkflowContent(path, content string) (*WorkflowFile, error) {
+	uses, err := p.extractUsesFromYAML([]byte(content))
+	if err != nil {
+		return &WorkflowFile{Path: path, Error: err}, err
+	}
+
+	usesWithVersions, err := p.extractUsesFromYAMLWithVersions([]byte(content))
+	if err != nil {
+		return &WorkflowFile{Path: path, Uses: uses, Error: err}, err
+	}
+
+	return &WorkflowFile{Path: path, Uses: uses, UsesWithVersions: usesWithVersions}, nil
 }
 
 func (p *WorkflowParser) FindWorkflowFiles(rootDir string) ([]string, error) {
@@ -266,6 +281,43 @@ func (p *WorkflowParser) GetAllUsesFromRepo(rootDir string) ([]string, []*Workfl
 	return allUses, workflows, nil
 }
 
+func (p *WorkflowParser) GetRemoteUsesFromRepo(ctx context.Context, fetcher RemoteContentFetcher, ownerRepo, ref string) ([]ActionRef, []*WorkflowFile, error) {
+	contents, err := fetcher.GetRemoteWorkflowContents(ctx, ownerRepo, ref)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get remote workflow contents: %w", err)
+	}
+
+	var allWorkflows []*WorkflowFile
+
+	for path, content := range contents {
+		workflow, parseErr := p.ParseWorkflowContent(path, content)
+		if parseErr != nil {
+			allWorkflows = append(allWorkflows, workflow)
+			continue
+		}
+		allWorkflows = append(allWorkflows, workflow)
+	}
+
+	var allActionRefs []ActionRef
+	seen := make(map[string]bool)
+
+	for _, wf := range allWorkflows {
+		for _, actionRef := range wf.UsesWithVersions {
+			key := actionRef.Key()
+			if !seen[key] {
+				seen[key] = true
+				allActionRefs = append(allActionRefs, actionRef)
+			}
+		}
+	}
+
+	sort.Slice(allActionRefs, func(i, j int) bool {
+		return allActionRefs[i].Key() < allActionRefs[j].Key()
+	})
+
+	return allActionRefs, allWorkflows, nil
+}
+
 func (p *WorkflowParser) GetAllUsesFromRepoWithVersions(rootDir string) ([]ActionRef, []*WorkflowFile, error) {
 	files, err := p.FindWorkflowFiles(rootDir)
 	if err != nil {
@@ -282,10 +334,7 @@ func (p *WorkflowParser) GetAllUsesFromRepoWithVersions(rootDir string) ([]Actio
 
 	for _, workflow := range workflows {
 		for _, actionRef := range workflow.UsesWithVersions {
-			key := actionRef.OwnerRepo
-			if actionRef.ActionPath != "" {
-				key = actionRef.OwnerRepo + "/" + actionRef.ActionPath
-			}
+			key := actionRef.Key()
 			if !seen[key] {
 				seen[key] = true
 				allActionRefs = append(allActionRefs, actionRef)
@@ -294,7 +343,7 @@ func (p *WorkflowParser) GetAllUsesFromRepoWithVersions(rootDir string) ([]Actio
 	}
 
 	sort.Slice(allActionRefs, func(i, j int) bool {
-		return allActionRefs[i].OwnerRepo < allActionRefs[j].OwnerRepo
+		return allActionRefs[i].Key() < allActionRefs[j].Key()
 	})
 
 	return allActionRefs, workflows, nil

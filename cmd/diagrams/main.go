@@ -42,14 +42,26 @@ import (
 // such as directory creation, navigation, or diagram rendering.
 func main() {
 	outputDir := "docs/diagrams"
+	if err := run(outputDir); err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("Diagram .dot files generated successfully in ./docs/diagrams/go-diagrams/")
+}
+
+// run orchestrates diagram generation and returns any errors encountered.
+func run(outputDir string) error {
 	if err := os.MkdirAll(outputDir, 0750); err != nil {
-		log.Fatal("Failed to create output directory:", err)
+		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 
-	generateArchitectureDiagram(outputDir)
-	generateComponentDiagram(outputDir)
+	if err := generateArchitectureDiagram(outputDir); err != nil {
+		return err
+	}
+	if err := generateComponentDiagram(outputDir); err != nil {
+		return err
+	}
 
-	fmt.Println("Diagram .dot files generated successfully in ./docs/diagrams/go-diagrams/")
+	return nil
 }
 
 // generateArchitectureDiagram creates a high-level architecture diagram showing
@@ -65,15 +77,14 @@ func main() {
 //   - Optional GitHub issue creation summarising archived findings
 //
 // The diagram is rendered in top-to-bottom (TB) direction and saved as
-// "architecture.dot" in the current working directory. The function will
-// terminate the program with log.Fatal if diagram creation or rendering fails.
-func generateArchitectureDiagram(outputDir string) {
+// "architecture.dot" in the current working directory.
+func generateArchitectureDiagram(outputDir string) error {
 	origDir, err := os.Getwd()
 	if err != nil {
-		log.Fatal("Failed to get working directory:", err)
+		return fmt.Errorf("failed to get working directory: %w", err)
 	}
 	if err := os.Chdir(outputDir); err != nil {
-		log.Fatal("Failed to change to output directory:", err)
+		return fmt.Errorf("failed to change to output directory: %w", err)
 	}
 	d, err := diagram.New(
 		diagram.Filename("architecture"),
@@ -81,16 +92,14 @@ func generateArchitectureDiagram(outputDir string) {
 		diagram.Direction("TB"),
 	)
 	if err != nil {
-		log.Fatalf("Failed to create architecture diagram: %v", err)
+		return fmt.Errorf("failed to create architecture diagram: %w", err)
 	}
 
-	// Actors / external systems
 	user := generic.Blank.Blank(diagram.NodeLabel("User"))
 	githubAPI := generic.Blank.Blank(diagram.NodeLabel("GitHub API\n(api.github.com)"))
 	notifProviders := generic.Blank.Blank(diagram.NodeLabel("Notification Providers\n(Gotify / Slack / Telegram\nDiscord / Pushover / Pushbullet)"))
 	githubIssues := generic.Blank.Blank(diagram.NodeLabel("GitHub Issues\n(target repository)"))
 
-	// Application components
 	cli := programming.Language.Go(diagram.NodeLabel("CLI Application\n(cmd/go-sort-out-gh-actions)"))
 	config := programming.Language.Go(diagram.NodeLabel("Configuration\n(pkg/config)\nenv / .env file"))
 	workflowParser := programming.Language.Go(diagram.NodeLabel("Workflow Parser\n(internal/workflow)\nfinds & parses .github/workflows/**/*.yml"))
@@ -98,34 +107,24 @@ func generateArchitectureDiagram(outputDir string) {
 	notifManager := programming.Language.Go(diagram.NodeLabel("Notification Manager\n(internal/notification)\nmulti-provider dispatch"))
 	issueCreator := programming.Language.Go(diagram.NodeLabel("Issue Creator\n(internal/issue)\ncreates GitHub issues"))
 
-	// User → CLI
 	d.Connect(user, cli, diagram.Forward())
-
-	// CLI reads config
 	d.Connect(cli, config, diagram.Forward())
-
-	// CLI drives workflow discovery and parsing
 	d.Connect(cli, workflowParser, diagram.Forward())
-
-	// CLI calls GitHub API client
 	d.Connect(cli, ghClient, diagram.Forward())
 	d.Connect(ghClient, githubAPI, diagram.Forward())
-
-	// CLI optionally sends notifications
 	d.Connect(cli, notifManager, diagram.Forward())
 	d.Connect(notifManager, notifProviders, diagram.Forward())
-
-	// CLI optionally creates a GitHub issue
 	d.Connect(cli, issueCreator, diagram.Forward())
 	d.Connect(issueCreator, githubIssues, diagram.Forward())
 
 	if err := d.Render(); err != nil {
-		log.Fatalf("Failed to render architecture diagram: %v", err)
+		return fmt.Errorf("failed to render architecture diagram: %w", err)
 	}
 
 	if err := os.Chdir(origDir); err != nil {
 		log.Printf("Warning: failed to change back to original directory: %v", err)
 	}
+	return nil
 }
 
 // generateComponentDiagram creates a detailed component diagram showing the
@@ -141,18 +140,16 @@ func generateArchitectureDiagram(outputDir string) {
 //   - internal/github/github.go    — GitHub REST API client (archived status checks)
 //   - internal/notification/notification.go — multi-provider notification manager
 //   - internal/issue/issue.go      — GitHub issue creation for archived findings
-//   - internal/starter/starter.go  — application bootstrap / startup helper
 //
 // The diagram is rendered in left-to-right (LR) direction and saved as
-// "components.dot" in the current working directory. The function will
-// terminate the program with log.Fatal if diagram creation or rendering fails.
-func generateComponentDiagram(outputDir string) {
+// "components.dot" in the current working directory.
+func generateComponentDiagram(outputDir string) error {
 	origDir, err := os.Getwd()
 	if err != nil {
-		log.Fatal("Failed to get working directory:", err)
+		return fmt.Errorf("failed to get working directory: %w", err)
 	}
 	if err := os.Chdir(outputDir); err != nil {
-		log.Fatal("Failed to change to output directory:", err)
+		return fmt.Errorf("failed to change to output directory: %w", err)
 	}
 	d, err := diagram.New(
 		diagram.Filename("components"),
@@ -160,63 +157,41 @@ func generateComponentDiagram(outputDir string) {
 		diagram.Direction("LR"),
 	)
 	if err != nil {
-		log.Fatalf("Failed to create component diagram: %v", err)
+		return fmt.Errorf("failed to create component diagram: %v", err)
 	}
 
-	// Entry point
 	main := programming.Language.Go(diagram.NodeLabel("main.go"))
-
-	// CLI layer
 	rootCmd := programming.Language.Go(diagram.NodeLabel("cmd/go-sort-out-gh-actions\nroot.go"))
-
-	// pkg layer
 	config := programming.Language.Go(diagram.NodeLabel("pkg/config\nconfig.go"))
 	version := programming.Language.Go(diagram.NodeLabel("pkg/version\nversion.go"))
 	man := programming.Language.Go(diagram.NodeLabel("pkg/man\nman.go"))
-
-	// internal layer
 	workflowPkg := programming.Language.Go(diagram.NodeLabel("internal/workflow\nworkflow.go"))
 	githubPkg := programming.Language.Go(diagram.NodeLabel("internal/github\ngithub.go"))
 	notificationPkg := programming.Language.Go(diagram.NodeLabel("internal/notification\nnotification.go"))
 	issuePkg := programming.Language.Go(diagram.NodeLabel("internal/issue\nissue.go"))
 
-	// External dependency labels
 	ghAPI := generic.Blank.Blank(diagram.NodeLabel("GitHub REST API"))
 	notifServices := generic.Blank.Blank(diagram.NodeLabel("Notification Services\n(Gotify, Slack, Telegram\nDiscord, Pushover, Pushbullet)"))
 
-	// main → root command
 	d.Connect(main, rootCmd, diagram.Forward())
-
-	// root command → pkg sub-commands
 	d.Connect(rootCmd, version, diagram.Forward())
 	d.Connect(rootCmd, man, diagram.Forward())
-
-	// root command → config
 	d.Connect(rootCmd, config, diagram.Forward())
-
-	// root command → internal packages
 	d.Connect(rootCmd, workflowPkg, diagram.Forward())
 	d.Connect(rootCmd, githubPkg, diagram.Forward())
 	d.Connect(rootCmd, notificationPkg, diagram.Forward())
 	d.Connect(rootCmd, issuePkg, diagram.Forward())
-
-	// notification manager uses config
 	d.Connect(notificationPkg, config, diagram.Forward())
-
-	// github client → GitHub API
 	d.Connect(githubPkg, ghAPI, diagram.Forward())
-
-	// issue creator → GitHub API (issues endpoint)
 	d.Connect(issuePkg, ghAPI, diagram.Forward())
-
-	// notification manager → external services
 	d.Connect(notificationPkg, notifServices, diagram.Forward())
 
 	if err := d.Render(); err != nil {
-		log.Fatalf("Failed to render component diagram: %v", err)
+		return fmt.Errorf("failed to render component diagram: %w", err)
 	}
 
 	if err := os.Chdir(origDir); err != nil {
 		log.Printf("Warning: failed to change back to original directory: %v", err)
 	}
+	return nil
 }
