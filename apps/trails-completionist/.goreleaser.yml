@@ -2,6 +2,11 @@
 version: 2
 
 project_name: trails-completionist
+dist: dist/trails-completionist
+
+git:
+  ignore_tags:
+    - apps/*
 
 env:
   - GO111MODULE=on
@@ -13,14 +18,15 @@ env_files:
 before:
   hooks:
     - go mod tidy
-    - ./scripts/completions.sh
-    - ./scripts/manpages.sh
+    - ./scripts/completions.sh trails-completionist
+    - ./scripts/manpages.sh trails-completionist
 
 snapshot:
   version_template: '{{ incpatch .Version }}-next'
 
 builds:
-  - env:
+  - id: trails-completionist
+    env:
       - CGO_ENABLED=0
     goos:
       - linux
@@ -42,12 +48,12 @@ builds:
     ldflags:
       - >-
         -s -w
-        -X github.com/toozej/trails-completionist/pkg/version.Version={{.Version}}
-        -X github.com/toozej/trails-completionist/pkg/version.Commit={{.Commit}}
-        -X github.com/toozej/trails-completionist/pkg/version.Branch={{.Branch}}
-        -X github.com/toozej/trails-completionist/pkg/version.BuiltAt={{.CommitDate}}
-        -X github.com/toozej/trails-completionist/pkg/version.Builder=goreleaser
-    main: ./
+        -X github.com/toozej/monogo/pkg/version.Version={{.Version}}
+        -X github.com/toozej/monogo/pkg/version.Commit={{.Commit}}
+        -X github.com/toozej/monogo/pkg/version.Branch={{.Branch}}
+        -X github.com/toozej/monogo/pkg/version.BuiltAt={{.CommitDate}}
+        -X github.com/toozej/monogo/pkg/version.Builder=goreleaser
+    main: ./apps/trails-completionist
     binary: trails-completionist
 
 universal_binaries:
@@ -55,6 +61,9 @@ universal_binaries:
 
 checksum:
   name_template: 'checksums.txt'
+
+docker_digest:
+  name_template: 'digests.txt'
 
 changelog:
   sort: asc
@@ -96,31 +105,32 @@ dockers_v2:
       - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ .Version
         }}{{ end }}'
       - "latest"
-    dockerfile: Dockerfile.goreleaser
+    dockerfile: apps/trails-completionist/Dockerfile.goreleaser
     labels:
-      "io.artifacthub.package.readme-url": "https://raw.githubusercontent.com/toozej/trails-completionist/main/README.md"
+      "io.artifacthub.package.readme-url": "https://github.com/toozej/monogo/raw/main/README.md"
       "io.artifacthub.package.maintainers": "[{\"name\":\"toozej\"}]"
       "io.artifacthub.package.license": "GPLv3"
-      "org.opencontainers.image.description": "tools for tracking completion of trails"
+      "org.opencontainers.image.description": >-
+        Golang application to parse a list of trails, then display a searchable HTML table for ease of tracking completion of trails.
       "org.opencontainers.image.created": "{{.Date}}"
       "org.opencontainers.image.name": "{{.ProjectName}}"
       "org.opencontainers.image.revision": "{{.FullCommit}}"
       "org.opencontainers.image.version": "{{.Version}}"
       "org.opencontainers.image.source": "{{.GitURL}}"
       "org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
-      "org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/trails-completionist/main/README.md"
+      "org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
       "org.opencontainers.image.licenses": "GPL-3.0-only"
       "org.opencontainers.image.title": "{{.ProjectName}}"
       "org.opencontainers.image.vendor": "James Tooze"
     annotations:
       "index,manifest:org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
       "index,manifest:org.opencontainers.image.created": "{{.Date}}"
-      "index,manifest:org.opencontainers.image.description": "tools for tracking completion\
-        \ of trails"
-      "index,manifest:org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/trails-completionist/main/README.md"
+      "index,manifest:org.opencontainers.image.description": >-
+        Golang application to parse a list of trails, then display a searchable HTML table for ease of tracking completion of trails.
+      "index,manifest:org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
       "index,manifest:org.opencontainers.image.licenses": "GPL-3.0-only"
       "index,manifest:org.opencontainers.image.revision": "{{.FullCommit}}"
-      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/trails-completionist"
+      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/monogo"
       "index,manifest:org.opencontainers.image.title": "{{.ProjectName}}"
       "index,manifest:org.opencontainers.image.vendor": "James Tooze"
       "index,manifest:org.opencontainers.image.version": "{{.Version}}"
@@ -137,31 +147,32 @@ dockers_v2:
       - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ .Version
         }}-distroless{{ end }}'
       - "distroless"
-    dockerfile: Dockerfile.goreleaser.distroless
+    dockerfile: apps/trails-completionist/Dockerfile.goreleaser.distroless
     labels:
-      "io.artifacthub.package.readme-url": "https://raw.githubusercontent.com/toozej/trails-completionist/main/README.md"
+      "io.artifacthub.package.readme-url": "https://github.com/toozej/monogo/raw/main/README.md"
       "io.artifacthub.package.maintainers": "[{\"name\":\"toozej\"}]"
       "io.artifacthub.package.license": "GPLv3"
-      "org.opencontainers.image.description": "tools for tracking completion of trails"
+      "org.opencontainers.image.description": >-
+        Golang application to parse a list of trails, then display a searchable HTML table for ease of tracking completion of trails.
       "org.opencontainers.image.created": "{{.Date}}"
       "org.opencontainers.image.name": "{{.ProjectName}}"
       "org.opencontainers.image.revision": "{{.FullCommit}}"
       "org.opencontainers.image.version": "{{.Version}}"
       "org.opencontainers.image.source": "{{.GitURL}}"
       "org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
-      "org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/trails-completionist/main/README.md"
+      "org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
       "org.opencontainers.image.licenses": "GPL-3.0-only"
       "org.opencontainers.image.title": "{{.ProjectName}}"
       "org.opencontainers.image.vendor": "James Tooze"
     annotations:
       "index,manifest:org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
       "index,manifest:org.opencontainers.image.created": "{{.Date}}"
-      "index,manifest:org.opencontainers.image.description": "tools for tracking completion\
-        \ of trails"
-      "index,manifest:org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/trails-completionist/main/README.md"
+      "index,manifest:org.opencontainers.image.description": >-
+        Golang application to parse a list of trails, then display a searchable HTML table for ease of tracking completion of trails.
+      "index,manifest:org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
       "index,manifest:org.opencontainers.image.licenses": "GPL-3.0-only"
       "index,manifest:org.opencontainers.image.revision": "{{.FullCommit}}"
-      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/trails-completionist"
+      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/monogo"
       "index,manifest:org.opencontainers.image.title": "{{.ProjectName}}"
       "index,manifest:org.opencontainers.image.vendor": "James Tooze"
       "index,manifest:org.opencontainers.image.version": "{{.Version}}"
@@ -181,18 +192,20 @@ archives:
     files:
       - README.md
       - LICENSE
-      - completions/*
-      - manpages/*
+      - completions/trails-completionist.bash
+      - completions/trails-completionist.fish
+      - completions/trails-completionist.zsh
+      - manpages/trails-completionist.1.gz
 
 nfpms:
   - file_name_template: '{{ .ConventionalFileName }}'
     id: packages
-    homepage: https://github.com/toozej/trails-completionist
+    homepage: https://github.com/toozej/monogo
     description: |-
-      tools for tracking completion of trails
+      Golang application to parse a list of trails, then display a searchable HTML table for ease of tracking completion of trails.
     maintainer: toozej
     license: GPLv3
-    vendor: trails-completionist
+    vendor: monogo
     bindir: /usr/bin
     section: utils
     contents:
@@ -231,8 +244,9 @@ nfpms:
 
 homebrew_casks:
   - name: trails-completionist
-    homepage: https://github.com/toozej/trails-completionist
-    description: "tools for tracking completion of trails"
+    homepage: https://github.com/toozej/monogo
+    description: >-
+      Golang application to parse a list of trails, then display a searchable HTML table for ease of tracking completion of trails.
     license: GPLv3
     repository:
       owner: toozej
@@ -245,7 +259,7 @@ homebrew_casks:
       zsh: "completions/trails-completionist.zsh"
       fish: "completions/trails-completionist.fish"
     url:
-      verified: "github.com/toozej/trails-completionist/releases/download"
+      verified: "github.com/toozej/monogo/releases/download"
     hooks:
       post:
         install: |
@@ -280,6 +294,7 @@ milestones:
   - close: true
 
 release:
+  mode: append
   disable: '{{ eq (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}'
   footer: |
-    **Full Changelog**: https://github.com/toozej/trails-completionist/compare/{{ .PreviousTag }}...{{ .Tag }}
+    **Full Changelog**: https://github.com/toozej/monogo/compare/{{ .PreviousTag }}...{{ .Tag }}

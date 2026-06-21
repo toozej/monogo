@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/toozej/trails-completionist/internal/parser"
+	"github.com/toozej/monogo/apps/trails-completionist/internal/parser"
 )
 
 var ParseGPXCmd = &cobra.Command{

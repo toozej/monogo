@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/toozej/trails-completionist/pkg/osm"
+	"github.com/toozej/monogo/pkg/osm"
 )
 
 var OsmExportCmd = &cobra.Command{

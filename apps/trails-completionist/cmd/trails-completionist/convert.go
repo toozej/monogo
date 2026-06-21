@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/toozej/trails-completionist/pkg/tcx2gpx"
+	"github.com/toozej/monogo/pkg/tcx2gpx"
 )
 
 var ConvertCmd = &cobra.Command{

@@ -27,7 +27,7 @@ LDFLAGS = -s -w \
 	-X $(VER).Builder=$(BUILDER)
 	
 # Define the repository URL
-REPO_URL := https://github.com/toozej/trails-completionist
+REPO_URL := https://github.com/toozej/monogo/apps/trails-completionist
 
 # Docker image info
 IMAGE_AUTHOR = toozej
@@ -82,7 +82,7 @@ release: ## Build and sign Docker image
 
 verify: ## Verify Docker image with Cosign
 	cosign verify \
-		--certificate-identity-regexp '^https://github.com/toozej/trails-completionist/\.github/workflows/(release|weekly-docker-refresh)\.yaml@refs/(tags/.*|heads/main)$$' \
+		--certificate-identity-regexp '^https://github.com/toozej/monogo/apps/trails-completionist/\.github/workflows/(release|weekly-docker-refresh)\.yaml@refs/(tags/.*|heads/main)$$' \
 		--certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
 		$(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG)
 
@@ -112,7 +112,7 @@ distroless-run: ## Run built Docker image using distroless as final base
 
 install: ## Install trails-completionist from latest GitHub release
 	if command -v go; then \
-			go install github.com/toozej/trails-completionist@latest ; \
+			go install github.com/toozej/monogo/apps/trails-completionist@latest ; \
 	else \
 			echo "Downloading trails-completionist binary for $(OS)-$(ARCH)..."; \
 			mkdir -p $(CURDIR)/tmp; \
@@ -183,7 +183,7 @@ local-verify: ## Verify locally compiled binary
 	@echo "Verifying locally compiled binary with keyless signing..."
 	@if test -e $(CURDIR)/out/trails-completionist.bundle; then \
 		cosign verify-blob \
-			--certificate-identity-regexp '^https://github.com/toozej/trails-completionist/\.github/workflows/(release|weekly-docker-refresh)\.yaml@refs/(tags/.*|heads/main)$$' \
+			--certificate-identity-regexp '^https://github.com/toozej/monogo/apps/trails-completionist/\.github/workflows/(release|weekly-docker-refresh)\.yaml@refs/(tags/.*|heads/main)$$' \
 			--certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
 			--bundle $(CURDIR)/out/trails-completionist.bundle \
 			$(CURDIR)/out/trails-completionist; \
@@ -256,7 +256,7 @@ pre-commit-install: ## Install pre-commit hooks and necessary binaries
 pre-commit-run: ## Run pre-commit hooks against all files
 	pre-commit run --all-files
 	# manually run the following checks since their pre-commits aren't working or don't exist
-	go-licenses report github.com/toozej/trails-completionist/cmd/trails-completionist
+	go-licenses report github.com/toozej/monogo/apps/trails-completionist/cmd/trails-completionist
 	govulncheck ./...
 
 upload-secrets-to-gh: ## Upload secrets from .env file to GitHub Actions Secrets + Dependabot

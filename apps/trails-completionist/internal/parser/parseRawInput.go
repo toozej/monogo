@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/toozej/trails-completionist/internal/types"
+	"github.com/toozej/monogo/apps/trails-completionist/internal/types"
 )
 
 // Fetch the file contents

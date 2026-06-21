@@ -18,7 +18,7 @@
 //
 // Example usage:
 //
-//	import "github.com/toozej/trails-completionist/pkg/config"
+//	import "github.com/toozej/monogo/pkg/trails-completionist/config"
 //
 //	func main() {
 //		conf := config.GetEnvVars()

@@ -3,7 +3,7 @@ package cmd
 import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	trailscompletionist "github.com/toozej/trails-completionist/internal/trails-completionist"
+	trailscompletionist "github.com/toozej/monogo/apps/trails-completionist/internal/trails-completionist"
 )
 
 var FullCmd = &cobra.Command{

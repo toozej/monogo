@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/toozej/trails-completionist/internal/types"
+	"github.com/toozej/monogo/apps/trails-completionist/internal/types"
 )
 
 // Create a map to organize trails by park
@@ -56,7 +56,7 @@ func executeHTMLTemplate(fp *os.File, tmpl *embed.FS, trailsByPark map[string][]
 		return err
 	}
 
-	defer fp.Close()
+	defer func() { _ = fp.Close() }()
 	return nil
 }
 

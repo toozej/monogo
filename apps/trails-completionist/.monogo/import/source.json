@@ -1,0 +1,12 @@
+{
+  "source": "toozej/trails-completionist",
+  "vcsHost": "github.com/",
+  "owner": "toozej",
+  "repo": "trails-completionist",
+  "ownerRepo": "toozej/trails-completionist",
+  "repoURL": "https://github.com/toozej/trails-completionist.git",
+  "ref": "main",
+  "oldModule": "github.com/toozej/trails-completionist",
+  "newModule": "github.com/toozej/monogo/apps/trails-completionist",
+  "tagPrefix": "apps/trails-completionist"
+}

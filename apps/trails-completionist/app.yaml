@@ -1,0 +1,18 @@
+---
+name: trails-completionist
+binary: trails-completionist
+path: apps/trails-completionist
+mainPath: apps/trails-completionist
+description: "Golang application to parse a list of trails, then display a searchable HTML table for ease of tracking completion of trails."
+shortDescription: "trails-completionist"
+goImage: golang:1.26-trixie
+distrolessImage: gcr.io/distroless/static-debian13:nonroot
+# cgoEnabled defaults to false. When true, builds use CGO_ENABLED=1, the runtime
+# image becomes glibc-capable (debian:trixie-slim / distroless base-debian), and
+# GoReleaser is trimmed to the native linux/amd64 platform.
+cgoEnabled: false
+# runtimeImage (optional) overrides the runtime base for the non-distroless
+# Dockerfile. Defaults to "scratch", or "debian:trixie-slim" when cgoEnabled is true.
+# runtimeImage: debian:trixie-slim
+# port (optional) is EXPOSEd in the generated Dockerfiles when set.
+# port: 8081

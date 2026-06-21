@@ -1,0 +1,285 @@
+---
+version: 2
+
+project_name: trails-completionist
+
+env:
+  - GO111MODULE=on
+
+env_files:
+  gitlab_token: ~/nope
+  gitea_token: ~/nope
+
+before:
+  hooks:
+    - go mod tidy
+    - ./scripts/completions.sh
+    - ./scripts/manpages.sh
+
+snapshot:
+  version_template: '{{ incpatch .Version }}-next'
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - "386"
+      - amd64
+      - arm
+      - arm64
+    goarm:
+      - "7"
+    ignore:
+      - goos: windows
+        goarch: arm
+    mod_timestamp: '{{ .CommitTimestamp }}'
+    flags:
+      - -trimpath
+    ldflags:
+      - >-
+        -s -w
+        -X github.com/toozej/monogo/apps/trails-completionist/pkg/version.Version={{.Version}}
+        -X github.com/toozej/monogo/apps/trails-completionist/pkg/version.Commit={{.Commit}}
+        -X github.com/toozej/monogo/apps/trails-completionist/pkg/version.Branch={{.Branch}}
+        -X github.com/toozej/monogo/apps/trails-completionist/pkg/version.BuiltAt={{.CommitDate}}
+        -X github.com/toozej/monogo/apps/trails-completionist/pkg/version.Builder=goreleaser
+    main: ./
+    binary: trails-completionist
+
+universal_binaries:
+  - replace: false
+
+checksum:
+  name_template: 'checksums.txt'
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - '^test:'
+      - '^chore'
+      - 'merge conflict'
+      - Merge pull request
+      - Merge remote-tracking branch
+      - Merge branch
+      - go mod tidy
+  groups:
+    - title: Dependency updates
+      regexp: "^.*feat\\(deps\\)*:+.*$"
+      order: 300
+    - title: 'New Features'
+      regexp: "^.*feat[(\\w)]*:+.*$"
+      order: 100
+    - title: 'Bug fixes'
+      regexp: "^.*fix[(\\w)]*:+.*$"
+      order: 200
+    - title: 'Documentation updates'
+      regexp: "^.*docs[(\\w)]*:+.*$"
+      order: 400
+    - title: Other work
+      order: 9999
+
+dockers_v2:
+  - id: trails-completionist
+    images:
+      - 'toozej/trails-completionist'
+      - 'ghcr.io/toozej/trails-completionist'
+      - 'quay.io/toozej/trails-completionist'
+    tags:
+      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}v{{ .Version
+        }}{{ end }}'
+      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ .Version
+        }}{{ end }}'
+      - "latest"
+    dockerfile: Dockerfile.goreleaser
+    labels:
+      "io.artifacthub.package.readme-url": "https://raw.githubusercontent.com/toozej/trails-completionist/main/README.md"
+      "io.artifacthub.package.maintainers": "[{\"name\":\"toozej\"}]"
+      "io.artifacthub.package.license": "GPLv3"
+      "org.opencontainers.image.description": "tools for tracking completion of trails"
+      "org.opencontainers.image.created": "{{.Date}}"
+      "org.opencontainers.image.name": "{{.ProjectName}}"
+      "org.opencontainers.image.revision": "{{.FullCommit}}"
+      "org.opencontainers.image.version": "{{.Version}}"
+      "org.opencontainers.image.source": "{{.GitURL}}"
+      "org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
+      "org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/trails-completionist/main/README.md"
+      "org.opencontainers.image.licenses": "GPL-3.0-only"
+      "org.opencontainers.image.title": "{{.ProjectName}}"
+      "org.opencontainers.image.vendor": "James Tooze"
+    annotations:
+      "index,manifest:org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
+      "index,manifest:org.opencontainers.image.created": "{{.Date}}"
+      "index,manifest:org.opencontainers.image.description": "tools for tracking completion\
+        \ of trails"
+      "index,manifest:org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/trails-completionist/main/README.md"
+      "index,manifest:org.opencontainers.image.licenses": "GPL-3.0-only"
+      "index,manifest:org.opencontainers.image.revision": "{{.FullCommit}}"
+      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/monogo/apps/trails-completionist"
+      "index,manifest:org.opencontainers.image.title": "{{.ProjectName}}"
+      "index,manifest:org.opencontainers.image.vendor": "James Tooze"
+      "index,manifest:org.opencontainers.image.version": "{{.Version}}"
+    extra_files:
+      - scripts/goreleaser_entrypoint.sh
+  - id: trails-completionist-distroless
+    images:
+      - 'toozej/trails-completionist'
+      - 'ghcr.io/toozej/trails-completionist'
+      - 'quay.io/toozej/trails-completionist'
+    tags:
+      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}v{{ .Version
+        }}-distroless{{ end }}'
+      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ .Version
+        }}-distroless{{ end }}'
+      - "distroless"
+    dockerfile: Dockerfile.goreleaser.distroless
+    labels:
+      "io.artifacthub.package.readme-url": "https://raw.githubusercontent.com/toozej/trails-completionist/main/README.md"
+      "io.artifacthub.package.maintainers": "[{\"name\":\"toozej\"}]"
+      "io.artifacthub.package.license": "GPLv3"
+      "org.opencontainers.image.description": "tools for tracking completion of trails"
+      "org.opencontainers.image.created": "{{.Date}}"
+      "org.opencontainers.image.name": "{{.ProjectName}}"
+      "org.opencontainers.image.revision": "{{.FullCommit}}"
+      "org.opencontainers.image.version": "{{.Version}}"
+      "org.opencontainers.image.source": "{{.GitURL}}"
+      "org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
+      "org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/trails-completionist/main/README.md"
+      "org.opencontainers.image.licenses": "GPL-3.0-only"
+      "org.opencontainers.image.title": "{{.ProjectName}}"
+      "org.opencontainers.image.vendor": "James Tooze"
+    annotations:
+      "index,manifest:org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
+      "index,manifest:org.opencontainers.image.created": "{{.Date}}"
+      "index,manifest:org.opencontainers.image.description": "tools for tracking completion\
+        \ of trails"
+      "index,manifest:org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/trails-completionist/main/README.md"
+      "index,manifest:org.opencontainers.image.licenses": "GPL-3.0-only"
+      "index,manifest:org.opencontainers.image.revision": "{{.FullCommit}}"
+      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/monogo/apps/trails-completionist"
+      "index,manifest:org.opencontainers.image.title": "{{.ProjectName}}"
+      "index,manifest:org.opencontainers.image.vendor": "James Tooze"
+      "index,manifest:org.opencontainers.image.version": "{{.Version}}"
+    extra_files:
+      - scripts/goreleaser_entrypoint.sh
+
+archives:
+  - name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+    format_overrides:
+      - goos: windows
+        formats: ['zip']
+    files:
+      - README.md
+      - LICENSE
+      - completions/*
+      - manpages/*
+
+nfpms:
+  - file_name_template: '{{ .ConventionalFileName }}'
+    id: packages
+    homepage: https://github.com/toozej/monogo/apps/trails-completionist
+    description: |-
+      tools for tracking completion of trails
+    maintainer: toozej
+    license: GPLv3
+    vendor: trails-completionist
+    bindir: /usr/bin
+    section: utils
+    contents:
+      - src: ./completions/trails-completionist.bash
+        dst: /usr/share/bash-completion/completions/trails-completionist
+        file_info:
+          mode: 0644
+      - src: ./completions/trails-completionist.fish
+        dst: /usr/share/fish/completions/trails-completionist.fish
+        file_info:
+          mode: 0644
+      - src: ./completions/trails-completionist.zsh
+        dst: /usr/share/zsh/vendor-completions/_trails-completionist
+        file_info:
+          mode: 0644
+      - src: ./manpages/trails-completionist.1.gz
+        dst: /usr/share/man/man1/trails-completionist.1.gz
+        file_info:
+          mode: 0644
+      - src: ./LICENSE
+        dst: /usr/share/doc/trails-completionist/copyright
+        file_info:
+          mode: 0644
+    formats:
+      - apk
+      - deb
+      - rpm
+    dependencies:
+      - git
+    recommends:
+      - golang
+    deb:
+      lintian_overrides:
+        - statically-linked-binary
+        - changelog-file-missing-in-native-package
+
+homebrew_casks:
+  - name: trails-completionist
+    homepage: https://github.com/toozej/monogo/apps/trails-completionist
+    description: "tools for tracking completion of trails"
+    license: GPLv3
+    repository:
+      owner: toozej
+      name: homebrew-tap
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
+    manpages:
+      - "manpages/trails-completionist.1.gz"
+    completions:
+      bash: "completions/trails-completionist.bash"
+      zsh: "completions/trails-completionist.zsh"
+      fish: "completions/trails-completionist.fish"
+    url:
+      verified: "github.com/toozej/monogo/apps/trails-completionist/releases/download"
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/trails-completionist"]
+          end
+
+sboms:
+  - artifacts: archive
+
+signs:
+  - cmd: cosign
+    output: true
+    signature: "${artifact}.sigstore.json"
+    args:
+      - 'sign-blob'
+      - '--bundle=${signature}'
+      - '${artifact}'
+      - '--yes'
+    artifacts: checksum
+
+docker_signs:
+  - cmd: cosign
+    artifacts: all
+    output: true
+    args:
+      - 'sign'
+      - '--yes'
+      - '${artifact}'
+
+milestones:
+  - close: true
+
+release:
+  disable: '{{ eq (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}'
+  footer: |
+    **Full Changelog**: https://github.com/toozej/monogo/apps/trails-completionist/compare/{{ .PreviousTag }}...{{ .Tag }}

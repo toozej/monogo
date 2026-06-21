@@ -39,6 +39,7 @@ jobs:
           - terranotate
           - lego-stego
           - files2prompt
+          - trails-completionist
     steps:
       - name: Validate semver tag
         run: |
@@ -124,6 +125,7 @@ jobs:
           - terranotate
           - lego-stego
           - files2prompt
+          - trails-completionist
     steps:
       - name: Install Cosign
         uses: sigstore/cosign-installer@v4.1.2 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
@@ -158,6 +160,7 @@ jobs:
           - terranotate
           - lego-stego
           - files2prompt
+          - trails-completionist
     steps:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
@@ -188,6 +191,7 @@ jobs:
           - terranotate
           - lego-stego
           - files2prompt
+          - trails-completionist
         registry: ['', 'ghcr.io/', 'quay.io/']
         tag: ['latest', 'distroless']
     steps:

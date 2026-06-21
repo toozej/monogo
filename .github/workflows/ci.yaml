@@ -32,6 +32,7 @@ jobs:
           - terranotate
           - lego-stego
           - files2prompt
+          - trails-completionist
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-go@v6

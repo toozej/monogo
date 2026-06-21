@@ -4,10 +4,10 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/toozej/trails-completionist/internal/generator"
-	"github.com/toozej/trails-completionist/internal/matcher"
-	"github.com/toozej/trails-completionist/internal/parser"
-	"github.com/toozej/trails-completionist/internal/types"
+	"github.com/toozej/monogo/apps/trails-completionist/internal/generator"
+	"github.com/toozej/monogo/apps/trails-completionist/internal/matcher"
+	"github.com/toozej/monogo/apps/trails-completionist/internal/parser"
+	"github.com/toozej/monogo/apps/trails-completionist/internal/types"
 )
 
 var GenerateChecklistCmd = &cobra.Command{

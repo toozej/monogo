@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/toozej/trails-completionist/internal/types"
+	"github.com/toozej/monogo/apps/trails-completionist/internal/types"
 )
 
 // Extract trail information from file contents

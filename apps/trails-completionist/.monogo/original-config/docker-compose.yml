@@ -1,0 +1,21 @@
+---
+services:
+  trails-completionist:
+    container_name: trails-completionist
+    image: toozej/trails-completionist:latest
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    labels:
+      - "traefik.enable=false"
+      # labels below for publishing as web service
+      # - "traefik.docker.network=traefik"
+      # - "traefik.http.routers.trails-completionist.rule=Host(`trails-completionist.test`)"
+      # - "traefik.http.routers.trails-completionist.middlewares=http-redirect-https@file,headers@file"
+      # - "traefik.http.routers.trails-completionist-secure.entrypoints=https"
+      # - "traefik.http.routers.trails-completionist-secure.rule=Host(`trails-completionist.test`)"
+      # - "traefik.http.routers.trails-completionist-secure.middlewares=headers@file"
+      # - "traefik.http.routers.trails-completionist-secure.tls=true"
+    # networks:
+      # - traefik

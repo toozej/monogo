@@ -35,6 +35,7 @@ jobs:
           - terranotate
           - lego-stego
           - files2prompt
+          - trails-completionist
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -141,6 +142,7 @@ jobs:
           - terranotate
           - lego-stego
           - files2prompt
+          - trails-completionist
         registry: ['', 'ghcr.io/', 'quay.io/']
         tag: ['latest', 'distroless']
     steps:

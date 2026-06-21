@@ -124,7 +124,7 @@ func tryLoadBinary(osmFilePath, binaryPath string) (*OSMData, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error opening binary file: %w", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	// Decode the gob data
 	decoder := gob.NewDecoder(file)
@@ -143,7 +143,7 @@ func saveToBinary(osmData *OSMData, binaryPath string) error {
 	if err != nil {
 		return fmt.Errorf("error creating binary file: %w", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	// Encode the data
 	encoder := gob.NewEncoder(file)
@@ -161,7 +161,7 @@ func loadOSMFile(filePath string) (*OSMData, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error opening OSM file: %w", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	osmData := &OSMData{
 		Nodes: make(map[int64]OSMNode),
@@ -241,9 +241,10 @@ func loadOSMFile(filePath string) (*OSMData, error) {
 			case "tag":
 				var key, value string
 				for _, attr := range se.Attr {
-					if attr.Name.Local == "k" {
+					switch attr.Name.Local {
+					case "k":
 						key = attr.Value
-					} else if attr.Name.Local == "v" {
+					case "v":
 						value = attr.Value
 					}
 				}

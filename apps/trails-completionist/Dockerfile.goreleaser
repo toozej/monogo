@@ -4,4 +4,5 @@ FROM scratch
 ARG TARGETPLATFORM
 COPY $TARGETPLATFORM/trails-completionist /go/bin/trails-completionist
 # Run the binary.
+USER 65532:65532
 ENTRYPOINT ["/go/bin/trails-completionist"]

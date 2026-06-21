@@ -3,7 +3,7 @@ package matcher
 import (
 	"fmt"
 
-	"github.com/toozej/trails-completionist/internal/types"
+	"github.com/toozej/monogo/apps/trails-completionist/internal/types"
 )
 
 // Match completed / GPX Trails with raw input Trails, creating a combined list of Trails

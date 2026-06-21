@@ -8,7 +8,7 @@ import (
 	"os"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/toozej/trails-completionist/internal/types"
+	"github.com/toozej/monogo/apps/trails-completionist/internal/types"
 )
 
 // generate easy-to-use Markdown-based checklist of trails given parsed list of trails from raw input text file
@@ -47,7 +47,7 @@ func executeMDTemplate(fp *os.File, tmpl *embed.FS, trailsByPark map[string][]ty
 		return err
 	}
 
-	defer fp.Close()
+	defer func() { _ = fp.Close() }()
 	return nil
 }
 

@@ -138,7 +138,7 @@ func ConvertAllTCXToGPX(inputDir string) error {
 	if err != nil {
 		return fmt.Errorf("open root: %w", err)
 	}
-	defer root.Close()
+	defer func() { _ = root.Close() }()
 
 	err = fs.WalkDir(root.FS(), ".", func(rel string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -161,7 +161,7 @@ func ConvertAllTCXToGPX(inputDir string) error {
 			fmt.Printf("Error opening %s: %v\n", rel, err)
 			return nil
 		}
-		defer src.Close()
+		defer func() { _ = src.Close() }()
 
 		// Create destination filename
 		gpxRel := strings.TrimSuffix(rel, filepath.Ext(rel)) + ".gpx"
@@ -210,7 +210,7 @@ func convertTCXToGPX(tcxFilePath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to open TCX file: %v", err)
 	}
-	defer tcxFile.Close()
+	defer func() { _ = tcxFile.Close() }()
 
 	tcxData, err := io.ReadAll(tcxFile)
 	if err != nil {
@@ -229,7 +229,7 @@ func convertTCXToGPX(tcxFilePath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create GPX file: %v", err)
 	}
-	defer gpxFile.Close()
+	defer func() { _ = gpxFile.Close() }()
 
 	// Convert TCX to GPX
 	gpx := convertToGPX(&tcx)

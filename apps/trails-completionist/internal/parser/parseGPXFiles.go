@@ -10,8 +10,8 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/toozej/trails-completionist/internal/types"
-	"github.com/toozej/trails-completionist/pkg/osm"
+	"github.com/toozej/monogo/apps/trails-completionist/internal/types"
+	"github.com/toozej/monogo/pkg/osm"
 
 	"github.com/tkrajina/gpxgo/gpx"
 )

@@ -12,7 +12,7 @@
 //
 // Example usage:
 //
-//	import "github.com/toozej/trails-completionist/cmd/trails-completionist"
+//	import "github.com/toozej/monogo/apps/trails-completionist/cmd/trails-completionist"
 //
 //	func main() {
 //		cmd.Execute()
@@ -23,9 +23,9 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/toozej/trails-completionist/pkg/config"
-	"github.com/toozej/trails-completionist/pkg/man"
-	"github.com/toozej/trails-completionist/pkg/version"
+	"github.com/toozej/monogo/pkg/trails-completionist/config"
+	"github.com/toozej/monogo/pkg/trails-completionist/man"
+	"github.com/toozej/monogo/pkg/trails-completionist/version"
 )
 
 // conf holds the application configuration loaded from environment variables.

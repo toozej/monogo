@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	trailscompletionist "github.com/toozej/trails-completionist/internal/trails-completionist"
+	trailscompletionist "github.com/toozej/monogo/apps/trails-completionist/internal/trails-completionist"
 )
 
 var ServeCmd = &cobra.Command{

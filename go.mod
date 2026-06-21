@@ -71,6 +71,7 @@ require (
 	github.com/tidwall/match v1.2.0 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tidwall/sjson v1.2.5 // indirect
+	github.com/tkrajina/gpxgo v1.4.0
 	github.com/twpayne/go-geom v1.6.1 // indirect
 	github.com/twpayne/go-gpx v1.5.0
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect

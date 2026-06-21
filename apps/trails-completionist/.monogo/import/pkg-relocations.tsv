@@ -1,0 +1,6 @@
+github.com/toozej/monogo/apps/trails-completionist/pkg/config	github.com/toozej/monogo/pkg/trails-completionist/config
+github.com/toozej/monogo/apps/trails-completionist/pkg/man	github.com/toozej/monogo/pkg/trails-completionist/man
+github.com/toozej/monogo/apps/trails-completionist/pkg/osm	github.com/toozej/monogo/pkg/osm
+apps/trails-completionist/pkg/README.md	apps/trails-completionist/.monogo/original-pkg/README.md
+github.com/toozej/monogo/apps/trails-completionist/pkg/tcx2gpx	github.com/toozej/monogo/pkg/tcx2gpx
+github.com/toozej/monogo/apps/trails-completionist/pkg/version	github.com/toozej/monogo/pkg/trails-completionist/version
