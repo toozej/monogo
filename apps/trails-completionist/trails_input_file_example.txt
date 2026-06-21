@@ -1,0 +1,755 @@
+Cooks Butte Park
+Trail 0.5 miles
+Oregon > Portland Metro and Mt. Hood > Portland
+
+Pioneer Park Loop B
+Connector 0.2 miles
+Oregon > Portland Metro and Mt. Hood > Portland
+
+Dog Park Loop
+Connector 0.3 miles
+Oregon > Portland Metro and Mt. Hood > Portland
+
+Farragut Park Loop
+Connector 0.4 miles
+Oregon > Portland Metro and Mt. Hood > Portland
+
+Lents Park Loop
+Trail 0.6 miles
+Oregon > Portland Metro and Mt. Hood > Portland
+
+Pioneer Park Loop A
+Connector 0.3 miles
+Oregon > Portland Metro and Mt. Hood > Portland
+
+Shadow Ridge Trail
+Trail 0.7 miles
+Oregon > Portland Metro and Mt. Hood > Portland
+
+Saltzman Road
+Trail 3.9 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Firelane 4
+Trail 0.5 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Firelane 3
+Trail 1.0 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Firelane 2
+Trail 1.0 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Nature Trail
+Trail 0.9 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Firelane 1
+Trail 2.6 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Alder Trail
+Trail 0.8 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Aspen Trail
+Connector 0.2 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Holman Lane
+Trail 0.9 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Keil Trail
+Connector 0.2 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Wild Cherry Trail
+Trail 1.1 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Dogwood Trail
+Trail 1.0 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Northwest Firelane 12
+Trail 1.5 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Lower Macleay Trail
+Trail 0.8 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Hardesty Trail
+Trail 0.6 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Fire Lane 7
+Trail 0.7 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Newton Road
+Trail 2.3 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Firelane 10
+Trail 1.4 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Firelane 9
+Trail 0.5 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Keyser Trail
+Connector 0.3 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+NW Leif Erikson Drive Trail
+Trail 11.6 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Cannon Trail
+Connector 0.3 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Firelane 8
+Connector 0.2 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Waterline Trail
+Trail 0.7 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Tolinda Trail
+Trail 0.7 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Trillium Trail
+Connector 0.4 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Old Springville Road
+Trail 1.1 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Ridge Trail
+Trail 1.3 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Maple Trail
+Trail 3.4 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Firelane 5
+Trail 0.9 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Firelane 15
+Trail 1.4 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Alberta Park Trail
+Trail 0.6 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Alberta Park
+
+Overlook Trail
+Trail 0.6 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Hoyt Arboretum
+
+Maple Trail
+Trail 0.6 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Hoyt Arboretum
+
+Hawthorn Trail
+Connector 0.3 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Hoyt Arboretum
+
+Magnolia Trail
+Connector 0.3 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Hoyt Arboretum
+
+Beech Trail
+Connector 0.3 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Hoyt Arboretum
+
+Oak Trail
+Connector 0.3 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Hoyt Arboretum
+
+Fir Trail
+Trail 0.6 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Hoyt Arboretum
+
+Redwood Trail
+Connector 0.4 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Hoyt Arboretum
+
+Spruce Trail
+Connector 0.3 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Hoyt Arboretum
+
+Creek Trail
+Trail 0.1 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Hoyt Arboretum
+
+White Pine Trail
+Trail 0.7 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Hoyt Arboretum
+
+Gas Line Road
+Connector 0.3 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Linnton Trail
+Trail 0.5 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Chestnut Trail
+Trail 0.5 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Birch Trail
+Connector 0.2 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Wildwood Trail - National Recreation Trail
+Trail 29.4 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Hoyt Arboretum
+
+Firelane 13
+Trail 0.6 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+BPA Road
+Trail 2.1 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Firelane 15
+Trail 1.4 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Newton Road
+Trail 2.3 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Alberta Park Trail
+Trail 0.6 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Alberta Park
+
+Overlook Trail
+Trail 0.6 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Hoyt Arboretum
+
+Maple Trail
+Trail 0.6 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Hoyt Arboretum
+
+Hawthorn Trail
+Connector 0.3 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Hoyt Arboretum
+
+Magnolia Trail
+Connector 0.3 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Hoyt Arboretum
+
+Beech Trail
+Connector 0.3 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Hoyt Arboretum
+
+Oak Trail
+Connector 0.3 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Hoyt Arboretum
+
+Fir Trail
+Trail 0.6 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Hoyt Arboretum
+
+Redwood Trail
+Connector 0.4 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Hoyt Arboretum
+
+Spruce Trail
+Connector 0.3 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Hoyt Arboretum
+
+Creek Trail
+Trail 0.1 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Hoyt Arboretum
+
+Bridge Trail N. Access
+Connector 0.1 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Cumberland Trail
+Trail 0.4 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Tunnel Trail
+Trail 0.2 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Old Cornell Road
+Connector 0.1 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Upper MacLeay Trail
+Trail 0.8 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Japanese Garden Trail
+Trail 0.4 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Washington Park
+
+Fairview Spur
+Connector 0.1 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Washington Park
+
+MAC Trail
+Trail 1.1 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Washington Park
+
+Bristlecone Pine Loop Connector
+Connector 0.1 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Hoyt Arboretum
+
+White Pine to Wildwood Spur
+Connector 0.0 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Hoyt Arboretum
+
+White Pine to Bristlecone Spur
+Connector 0.0 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Washington Park
+
+Bristlecone Parking to Whitepine Spur
+Connector 0.0 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Hoyt Arboretum
+
+SW Fairview Parking to Fir Spur
+Connector 0.1 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Hoyt Arboretum
+
+Hawthorn Shortcut Connector Trail
+Connector 0.1 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Hoyt Arboretum
+
+Hawthorn Wildwood Connector Trail
+Connector 0.1 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Hoyt Arboretum
+
+Maple to Wildwood Spur (Stairs)
+Connector 0.0 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Hoyt Arboretum
+
+Connector Trail
+Connector 0.1 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Hoyt Arboretum
+
+Wildwood to Marquam Connector
+Connector 0.0 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Hoyt Arboretum
+
+Overlook Trail Shortcut (Stairs)
+Connector 0.1 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Hoyt Arboretum
+
+Overlook Hawthorn Stairs Connector
+Connector 0.0 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Hoyt Arboretum
+
+Connector Trail
+Connector 0.2 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Hoyt Arboretum
+
+Cumberland Trail
+Trail 0.4 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Tunnel Trail
+Trail 0.2 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Old Cornell Road
+Connector 0.1 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Upper MacLeay Trail
+Trail 0.8 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Forest Park
+
+Marquam Trail
+Trail 4.7 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Marquam Nature Park
+
+Upper Marquam Trail
+Trail 1.8 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Marquam Nature Park
+
+Shelter Loop Trail
+Trail 0.7 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Marquam Nature Park
+
+Connor Trail
+Trail 0.5 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Marquam Nature Park
+
+Broadway Trail
+Connector 0.2 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Marquam Nature Park
+
+Broadway Trail
+Connector 0.2 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Marquam Nature Park
+
+No Bike Trail
+Trail 1.0 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Mt. Tabor Park
+
+Sunnyside Trail
+Trail 0.6 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Marquam Nature Park
+
+White Tail Trail
+Connector 0.4 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Marquam Nature Park
+
+North Loop Trail
+Trail 0.6 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Noble Woods Park
+
+South Loop Trail
+Trail 0.4 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Noble Woods Park
+
+East Loop Trail
+Trail 0.2 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Noble Woods Park
+
+West Connector
+Connector 0.1 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Noble Woods Park
+
+Mt Tabor Stairs
+Trail 0.2 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Mt. Tabor Park
+
+Stairway to Heaven Trail
+Trail 0.3 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Mt. Tabor Park
+
+Kelly Point Park Trail
+Trail 1.1 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Kelley Point Park
+
+Paved Spur
+Connector 0.1 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Kelley Point Park
+
+North Kelly Point Park Path
+Trail 0.1 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Kelley Point Park
+
+Table Rock Hike
+Trail 7.3 miles
+Oregon > Portland Metro and Mt. Hood
+
+Saddle Trail
+Trail 1.5 miles
+Oregon > Portland Metro and Mt. Hood
+
+Chicken Rock Spur
+Connector 0.1 miles
+Oregon > Portland Metro and Mt. Hood
+
+Table Rock Trail
+Trail 1.4 miles
+Oregon > Portland Metro and Mt. Hood
+
+Summit Trail
+Trail 2.3 miles
+Oregon > Portland Metro and Mt. Hood
+
+Wapato Loop Trail
+Trail 2.4 miles
+Oregon > Portland Metro and Mt. Hood
+
+Powell Butte Loop
+Trail 3.3 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Powell Butte Nature Park
+
+Wildhorse Trail
+Connector 0.5 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Powell Butte Nature Park
+
+Forest Edge Trail
+Connector 0.4 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Powell Butte Nature Park
+
+Douglas Fir Trail
+Connector 0.6 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Powell Butte Nature Park
+
+Cedar Grove Trail
+Connector 0.6 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Powell Butte Nature Park
+
+Summit Lane
+Trail 0.9 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Powell Butte Nature Park
+
+Westside Trail
+Trail 0.7 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Tualatin Hills Nature Park
+
+Oak Trail
+Trail 0.7 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Tualatin Hills Nature Park
+
+Creek Trail
+Trail 0.4 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Tualatin Hills Nature Park
+
+Old Wagon Trail
+Connector 0.4 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Tualatin Hills Nature Park
+
+Ponderosa Loop Trail
+Trail 0.5 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Tualatin Hills Nature Park
+
+Serviceberry Trail
+Connector 0.2 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Tualatin Hills Nature Park
+
+Cedar Grove Trail
+Connector 0.3 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Tualatin Hills Nature Park
+
+Cougar Trail
+Connector 0.1 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Tualatin Hills Nature Park
+
+Chickadee Trail
+Connector 0.1 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Tualatin Hills Nature Park
+
+Hawthorn Trail
+Trail 0.8 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Powell Butte Nature Park
+
+Fernwood Trail
+Connector 0.2 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Powell Butte Nature Park
+
+Pipeline Lane
+Trail 1.0 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Powell Butte Nature Park
+
+North Access Lane
+Connector 0.2 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Powell Butte Nature Park
+
+Park Center Trail
+Connector 0.1 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Powell Butte Nature Park
+
+Mountain View Trail
+Trail 0.8 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Powell Butte Nature Park
+
+Mountain View Trail Spur
+Connector 0.1 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Powell Butte Nature Park
+
+Reservoir Lane
+Connector 0.5 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Powell Butte Nature Park
+
+Elderberry Connector
+Connector 0.0 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Powell Butte Nature Park
+
+Cedar Grove Connector
+Connector 0.1 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Powell Butte Nature Park
+
+Elderberry Trail
+Trail 1.5 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Powell Butte Nature Park
+
+Meadowland Lane
+Connector 0.4 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Powell Butte Nature Park
+
+South Trail
+Trail 0.9 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Powell Butte Nature Park
+
+tail Way
+Trail 0.4 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Cooper Mountain Nature Park
+
+Powell Butte Loop
+Trail 3.3 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Powell Butte Nature Park
+
+Wildhorse Trail
+Connector 0.5 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Powell Butte Nature Park
+
+Cedar Grove Trail
+Connector 0.3 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Tualatin Hills Nature Park
+
+Cougar Trail
+Connector 0.1 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Tualatin Hills Nature Park
+
+Chickadee Trail
+Connector 0.1 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Tualatin Hills Nature Park
+
+Park Loop Trail
+Trail 2.2 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Mount Talbert Nature Park
+
+Boomer Trail
+Trail 0.9 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Scouter Mountain Nature Park
+
+Dogwood-Holgate
+Connector 0.2 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Powell Butte Nature Park
+
+Dogwood Trail
+Trail 0.5 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Powell Butte Nature Park
+
+Holgate Lane
+Trail 0.7 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Powell Butte Nature Park
+
+Reservoir Lane
+Connector 0.2 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Powell Butte Nature Park
+
+Anderegg Trail
+Connector 0.4 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Powell Butte Nature Park
+
+tail Way
+Trail 0.4 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Cooper Mountain Nature Park
+
+Big Pond Viewpoint
+Connector 0.0 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Tualatin Hills Nature Park
+
+Owl Path
+Connector 0.1 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Tualatin Hills Nature Park
+
+Trillium Loop
+Trail 0.2 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Tualatin Hills Nature Park
+
+Overlook Trail
+Trail 0.2 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Cooper Mountain Nature Park
+
+Little Prairie Loop
+Trail 0.7 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Cooper Mountain Nature Park
+
+Larkspur Loop
+Trail 0.5 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Cooper Mountain Nature Park
+
+Cooper Mountain Loop
+Trail 1.5 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Cooper Mountain Nature Park
+
+North Horse Loop
+Trail 1.6 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Tryon Creek State Natural Area
+
+Middle Creek Trail
+Trail 0.5 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Tryon Creek State Natural Area
+
+Lewis and Clark Trail
+Trail 0.8 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Tryon Creek State Natural Area
+
+North Connector
+Connector 0.0 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Tryon Creek State Natural Area
+
+Maple Ridge Trail
+Trail 0.4 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Tryon Creek State Natural Area
+
+Centennial Trail #T402
+Connector 0.1 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Tualatin River National Wildlife Refuge
+
+Tryon Creek Loop
+Trail 3.4 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Tryon Creek State Natural Area
+
+Cedar Trail
+Trail 0.9 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Tryon Creek State Natural Area
+
+West Horse Loop Trail
+Trail 1.0 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Tryon Creek State Natural Area
+
+Old Main Trail
+Trail 0.7 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Tryon Creek State Natural Area
+
+Red Fox Trail
+Trail 0.4 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Tryon Creek State Natural Area
+
+Glenn L Jackson Shelter Spur
+Connector 0.0 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Tryon Creek State Natural Area
+
+4th Ave Trail
+Trail 0.1 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Tryon Creek State Natural Area
+
+North Horse Loop to Bike Path
+Connector 0.0 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Tryon Creek State Natural Area
+
+Paved Parking Area to Bike Path Connector
+Connector 0.1 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Tryon Creek State Natural Area
+
+Hemlock Trail
+Trail 0.1 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Tryon Creek State Natural Area
+
+Lewis and Clark to North Horse
+Connector 0.0 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Tryon Creek State Natural Area
+
+Interlakes Trail
+Trail 0.4 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Smith and Bybee Wetlands Natural Area
+
+Smith Lake Loop Trail
+Trail 0.2 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Smith and Bybee Wetlands Natural Area
+
+Swamp Loop
+Connector 0.1 miles
+Oregon > Portland Metro and Mt. Hood > Portland > Smith and Bybee Wetlands Natural Area
+
+Hunchback Trail #793
+Trail 9.4 miles
+Oregon > Portland Metro and Mt. Hood > Mt. Hood Village

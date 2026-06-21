@@ -1,0 +1,7 @@
+# runtime image
+FROM scratch
+# Copy our static executable.
+ARG TARGETPLATFORM
+COPY $TARGETPLATFORM/trails-completionist /go/bin/trails-completionist
+# Run the binary.
+ENTRYPOINT ["/go/bin/trails-completionist"]

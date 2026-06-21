@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+	<link rel="stylesheet" href="/styles.css">
+	<script src="/app.js"></script>
+	<head>
+		<title>Trails Completionist</title>
+		<style>
+		/* Add your CSS styling here */
+		</style>
+	</head>
+	<body>
+		<h2>PDX</h2>
+
+		<div class="search-container">
+        	<input type="text" id="fuzzySearch" placeholder="Search trails...">
+		</div>
+		<div class="search-hint">
+			Tip: Try searches like "completed: yes", "park name: Forest Park", or mix free text with specific filters
+		</div>
+
+		<table id="trailTable" border="1">
+			<thead>
+				<tr>
+					<th data-column="trailName">Trail Name</th>
+					<th data-column="parkName">Park Name</th>
+					<th data-column="trailType">Trail Type</th>
+					<th data-column="trailLength">Trail Length</th>
+					<th data-column="trailURL">URL</th>
+					<th data-column="completed">Completed</th>
+					<th data-column="dateCompleted">Date Completed</th>
+				</tr>
+			</thead>
+			<tbody id="tableBody">
+				{{- range $park, $trails := .}}
+					{{range $trails}}
+					<tr>
+						<td>{{.Name}}</td>
+						<td>{{.Park}}</td>
+						<td>{{.Type}}</td>
+						<td>{{.Length}}</td>
+						<td><a href="{{.URL}}" target="_blank">Link</a></td>
+						<td><input type="checkbox" {{if .Completed}}checked{{end}}></td>
+						<td>{{if .Completed}} {{.CompletionDate}} {{else}} - {{end}}</td>
+					</tr>
+					{{end}}
+				{{end}}
+			</tbody>
+		</table>
+	</body>
+</html>
