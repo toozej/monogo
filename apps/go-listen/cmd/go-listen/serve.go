@@ -9,9 +9,9 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/toozej/go-listen/internal/server"
-	"github.com/toozej/go-listen/internal/services/scraper"
-	"github.com/toozej/go-listen/internal/services/search"
+	"github.com/toozej/monogo/apps/go-listen/internal/server"
+	"github.com/toozej/monogo/apps/go-listen/internal/services/scraper"
+	"github.com/toozej/monogo/apps/go-listen/internal/services/search"
 )
 
 var serveCmd = &cobra.Command{

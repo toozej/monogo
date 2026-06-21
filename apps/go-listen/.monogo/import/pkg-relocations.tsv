@@ -1,0 +1,5 @@
+github.com/toozej/monogo/apps/go-listen/pkg/config	github.com/toozej/monogo/pkg/go-listen/config
+github.com/toozej/monogo/apps/go-listen/pkg/logging	github.com/toozej/monogo/pkg/logging
+github.com/toozej/monogo/apps/go-listen/pkg/man	github.com/toozej/monogo/pkg/go-listen/man
+apps/go-listen/pkg/README.md	apps/go-listen/.monogo/original-pkg/README.md
+github.com/toozej/monogo/apps/go-listen/pkg/version	github.com/toozej/monogo/pkg/go-listen/version

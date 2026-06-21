@@ -34,6 +34,7 @@ jobs:
           - RSSFFS
           - go-find-liquor
           - photos2map
+          - go-listen
     steps:
       - name: Validate semver tag
         run: |
@@ -114,6 +115,7 @@ jobs:
           - RSSFFS
           - go-find-liquor
           - photos2map
+          - go-listen
     steps:
       - name: Install Cosign
         uses: sigstore/cosign-installer@v4.1.2 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
@@ -143,6 +145,7 @@ jobs:
           - RSSFFS
           - go-find-liquor
           - photos2map
+          - go-listen
     steps:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
@@ -168,6 +171,7 @@ jobs:
           - RSSFFS
           - go-find-liquor
           - photos2map
+          - go-listen
         registry: ['', 'ghcr.io/', 'quay.io/']
         tag: ['latest', 'distroless']
     steps:

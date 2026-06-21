@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/toozej/go-listen/pkg/logging"
+	"github.com/toozej/monogo/pkg/logging"
 )
 
 // LoggingMiddleware provides HTTP request logging with correlation IDs

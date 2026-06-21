@@ -12,8 +12,8 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/toozej/go-listen/pkg/config"
-	"github.com/toozej/go-listen/pkg/logging"
+	"github.com/toozej/monogo/pkg/go-listen/config"
+	"github.com/toozej/monogo/pkg/logging"
 )
 
 // TestMiddlewareIntegration tests the integration of all middleware components

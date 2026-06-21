@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/toozej/go-listen/internal/types"
+	"github.com/toozej/monogo/apps/go-listen/internal/types"
 )
 
 // TestFuzzyArtistSearcher_AdvancedScenarios tests advanced fuzzy matching scenarios

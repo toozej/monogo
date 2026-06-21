@@ -54,7 +54,7 @@ cp .env.sample .env
 
 ```bash
 # Download latest release (replace with actual URL)
-wget https://github.com/toozej/go-listen/releases/latest/download/go-listen-linux-amd64
+wget https://github.com/toozej/monogo/apps/go-listen/releases/latest/download/go-listen-linux-amd64
 chmod +x go-listen-linux-amd64
 mv go-listen-linux-amd64 go-listen
 

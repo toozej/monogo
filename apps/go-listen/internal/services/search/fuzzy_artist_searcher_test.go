@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/sirupsen/logrus"
-	"github.com/toozej/go-listen/internal/server"
+	"github.com/toozej/monogo/apps/go-listen/internal/server"
 )
 
 // MockSpotifyService implements SpotifyService for testing

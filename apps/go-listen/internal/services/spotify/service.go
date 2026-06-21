@@ -4,8 +4,8 @@ import (
 	"errors"
 
 	"github.com/sirupsen/logrus"
-	"github.com/toozej/go-listen/internal/types"
-	"github.com/toozej/go-listen/pkg/config"
+	"github.com/toozej/monogo/apps/go-listen/internal/types"
+	"github.com/toozej/monogo/pkg/go-listen/config"
 )
 
 // Service implements the types.SpotifyService interface

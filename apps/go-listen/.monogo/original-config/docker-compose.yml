@@ -1,0 +1,21 @@
+---
+services:
+  go-listen:
+    container_name: go-listen
+    image: toozej/go-listen:latest
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    labels:
+      - "traefik.enable=false"
+      # labels below for publishing as web service
+      # - "traefik.docker.network=traefik"
+      # - "traefik.http.routers.go-listen.rule=Host(`go-listen.test`)"
+      # - "traefik.http.routers.go-listen.middlewares=http-redirect-https@file,headers@file"
+      # - "traefik.http.routers.go-listen-secure.entrypoints=https"
+      # - "traefik.http.routers.go-listen-secure.rule=Host(`go-listen.test`)"
+      # - "traefik.http.routers.go-listen-secure.middlewares=headers@file"
+      # - "traefik.http.routers.go-listen-secure.tls=true"
+    # networks:
+      # - traefik

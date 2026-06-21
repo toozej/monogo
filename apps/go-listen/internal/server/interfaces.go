@@ -1,7 +1,7 @@
 package server
 
 import (
-	"github.com/toozej/go-listen/internal/types"
+	"github.com/toozej/monogo/apps/go-listen/internal/types"
 )
 
 // Re-export types for backward compatibility

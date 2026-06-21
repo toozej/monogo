@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/toozej/go-listen/pkg/config"
+	"github.com/toozej/monogo/pkg/go-listen/config"
 )
 
 // TestSpotifyService_Integration tests the complete integration flow with mocked responses

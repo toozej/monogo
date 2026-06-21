@@ -11,7 +11,7 @@
 //
 // Example usage:
 //
-//	import "github.com/toozej/go-listen/cmd/go-listen"
+//	import "github.com/toozej/monogo/apps/go-listen/cmd/go-listen"
 //
 //	func main() {
 //		cmd.Execute()
@@ -25,9 +25,9 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/toozej/go-listen/pkg/config"
-	"github.com/toozej/go-listen/pkg/man"
-	"github.com/toozej/go-listen/pkg/version"
+	"github.com/toozej/monogo/pkg/go-listen/config"
+	"github.com/toozej/monogo/pkg/go-listen/man"
+	"github.com/toozej/monogo/pkg/go-listen/version"
 )
 
 // conf holds the application configuration loaded from environment variables.

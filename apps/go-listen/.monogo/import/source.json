@@ -1,0 +1,12 @@
+{
+  "source": "toozej/go-listen",
+  "vcsHost": "github.com/",
+  "owner": "toozej",
+  "repo": "go-listen",
+  "ownerRepo": "toozej/go-listen",
+  "repoURL": "https://github.com/toozej/go-listen.git",
+  "ref": "main",
+  "oldModule": "github.com/toozej/go-listen",
+  "newModule": "github.com/toozej/monogo/apps/go-listen",
+  "tagPrefix": "apps/go-listen"
+}

@@ -1,14 +1,9 @@
 [build]
-# Just plain old shell command. You could use `make` as well.
-cmd = "make local-build local-kill local-run"
+cmd = "make local-build local-kill local-run APP=go-listen"
 
-# Watch these filename extensions.
 include_ext = ["go", "tpl", "tmpl", "html"]
 
-# Ignore these filename extensions or directories.
-exclude_dir = ["assets", "tmp", "vendor", "testdata", "out"]
-
+exclude_dir = ["assets", "tmp", "vendor", "testdata", "out", "dist"]
 
 [misc]
-# Delete tmp directory on exit
 clean_on_exit = true

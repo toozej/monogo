@@ -27,6 +27,7 @@ jobs:
           - RSSFFS
           - go-find-liquor
           - photos2map
+          - go-listen
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-go@v6

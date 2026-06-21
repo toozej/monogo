@@ -13,7 +13,7 @@ import (
 	"github.com/leanovate/gopter/gen"
 	"github.com/leanovate/gopter/prop"
 	"github.com/sirupsen/logrus"
-	"github.com/toozej/go-listen/internal/types"
+	"github.com/toozej/monogo/apps/go-listen/internal/types"
 )
 
 // **Feature: web-scraping-artist-discovery, Property 1: Valid URL fetching**

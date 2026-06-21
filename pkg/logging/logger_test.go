@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/sirupsen/logrus"
-	"github.com/toozej/go-listen/pkg/config"
+	"github.com/toozej/monogo/pkg/go-listen/config"
 )
 
 func TestNewLogger(t *testing.T) {
@@ -62,7 +62,7 @@ func TestNewLogger(t *testing.T) {
 			// Check formatter type
 			isJSON := false
 			isText := false
-			switch logger.Logger.Formatter.(type) {
+			switch logger.Formatter.(type) {
 			case *logrus.JSONFormatter:
 				isJSON = true
 			case *logrus.TextFormatter:

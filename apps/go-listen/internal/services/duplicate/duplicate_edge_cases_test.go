@@ -8,7 +8,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/toozej/go-listen/internal/types"
+	"github.com/toozej/monogo/apps/go-listen/internal/types"
 )
 
 // TestDuplicateService_EdgeCases tests various edge cases and boundary conditions

@@ -6,7 +6,7 @@ import (
 
 	"github.com/sahilm/fuzzy"
 	"github.com/sirupsen/logrus"
-	"github.com/toozej/go-listen/internal/types"
+	"github.com/toozej/monogo/apps/go-listen/internal/types"
 )
 
 // FuzzyArtistSearcher implements fuzzy matching for artist search

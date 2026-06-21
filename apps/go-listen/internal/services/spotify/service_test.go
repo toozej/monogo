@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/sirupsen/logrus"
-	"github.com/toozej/go-listen/pkg/config"
+	"github.com/toozej/monogo/pkg/go-listen/config"
 )
 
 func TestService_GetArtistTopTracks(t *testing.T) {

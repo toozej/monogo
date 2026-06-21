@@ -14,7 +14,7 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/sirupsen/logrus"
-	"github.com/toozej/go-listen/internal/types"
+	"github.com/toozej/monogo/apps/go-listen/internal/types"
 )
 
 // ScraperService defines the interface for web scraping operations.
@@ -332,7 +332,7 @@ func (w *WebScraper) fetchURL(url string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("HTTP request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	w.logger.WithFields(logrus.Fields{
 		"component":      "scraper",

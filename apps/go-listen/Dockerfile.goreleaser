@@ -1,9 +1,8 @@
-# runtime image including CA certs and tzdata
-FROM gcr.io/distroless/static-debian13:nonroot
+# runtime image
+FROM scratch
 # Copy our static executable.
 ARG TARGETPLATFORM
 COPY $TARGETPLATFORM/go-listen /go/bin/go-listen
-# Expose port for publishing as web service
-EXPOSE 8080
 # Run the binary.
-ENTRYPOINT ["/go/bin/go-listen", "serve"]
+USER 65532:65532
+ENTRYPOINT ["/go/bin/go-listen"]

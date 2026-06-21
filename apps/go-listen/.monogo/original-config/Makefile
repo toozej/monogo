@@ -27,7 +27,7 @@ LDFLAGS = -s -w \
 	-X $(VER).Builder=$(BUILDER)
 	
 # Define the repository URL
-REPO_URL := https://github.com/toozej/go-listen
+REPO_URL := https://github.com/toozej/monogo/apps/go-listen
 
 # Docker image info
 IMAGE_AUTHOR = toozej
@@ -82,7 +82,7 @@ release: ## Build and sign Docker image
 
 verify: ## Verify Docker image with Cosign
 	cosign verify \
-		--certificate-identity-regexp '^https://github.com/toozej/go-listen/\.github/workflows/(release|weekly-docker-refresh)\.yaml@refs/(tags/.*|heads/main)$$' \
+		--certificate-identity-regexp '^https://github.com/toozej/monogo/apps/go-listen/\.github/workflows/(release|weekly-docker-refresh)\.yaml@refs/(tags/.*|heads/main)$$' \
 		--certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
 		$(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG)
 
@@ -100,7 +100,7 @@ down: ## Stop running Docker Compose project
 
 install: ## Install go-listen from latest GitHub release
 	if command -v go; then \
-			go install github.com/toozej/go-listen@latest ; \
+			go install github.com/toozej/monogo/apps/go-listen@latest ; \
 	else \
 			echo "Downloading go-listen binary for $(OS)-$(ARCH)..."; \
 			mkdir -p $(CURDIR)/tmp; \
@@ -163,7 +163,7 @@ local-sign: local-test ## Sign locally installed golang toolchain and cosign
 local-verify: ## Verify locally compiled binary
 	if test -e $(CURDIR)/out/go-listen.bundle; then \
 		cosign verify-blob \
-			--certificate-identity-regexp '^https://github.com/toozej/go-listen/\.github/workflows/release\.yaml@refs/tags/.*$$' \
+			--certificate-identity-regexp '^https://github.com/toozej/monogo/apps/go-listen/\.github/workflows/release\.yaml@refs/tags/.*$$' \
 			--certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
 			--bundle $(CURDIR)/out/go-listen.bundle \
 			$(CURDIR)/out/go-listen; \
@@ -243,7 +243,7 @@ pre-commit-install: ## Install pre-commit hooks and necessary binaries
 pre-commit-run: ## Run pre-commit hooks against all files
 	pre-commit run --all-files
 	# manually run the following checks since their pre-commits aren't working or don't exist
-	go-licenses report github.com/toozej/go-listen/cmd/go-listen
+	go-licenses report github.com/toozej/monogo/apps/go-listen/cmd/go-listen
 	govulncheck ./...
 
 update-golang-version: ## Update to latest Golang version across the repo

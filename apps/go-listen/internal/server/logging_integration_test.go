@@ -9,9 +9,9 @@ import (
 	"testing"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/toozej/go-listen/internal/middleware"
-	"github.com/toozej/go-listen/pkg/config"
-	"github.com/toozej/go-listen/pkg/logging"
+	"github.com/toozej/monogo/apps/go-listen/internal/middleware"
+	"github.com/toozej/monogo/pkg/go-listen/config"
+	"github.com/toozej/monogo/pkg/logging"
 )
 
 func TestLoggingIntegration_HTTPMiddleware(t *testing.T) {

@@ -8,7 +8,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/toozej/go-listen/internal/server"
+	"github.com/toozej/monogo/apps/go-listen/internal/server"
 )
 
 // MockSpotifyService is a mock implementation of SpotifyService for testing

@@ -6,7 +6,7 @@ import (
 	"github.com/leanovate/gopter"
 	"github.com/leanovate/gopter/gen"
 	"github.com/leanovate/gopter/prop"
-	"github.com/toozej/go-listen/internal/services/scraper"
+	"github.com/toozej/monogo/apps/go-listen/internal/services/scraper"
 )
 
 // **Feature: web-scraping-artist-discovery, Property 16: CLI error exit codes**

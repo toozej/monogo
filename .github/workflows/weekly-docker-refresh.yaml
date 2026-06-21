@@ -30,6 +30,7 @@ jobs:
           - RSSFFS
           - go-find-liquor
           - photos2map
+          - go-listen
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -131,6 +132,7 @@ jobs:
           - RSSFFS
           - go-find-liquor
           - photos2map
+          - go-listen
         registry: ['', 'ghcr.io/', 'quay.io/']
         tag: ['latest', 'distroless']
     steps:

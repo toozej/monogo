@@ -17,7 +17,7 @@
 //
 // Example usage:
 //
-//	import "github.com/toozej/go-listen/pkg/config"
+//	import "github.com/toozej/monogo/pkg/go-listen/config"
 //
 //	func main() {
 //		conf := config.GetEnvVars()

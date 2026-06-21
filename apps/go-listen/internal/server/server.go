@@ -10,13 +10,13 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/toozej/go-listen/internal/middleware"
-	"github.com/toozej/go-listen/internal/services/playlist"
-	"github.com/toozej/go-listen/internal/services/scraper"
-	"github.com/toozej/go-listen/internal/services/spotify"
-	"github.com/toozej/go-listen/internal/types"
-	"github.com/toozej/go-listen/pkg/config"
-	"github.com/toozej/go-listen/pkg/logging"
+	"github.com/toozej/monogo/apps/go-listen/internal/middleware"
+	"github.com/toozej/monogo/apps/go-listen/internal/services/playlist"
+	"github.com/toozej/monogo/apps/go-listen/internal/services/scraper"
+	"github.com/toozej/monogo/apps/go-listen/internal/services/spotify"
+	"github.com/toozej/monogo/apps/go-listen/internal/types"
+	"github.com/toozej/monogo/pkg/go-listen/config"
+	"github.com/toozej/monogo/pkg/logging"
 )
 
 //go:embed static/*

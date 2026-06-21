@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/toozej/go-listen/pkg/config"
+	"github.com/toozej/monogo/pkg/go-listen/config"
 )
 
 func TestServer_Lifecycle(t *testing.T) {

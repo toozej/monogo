@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/toozej/go-listen/internal/server"
+	"github.com/toozej/monogo/apps/go-listen/internal/server"
 )
 
 // TestOverrideScenarios tests various override scenarios for duplicate detection

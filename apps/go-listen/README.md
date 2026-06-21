@@ -1,7 +1,7 @@
 # go-listen
 
 ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/toozej/go-listen)
-[![Go Report Card](https://goreportcard.com/badge/github.com/toozej/go-listen)](https://goreportcard.com/report/github.com/toozej/go-listen)
+[![Go Report Card](https://goreportcard.com/badge/github.com/toozej/monogo/apps/go-listen)](https://goreportcard.com/report/github.com/toozej/monogo/apps/go-listen)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/toozej/go-listen/cicd.yaml)
 ![Docker Pulls](https://img.shields.io/docker/pulls/toozej/go-listen)
 ![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/toozej/go-listen/total)
@@ -43,7 +43,7 @@ make install
 
 ```bash
 # Download the latest release for your platform
-wget https://github.com/toozej/go-listen/releases/latest/download/go-listen-linux-amd64
+wget https://github.com/toozej/monogo/apps/go-listen/releases/latest/download/go-listen-linux-amd64
 chmod +x go-listen-linux-amd64
 mv go-listen-linux-amd64 go-listen
 ```

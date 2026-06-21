@@ -154,12 +154,12 @@ func TestConfigLoading(t *testing.T) {
 			// Mock environment variables
 			var envKeys []string
 			for key, value := range tt.mockEnv {
-				os.Setenv(key, value)
+				_ = os.Setenv(key, value)
 				envKeys = append(envKeys, key)
 			}
 			defer func() {
 				for _, key := range envKeys {
-					os.Unsetenv(key)
+					_ = os.Unsetenv(key)
 				}
 			}()
 
@@ -297,18 +297,18 @@ func TestGetEnvVars(t *testing.T) {
 			}
 
 			for _, key := range envVarsToClean {
-				os.Unsetenv(key)
+				_ = os.Unsetenv(key)
 			}
 
 			// Set mock environment variables
 			var envKeys []string
 			for key, value := range tt.mockEnv {
-				os.Setenv(key, value)
+				_ = os.Setenv(key, value)
 				envKeys = append(envKeys, key)
 			}
 			defer func() {
 				for _, key := range envKeys {
-					os.Unsetenv(key)
+					_ = os.Unsetenv(key)
 				}
 			}()
 

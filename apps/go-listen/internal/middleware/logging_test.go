@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/toozej/go-listen/pkg/config"
-	"github.com/toozej/go-listen/pkg/logging"
+	"github.com/toozej/monogo/pkg/go-listen/config"
+	"github.com/toozej/monogo/pkg/logging"
 )
 
 func TestNewLoggingMiddleware(t *testing.T) {
@@ -298,7 +298,7 @@ func TestGenerateCorrelationID(t *testing.T) {
 	}
 
 	for _, char := range id1 {
-		if !((char >= '0' && char <= '9') || (char >= 'a' && char <= 'f')) {
+		if (char < '0' || char > '9') && (char < 'a' || char > 'f') {
 			t.Errorf("Expected correlation ID to contain only hex characters, found: %c", char)
 		}
 	}
