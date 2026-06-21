@@ -138,12 +138,12 @@ func TestRenderFromFile_InvalidFile(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to create temp file: %v", err)
 			}
-			defer os.Remove(tmpFile.Name())
+			defer func() { _ = os.Remove(tmpFile.Name()) }()
 
 			if _, err := tmpFile.WriteString(tt.content); err != nil {
 				t.Fatalf("failed to write to temp file: %v", err)
 			}
-			tmpFile.Close()
+			_ = tmpFile.Close()
 
 			var buf bytes.Buffer
 			err = RenderFromFile(tmpFile.Name(), tt.width, tt.height, &buf)

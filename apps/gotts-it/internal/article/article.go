@@ -73,13 +73,13 @@ func fromFile(filePath string) (Article, error) {
 	if err != nil {
 		return Article{}, fmt.Errorf("open root %s: %w", dir, err)
 	}
-	defer root.Close()
+	defer func() { _ = root.Close() }()
 
 	f, err := root.Open(base)
 	if err != nil {
 		return Article{}, fmt.Errorf("open file %s: %w", filePath, err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	baseURL, _ := url.Parse("https://localhost/")
 	doc, err := readability.FromReader(io.NopCloser(f), baseURL)

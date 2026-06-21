@@ -25,6 +25,7 @@ jobs:
       matrix:
         app:
           - monogo
+          - gotts-it
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -121,6 +122,7 @@ jobs:
       matrix:
         app:
           - monogo
+          - gotts-it
         registry: ['', 'ghcr.io/', 'quay.io/']
         tag: ['latest', 'distroless']
     steps:

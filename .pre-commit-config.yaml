@@ -2,6 +2,12 @@
 default_language_version: {python: python3}
 minimum_pre_commit_version: "1.15"
 
+# Imported apps preserve their original go.mod/go.sum and build config under
+# apps/<app>/.monogo/. Those archival files are not part of the active build, so
+# exclude them from all hooks (the *-mod Go hooks would otherwise try to lint and
+# test the empty preserved module and fail).
+exclude: '(^|/)\.monogo/'
+
 repos:
   # generate app-local config files from gomplate templates before linting them
   - repo: local

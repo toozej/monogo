@@ -49,13 +49,13 @@ func SynthesizeGoogleTranslate(ctx context.Context, text, outputPath string, opt
 	if err != nil {
 		return fmt.Errorf("open root %s: %w", dir, err)
 	}
-	defer root.Close()
+	defer func() { _ = root.Close() }()
 
 	f, err := root.Create(base)
 	if err != nil {
 		return fmt.Errorf("create output file %s: %w", outputPath, err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	client := &http.Client{Timeout: opts.Timeout}
 

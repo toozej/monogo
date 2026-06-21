@@ -29,6 +29,7 @@ jobs:
       matrix:
         app:
           - monogo
+          - gotts-it
     steps:
       - name: Validate semver tag
         run: |
@@ -104,6 +105,7 @@ jobs:
       matrix:
         app:
           - monogo
+          - gotts-it
     steps:
       - name: Install Cosign
         uses: sigstore/cosign-installer@v4.1.2 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
@@ -128,6 +130,7 @@ jobs:
       matrix:
         app:
           - monogo
+          - gotts-it
     steps:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
@@ -148,6 +151,7 @@ jobs:
       matrix:
         app:
           - monogo
+          - gotts-it
         registry: ['', 'ghcr.io/', 'quay.io/']
         tag: ['latest', 'distroless']
     steps:

@@ -1,0 +1,12 @@
+{
+  "source": "toozej/gotts-it",
+  "vcsHost": "github.com/",
+  "owner": "toozej",
+  "repo": "gotts-it",
+  "ownerRepo": "toozej/gotts-it",
+  "repoURL": "https://github.com/toozej/gotts-it.git",
+  "ref": "main",
+  "oldModule": "github.com/toozej/gotts-it",
+  "newModule": "github.com/toozej/monogo/apps/gotts-it",
+  "tagPrefix": "apps/gotts-it"
+}

@@ -6,7 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/toozej/gotts-it/internal/avatar"
+	"github.com/toozej/monogo/apps/gotts-it/internal/avatar"
 )
 
 func newAvatarCmd() *cobra.Command {

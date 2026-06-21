@@ -1,0 +1,4 @@
+github.com/toozej/monogo/apps/gotts-it/pkg/config	github.com/toozej/monogo/pkg/gotts-it/config
+github.com/toozej/monogo/apps/gotts-it/pkg/man	github.com/toozej/monogo/pkg/gotts-it/man
+apps/gotts-it/pkg/README.md	apps/gotts-it/.monogo/original-pkg/README.md
+github.com/toozej/monogo/apps/gotts-it/pkg/version	github.com/toozej/monogo/pkg/gotts-it/version

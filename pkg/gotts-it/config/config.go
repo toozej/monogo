@@ -17,7 +17,7 @@
 //
 // Example usage:
 //
-//	import "github.com/toozej/gotts-it/pkg/config"
+//	import "github.com/toozej/monogo/pkg/gotts-it/config"
 //
 //	func main() {
 //

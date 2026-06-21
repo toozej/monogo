@@ -12,9 +12,9 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/toozej/gotts-it/internal/article"
-	"github.com/toozej/gotts-it/internal/slug"
-	"github.com/toozej/gotts-it/internal/tts"
+	"github.com/toozej/monogo/apps/gotts-it/internal/article"
+	"github.com/toozej/monogo/apps/gotts-it/internal/slug"
+	"github.com/toozej/monogo/apps/gotts-it/internal/tts"
 )
 
 func newServerCmd() *cobra.Command {

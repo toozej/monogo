@@ -7,6 +7,17 @@ services:
     security_opt:
       - no-new-privileges:true
     read_only: true
+    depends_on:
+      - speaches
+    env_file:
+      - gotts-it.env
+    command: ["server", "--output-dir", "/out"]
+    stdin_open: true
+    volumes:
+      - ./out:/out
+    networks:
+      - backend
+      # - traefik
     labels:
       - "traefik.enable=false"
       # labels below for publishing as web service
@@ -17,5 +28,26 @@ services:
       # - "traefik.http.routers.gotts-it-secure.rule=Host(`gotts-it.test`)"
       # - "traefik.http.routers.gotts-it-secure.middlewares=headers@file"
       # - "traefik.http.routers.gotts-it-secure.tls=true"
-    # networks:
-      # - traefik
+
+  speaches:
+    container_name: speaches
+    image: ghcr.io/speaches-ai/speaches:latest-cpu
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - hf-hub-cache:/home/ubuntu/.cache/huggingface/hub
+    networks:
+      - backend
+    ports:
+      - 8000:8000
+    labels:
+      - "traefik.enable=false"
+
+networks:
+  backend:
+    driver: bridge
+
+
+volumes:
+  hf-hub-cache:

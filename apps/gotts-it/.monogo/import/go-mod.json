@@ -1,0 +1,223 @@
+{
+	"Module": {
+		"Path": "github.com/toozej/gotts-it"
+	},
+	"Go": "1.26",
+	"Require": [
+		{
+			"Path": "codeberg.org/readeck/go-readability/v2",
+			"Version": "v2.1.2"
+		},
+		{
+			"Path": "github.com/blacktop/go-termimg",
+			"Version": "v0.1.26"
+		},
+		{
+			"Path": "github.com/blushft/go-diagrams",
+			"Version": "v0.0.0-20250322201119-d91ac4ca5de4"
+		},
+		{
+			"Path": "github.com/caarlos0/env/v11",
+			"Version": "v11.4.1"
+		},
+		{
+			"Path": "github.com/joho/godotenv",
+			"Version": "v1.5.1"
+		},
+		{
+			"Path": "github.com/muesli/mango-cobra",
+			"Version": "v1.3.0"
+		},
+		{
+			"Path": "github.com/muesli/roff",
+			"Version": "v0.1.0"
+		},
+		{
+			"Path": "github.com/openai/openai-go/v3",
+			"Version": "v3.41.0"
+		},
+		{
+			"Path": "github.com/sirupsen/logrus",
+			"Version": "v1.9.4"
+		},
+		{
+			"Path": "github.com/spf13/cobra",
+			"Version": "v1.10.2"
+		},
+		{
+			"Path": "github.com/andybalholm/cascadia",
+			"Version": "v1.3.4",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/awalterschulze/gographviz",
+			"Version": "v2.0.3+incompatible",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/charmbracelet/colorprofile",
+			"Version": "v0.4.3",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/charmbracelet/x/ansi",
+			"Version": "v0.11.7",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/charmbracelet/x/cellbuf",
+			"Version": "v0.0.15",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/charmbracelet/x/mosaic",
+			"Version": "v0.0.0-20260615092313-b57e5e6d29bb",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/charmbracelet/x/term",
+			"Version": "v0.2.2",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/clipperhouse/displaywidth",
+			"Version": "v0.11.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/clipperhouse/uax29/v2",
+			"Version": "v2.7.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/go-shiori/dom",
+			"Version": "v0.0.0-20230515143342-73569d674e1c",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/gogs/chardet",
+			"Version": "v0.0.0-20211120154057-b7413eaefb8f",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/google/uuid",
+			"Version": "v1.6.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/inconshreveable/mousetrap",
+			"Version": "v1.1.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/itlightning/dateparse",
+			"Version": "v0.2.1",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/lucasb-eyer/go-colorful",
+			"Version": "v1.4.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/makeworld-the-better-one/dither/v2",
+			"Version": "v2.4.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/mattn/go-runewidth",
+			"Version": "v0.0.24",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/mattn/go-sixel",
+			"Version": "v0.0.11",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/muesli/mango",
+			"Version": "v0.2.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/muesli/mango-pflag",
+			"Version": "v0.2.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/nfnt/resize",
+			"Version": "v0.0.0-20180221191011-83c6a9932646",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/rivo/uniseg",
+			"Version": "v0.4.7",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/soniakeys/quant",
+			"Version": "v1.0.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/spf13/pflag",
+			"Version": "v1.0.10",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/tidwall/gjson",
+			"Version": "v1.19.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/tidwall/match",
+			"Version": "v1.2.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/tidwall/pretty",
+			"Version": "v1.2.1",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/tidwall/sjson",
+			"Version": "v1.2.5",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/xo/terminfo",
+			"Version": "v0.0.0-20220910002029-abceb7e1c41e",
+			"Indirect": true
+		},
+		{
+			"Path": "golang.org/x/image",
+			"Version": "v0.43.0",
+			"Indirect": true
+		},
+		{
+			"Path": "golang.org/x/net",
+			"Version": "v0.56.0",
+			"Indirect": true
+		},
+		{
+			"Path": "golang.org/x/sys",
+			"Version": "v0.46.0",
+			"Indirect": true
+		},
+		{
+			"Path": "golang.org/x/term",
+			"Version": "v0.44.0",
+			"Indirect": true
+		},
+		{
+			"Path": "golang.org/x/text",
+			"Version": "v0.38.0",
+			"Indirect": true
+		}
+	],
+	"Exclude": null,
+	"Replace": null,
+	"Retract": null,
+	"Tool": null,
+	"Ignore": null
+}

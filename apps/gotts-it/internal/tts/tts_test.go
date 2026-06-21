@@ -370,13 +370,13 @@ func TestWriteUint32LE(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open root: %v", err)
 	}
-	defer root.Close()
+	defer func() { _ = root.Close() }()
 
 	f, err := root.OpenFile(filepath.Base(path), os.O_RDWR, 0)
 	if err != nil {
 		t.Fatalf("open file: %v", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	if err := writeUint32LE(f, 0x12345678, 0); err != nil {
 		t.Fatalf("writeUint32LE: %v", err)
@@ -396,8 +396,8 @@ func TestWriteChunk_PCM(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create temp file: %v", err)
 	}
-	defer f.Close()
-	defer os.Remove(f.Name())
+	defer func() { _ = f.Close() }()
+	defer func() { _ = os.Remove(f.Name()) }()
 
 	resp := &http.Response{
 		Body: io.NopCloser(strings.NewReader("pcm-data")),
@@ -412,8 +412,8 @@ func TestWriteChunk_WAV(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create temp file: %v", err)
 	}
-	defer f.Close()
-	defer os.Remove(f.Name())
+	defer func() { _ = f.Close() }()
+	defer func() { _ = os.Remove(f.Name()) }()
 
 	resp := &http.Response{
 		Body: io.NopCloser(strings.NewReader("wav-data")),
@@ -428,8 +428,8 @@ func TestWriteChunk_DefaultFormat(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create temp file: %v", err)
 	}
-	defer f.Close()
-	defer os.Remove(f.Name())
+	defer func() { _ = f.Close() }()
+	defer func() { _ = os.Remove(f.Name()) }()
 
 	resp := &http.Response{
 		Body: io.NopCloser(strings.NewReader("default-data")),
@@ -444,8 +444,8 @@ func TestWriteChunk_FLACNotFirst(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create temp file: %v", err)
 	}
-	defer f.Close()
-	defer os.Remove(f.Name())
+	defer func() { _ = f.Close() }()
+	defer func() { _ = os.Remove(f.Name()) }()
 
 	resp := &http.Response{
 		Body: io.NopCloser(strings.NewReader("flac-data")),

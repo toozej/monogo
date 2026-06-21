@@ -11,11 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/spf13/cobra"
-
-	"github.com/toozej/gotts-it/internal/article"
-	"github.com/toozej/gotts-it/internal/tts"
-	"github.com/toozej/gotts-it/pkg/config"
+	"github.com/toozej/monogo/apps/gotts-it/internal/article"
+	"github.com/toozej/monogo/apps/gotts-it/internal/tts"
+	"github.com/toozej/monogo/pkg/gotts-it/config"
 )
 
 func TestNewServerCmd_ReturnsCommand(t *testing.T) {
@@ -477,5 +475,5 @@ func TestServerCmdRunE_EmptyLines(t *testing.T) {
 }
 
 func TestNewServerCmd_IsCobraCommand(t *testing.T) {
-	var _ *cobra.Command = newServerCmd()
+	var _ = newServerCmd()
 }

@@ -70,13 +70,13 @@ func Synthesize(ctx context.Context, text, outputPath string, opts Options) erro
 	if err != nil {
 		return fmt.Errorf("open root %s: %w", dir, err)
 	}
-	defer root.Close()
+	defer func() { _ = root.Close() }()
 
 	f, err := root.Create(base)
 	if err != nil {
 		return fmt.Errorf("create output file %s: %w", outputPath, err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	format := responseFormat(opts.Format)
 
@@ -236,13 +236,13 @@ func rewriteWAVHeader(path string) error {
 	if err != nil {
 		return fmt.Errorf("open root %s: %w", dir, err)
 	}
-	defer root.Close()
+	defer func() { _ = root.Close() }()
 
 	f, err := root.OpenFile(base, os.O_RDWR, 0)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	info, err := f.Stat()
 	if err != nil {

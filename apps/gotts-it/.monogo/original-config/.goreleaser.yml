@@ -2,11 +2,6 @@
 version: 2
 
 project_name: gotts-it
-dist: dist/gotts-it
-
-git:
-  ignore_tags:
-    - apps/*
 
 env:
   - GO111MODULE=on
@@ -18,15 +13,14 @@ env_files:
 before:
   hooks:
     - go mod tidy
-    - ./scripts/completions.sh gotts-it
-    - ./scripts/manpages.sh gotts-it
+    - ./scripts/completions.sh
+    - ./scripts/manpages.sh
 
 snapshot:
   version_template: '{{ incpatch .Version }}-next'
 
 builds:
-  - id: gotts-it
-    env:
+  - env:
       - CGO_ENABLED=0
     goos:
       - linux
@@ -48,12 +42,12 @@ builds:
     ldflags:
       - >-
         -s -w
-        -X github.com/toozej/monogo/pkg/version.Version={{.Version}}
-        -X github.com/toozej/monogo/pkg/version.Commit={{.Commit}}
-        -X github.com/toozej/monogo/pkg/version.Branch={{.Branch}}
-        -X github.com/toozej/monogo/pkg/version.BuiltAt={{.CommitDate}}
-        -X github.com/toozej/monogo/pkg/version.Builder=goreleaser
-    main: ./apps/gotts-it
+        -X github.com/toozej/monogo/apps/gotts-it/pkg/version.Version={{.Version}}
+        -X github.com/toozej/monogo/apps/gotts-it/pkg/version.Commit={{.Commit}}
+        -X github.com/toozej/monogo/apps/gotts-it/pkg/version.Branch={{.Branch}}
+        -X github.com/toozej/monogo/apps/gotts-it/pkg/version.BuiltAt={{.CommitDate}}
+        -X github.com/toozej/monogo/apps/gotts-it/pkg/version.Builder=goreleaser
+    main: ./
     binary: gotts-it
 
 universal_binaries:
@@ -61,9 +55,6 @@ universal_binaries:
 
 checksum:
   name_template: 'checksums.txt'
-
-docker_digest:
-  name_template: 'digests.txt'
 
 changelog:
   sort: asc
@@ -105,74 +96,36 @@ dockers_v2:
       - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ .Version
         }}{{ end }}'
       - "latest"
-    dockerfile: apps/gotts-it/Dockerfile.goreleaser
-    labels:
-      "io.artifacthub.package.readme-url": "https://github.com/toozej/monogo/raw/main/README.md"
-      "io.artifacthub.package.maintainers": "[{\"name\":\"toozej\"}]"
-      "io.artifacthub.package.license": "GPLv3"
-      "org.opencontainers.image.description": >-
-        Go-based Text-To-Speech Tool
-      "org.opencontainers.image.created": "{{.Date}}"
-      "org.opencontainers.image.name": "{{.ProjectName}}"
-      "org.opencontainers.image.revision": "{{.FullCommit}}"
-      "org.opencontainers.image.version": "{{.Version}}"
-      "org.opencontainers.image.source": "{{.GitURL}}"
-      "org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
-      "org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
-      "org.opencontainers.image.licenses": "GPL-3.0-only"
-      "org.opencontainers.image.title": "{{.ProjectName}}"
-      "org.opencontainers.image.vendor": "James Tooze"
-    annotations:
-      "index,manifest:org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
-      "index,manifest:org.opencontainers.image.created": "{{.Date}}"
-      "index,manifest:org.opencontainers.image.description": >-
-        Go-based Text-To-Speech Tool
-      "index,manifest:org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
-      "index,manifest:org.opencontainers.image.licenses": "GPL-3.0-only"
-      "index,manifest:org.opencontainers.image.revision": "{{.FullCommit}}"
-      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/monogo"
-      "index,manifest:org.opencontainers.image.title": "{{.ProjectName}}"
-      "index,manifest:org.opencontainers.image.vendor": "James Tooze"
-      "index,manifest:org.opencontainers.image.version": "{{.Version}}"
-    extra_files:
-      - scripts/goreleaser_entrypoint.sh
-  - id: gotts-it-distroless
-    images:
-      - 'toozej/gotts-it'
-      - 'ghcr.io/toozej/gotts-it'
-      - 'quay.io/toozej/gotts-it'
-    tags:
       - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}v{{ .Version
         }}-distroless{{ end }}'
       - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ .Version
         }}-distroless{{ end }}'
       - "distroless"
-    dockerfile: apps/gotts-it/Dockerfile.goreleaser.distroless
+    dockerfile: Dockerfile.goreleaser
     labels:
-      "io.artifacthub.package.readme-url": "https://github.com/toozej/monogo/raw/main/README.md"
+      "io.artifacthub.package.readme-url": "https://raw.githubusercontent.com/toozej/gotts-it/main/README.md"
       "io.artifacthub.package.maintainers": "[{\"name\":\"toozej\"}]"
       "io.artifacthub.package.license": "GPLv3"
-      "org.opencontainers.image.description": >-
-        Go-based Text-To-Speech Tool
+      "org.opencontainers.image.description": "Convert text (URL, text file) to speech"
       "org.opencontainers.image.created": "{{.Date}}"
       "org.opencontainers.image.name": "{{.ProjectName}}"
       "org.opencontainers.image.revision": "{{.FullCommit}}"
       "org.opencontainers.image.version": "{{.Version}}"
       "org.opencontainers.image.source": "{{.GitURL}}"
       "org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
-      "org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
+      "org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/gotts-it/main/README.md"
       "org.opencontainers.image.licenses": "GPL-3.0-only"
       "org.opencontainers.image.title": "{{.ProjectName}}"
       "org.opencontainers.image.vendor": "James Tooze"
     annotations:
       "index,manifest:org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
       "index,manifest:org.opencontainers.image.created": "{{.Date}}"
-      "index,manifest:org.opencontainers.image.description": >-
-        Go-based Text-To-Speech Tool
-      "index,manifest:org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
+      "index,manifest:org.opencontainers.image.description": "Convert text (URL, text file)\
+        \ to speech"
+      "index,manifest:org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/gotts-it/main/README.md"
       "index,manifest:org.opencontainers.image.licenses": "GPL-3.0-only"
       "index,manifest:org.opencontainers.image.revision": "{{.FullCommit}}"
-      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/monogo"
+      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/monogo/apps/gotts-it"
       "index,manifest:org.opencontainers.image.title": "{{.ProjectName}}"
       "index,manifest:org.opencontainers.image.vendor": "James Tooze"
       "index,manifest:org.opencontainers.image.version": "{{.Version}}"
@@ -192,20 +145,18 @@ archives:
     files:
       - README.md
       - LICENSE
-      - completions/gotts-it.bash
-      - completions/gotts-it.fish
-      - completions/gotts-it.zsh
-      - manpages/gotts-it.1.gz
+      - completions/*
+      - manpages/*
 
 nfpms:
   - file_name_template: '{{ .ConventionalFileName }}'
     id: packages
-    homepage: https://github.com/toozej/monogo
+    homepage: https://github.com/toozej/monogo/apps/gotts-it
     description: |-
-      Go-based Text-To-Speech Tool
+      Convert text (URL, text file) to speech
     maintainer: toozej
     license: GPLv3
-    vendor: monogo
+    vendor: gotts-it
     bindir: /usr/bin
     section: utils
     contents:
@@ -244,9 +195,8 @@ nfpms:
 
 homebrew_casks:
   - name: gotts-it
-    homepage: https://github.com/toozej/monogo
-    description: >-
-      Go-based Text-To-Speech Tool
+    homepage: https://github.com/toozej/monogo/apps/gotts-it
+    description: "Convert text (URL, text file) to speech"
     license: GPLv3
     repository:
       owner: toozej
@@ -259,7 +209,7 @@ homebrew_casks:
       zsh: "completions/gotts-it.zsh"
       fish: "completions/gotts-it.fish"
     url:
-      verified: "github.com/toozej/monogo/releases/download"
+      verified: "github.com/toozej/monogo/apps/gotts-it/releases/download"
     hooks:
       post:
         install: |
@@ -275,10 +225,10 @@ signs:
     output: true
     signature: "${artifact}.sigstore.json"
     args:
-      - 'sign-blob'
-      - '--bundle=${signature}'
-      - '${artifact}'
-      - '--yes'
+      - "sign-blob"
+      - "--bundle=${signature}"
+      - "${artifact}"
+      - "--yes"
     artifacts: checksum
 
 docker_signs:
@@ -286,15 +236,14 @@ docker_signs:
     artifacts: all
     output: true
     args:
-      - 'sign'
-      - '--yes'
-      - '${artifact}'
+      - "sign"
+      - "${artifact}"
+      - "--yes"
 
 milestones:
   - close: true
 
 release:
-  mode: append
   disable: '{{ eq (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}'
   footer: |
-    **Full Changelog**: https://github.com/toozej/monogo/compare/{{ .PreviousTag }}...{{ .Tag }}
+    **Full Changelog**: https://github.com/toozej/monogo/apps/gotts-it/compare/{{ .PreviousTag }}...{{ .Tag }}

@@ -5,7 +5,7 @@
 // configuration management.
 package main
 
-import cmd "github.com/toozej/gotts-it/cmd/gotts-it"
+import cmd "github.com/toozej/monogo/apps/gotts-it/cmd/gotts-it"
 
 // main is the entry point of the gotts-it application.
 // It delegates execution to the cmd package which handles all

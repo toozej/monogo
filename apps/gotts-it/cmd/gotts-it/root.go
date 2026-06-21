@@ -21,12 +21,12 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/toozej/gotts-it/internal/article"
-	"github.com/toozej/gotts-it/internal/slug"
-	"github.com/toozej/gotts-it/internal/tts"
-	"github.com/toozej/gotts-it/pkg/config"
-	"github.com/toozej/gotts-it/pkg/man"
-	"github.com/toozej/gotts-it/pkg/version"
+	"github.com/toozej/monogo/apps/gotts-it/internal/article"
+	"github.com/toozej/monogo/apps/gotts-it/internal/slug"
+	"github.com/toozej/monogo/apps/gotts-it/internal/tts"
+	"github.com/toozej/monogo/pkg/gotts-it/config"
+	"github.com/toozej/monogo/pkg/gotts-it/man"
+	"github.com/toozej/monogo/pkg/gotts-it/version"
 )
 
 var (

@@ -178,14 +178,14 @@ func TestGetEnvVars(t *testing.T) {
 			origVals := map[string]string{}
 			for _, k := range envVarsToClean {
 				origVals[k] = os.Getenv(k)
-				os.Unsetenv(k)
+				_ = os.Unsetenv(k)
 			}
 			defer func() {
 				for _, k := range envVarsToClean {
 					if origVals[k] != "" {
-						os.Setenv(k, origVals[k])
+						_ = os.Setenv(k, origVals[k])
 					} else {
-						os.Unsetenv(k)
+						_ = os.Unsetenv(k)
 					}
 				}
 			}()
@@ -208,7 +208,7 @@ func TestGetEnvVars(t *testing.T) {
 			}
 
 			for key, value := range tt.mockEnv {
-				os.Setenv(key, value)
+				_ = os.Setenv(key, value)
 			}
 
 			conf := GetEnvVars()

@@ -4,7 +4,7 @@
 
 CLI tool that extracts readable article text from a URL or local HTML file and synthesizes speech via a self-hosted Speaches TTS server (OpenAI-compatible API). Uses Cobra for CLI handling, Logrus for logging, GoDotEnv and caarlos0/env for configuration, go-readability for article extraction, openai-go for TTS, and Goreleaser for cross-platform builds and Docker images.
 
-- **Module:** `github.com/toozej/gotts-it`
+- **Module:** `github.com/toozej/monogo/apps/gotts-it`
 - **Go version:** 1.26
 - **License:** GPLv3
 
@@ -48,7 +48,7 @@ CLI tool that extracts readable article text from a URL or local HTML file and s
 - Run go vet in Docker: `make vet`
 - Check Goreleaser config: `goreleaser check`
 - Run govulncheck: `govulncheck ./...`
-- Run go-licenses report: `go-licenses report github.com/toozej/gotts-it/cmd/gotts-it`
+- Run go-licenses report: `go-licenses report github.com/toozej/monogo/apps/gotts-it/cmd/gotts-it`
 
 Pre-commit hooks include: golangci-lint, gosec, staticcheck, go-critic, gofmt, goimports, shellcheck, hadolint (Dockerfiles), checkmake (Makefile), actionlint (GitHub Actions), goreleaser-check, semgrep, and private key detection.
 

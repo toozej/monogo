@@ -1,7 +1,7 @@
 # gotts-it
 
 ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/toozej/gotts-it)
-[![Go Report Card](https://goreportcard.com/badge/github.com/toozej/gotts-it)](https://goreportcard.com/report/github.com/toozej/gotts-it)
+[![Go Report Card](https://goreportcard.com/badge/github.com/toozej/monogo/apps/gotts-it)](https://goreportcard.com/report/github.com/toozej/monogo/apps/gotts-it)
 ![GitHub Actions CI Workflow Status](https://img.shields.io/github/actions/workflow/status/toozej/gotts-it/ci.yaml)
 ![GitHub Actions Release Workflow Status](https://img.shields.io/github/actions/workflow/status/toozej/gotts-it/release.yaml)
 ![GitHub Actions Weekly Docker Refresh Workflow Status](https://img.shields.io/github/actions/workflow/status/toozej/gotts-it/weekly-docker-refresh.yaml)

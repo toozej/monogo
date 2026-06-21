@@ -12,11 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/spf13/cobra"
-
-	"github.com/toozej/gotts-it/internal/article"
-	"github.com/toozej/gotts-it/internal/tts"
-	"github.com/toozej/gotts-it/pkg/config"
+	"github.com/toozej/monogo/apps/gotts-it/internal/article"
+	"github.com/toozej/monogo/apps/gotts-it/internal/tts"
+	"github.com/toozej/monogo/pkg/gotts-it/config"
 )
 
 func TestRootCmdStructure(t *testing.T) {
@@ -276,7 +274,7 @@ func TestDefaultOutputPath(t *testing.T) {
 }
 
 func TestRootCmdIsCobraCommand(t *testing.T) {
-	var _ *cobra.Command = rootCmd
+	var _ = rootCmd
 }
 
 func TestRootCmdRun_WithFile(t *testing.T) {
