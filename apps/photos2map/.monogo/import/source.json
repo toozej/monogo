@@ -1,0 +1,12 @@
+{
+  "source": "toozej/photos2map",
+  "vcsHost": "github.com/",
+  "owner": "toozej",
+  "repo": "photos2map",
+  "ownerRepo": "toozej/photos2map",
+  "repoURL": "https://github.com/toozej/photos2map.git",
+  "ref": "main",
+  "oldModule": "github.com/toozej/photos2map",
+  "newModule": "github.com/toozej/monogo/apps/photos2map",
+  "tagPrefix": "apps/photos2map"
+}

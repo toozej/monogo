@@ -36,7 +36,7 @@ func GenerateMap(gpsData []opts.GeoData) {
 	if err != nil {
 		log.Fatalf("Error creating map file: %v", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	err = geo.Render(file)
 	if err != nil {

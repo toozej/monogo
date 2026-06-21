@@ -13,13 +13,13 @@
 //
 // Build-time injection example:
 //
-//	go build -ldflags "-X github.com/toozej/photos2map/pkg/version.Version=v1.0.0 \
-//	  -X github.com/toozej/photos2map/pkg/version.Commit=abc123 \
-//	  -X github.com/toozej/photos2map/pkg/version.Branch=main"
+//	go build -ldflags "-X github.com/toozej/monogo/apps/photos2map/pkg/version.Version=v1.0.0 \
+//	  -X github.com/toozej/monogo/apps/photos2map/pkg/version.Commit=abc123 \
+//	  -X github.com/toozej/monogo/apps/photos2map/pkg/version.Branch=main"
 //
 // Example usage:
 //
-//	import "github.com/toozej/photos2map/pkg/version"
+//	import "github.com/toozej/monogo/pkg/photos2map/version"
 //
 //	// Get version info programmatically
 //	info, err := version.Get()
@@ -52,7 +52,7 @@ import (
 //
 // Build-time injection example:
 //
-//	go build -ldflags "-X github.com/toozej/photos2map/pkg/version.Version=v1.2.3"
+//	go build -ldflags "-X github.com/toozej/monogo/apps/photos2map/pkg/version.Version=v1.2.3"
 var (
 	// Version represents the semantic version of the application.
 	// Defaults to "local" for development builds.
@@ -189,7 +189,7 @@ func Command() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fmt.Fprintln(cmd.OutOrStdout(), string(jsonBytes))
+			_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(jsonBytes))
 
 			return nil
 		},

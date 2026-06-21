@@ -40,7 +40,7 @@ func GenerateGPX(gpsData []opts.GeoData) {
 	if err != nil {
 		log.Fatalf("Error creating GPX file: %v", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	// Marshal the GPX struct into indented XML
 	gpxData, err := xml.MarshalIndent(g, "", "  ")

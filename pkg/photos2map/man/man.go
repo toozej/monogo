@@ -16,7 +16,7 @@
 //
 // Example usage:
 //
-//	import "github.com/toozej/photos2map/pkg/man"
+//	import "github.com/toozej/monogo/pkg/photos2map/man"
 //
 //	// Add man command to root command
 //	rootCmd.AddCommand(man.NewManCmd())

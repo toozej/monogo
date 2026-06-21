@@ -75,9 +75,9 @@ func TestGetEnvVars(t *testing.T) {
 			defer func() {
 				for key, value := range originalEnvVars {
 					if value != "" {
-						os.Setenv(key, value)
+						_ = os.Setenv(key, value)
 					} else {
-						os.Unsetenv(key)
+						_ = os.Unsetenv(key)
 					}
 				}
 			}()
@@ -94,7 +94,7 @@ func TestGetEnvVars(t *testing.T) {
 
 			// Clear environment variables first
 			for key := range originalEnvVars {
-				os.Unsetenv(key)
+				_ = os.Unsetenv(key)
 			}
 
 			// Create .env file if applicable
@@ -107,7 +107,7 @@ func TestGetEnvVars(t *testing.T) {
 
 			// Set mock environment variables (these should override .env file)
 			for key, value := range tt.mockEnv {
-				os.Setenv(key, value)
+				_ = os.Setenv(key, value)
 			}
 
 			// Call function

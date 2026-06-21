@@ -22,5 +22,5 @@ func TestGenerateGPX(t *testing.T) {
 	}
 
 	// Clean up after test
-	os.Remove("out/output.gpx")
+	_ = os.Remove("out/output.gpx")
 }

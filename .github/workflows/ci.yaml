@@ -26,6 +26,7 @@ jobs:
           - url2anki
           - RSSFFS
           - go-find-liquor
+          - photos2map
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-go@v6

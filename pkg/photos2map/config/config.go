@@ -18,7 +18,7 @@
 //
 // Example usage:
 //
-//	import "github.com/toozej/photos2map/pkg/config"
+//	import "github.com/toozej/monogo/pkg/photos2map/config"
 //
 //	func main() {
 //		conf := config.GetEnvVars()

@@ -26,7 +26,7 @@
 //
 // Example usage:
 //
-//	import "github.com/toozej/photos2map/cmd/photos2map"
+//	import "github.com/toozej/monogo/apps/photos2map/cmd/photos2map"
 //
 //	// Execute the CLI
 //	cmd.Execute()
@@ -50,11 +50,11 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/toozej/photos2map/internal/extract"
-	"github.com/toozej/photos2map/internal/output"
-	"github.com/toozej/photos2map/pkg/config"
-	"github.com/toozej/photos2map/pkg/man"
-	"github.com/toozej/photos2map/pkg/version"
+	"github.com/toozej/monogo/apps/photos2map/internal/extract"
+	"github.com/toozej/monogo/apps/photos2map/internal/output"
+	"github.com/toozej/monogo/pkg/photos2map/config"
+	"github.com/toozej/monogo/pkg/photos2map/man"
+	"github.com/toozej/monogo/pkg/photos2map/version"
 )
 
 // debugFlag is a global variable to track debug mode state.

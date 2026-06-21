@@ -44,7 +44,7 @@ func TestExtractEXIF_DecodeError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp file: %v", err)
 	}
-	defer os.Remove(file.Name()) // Clean up temp file after test
+	defer func() { _ = os.Remove(file.Name()) }() // Clean up temp file after test
 
 	_, _, err = ExtractEXIF(file.Name())
 	if err == nil {

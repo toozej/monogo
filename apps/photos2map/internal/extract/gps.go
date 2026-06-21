@@ -9,7 +9,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/go-echarts/go-echarts/v2/opts"
-	"github.com/toozej/photos2map/internal/exif"
+	"github.com/toozej/monogo/apps/photos2map/internal/exif"
 )
 
 // ExtractGPSData reads all the images in a given directory and returns a slice of GeoData containing GPS coordinates.

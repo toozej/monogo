@@ -11,7 +11,7 @@ func ExtractEXIF(path string) (float64, float64, error) {
 	if err != nil {
 		return 0, 0, err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	x, err := exif.Decode(file)
 	if err != nil {

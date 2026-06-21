@@ -1,6 +1,6 @@
 package main
 
-import cmd "github.com/toozej/photos2map/cmd/photos2map"
+import cmd "github.com/toozej/monogo/apps/photos2map/cmd/photos2map"
 
 func main() {
 	cmd.Execute()

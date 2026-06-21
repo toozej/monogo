@@ -1,9 +1,7 @@
-# runtime image including CA certs and tzdata
-FROM gcr.io/distroless/static-debian13:nonroot
+# runtime image
+FROM scratch
 # Copy our static executable.
 ARG TARGETPLATFORM
 COPY $TARGETPLATFORM/photos2map /go/bin/photos2map
-# Expose port for publishing as web service
-# EXPOSE 8081
 # Run the binary.
 ENTRYPOINT ["/go/bin/photos2map"]

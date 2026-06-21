@@ -29,6 +29,7 @@ jobs:
           - url2anki
           - RSSFFS
           - go-find-liquor
+          - photos2map
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -129,6 +130,7 @@ jobs:
           - url2anki
           - RSSFFS
           - go-find-liquor
+          - photos2map
         registry: ['', 'ghcr.io/', 'quay.io/']
         tag: ['latest', 'distroless']
     steps:

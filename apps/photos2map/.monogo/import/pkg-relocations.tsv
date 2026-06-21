@@ -1,0 +1,4 @@
+github.com/toozej/monogo/apps/photos2map/pkg/config	github.com/toozej/monogo/pkg/photos2map/config
+github.com/toozej/monogo/apps/photos2map/pkg/man	github.com/toozej/monogo/pkg/photos2map/man
+apps/photos2map/pkg/README.md	apps/photos2map/.monogo/original-pkg/README.md
+github.com/toozej/monogo/apps/photos2map/pkg/version	github.com/toozej/monogo/pkg/photos2map/version

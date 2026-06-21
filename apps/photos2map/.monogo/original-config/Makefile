@@ -27,7 +27,7 @@ LDFLAGS = -s -w \
 	-X $(VER).Builder=$(BUILDER)
 	
 # Define the repository URL
-REPO_URL := https://github.com/toozej/photos2map
+REPO_URL := https://github.com/toozej/monogo/apps/photos2map
 
 # Define Docker image info
 IMAGE_AUTHOR = toozej
@@ -82,7 +82,7 @@ release: ## Build and sign Docker image
 
 verify: ## Verify Docker image with Cosign
 	cosign verify \
-		--certificate-identity-regexp '^https://github.com/toozej/photos2map/\.github/workflows/(release|weekly-docker-refresh)\.yaml@refs/(tags/.*|heads/main)$$' \
+		--certificate-identity-regexp '^https://github.com/toozej/monogo/apps/photos2map/\.github/workflows/(release|weekly-docker-refresh)\.yaml@refs/(tags/.*|heads/main)$$' \
 		--certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
 		$(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG)
 
@@ -112,7 +112,7 @@ distroless-run: ## Run built Docker image using distroless as final base
 
 install: ## Install photos2map from latest GitHub release
 	if command -v go; then \
-			go install github.com/toozej/photos2map@latest ; \
+			go install github.com/toozej/monogo/apps/photos2map@latest ; \
 	else \
 			echo "Downloading photos2map binary for $(OS)-$(ARCH)..."; \
 			mkdir -p $(CURDIR)/tmp; \
@@ -179,7 +179,7 @@ local-verify: ## Verify locally compiled binary
 	@echo "Local keyless verification requires the bundle to have been created with an OIDC identity."
 	@echo "If signing was done locally without OIDC, verification against a public certificate identity will fail."
 	@cosign verify-blob \
-		--certificate-identity-regexp '^https://github.com/toozej/photos2map/\.github/workflows/(release|weekly-docker-refresh)\.yaml@refs/(tags/.*|heads/main)$$' \
+		--certificate-identity-regexp '^https://github.com/toozej/monogo/apps/photos2map/\.github/workflows/(release|weekly-docker-refresh)\.yaml@refs/(tags/.*|heads/main)$$' \
 		--certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
 		--bundle $(CURDIR)/out/photos2map.bundle \
 		$(CURDIR)/out/photos2map || \
@@ -257,7 +257,7 @@ pre-commit-install: ## Install pre-commit hooks and necessary binaries
 pre-commit-run: ## Run pre-commit hooks against all files
 	pre-commit run --all-files
 	# manually run the following checks since their pre-commits aren't working or don't exist
-	go-licenses report github.com/toozej/photos2map/cmd/photos2map
+	go-licenses report github.com/toozej/monogo/apps/photos2map/cmd/photos2map
 	govulncheck ./...
 
 update-golang-version: ## Update to latest Golang version across the repo

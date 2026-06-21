@@ -4,4 +4,5 @@ FROM scratch
 ARG TARGETPLATFORM
 COPY $TARGETPLATFORM/photos2map /go/bin/photos2map
 # Run the binary.
+USER 65532:65532
 ENTRYPOINT ["/go/bin/photos2map"]

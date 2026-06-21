@@ -2,11 +2,6 @@
 version: 2
 
 project_name: photos2map
-dist: dist/photos2map
-
-git:
-  ignore_tags:
-    - apps/*
 
 env:
   - GO111MODULE=on
@@ -18,15 +13,14 @@ env_files:
 before:
   hooks:
     - go mod tidy
-    - ./scripts/completions.sh photos2map
-    - ./scripts/manpages.sh photos2map
+    - ./scripts/completions.sh
+    - ./scripts/manpages.sh
 
 snapshot:
   version_template: '{{ incpatch .Version }}-next'
 
 builds:
-  - id: photos2map
-    env:
+  - env:
       - CGO_ENABLED=0
     goos:
       - linux
@@ -48,12 +42,12 @@ builds:
     ldflags:
       - >-
         -s -w
-        -X github.com/toozej/monogo/pkg/version.Version={{.Version}}
-        -X github.com/toozej/monogo/pkg/version.Commit={{.Commit}}
-        -X github.com/toozej/monogo/pkg/version.Branch={{.Branch}}
-        -X github.com/toozej/monogo/pkg/version.BuiltAt={{.CommitDate}}
-        -X github.com/toozej/monogo/pkg/version.Builder=goreleaser
-    main: ./apps/photos2map
+        -X github.com/toozej/monogo/apps/photos2map/pkg/version.Version={{.Version}}
+        -X github.com/toozej/monogo/apps/photos2map/pkg/version.Commit={{.Commit}}
+        -X github.com/toozej/monogo/apps/photos2map/pkg/version.Branch={{.Branch}}
+        -X github.com/toozej/monogo/apps/photos2map/pkg/version.BuiltAt={{.CommitDate}}
+        -X github.com/toozej/monogo/apps/photos2map/pkg/version.Builder=goreleaser
+    main: ./
     binary: photos2map
 
 universal_binaries:
@@ -61,9 +55,6 @@ universal_binaries:
 
 checksum:
   name_template: 'checksums.txt'
-
-docker_digest:
-  name_template: 'digests.txt'
 
 changelog:
   sort: asc
@@ -105,32 +96,32 @@ dockers_v2:
       - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ .Version
         }}{{ end }}'
       - "latest"
-    dockerfile: apps/photos2map/Dockerfile.goreleaser
+    dockerfile: Dockerfile.goreleaser
     labels:
-      "io.artifacthub.package.readme-url": "https://github.com/toozej/monogo/raw/main/README.md"
+      "io.artifacthub.package.readme-url": "https://raw.githubusercontent.com/toozej/photos2map/main/README.md"
       "io.artifacthub.package.maintainers": "[{\"name\":\"toozej\"}]"
       "io.artifacthub.package.license": "GPLv3"
-      "org.opencontainers.image.description": >-
-        Generate GPX map from photos' EXIF data
+      "org.opencontainers.image.description": "Generates a map on a HTML page or GPX file\
+        \ from GPS coordinates in images"
       "org.opencontainers.image.created": "{{.Date}}"
       "org.opencontainers.image.name": "{{.ProjectName}}"
       "org.opencontainers.image.revision": "{{.FullCommit}}"
       "org.opencontainers.image.version": "{{.Version}}"
       "org.opencontainers.image.source": "{{.GitURL}}"
       "org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
-      "org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
+      "org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/photos2map/main/README.md"
       "org.opencontainers.image.licenses": "GPL-3.0-only"
       "org.opencontainers.image.title": "{{.ProjectName}}"
       "org.opencontainers.image.vendor": "James Tooze"
     annotations:
       "index,manifest:org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
       "index,manifest:org.opencontainers.image.created": "{{.Date}}"
-      "index,manifest:org.opencontainers.image.description": >-
-        Generate GPX map from photos' EXIF data
-      "index,manifest:org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
+      "index,manifest:org.opencontainers.image.description": "Generates a map on a HTML page\
+        \ or GPX file from GPS coordinates in images"
+      "index,manifest:org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/photos2map/main/README.md"
       "index,manifest:org.opencontainers.image.licenses": "GPL-3.0-only"
       "index,manifest:org.opencontainers.image.revision": "{{.FullCommit}}"
-      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/monogo"
+      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/monogo/apps/photos2map"
       "index,manifest:org.opencontainers.image.title": "{{.ProjectName}}"
       "index,manifest:org.opencontainers.image.vendor": "James Tooze"
       "index,manifest:org.opencontainers.image.version": "{{.Version}}"
@@ -147,37 +138,38 @@ dockers_v2:
       - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ .Version
         }}-distroless{{ end }}'
       - "distroless"
-    dockerfile: apps/photos2map/Dockerfile.goreleaser.distroless
+    dockerfile: Dockerfile.goreleaser.distroless
     labels:
-      "io.artifacthub.package.readme-url": "https://github.com/toozej/monogo/raw/main/README.md"
+      "io.artifacthub.package.readme-url": "https://raw.githubusercontent.com/toozej/photos2map/main/README.md"
       "io.artifacthub.package.maintainers": "[{\"name\":\"toozej\"}]"
       "io.artifacthub.package.license": "GPLv3"
-      "org.opencontainers.image.description": >-
-        Generate GPX map from photos' EXIF data
+      "org.opencontainers.image.description": "Generates a map on a HTML page or GPX file\
+        \ from GPS coordinates in images"
       "org.opencontainers.image.created": "{{.Date}}"
       "org.opencontainers.image.name": "{{.ProjectName}}"
       "org.opencontainers.image.revision": "{{.FullCommit}}"
       "org.opencontainers.image.version": "{{.Version}}"
       "org.opencontainers.image.source": "{{.GitURL}}"
       "org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
-      "org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
+      "org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/photos2map/main/README.md"
       "org.opencontainers.image.licenses": "GPL-3.0-only"
       "org.opencontainers.image.title": "{{.ProjectName}}"
       "org.opencontainers.image.vendor": "James Tooze"
     annotations:
       "index,manifest:org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
       "index,manifest:org.opencontainers.image.created": "{{.Date}}"
-      "index,manifest:org.opencontainers.image.description": >-
-        Generate GPX map from photos' EXIF data
-      "index,manifest:org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
+      "index,manifest:org.opencontainers.image.description": "Generates a map on a HTML page\
+        \ or GPX file from GPS coordinates in images"
+      "index,manifest:org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/photos2map/main/README.md"
       "index,manifest:org.opencontainers.image.licenses": "GPL-3.0-only"
       "index,manifest:org.opencontainers.image.revision": "{{.FullCommit}}"
-      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/monogo"
+      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/monogo/apps/photos2map"
       "index,manifest:org.opencontainers.image.title": "{{.ProjectName}}"
       "index,manifest:org.opencontainers.image.vendor": "James Tooze"
       "index,manifest:org.opencontainers.image.version": "{{.Version}}"
     extra_files:
       - scripts/goreleaser_entrypoint.sh
+
 
 archives:
   - name_template: >-
@@ -192,20 +184,18 @@ archives:
     files:
       - README.md
       - LICENSE
-      - completions/photos2map.bash
-      - completions/photos2map.fish
-      - completions/photos2map.zsh
-      - manpages/photos2map.1.gz
+      - completions/*
+      - manpages/*
 
 nfpms:
   - file_name_template: '{{ .ConventionalFileName }}'
     id: packages
-    homepage: https://github.com/toozej/monogo
+    homepage: https://github.com/toozej/monogo/apps/photos2map
     description: |-
-      Generate GPX map from photos' EXIF data
+      Generates a map on a HTML page or GPX file from GPS coordinates in images
     maintainer: toozej
     license: GPLv3
-    vendor: monogo
+    vendor: photos2map
     bindir: /usr/bin
     section: utils
     contents:
@@ -244,9 +234,8 @@ nfpms:
 
 homebrew_casks:
   - name: photos2map
-    homepage: https://github.com/toozej/monogo
-    description: >-
-      Generate GPX map from photos' EXIF data
+    homepage: https://github.com/toozej/monogo/apps/photos2map
+    description: "Generates a map on a HTML page or GPX file from GPS coordinates in images"
     license: GPLv3
     repository:
       owner: toozej
@@ -259,7 +248,7 @@ homebrew_casks:
       zsh: "completions/photos2map.zsh"
       fish: "completions/photos2map.fish"
     url:
-      verified: "github.com/toozej/monogo/releases/download"
+      verified: "github.com/toozej/monogo/apps/photos2map/releases/download"
     hooks:
       post:
         install: |
@@ -294,7 +283,6 @@ milestones:
   - close: true
 
 release:
-  mode: append
   disable: '{{ eq (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}'
   footer: |
-    **Full Changelog**: https://github.com/toozej/monogo/compare/{{ .PreviousTag }}...{{ .Tag }}
+    **Full Changelog**: https://github.com/toozej/monogo/apps/photos2map/compare/{{ .PreviousTag }}...{{ .Tag }}
