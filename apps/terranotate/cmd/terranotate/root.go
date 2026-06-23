@@ -27,9 +27,9 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/toozej/monogo/apps/terranotate/internal/tfenv"
+	"github.com/toozej/monogo/pkg/man"
 	"github.com/toozej/monogo/pkg/terranotate/config"
-	"github.com/toozej/monogo/pkg/terranotate/man"
-	"github.com/toozej/monogo/pkg/terranotate/version"
+	"github.com/toozej/monogo/pkg/version"
 )
 
 // conf holds the application configuration loaded from environment variables.

@@ -12,7 +12,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/toozej/monogo/pkg/RSSFFS/config"
-	"github.com/toozej/monogo/pkg/RSSFFS/version"
+	"github.com/toozej/monogo/pkg/version"
 )
 
 // Server represents the HTTP server with configuration and debug settings

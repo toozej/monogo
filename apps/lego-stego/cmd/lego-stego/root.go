@@ -2,8 +2,8 @@ package cmd
 
 import (
 	"github.com/spf13/cobra"
-	"github.com/toozej/monogo/pkg/lego-stego/man"
-	"github.com/toozej/monogo/pkg/lego-stego/version"
+	"github.com/toozej/monogo/pkg/man"
+	"github.com/toozej/monogo/pkg/version"
 )
 
 var rootCmd = &cobra.Command{

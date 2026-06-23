@@ -30,8 +30,8 @@ import (
 
 	"github.com/toozej/monogo/apps/RSSFFS/internal/RSSFFS"
 	"github.com/toozej/monogo/pkg/RSSFFS/config"
-	"github.com/toozej/monogo/pkg/RSSFFS/man"
-	"github.com/toozej/monogo/pkg/RSSFFS/version"
+	"github.com/toozej/monogo/pkg/man"
+	"github.com/toozej/monogo/pkg/version"
 )
 
 // Command-line flag variables that store user input from CLI flags.

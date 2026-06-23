@@ -26,8 +26,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/toozej/monogo/pkg/go-listen/config"
-	"github.com/toozej/monogo/pkg/go-listen/man"
-	"github.com/toozej/monogo/pkg/go-listen/version"
+	"github.com/toozej/monogo/pkg/man"
+	"github.com/toozej/monogo/pkg/version"
 )
 
 // conf holds the application configuration loaded from environment variables.

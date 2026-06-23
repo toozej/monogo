@@ -30,8 +30,8 @@ import (
 
 	"github.com/toozej/monogo/apps/ghreleases2rss/internal/ghreleases2rss"
 	"github.com/toozej/monogo/pkg/ghreleases2rss/config"
-	"github.com/toozej/monogo/pkg/ghreleases2rss/man"
-	"github.com/toozej/monogo/pkg/ghreleases2rss/version"
+	"github.com/toozej/monogo/pkg/man"
+	"github.com/toozej/monogo/pkg/version"
 )
 
 // debug controls the logging level for the application.

@@ -30,8 +30,8 @@ import (
 
 	"github.com/toozej/monogo/apps/files2prompt/internal/files2prompt"
 	"github.com/toozej/monogo/pkg/files2prompt/config"
-	"github.com/toozej/monogo/pkg/files2prompt/man"
-	"github.com/toozej/monogo/pkg/files2prompt/version"
+	"github.com/toozej/monogo/pkg/man"
+	"github.com/toozej/monogo/pkg/version"
 )
 
 // conf holds the application configuration loaded from environment variables.

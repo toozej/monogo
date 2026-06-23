@@ -52,9 +52,9 @@ import (
 
 	"github.com/toozej/monogo/apps/photos2map/internal/extract"
 	"github.com/toozej/monogo/apps/photos2map/internal/output"
+	"github.com/toozej/monogo/pkg/man"
 	"github.com/toozej/monogo/pkg/photos2map/config"
-	"github.com/toozej/monogo/pkg/photos2map/man"
-	"github.com/toozej/monogo/pkg/photos2map/version"
+	"github.com/toozej/monogo/pkg/version"
 )
 
 // debugFlag is a global variable to track debug mode state.

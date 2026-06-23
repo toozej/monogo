@@ -19,8 +19,8 @@ import (
 	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/output"
 	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/workflow"
 	"github.com/toozej/monogo/pkg/go-sort-out-gh-actions/config"
-	"github.com/toozej/monogo/pkg/go-sort-out-gh-actions/man"
-	"github.com/toozej/monogo/pkg/go-sort-out-gh-actions/version"
+	"github.com/toozej/monogo/pkg/man"
+	"github.com/toozej/monogo/pkg/version"
 )
 
 var (

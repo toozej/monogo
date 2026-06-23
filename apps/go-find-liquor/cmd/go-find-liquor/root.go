@@ -42,8 +42,8 @@ import (
 
 	"github.com/toozej/monogo/apps/go-find-liquor/internal/runner"
 	"github.com/toozej/monogo/pkg/go-find-liquor/config"
-	"github.com/toozej/monogo/pkg/go-find-liquor/man"
-	"github.com/toozej/monogo/pkg/go-find-liquor/version"
+	"github.com/toozej/monogo/pkg/man"
+	"github.com/toozej/monogo/pkg/version"
 )
 
 var (

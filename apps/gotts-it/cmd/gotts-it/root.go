@@ -25,8 +25,8 @@ import (
 	"github.com/toozej/monogo/apps/gotts-it/internal/slug"
 	"github.com/toozej/monogo/apps/gotts-it/internal/tts"
 	"github.com/toozej/monogo/pkg/gotts-it/config"
-	"github.com/toozej/monogo/pkg/gotts-it/man"
-	"github.com/toozej/monogo/pkg/gotts-it/version"
+	"github.com/toozej/monogo/pkg/man"
+	"github.com/toozej/monogo/pkg/version"
 )
 
 var (

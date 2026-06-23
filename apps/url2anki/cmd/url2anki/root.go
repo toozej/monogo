@@ -27,9 +27,9 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/toozej/monogo/apps/url2anki/internal/url2anki"
+	"github.com/toozej/monogo/pkg/man"
 	"github.com/toozej/monogo/pkg/url2anki/config"
-	"github.com/toozej/monogo/pkg/url2anki/man"
-	"github.com/toozej/monogo/pkg/url2anki/version"
+	"github.com/toozej/monogo/pkg/version"
 )
 
 // conf holds the application configuration loaded from environment variables.

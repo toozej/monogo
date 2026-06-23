@@ -72,7 +72,7 @@ import (
 func NewManCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:                   "man",
-		Short:                 "Generates monogo's command line manpages",
+		Short:                 "Generates command line manpages",
 		SilenceUsage:          true,
 		DisableFlagsInUseLine: true,
 		Hidden:                true,
