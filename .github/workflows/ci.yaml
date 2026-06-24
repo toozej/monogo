@@ -75,7 +75,9 @@ jobs:
           fetch-depth: 0
       - uses: gitleaks/gitleaks-action@v3.0.0 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          # gitleaks-action requires a token to read PR commits on pull_request
+          # events; the built-in GITHUB_TOKEN is always available for same-repo PRs.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   codeql-analyze:
     name: codeql-analyze
@@ -131,6 +133,9 @@ jobs:
         with:
           args: --all-projects --sarif-file-output=snyk.sarif
       - name: Upload result to GitHub Code Scanning
+        # Only upload when Snyk actually produced a SARIF (it does not when
+        # SNYK_TOKEN is unset), so a missing report does not fail the job.
+        if: ${{ hashFiles('snyk.sarif') != '' }}
         uses: github/codeql-action/upload-sarif@v4.36.2
         with:
           sarif_file: snyk.sarif
