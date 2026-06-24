@@ -50,10 +50,10 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
+	"github.com/toozej/monogo/apps/photos2map/internal/config"
 	"github.com/toozej/monogo/apps/photos2map/internal/extract"
 	"github.com/toozej/monogo/apps/photos2map/internal/output"
 	"github.com/toozej/monogo/pkg/man"
-	"github.com/toozej/monogo/pkg/photos2map/config"
 	"github.com/toozej/monogo/pkg/version"
 )
 

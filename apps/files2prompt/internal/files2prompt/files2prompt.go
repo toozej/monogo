@@ -11,7 +11,7 @@ import (
 
 	"github.com/bmatcuk/doublestar/v4"
 	log "github.com/sirupsen/logrus"
-	"github.com/toozej/monogo/pkg/files2prompt/config"
+	"github.com/toozej/monogo/apps/files2prompt/internal/config"
 )
 
 // Standard OS functions

@@ -17,8 +17,8 @@ import (
 	"github.com/nikoksr/notify/service/telegram"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/toozej/monogo/apps/go-find-liquor/internal/config"
 	"github.com/toozej/monogo/apps/go-find-liquor/internal/search"
-	"github.com/toozej/monogo/pkg/go-find-liquor/config"
 )
 
 // Notifier is an interface for sending notifications

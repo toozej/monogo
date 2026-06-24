@@ -10,12 +10,12 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"github.com/toozej/monogo/apps/go-listen/internal/config"
 	"github.com/toozej/monogo/apps/go-listen/internal/middleware"
 	"github.com/toozej/monogo/apps/go-listen/internal/services/playlist"
 	"github.com/toozej/monogo/apps/go-listen/internal/services/scraper"
 	"github.com/toozej/monogo/apps/go-listen/internal/services/spotify"
 	"github.com/toozej/monogo/apps/go-listen/internal/types"
-	"github.com/toozej/monogo/pkg/go-listen/config"
 	"github.com/toozej/monogo/pkg/logging"
 )
 
@@ -62,7 +62,11 @@ func NewServer(cfg *config.Config) *Server {
 	}
 
 	// Initialize structured logger (foundation component)
-	logger := logging.NewLogger(loggingCfg)
+	logger := logging.NewLogger(logging.Config{
+		Level:  loggingCfg.Level,
+		Format: loggingCfg.Format,
+		Output: loggingCfg.Output,
+	})
 	logger.WithComponent("server").Info("Initializing server components")
 
 	// Initialize Spotify service (core business logic)

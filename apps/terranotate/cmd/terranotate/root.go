@@ -26,9 +26,9 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
+	"github.com/toozej/monogo/apps/terranotate/internal/config"
 	"github.com/toozej/monogo/apps/terranotate/internal/tfenv"
 	"github.com/toozej/monogo/pkg/man"
-	"github.com/toozej/monogo/pkg/terranotate/config"
 	"github.com/toozej/monogo/pkg/version"
 )
 

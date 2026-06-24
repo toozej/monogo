@@ -15,12 +15,12 @@ import (
 	"time"
 
 	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/actioninfo"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/config"
 	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/github"
 	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/issue"
 	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/notification"
 	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/output"
 	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/workflow"
-	"github.com/toozej/monogo/pkg/go-sort-out-gh-actions/config"
 )
 
 func newTestRunContext(ghServer *httptest.Server) *RunContext {

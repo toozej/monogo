@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/config"
 	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/github"
 	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/output"
 	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/workflow"
-	"github.com/toozej/monogo/pkg/go-sort-out-gh-actions/config"
 )
 
 func TestRunContext_CacheReuseAcrossRuns(t *testing.T) {

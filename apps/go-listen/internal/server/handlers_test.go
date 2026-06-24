@@ -10,9 +10,9 @@ import (
 	"testing"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/toozej/monogo/apps/go-listen/internal/config"
 	"github.com/toozej/monogo/apps/go-listen/internal/middleware"
 	"github.com/toozej/monogo/apps/go-listen/internal/types"
-	"github.com/toozej/monogo/pkg/go-listen/config"
 	"github.com/toozej/monogo/pkg/logging"
 )
 

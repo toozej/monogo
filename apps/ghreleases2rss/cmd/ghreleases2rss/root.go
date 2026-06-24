@@ -28,8 +28,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
+	"github.com/toozej/monogo/apps/ghreleases2rss/internal/config"
 	"github.com/toozej/monogo/apps/ghreleases2rss/internal/ghreleases2rss"
-	"github.com/toozej/monogo/pkg/ghreleases2rss/config"
 	"github.com/toozej/monogo/pkg/man"
 	"github.com/toozej/monogo/pkg/version"
 )

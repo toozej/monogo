@@ -11,7 +11,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/toozej/monogo/pkg/RSSFFS/config"
+	"github.com/toozej/monogo/apps/RSSFFS/internal/config"
 	"github.com/toozej/monogo/pkg/version"
 )
 

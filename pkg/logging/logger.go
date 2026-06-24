@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/sirupsen/logrus"
-	"github.com/toozej/monogo/pkg/go-listen/config"
 )
 
 // ContextKey is a type for context keys to avoid collisions
@@ -18,13 +17,25 @@ const (
 	CorrelationIDKey ContextKey = "correlation_id"
 )
 
+// Config holds the logging settings consumed by NewLogger. It is intentionally
+// small and self-contained so this package does not depend on any app-specific
+// configuration type. Apps map their own config onto this struct.
+type Config struct {
+	// Level is the minimum log level (e.g. "debug", "info", "warn", "error").
+	Level string
+	// Format selects the output encoding: "json" or "text". Defaults to JSON.
+	Format string
+	// Output selects the destination: "stdout" or "stderr". Defaults to stdout.
+	Output string
+}
+
 // Logger wraps logrus.Logger with additional functionality
 type Logger struct {
 	*logrus.Logger
 }
 
 // NewLogger creates a new configured logger instance
-func NewLogger(cfg config.LoggingConfig) *Logger {
+func NewLogger(cfg Config) *Logger {
 	logger := logrus.New()
 
 	// Set log level

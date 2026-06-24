@@ -8,13 +8,13 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	"github.com/toozej/monogo/apps/trails-completionist/internal/config"
 	"github.com/toozej/monogo/apps/trails-completionist/internal/generator"
 	"github.com/toozej/monogo/apps/trails-completionist/internal/matcher"
 	"github.com/toozej/monogo/apps/trails-completionist/internal/parser"
 	"github.com/toozej/monogo/apps/trails-completionist/internal/types"
 	"github.com/toozej/monogo/pkg/osm"
 	"github.com/toozej/monogo/pkg/tcx2gpx"
-	"github.com/toozej/monogo/pkg/trails-completionist/config"
 )
 
 // RunTrailsCompletionist contains the main application logic extracted from rootCmdRun

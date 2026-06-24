@@ -15,7 +15,7 @@ import (
 	"github.com/nikoksr/notify/service/telegram"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/toozej/monogo/pkg/go-sort-out-gh-actions/config"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/config"
 )
 
 func (g *GotifyNotifier) Notify(ctx context.Context, subject, message string) error {

@@ -8,18 +8,17 @@ import (
 	"testing"
 
 	"github.com/sirupsen/logrus"
-	"github.com/toozej/monogo/pkg/go-listen/config"
 )
 
 func TestNewLogger(t *testing.T) {
 	tests := []struct {
 		name     string
-		config   config.LoggingConfig
+		config   Config
 		wantJSON bool
 	}{
 		{
 			name: "JSON format configuration",
-			config: config.LoggingConfig{
+			config: Config{
 				Level:  "info",
 				Format: "json",
 				Output: "stdout",
@@ -28,7 +27,7 @@ func TestNewLogger(t *testing.T) {
 		},
 		{
 			name: "Text format configuration",
-			config: config.LoggingConfig{
+			config: Config{
 				Level:  "debug",
 				Format: "text",
 				Output: "stderr",
@@ -37,7 +36,7 @@ func TestNewLogger(t *testing.T) {
 		},
 		{
 			name: "Default configuration",
-			config: config.LoggingConfig{
+			config: Config{
 				Level:  "",
 				Format: "",
 				Output: "",
@@ -80,7 +79,7 @@ func TestNewLogger(t *testing.T) {
 }
 
 func TestLogger_WithCorrelationID(t *testing.T) {
-	logger := NewLogger(config.LoggingConfig{
+	logger := NewLogger(Config{
 		Level:  "info",
 		Format: "json",
 		Output: "stdout",
@@ -95,7 +94,7 @@ func TestLogger_WithCorrelationID(t *testing.T) {
 }
 
 func TestLogger_WithContext(t *testing.T) {
-	logger := NewLogger(config.LoggingConfig{
+	logger := NewLogger(Config{
 		Level:  "info",
 		Format: "json",
 		Output: "stdout",
@@ -138,7 +137,7 @@ func TestLogger_WithContext(t *testing.T) {
 }
 
 func TestLogger_WithComponent(t *testing.T) {
-	logger := NewLogger(config.LoggingConfig{
+	logger := NewLogger(Config{
 		Level:  "info",
 		Format: "json",
 		Output: "stdout",
@@ -153,7 +152,7 @@ func TestLogger_WithComponent(t *testing.T) {
 }
 
 func TestLogger_WithOperation(t *testing.T) {
-	logger := NewLogger(config.LoggingConfig{
+	logger := NewLogger(Config{
 		Level:  "info",
 		Format: "json",
 		Output: "stdout",
@@ -169,7 +168,7 @@ func TestLogger_WithOperation(t *testing.T) {
 
 func TestLogger_LogArtistSearch(t *testing.T) {
 	var buf bytes.Buffer
-	logger := NewLogger(config.LoggingConfig{
+	logger := NewLogger(Config{
 		Level:  "info",
 		Format: "json",
 		Output: "stdout",
@@ -210,7 +209,7 @@ func TestLogger_LogArtistSearch(t *testing.T) {
 
 func TestLogger_LogTrackAddition(t *testing.T) {
 	var buf bytes.Buffer
-	logger := NewLogger(config.LoggingConfig{
+	logger := NewLogger(Config{
 		Level:  "info",
 		Format: "json",
 		Output: "stdout",
@@ -282,7 +281,7 @@ func TestLogger_LogDuplicateDetection(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
-			logger := NewLogger(config.LoggingConfig{
+			logger := NewLogger(Config{
 				Level:  "debug", // Set to debug to capture all levels
 				Format: "json",
 				Output: "stdout",
@@ -320,7 +319,7 @@ func TestLogger_LogDuplicateDetection(t *testing.T) {
 
 func TestLogger_LogSecurityEvent(t *testing.T) {
 	var buf bytes.Buffer
-	logger := NewLogger(config.LoggingConfig{
+	logger := NewLogger(Config{
 		Level:  "info",
 		Format: "json",
 		Output: "stdout",
@@ -386,7 +385,7 @@ func TestLogger_LogAPIRequest(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
-			logger := NewLogger(config.LoggingConfig{
+			logger := NewLogger(Config{
 				Level:  "info",
 				Format: "json",
 				Output: "stdout",
@@ -426,7 +425,7 @@ func TestLogger_LogAPIRequest(t *testing.T) {
 }
 
 func TestLogger_SetOutput(t *testing.T) {
-	logger := NewLogger(config.LoggingConfig{
+	logger := NewLogger(Config{
 		Level:  "info",
 		Format: "json",
 		Output: "stdout",

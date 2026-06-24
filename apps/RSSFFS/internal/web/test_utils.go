@@ -4,7 +4,7 @@ import (
 	"net/http/httptest"
 	"strings"
 
-	"github.com/toozej/monogo/pkg/RSSFFS/config"
+	"github.com/toozej/monogo/apps/RSSFFS/internal/config"
 )
 
 // TestServer wraps the web server for testing purposes

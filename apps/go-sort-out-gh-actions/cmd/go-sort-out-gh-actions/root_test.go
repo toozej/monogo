@@ -9,7 +9,7 @@ import (
 
 	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/output"
 
-	"github.com/toozej/monogo/pkg/go-sort-out-gh-actions/config"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/config"
 )
 
 func TestCommandStructure(t *testing.T) {

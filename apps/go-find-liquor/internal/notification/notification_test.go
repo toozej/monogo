@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/toozej/monogo/apps/go-find-liquor/internal/config"
 	"github.com/toozej/monogo/apps/go-find-liquor/internal/search"
-	"github.com/toozej/monogo/pkg/go-find-liquor/config"
 )
 
 // MockNotifier implements the Notifier interface for testing

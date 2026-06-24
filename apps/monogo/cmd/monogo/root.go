@@ -26,8 +26,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
+	"github.com/toozej/monogo/apps/monogo/internal/config"
 	"github.com/toozej/monogo/apps/monogo/internal/starter"
-	"github.com/toozej/monogo/pkg/config"
 	"github.com/toozej/monogo/pkg/man"
 	"github.com/toozej/monogo/pkg/version"
 )

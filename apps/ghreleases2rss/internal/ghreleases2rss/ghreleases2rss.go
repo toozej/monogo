@@ -10,9 +10,9 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/spf13/cobra"
+	"github.com/toozej/monogo/apps/ghreleases2rss/internal/config"
 	"github.com/toozej/monogo/apps/ghreleases2rss/internal/github"
 	"github.com/toozej/monogo/apps/ghreleases2rss/internal/miniflux"
-	"github.com/toozej/monogo/pkg/ghreleases2rss/config"
 )
 
 func Run(cmd *cobra.Command, args []string, conf config.Config) {

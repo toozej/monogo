@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/toozej/monogo/apps/gotts-it/internal/article"
+	"github.com/toozej/monogo/apps/gotts-it/internal/config"
 	"github.com/toozej/monogo/apps/gotts-it/internal/tts"
-	"github.com/toozej/monogo/pkg/gotts-it/config"
 )
 
 func TestNewServerCmd_ReturnsCommand(t *testing.T) {

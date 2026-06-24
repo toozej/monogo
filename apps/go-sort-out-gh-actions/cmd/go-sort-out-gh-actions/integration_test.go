@@ -17,10 +17,10 @@ import (
 
 	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/actioninfo"
 	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/checkrunner"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/config"
 	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/github"
 	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/output"
 	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/workflow"
-	"github.com/toozej/monogo/pkg/go-sort-out-gh-actions/config"
 )
 
 var defaultActionYMLContent = base64.StdEncoding.EncodeToString([]byte("name: Test\nruns:\n  using: node20\n  main: dist/index.js\n"))

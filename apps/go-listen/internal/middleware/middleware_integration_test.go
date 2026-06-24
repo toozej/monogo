@@ -12,7 +12,6 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/toozej/monogo/pkg/go-listen/config"
 	"github.com/toozej/monogo/pkg/logging"
 )
 
@@ -20,7 +19,7 @@ import (
 func TestMiddlewareIntegration(t *testing.T) {
 	// Set up logger with buffer to capture output
 	var logBuffer bytes.Buffer
-	logger := logging.NewLogger(config.LoggingConfig{
+	logger := logging.NewLogger(logging.Config{
 		Level:  "debug",
 		Format: "json",
 		Output: "stdout",
@@ -456,7 +455,7 @@ func TestMiddlewareCSRFIntegration(t *testing.T) {
 // TestMiddlewareLoggingIntegration tests logging integration across middleware
 func TestMiddlewareLoggingIntegration(t *testing.T) {
 	var logBuffer bytes.Buffer
-	logger := logging.NewLogger(config.LoggingConfig{
+	logger := logging.NewLogger(logging.Config{
 		Level:  "debug",
 		Format: "json",
 		Output: "stdout",
@@ -530,7 +529,7 @@ func TestMiddlewareLoggingIntegration(t *testing.T) {
 // TestMiddlewareErrorHandling tests error handling across middleware chain
 func TestMiddlewareErrorHandling(t *testing.T) {
 	var logBuffer bytes.Buffer
-	logger := logging.NewLogger(config.LoggingConfig{
+	logger := logging.NewLogger(logging.Config{
 		Level:  "debug",
 		Format: "json",
 		Output: "stdout",

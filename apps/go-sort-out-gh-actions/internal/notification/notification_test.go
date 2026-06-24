@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/toozej/monogo/pkg/go-sort-out-gh-actions/config"
+	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/config"
 )
 
 // MockNotifier implements the Notifier interface for testing

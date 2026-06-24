@@ -23,8 +23,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
+	"github.com/toozej/monogo/apps/trails-completionist/internal/config"
 	"github.com/toozej/monogo/pkg/man"
-	"github.com/toozej/monogo/pkg/trails-completionist/config"
 	"github.com/toozej/monogo/pkg/version"
 )
 

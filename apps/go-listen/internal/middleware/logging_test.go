@@ -8,12 +8,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/toozej/monogo/pkg/go-listen/config"
 	"github.com/toozej/monogo/pkg/logging"
 )
 
 func TestNewLoggingMiddleware(t *testing.T) {
-	logger := logging.NewLogger(config.LoggingConfig{
+	logger := logging.NewLogger(logging.Config{
 		Level:  "info",
 		Format: "json",
 		Output: "stdout",
@@ -32,7 +31,7 @@ func TestNewLoggingMiddleware(t *testing.T) {
 
 func TestLoggingMiddleware_LogRequests(t *testing.T) {
 	var buf bytes.Buffer
-	logger := logging.NewLogger(config.LoggingConfig{
+	logger := logging.NewLogger(logging.Config{
 		Level:  "debug",
 		Format: "json",
 		Output: "stdout",
@@ -126,7 +125,7 @@ func TestLoggingMiddleware_LogRequests(t *testing.T) {
 
 func TestLoggingMiddleware_LogRequests_WithError(t *testing.T) {
 	var buf bytes.Buffer
-	logger := logging.NewLogger(config.LoggingConfig{
+	logger := logging.NewLogger(logging.Config{
 		Level:  "debug",
 		Format: "json",
 		Output: "stdout",
@@ -173,7 +172,7 @@ func TestLoggingMiddleware_LogRequests_WithError(t *testing.T) {
 
 func TestLoggingMiddleware_LogRequests_WithClientError(t *testing.T) {
 	var buf bytes.Buffer
-	logger := logging.NewLogger(config.LoggingConfig{
+	logger := logging.NewLogger(logging.Config{
 		Level:  "debug",
 		Format: "json",
 		Output: "stdout",
@@ -305,7 +304,7 @@ func TestGenerateCorrelationID(t *testing.T) {
 }
 
 func TestLoggingMiddleware_ContextPropagation(t *testing.T) {
-	logger := logging.NewLogger(config.LoggingConfig{
+	logger := logging.NewLogger(logging.Config{
 		Level:  "debug",
 		Format: "json",
 		Output: "stdout",

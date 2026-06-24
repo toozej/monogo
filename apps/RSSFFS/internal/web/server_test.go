@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/toozej/monogo/pkg/RSSFFS/config"
+	"github.com/toozej/monogo/apps/RSSFFS/internal/config"
 )
 
 func TestNewServer(t *testing.T) {
