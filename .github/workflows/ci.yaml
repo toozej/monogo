@@ -15,7 +15,28 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  checks:
+  lint:
+    # Repo-wide checks (pre-commit, govulncheck) run once rather than once per
+    # app; per-app license reports run in the test matrix. Configs are generated
+    # a single time and the `-no-generate`/`-no-prereqs` Make variants avoid
+    # redundant regeneration.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.0
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '^1.26'
+          check-latest: true
+      - name: Install gomplate and lint tools
+        run: |
+          pip install pre-commit
+          make pre-reqs pre-commit-install-no-prereqs
+      - name: Generate all app configs
+        run: make generate-all
+      - name: Run pre-commit and vulnerability checks
+        run: make pre-commit-run-no-generate
+
+  test:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -35,27 +56,21 @@ jobs:
           - trails-completionist
           - go-sort-out-gh-actions
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7.0.0
       - uses: actions/setup-go@v6
         with:
           go-version: '^1.26'
           check-latest: true
-      - name: Install gomplate
-        run: make pre-reqs
-      - name: Generate app configs
-        run: make app-generate APP=${{ matrix.app }}
-      - name: Run pre-commit
-        run: |
-          pip install pre-commit
-          make pre-commit APP=${{ matrix.app }}
       - name: Run tests
         run: make test APP=${{ matrix.app }}
+      - name: Report licenses
+        run: make licenses APP=${{ matrix.app }}
 
   gitleaks:
     name: gitleaks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7.0.0
         with:
           fetch-depth: 0
       - uses: gitleaks/gitleaks-action@v3.0.0 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
@@ -70,7 +85,7 @@ jobs:
       actions: read
       contents: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7.0.0
       - uses: actions/setup-go@v6
         with:
           go-version: '^1.26'
@@ -79,17 +94,17 @@ jobs:
         run: make pre-reqs
       - name: Generate app configs
         run: make generate-all
-      - uses: github/codeql-action/init@v4.36.0 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
+      - uses: github/codeql-action/init@v4.36.2 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
         with:
           languages: go
-      - uses: github/codeql-action/autobuild@v4.36.0 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
-      - uses: github/codeql-action/analyze@v4.36.0 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
+      - uses: github/codeql-action/autobuild@v4.36.2 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
+      - uses: github/codeql-action/analyze@v4.36.2 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
 
   trivy-scan-source:
     name: trivy-scan-source
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7.0.0
       - name: Run Trivy vulnerability scanner in fs mode
         uses: aquasecurity/trivy-action@master # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
         with:
@@ -107,7 +122,7 @@ jobs:
     permissions:
       security-events: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7.0.0
       - name: Run Snyk to check for vulnerabilities
         uses: snyk/actions/golang@master
         continue-on-error: true # To make sure that SARIF upload gets called
@@ -116,7 +131,7 @@ jobs:
         with:
           args: --all-projects --sarif-file-output=snyk.sarif
       - name: Upload result to GitHub Code Scanning
-        uses: github/codeql-action/upload-sarif@v4.36.0
+        uses: github/codeql-action/upload-sarif@v4.36.2
         with:
           sarif_file: snyk.sarif
 

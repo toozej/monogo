@@ -33,9 +33,9 @@ PKG = $(shell head -n 1 go.mod | cut -c 8-)
 VERSION_PACKAGE = $(PKG)/pkg/version
 LDFLAGS = -s -w
 LDFLAGS += \
-	-X $(VERSION_PACKAGE).Version=$(or $(VERSION),unknown) \
-	-X $(VERSION_PACKAGE).Commit=$(or $(COMMIT),unknown) \
-	-X $(VERSION_PACKAGE).Branch=$(or $(BRANCH),unknown) \
+	-X $(VERSION_PACKAGE).Version=$(VERSION) \
+	-X $(VERSION_PACKAGE).Commit=$(COMMIT) \
+	-X $(VERSION_PACKAGE).Branch=$(BRANCH) \
 	-X $(VERSION_PACKAGE).BuiltAt=$(NOW) \
 	-X $(VERSION_PACKAGE).Builder=$(BUILDER)
 
@@ -49,18 +49,18 @@ OS := $(shell uname -s)
 ARCH := $(shell uname -m)
 LATEST_RELEASE_URL := https://github.com/toozej/monogo/releases/latest/download/$(APP_BINARY)_$(OS)_$(ARCH).tar.gz
 
-ifeq ($(OS), Linux)
-	OPENER=xdg-open
-else
-	OPENER=open
-endif
-
 COSIGN_IDENTITY_REGEXP := '^https://github.com/toozej/monogo/.github/workflows/(release|weekly-docker-refresh).yaml@refs/(tags/.*|heads/main)$$'
 COSIGN_OIDC_ISSUER := 'https://token.actions.githubusercontent.com'
 
-.PHONY: all list-apps import migrate-internal-package app-check common-generate app-generate generate generate-all app-templates-check templates-check vet test build release verify verify-docker verify-docker-all-registries run up down docker-vet docker-test docker-build distroless-build distroless-run install local local-all local-update-deps local-vet local-test local-cover local-build local-run local-kill local-iterate local-release-test local-release local-sign local-verify local-release-verify local-install docker-login pre-commit-install pre-commit-run pre-commit pre-reqs update-golang-version upload-secrets-to-gh upload-secrets-envfile-to-1pass docs diagrams mutation-test test-changed watch-test profile-cpu profile-mem profile-all benchmark clean clean-all help
+.PHONY: all list-apps import migrate-internal-package app-check common-generate app-generate generate generate-all app-templates-check templates-check vet test build release verify verify-docker verify-docker-all-registries run up down docker-vet docker-test docker-build distroless-build distroless-run install local local-all local-update-deps local-vet local-vendor local-test local-cover local-build local-run local-kill local-iterate local-release-test local-release local-sign local-verify local-release-verify local-install docker-login pre-commit-install pre-commit-run pre-commit pre-reqs licenses licenses-all update-golang-version upload-secrets-to-gh upload-secrets-envfile-to-1pass docs diagrams mutation-test test-changed watch-test profile-cpu profile-mem profile-all benchmark clean clean-all help
+.PHONY: common-generate-no-prereqs app-generate-no-prereqs app-templates-check-no-generate docker-vet-no-generate docker-test-no-generate docker-build-no-generate local-release-test-no-generate pre-commit-install-no-prereqs pre-commit-run-no-generate
 
-all: local-all ## Run default workflow for every app using locally installed tools
+all: generate-all ## Run default workflow for every app using Docker where available
+	@set -e; \
+	$(MAKE) local-update-deps pre-commit-install-no-prereqs pre-commit-run-no-generate licenses-all; \
+	for app in $(APPS); do \
+		$(MAKE) app-check docker-vet-no-generate clean docker-test-no-generate docker-build-no-generate local-release-test-no-generate APP=$$app; \
+	done
 local: app-check generate local-update-deps local-vet pre-commit clean local-test local-build local-release-test ## Run default workflow for APP using locally installed tools
 local-all: generate-all ## Run local vet, test, build, and release checks for every app
 	@for app in $(APPS); do $(MAKE) local APP=$$app; done
@@ -80,34 +80,43 @@ app-check: ## Validate APP points at a configured app
 	@test -f "$(APP_CONFIG)" || (echo "No app config found at $(APP_CONFIG)" && exit 1)
 	@test -n "$(APP_BINARY)" || (echo "No binary configured in $(APP_CONFIG)" && exit 1)
 
-common-generate: pre-reqs app-check ## Generate root shared configs from templates/common
+common-generate: pre-reqs ## Generate root shared configs from templates/common
+	$(MAKE) common-generate-no-prereqs APP=$(APP)
+
+common-generate-no-prereqs: app-check
 	$(CURDIR)/scripts/render-common-configs.sh $(APP)
 
-app-generate: pre-reqs app-check ## Generate APP Docker, GoReleaser, Compose, and Air configs with gomplate
+app-generate: pre-reqs ## Generate APP Docker, GoReleaser, Compose, and Air configs with gomplate
+	$(MAKE) app-generate-no-prereqs APP=$(APP)
+
+app-generate-no-prereqs: app-check
 	$(CURDIR)/scripts/render-app-configs.sh $(APP)
 
 generate: common-generate app-generate ## Generate root shared configs and APP configs
 
-generate-all: pre-reqs ## Generate configs for every app
-	$(MAKE) common-generate APP=$(APP)
-	@for app in $(APPS); do $(MAKE) app-generate APP=$$app; done
+generate-all: pre-reqs ## Generate root shared configs and configs for every app
+	$(MAKE) common-generate-no-prereqs APP=$(APP)
+	@for app in $(APPS); do $(MAKE) app-generate-no-prereqs APP=$$app; done
 
 
 app-templates-check: app-generate ## Render and check generated config for APP
+	$(MAKE) app-templates-check-no-generate APP=$(APP)
+
+app-templates-check-no-generate: app-check
 	goreleaser check --config $(APP_DIR)/.goreleaser.yml
 
 templates-check: pre-reqs ## Render and check generated config for every app
-	@for app in $(APPS); do $(MAKE) app-templates-check APP=$$app; done
+	@for app in $(APPS); do $(MAKE) app-generate-no-prereqs app-templates-check-no-generate APP=$$app; done
 
-vet: local-vet ## Run go vet for APP
+vet: local-vet ## Run goimports and go vet for APP
 
 test: local-test ## Run go test for APP
 
-build: docker-build ## Build Docker image for APP, including running tests
+build: docker-build ## Build APP Docker image
 
 release: app-check generate docker-login ## Release APP assets using GoReleaser OSS
 	if test -e $(CURDIR)/$(APP_ENV_FILE); then \
-		export `cat $(CURDIR)/$(APP_ENV_FILE) | xargs`; \
+		set -a && . $(CURDIR)/$(APP_ENV_FILE) && set +a; \
 		goreleaser release --clean --config $(APP_DIR)/.goreleaser.yml; \
 	else \
 		echo "No environment variables found at $(CURDIR)/$(APP_ENV_FILE). Cannot release."; \
@@ -130,28 +139,40 @@ verify-docker-all-registries: app-check ## Verify APP Docker images on all regis
 			$${registry}$(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG); \
 	done
 
-docker-vet: app-check generate ## Run go vet for APP in Docker
+docker-vet: generate ## Run go vet for APP in Docker
+	$(MAKE) docker-vet-no-generate APP=$(APP)
+
+docker-vet-no-generate: app-check
 	docker build --target vet -f $(CURDIR)/$(APP_DIR)/Dockerfile -t $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG) .
 
-docker-test: app-check generate ## Run go test for APP in Docker
+docker-test: generate ## Run go test for APP in Docker
+	$(MAKE) docker-test-no-generate APP=$(APP)
+
+docker-test-no-generate: app-check
 	docker build --progress=plain --target test -f $(CURDIR)/$(APP_DIR)/Dockerfile -t $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG) .
 
-docker-build: app-check generate ## Build APP Docker image, including running tests
+docker-build: generate ## Build APP Docker image
+	$(MAKE) docker-build-no-generate APP=$(APP)
+
+docker-build-no-generate: app-check
 	docker build -f $(CURDIR)/$(APP_DIR)/Dockerfile \
-		--build-arg VERSION=$(or $(VERSION),unknown) \
-		--build-arg COMMIT=$(or $(COMMIT),unknown) \
-		--build-arg BRANCH=$(or $(BRANCH),unknown) \
+		--build-arg VERSION=$(VERSION) \
+		--build-arg COMMIT=$(COMMIT) \
+		--build-arg BRANCH=$(BRANCH) \
 		--build-arg BUILT_AT=$(NOW) \
 		--build-arg BUILDER=$(BUILDER) \
 		-t $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG) .
 
 run: app-check ## Run built APP Docker image
 	-docker kill $(IMAGE_NAME)
-	docker run --rm --name $(IMAGE_NAME) --env-file $(CURDIR)/.env $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG)
+	if test -e $(CURDIR)/.env; then \
+		docker run --rm --name $(IMAGE_NAME) --env-file $(CURDIR)/.env $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG); \
+	else \
+		echo "No environment variables found at $(CURDIR)/.env. Cannot run."; \
+	fi
 
 up: docker-test docker-build ## Run APP Docker Compose project with built image
 	docker compose -f $(APP_DIR)/docker-compose.yml down --remove-orphans
-	docker compose -f $(APP_DIR)/docker-compose.yml pull
 	docker compose -f $(APP_DIR)/docker-compose.yml up -d
 
 down: app-check ## Stop APP Docker Compose project
@@ -159,9 +180,9 @@ down: app-check ## Stop APP Docker Compose project
 
 distroless-build: app-check generate ## Build APP Docker image using distroless as final base
 	docker build -f $(CURDIR)/$(APP_DIR)/Dockerfile.distroless \
-		--build-arg VERSION=$(or $(VERSION),unknown) \
-		--build-arg COMMIT=$(or $(COMMIT),unknown) \
-		--build-arg BRANCH=$(or $(BRANCH),unknown) \
+		--build-arg VERSION=$(VERSION) \
+		--build-arg COMMIT=$(COMMIT) \
+		--build-arg BRANCH=$(BRANCH) \
 		--build-arg BUILT_AT=$(NOW) \
 		--build-arg BUILDER=$(BUILDER) \
 		-t $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG)-distroless .
@@ -169,8 +190,8 @@ distroless-build: app-check generate ## Build APP Docker image using distroless 
 distroless-run: app-check ## Run built APP Docker image using distroless as final base
 	docker run --rm --name $(IMAGE_NAME) -v $(CURDIR)/config:/config $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG)-distroless
 
-install: app-check ## Install APP from latest GitHub release
-	if command -v go; then \
+install: app-check ## Install APP with go install, or the latest GitHub release binary
+	if command -v go >/dev/null 2>&1; then \
 		go install $(PKG)/$(APP_MAIN_PATH)@latest ; \
 	else \
 		echo "Downloading $(APP_BINARY) binary for $(OS)-$(ARCH)..."; \
@@ -186,7 +207,7 @@ local-update-deps: ## Run `go get -t -u ./...` to update Go module dependencies
 	go get -t -u ./...
 
 local-vet: app-check ## Run goimports and go vet for APP
-	command -v goimports || go install golang.org/x/tools/cmd/goimports@latest
+	command -v goimports >/dev/null 2>&1 || go install golang.org/x/tools/cmd/goimports@latest
 	goimports -w $(APP_DIR) pkg
 	go vet $(APP_PACKAGES)
 
@@ -207,7 +228,7 @@ local-build: app-check ## Build APP using locally installed golang toolchain
 
 local-run: app-check ## Run locally built APP binary
 	if test -e $(CURDIR)/.env; then \
-		export `cat $(CURDIR)/.env | xargs` && $(CURDIR)/out/$(APP_BINARY); \
+		set -a && . $(CURDIR)/.env && set +a && $(CURDIR)/out/$(APP_BINARY); \
 	else \
 		echo "No environment variables found at $(CURDIR)/.env. Cannot run."; \
 	fi
@@ -218,12 +239,15 @@ local-kill: app-check ## Kill any currently running locally built APP binary
 local-iterate: app-check generate ## Run APP local build and run via air when files change
 	air -c $(APP_DIR)/.air.toml
 
-local-release-test: app-templates-check ## Check GoReleaser config and build APP snapshot
+local-release-test: app-generate ## Check GoReleaser config and build APP snapshot
+	$(MAKE) local-release-test-no-generate APP=$(APP)
+
+local-release-test-no-generate: app-templates-check-no-generate
 	goreleaser build --clean --snapshot --config $(APP_DIR)/.goreleaser.yml
 
 local-release: local-test docker-login ## Release APP assets using locally installed golang toolchain and goreleaser (keyless)
 	if test -e $(CURDIR)/$(APP_ENV_FILE); then \
-		export `cat $(CURDIR)/$(APP_ENV_FILE) | xargs` && goreleaser release --clean --config $(APP_DIR)/.goreleaser.yml; \
+		set -a && . $(CURDIR)/$(APP_ENV_FILE) && set +a && goreleaser release --clean --config $(APP_DIR)/.goreleaser.yml; \
 	else \
 		echo "No environment variables found at $(CURDIR)/$(APP_ENV_FILE). Cannot release."; \
 	fi
@@ -262,7 +286,7 @@ upload-secrets-envfile-to-1pass: app-check ## Upload APP secrets and apps/APP/.e
 
 docker-login: ## Login to Docker registries used to publish images to
 	if test -e $(CURDIR)/.env; then \
-		export `cat $(CURDIR)/.env | xargs`; \
+		set -a && . $(CURDIR)/.env && set +a; \
 		export DOCKER_CONFIG=$$(mktemp -d); \
 		mkdir -p $${DOCKER_CONFIG}; \
 		DOCKERHUB_AUTH=$$(echo -n "$${DOCKERHUB_USERNAME}:$${DOCKERHUB_TOKEN}" | base64); \
@@ -274,12 +298,15 @@ docker-login: ## Login to Docker registries used to publish images to
 	fi
 
 pre-reqs: ## Install repository prerequisites
-	command -v gomplate || go install github.com/hairyhenderson/gomplate/v5/cmd/gomplate@latest
+	command -v gomplate >/dev/null 2>&1 || go install github.com/hairyhenderson/gomplate/v5/cmd/gomplate@latest
 
 pre-commit: pre-commit-install pre-commit-run ## Install and run pre-commit hooks
 
 pre-commit-install: pre-reqs ## Install pre-commit hooks and necessary binaries
-	command -v apt && apt-get update || echo "package manager not apt"
+	$(MAKE) pre-commit-install-no-prereqs
+
+pre-commit-install-no-prereqs:
+	command -v apt >/dev/null 2>&1 && apt-get update || echo "package manager not apt"
 	# golangci-lint
 	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
 	# goimports
@@ -291,17 +318,17 @@ pre-commit-install: pre-reqs ## Install pre-commit hooks and necessary binaries
 	# go-critic
 	go install github.com/go-critic/go-critic/cmd/go-critic@latest
 	# shellcheck
-	command -v shellcheck || brew install shellcheck || apt install -y shellcheck || sudo dnf install -y ShellCheck || sudo apt install -y shellcheck
+	command -v shellcheck >/dev/null 2>&1 || brew install shellcheck || apt install -y shellcheck || sudo dnf install -y ShellCheck || sudo apt install -y shellcheck
 	# checkmake
 	go install github.com/checkmake/checkmake/cmd/checkmake@latest
 	# goreleaser
 	go install github.com/goreleaser/goreleaser/v2@latest
 	# actionlint
-	command -v actionlint || brew install actionlint || go install github.com/rhysd/actionlint/cmd/actionlint@latest
+	command -v actionlint >/dev/null 2>&1 || brew install actionlint || go install github.com/rhysd/actionlint/cmd/actionlint@latest
 	# syft
-	command -v syft || brew install syft || curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+	command -v syft >/dev/null 2>&1 || brew install syft || curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
 	# cosign
-	command -v cosign || brew install cosign || go install github.com/sigstore/cosign/v3/cmd/cosign@latest
+	command -v cosign >/dev/null 2>&1 || brew install cosign || go install github.com/sigstore/cosign/v3/cmd/cosign@latest
 	# go-licenses
 	go install github.com/google/go-licenses@latest
 	# go vuln check
@@ -309,23 +336,29 @@ pre-commit-install: pre-reqs ## Install pre-commit hooks and necessary binaries
 	# air
 	go install github.com/air-verse/air@latest
 	# graphviz for dot
-	command -v dot || brew install graphviz || sudo apt install -y graphviz || sudo dnf install -y graphviz
+	command -v dot >/dev/null 2>&1 || brew install graphviz || sudo apt install -y graphviz || sudo dnf install -y graphviz
 	# semgrep
-	command -v semgrep || brew install semgrep || python3 -m pip install --break-system-packages --upgrade semgrep
+	command -v semgrep >/dev/null 2>&1 || brew install semgrep || python3 -m pip install --break-system-packages --upgrade semgrep
 	# install and update pre-commits
 	grep --silent "VERSION=\"12 (bookworm)\"" /etc/os-release && apt install -y --no-install-recommends python3-pip && python3 -m pip install --break-system-packages --upgrade pre-commit || echo "OS is not Debian 12 bookworm"
-	command -v pre-commit || brew install pre-commit || sudo dnf install -y pre-commit || sudo apt install -y pre-commit
+	command -v pre-commit >/dev/null 2>&1 || brew install pre-commit || sudo dnf install -y pre-commit || sudo apt install -y pre-commit
 	pre-commit install
 	pre-commit autoupdate
 
-pre-commit-run: generate-all ## Run pre-commit hooks against all files
+pre-commit-run: generate-all ## Run pre-commit hooks, govulncheck, and license checks against all files
+	$(MAKE) pre-commit-run-no-generate licenses-all
+
+pre-commit-run-no-generate:
 	pre-commit run --all-files
-	# manually run the following checks since their pre-commits are not working or do not exist
-	@for app in $(APPS); do \
-		binary=$$(awk -F': *' '/^binary:/ {gsub(/"/, "", $$2); print $$2; exit}' apps/$$app/app.yaml); \
-		go-licenses report $(PKG)/apps/$$app; \
-	done
+	# manually run govulncheck since it has no working pre-commit hook
 	govulncheck ./...
+
+licenses: app-check ## Report third-party licenses for APP
+	command -v go-licenses >/dev/null 2>&1 || go install github.com/google/go-licenses@latest
+	go-licenses report $(PKG)/apps/$(APP)
+
+licenses-all: ## Report third-party licenses for every app
+	@for app in $(APPS); do $(MAKE) licenses APP=$$app; done
 
 update-golang-version: ## Update to latest Golang version across the repo
 	@VERSION=`curl -s "https://go.dev/dl/?mode=json" | jq -r '.[0].version' | sed 's/go//' | cut -d '.' -f 1,2`; \
@@ -412,4 +445,4 @@ clean-all: ## Remove generated artifacts for every app
 	@rm -rf $(CURDIR)/manpages/
 
 help: ## Display help text
-	@grep -E '^[a-zA-Z_-]+ ?:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z0-9_-]+ ?:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
