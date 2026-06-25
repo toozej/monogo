@@ -7,7 +7,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"github.com/toozej/kmhd2playlist/pkg/config"
+	"github.com/toozej/monogo/apps/kmhd2playlist/internal/config"
 )
 
 func TestNewClient_WithEmptyCookie(t *testing.T) {

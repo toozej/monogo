@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/toozej/kmhd2playlist/pkg/config"
+	"github.com/toozej/monogo/apps/kmhd2playlist/internal/config"
 )
 
 func TestSpotifyConfigGetTokenFilePath(t *testing.T) {

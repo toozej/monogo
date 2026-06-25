@@ -55,6 +55,7 @@ jobs:
           - files2prompt
           - trails-completionist
           - go-sort-out-gh-actions
+          - kmhd2playlist
     steps:
       - uses: actions/checkout@v7.0.0
       - uses: actions/setup-go@v6

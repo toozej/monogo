@@ -11,7 +11,7 @@ import (
 	"sync"
 
 	"github.com/sirupsen/logrus"
-	"github.com/toozej/kmhd2playlist/pkg/config"
+	"github.com/toozej/monogo/apps/kmhd2playlist/internal/config"
 )
 
 const (
@@ -105,7 +105,7 @@ func (c *Client) doRequest(endpoint string, body any) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to make request to %s: %w", endpoint, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == http.StatusUnauthorized {
 		c.mu.Lock()

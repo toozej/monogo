@@ -8,11 +8,11 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/toozej/kmhd2playlist/internal/api"
-	"github.com/toozej/kmhd2playlist/internal/search"
-	"github.com/toozej/kmhd2playlist/internal/spotify"
-	"github.com/toozej/kmhd2playlist/internal/types"
-	"github.com/toozej/kmhd2playlist/internal/youtubemusic"
+	"github.com/toozej/monogo/apps/kmhd2playlist/internal/api"
+	"github.com/toozej/monogo/apps/kmhd2playlist/internal/search"
+	"github.com/toozej/monogo/apps/kmhd2playlist/internal/spotify"
+	"github.com/toozej/monogo/apps/kmhd2playlist/internal/types"
+	"github.com/toozej/monogo/apps/kmhd2playlist/internal/youtubemusic"
 )
 
 // newSearchCmd creates the search command for searching songs in KMHD playlist.

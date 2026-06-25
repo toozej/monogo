@@ -4,8 +4,8 @@ import (
 	"errors"
 
 	"github.com/sirupsen/logrus"
-	"github.com/toozej/kmhd2playlist/internal/types"
-	"github.com/toozej/kmhd2playlist/pkg/config"
+	"github.com/toozej/monogo/apps/kmhd2playlist/internal/config"
+	"github.com/toozej/monogo/apps/kmhd2playlist/internal/types"
 )
 
 type Service struct {

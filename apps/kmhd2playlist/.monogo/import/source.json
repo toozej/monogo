@@ -1,0 +1,12 @@
+{
+  "source": "toozej/kmhd2playlist",
+  "vcsHost": "github.com/",
+  "owner": "toozej",
+  "repo": "kmhd2playlist",
+  "ownerRepo": "toozej/kmhd2playlist",
+  "repoURL": "https://github.com/toozej/kmhd2playlist.git",
+  "ref": "main",
+  "oldModule": "github.com/toozej/kmhd2playlist",
+  "newModule": "github.com/toozej/monogo/apps/kmhd2playlist",
+  "tagPrefix": "apps/kmhd2playlist"
+}

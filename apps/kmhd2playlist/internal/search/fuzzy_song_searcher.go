@@ -6,7 +6,7 @@ import (
 
 	"github.com/sahilm/fuzzy"
 	"github.com/sirupsen/logrus"
-	"github.com/toozej/kmhd2playlist/internal/types"
+	"github.com/toozej/monogo/apps/kmhd2playlist/internal/types"
 )
 
 // FuzzySongSearcher implements fuzzy matching for both artist and song search

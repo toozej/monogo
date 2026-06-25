@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/sirupsen/logrus"
-	"github.com/toozej/kmhd2playlist/pkg/config"
+	"github.com/toozej/monogo/apps/kmhd2playlist/internal/config"
 )
 
 func TestService_GetArtistTopTracks(t *testing.T) {

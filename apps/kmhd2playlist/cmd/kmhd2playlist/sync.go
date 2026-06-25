@@ -12,8 +12,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/toozej/kmhd2playlist/internal/search"
-	"github.com/toozej/kmhd2playlist/internal/types"
+	"github.com/toozej/monogo/apps/kmhd2playlist/internal/search"
+	"github.com/toozej/monogo/apps/kmhd2playlist/internal/types"
 )
 
 // newSyncCmd creates the sync command for synchronizing KMHD playlist with a music service.

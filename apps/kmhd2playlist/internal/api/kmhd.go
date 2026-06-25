@@ -15,9 +15,9 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/toozej/kmhd2playlist/internal/types"
-	"github.com/toozej/kmhd2playlist/pkg/config"
-	"github.com/toozej/kmhd2playlist/pkg/useragent"
+	"github.com/toozej/monogo/apps/kmhd2playlist/internal/config"
+	"github.com/toozej/monogo/apps/kmhd2playlist/internal/types"
+	"github.com/toozej/monogo/pkg/useragent"
 )
 
 // KMHDAPIClient handles fetching and parsing of KMHD JSON API data.

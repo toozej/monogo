@@ -5,7 +5,7 @@
 // configuration management.
 package main
 
-import cmd "github.com/toozej/kmhd2playlist/cmd/kmhd2playlist"
+import cmd "github.com/toozej/monogo/apps/kmhd2playlist/cmd/kmhd2playlist"
 
 // main is the entry point of the kmhd2playlist application.
 // It delegates execution to the cmd package which handles all

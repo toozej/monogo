@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/toozej/kmhd2playlist/internal/types"
+	"github.com/toozej/monogo/apps/kmhd2playlist/internal/types"
 )
 
 func TestSearchSongs(t *testing.T) {

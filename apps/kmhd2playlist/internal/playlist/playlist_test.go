@@ -6,7 +6,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"github.com/toozej/kmhd2playlist/internal/types"
+	"github.com/toozej/monogo/apps/kmhd2playlist/internal/types"
 )
 
 // MockSpotifyService is a mock implementation of MusicService

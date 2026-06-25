@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/toozej/kmhd2playlist/internal/types"
+	"github.com/toozej/monogo/apps/kmhd2playlist/internal/types"
 )
 
 // PlaylistService implements the PlaylistManager interface

@@ -2,8 +2,8 @@
 //
 // This package handles loading configuration from environment variables and .env files
 // with built-in security measures to prevent path traversal attacks. It uses the
-// github.com/caarlos0/env library for environment variable parsing and
-// github.com/joho/godotenv for .env file loading.
+// loading mechanics (.env discovery, path-traversal protection, and environment
+// parsing) provided by the shared github.com/toozej/monogo/pkg/config package.
 //
 // The configuration loading follows a priority order:
 //  1. Environment variables (highest priority)
@@ -17,7 +17,7 @@
 //
 // Example usage:
 //
-//	import "github.com/toozej/kmhd2playlist/pkg/config"
+//	import "github.com/toozej/monogo/apps/kmhd2playlist/internal/config"
 //
 //	func main() {
 //		conf := config.GetEnvVars()
@@ -31,8 +31,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/caarlos0/env/v11"
-	"github.com/joho/godotenv"
+	sharedconfig "github.com/toozej/monogo/pkg/config"
 )
 
 // Config represents the main application configuration with nested service configurations.
@@ -132,47 +131,9 @@ type ServerConfig struct {
 //	fmt.Printf("Spotify Client ID: %s\n", conf.Spotify.ClientID)
 //	fmt.Printf("KMHD API Endpoint: %s\n", conf.KMHD.APIEndpoint)
 func GetEnvVars() Config {
-	// Get current working directory for secure file operations
-	cwd, err := os.Getwd()
-	if err != nil {
-		fmt.Printf("Error getting current working directory: %s\n", err)
-		os.Exit(1)
-	}
-
-	// Construct secure path for .env file within current directory
-	envPath := filepath.Join(cwd, ".env")
-
-	// Ensure the path is within our expected directory (prevent traversal)
-	cleanEnvPath, err := filepath.Abs(envPath)
-	if err != nil {
-		fmt.Printf("Error resolving .env file path: %s\n", err)
-		os.Exit(1)
-	}
-	cleanCwd, err := filepath.Abs(cwd)
-	if err != nil {
-		fmt.Printf("Error resolving current directory: %s\n", err)
-		os.Exit(1)
-	}
-	relPath, err := filepath.Rel(cleanCwd, cleanEnvPath)
-	if err != nil || strings.Contains(relPath, "..") {
-		fmt.Printf("Error: .env file path traversal detected\n")
-		os.Exit(1)
-	}
-
-	// Load .env file if it exists
-	if _, err := os.Stat(envPath); err == nil {
-		if err := godotenv.Load(envPath); err != nil {
-			fmt.Printf("Error loading .env file: %s\n", err)
-			os.Exit(1)
-		}
-	}
-
-	// Parse environment variables into config struct
-	var conf Config
-	if err := env.Parse(&conf); err != nil {
-		fmt.Printf("Error parsing configuration from environment: %s\n", err)
-		os.Exit(1)
-	}
+	// Delegate .env discovery, path-traversal protection, and environment
+	// parsing to the shared loader; it exits the process on failure.
+	conf := sharedconfig.MustLoad[Config]()
 
 	// Validate configuration
 	if err := validateConfig(&conf); err != nil {

@@ -12,7 +12,7 @@
 //
 // Example usage:
 //
-//	import "github.com/toozej/kmhd2playlist/cmd/kmhd2playlist"
+//	import "github.com/toozej/monogo/apps/kmhd2playlist/cmd/kmhd2playlist"
 //
 //	func main() {
 //		cmd.Execute()
@@ -26,9 +26,9 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/toozej/kmhd2playlist/pkg/config"
-	"github.com/toozej/kmhd2playlist/pkg/man"
-	"github.com/toozej/kmhd2playlist/pkg/version"
+	"github.com/toozej/monogo/apps/kmhd2playlist/internal/config"
+	"github.com/toozej/monogo/pkg/man"
+	"github.com/toozej/monogo/pkg/version"
 )
 
 // conf holds the application configuration loaded from environment variables.

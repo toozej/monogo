@@ -2,6 +2,7 @@
 version: 2
 
 project_name: kmhd2playlist
+dist: dist/kmhd2playlist
 
 env:
   - GO111MODULE=on
@@ -13,14 +14,15 @@ env_files:
 before:
   hooks:
     - go mod tidy
-    - ./scripts/completions.sh
-    - ./scripts/manpages.sh
+    - ./scripts/completions.sh kmhd2playlist
+    - ./scripts/manpages.sh kmhd2playlist
 
 snapshot:
   version_template: '{{ incpatch .Version }}-next'
 
 builds:
-  - env:
+  - id: kmhd2playlist
+    env:
       - CGO_ENABLED=0
     goos:
       - linux
@@ -42,12 +44,12 @@ builds:
     ldflags:
       - >-
         -s -w
-        -X github.com/toozej/kmhd2playlist/pkg/version.Version={{.Version}}
-        -X github.com/toozej/kmhd2playlist/pkg/version.Commit={{.Commit}}
-        -X github.com/toozej/kmhd2playlist/pkg/version.Branch={{.Branch}}
-        -X github.com/toozej/kmhd2playlist/pkg/version.BuiltAt={{.CommitDate}}
-        -X github.com/toozej/kmhd2playlist/pkg/version.Builder=goreleaser
-    main: ./
+        -X github.com/toozej/monogo/pkg/version.Version=v{{ envOrDefault "MONOGO_APP_VERSION" .Version }}
+        -X github.com/toozej/monogo/pkg/version.Commit={{.Commit}}
+        -X github.com/toozej/monogo/pkg/version.Branch={{.Branch}}
+        -X github.com/toozej/monogo/pkg/version.BuiltAt={{.CommitDate}}
+        -X github.com/toozej/monogo/pkg/version.Builder=goreleaser
+    main: ./apps/kmhd2playlist
     binary: kmhd2playlist
 
 universal_binaries:
@@ -56,7 +58,15 @@ universal_binaries:
 checksum:
   name_template: 'checksums.txt'
 
+docker_digest:
+  name_template: 'digests.txt'
+
 changelog:
+  # Release notes are produced by `gh` (CI) / the Makefile, not GoReleaser,
+  # whenever the SCM release is disabled. Skip GoReleaser's own changelog then
+  # to avoid noisy GitHub API calls and empty .PreviousTag lookups against the
+  # local-only vX.Y.Z tag. Condition mirrors release.disable below.
+  disable: '{{ or (eq (envOrDefault "MONOGO_APP_RELEASE" "false") "true") (eq (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true") }}'
   sort: asc
   use: github
   filters:
@@ -91,45 +101,78 @@ dockers_v2:
       - 'ghcr.io/toozej/kmhd2playlist'
       - 'quay.io/toozej/kmhd2playlist'
     tags:
-      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}v{{ .Version
-        }}{{ end }}'
-      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ .Version
-        }}{{ end }}'
+      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}v{{ envOrDefault "MONOGO_APP_VERSION" .Version }}{{ end }}'
+      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ envOrDefault "MONOGO_APP_VERSION" .Version }}{{ end }}'
       - "latest"
-      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}v{{ .Version
-        }}-distroless{{ end }}'
-      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ .Version
-        }}-distroless{{ end }}'
-      - "distroless"
-    dockerfile: Dockerfile.goreleaser
+    dockerfile: apps/kmhd2playlist/Dockerfile.goreleaser
     labels:
-      "io.artifacthub.package.readme-url": "https://raw.githubusercontent.com/toozej/kmhd2playlist/main/README.md"
+      "io.artifacthub.package.readme-url": "https://github.com/toozej/monogo/raw/main/README.md"
       "io.artifacthub.package.maintainers": "[{\"name\":\"toozej\"}]"
       "io.artifacthub.package.license": "GPLv3"
-      "org.opencontainers.image.description": "Automatically sync songs from KMHD jazz radio\
-        \ to your Spotify playlists"
+      "org.opencontainers.image.description": >-
+        Automatically sync songs from KMHD jazz radio to your Spotify playlists
       "org.opencontainers.image.created": "{{.Date}}"
       "org.opencontainers.image.name": "{{.ProjectName}}"
       "org.opencontainers.image.revision": "{{.FullCommit}}"
-      "org.opencontainers.image.version": "{{.Version}}"
+      "org.opencontainers.image.version": '{{ envOrDefault "MONOGO_APP_VERSION" .Version }}'
       "org.opencontainers.image.source": "{{.GitURL}}"
       "org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
-      "org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/kmhd2playlist/main/README.md"
+      "org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
       "org.opencontainers.image.licenses": "GPL-3.0-only"
       "org.opencontainers.image.title": "{{.ProjectName}}"
       "org.opencontainers.image.vendor": "James Tooze"
     annotations:
       "index,manifest:org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
       "index,manifest:org.opencontainers.image.created": "{{.Date}}"
-      "index,manifest:org.opencontainers.image.description": "Automatically sync songs from\
-        \ KMHD jazz radio to your Spotify playlists"
-      "index,manifest:org.opencontainers.image.documentation": "https://raw.githubusercontent.com/toozej/kmhd2playlist/main/README.md"
+      "index,manifest:org.opencontainers.image.description": >-
+        Automatically sync songs from KMHD jazz radio to your Spotify playlists
+      "index,manifest:org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
       "index,manifest:org.opencontainers.image.licenses": "GPL-3.0-only"
       "index,manifest:org.opencontainers.image.revision": "{{.FullCommit}}"
-      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/kmhd2playlist"
+      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/monogo"
       "index,manifest:org.opencontainers.image.title": "{{.ProjectName}}"
       "index,manifest:org.opencontainers.image.vendor": "James Tooze"
-      "index,manifest:org.opencontainers.image.version": "{{.Version}}"
+      "index,manifest:org.opencontainers.image.version": '{{ envOrDefault "MONOGO_APP_VERSION" .Version }}'
+    extra_files:
+      - scripts/goreleaser_entrypoint.sh
+  - id: kmhd2playlist-distroless
+    images:
+      - 'toozej/kmhd2playlist'
+      - 'ghcr.io/toozej/kmhd2playlist'
+      - 'quay.io/toozej/kmhd2playlist'
+    tags:
+      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}v{{ envOrDefault "MONOGO_APP_VERSION" .Version }}-distroless{{ end }}'
+      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ envOrDefault "MONOGO_APP_VERSION" .Version }}-distroless{{ end }}'
+      - "distroless"
+    dockerfile: apps/kmhd2playlist/Dockerfile.goreleaser.distroless
+    labels:
+      "io.artifacthub.package.readme-url": "https://github.com/toozej/monogo/raw/main/README.md"
+      "io.artifacthub.package.maintainers": "[{\"name\":\"toozej\"}]"
+      "io.artifacthub.package.license": "GPLv3"
+      "org.opencontainers.image.description": >-
+        Automatically sync songs from KMHD jazz radio to your Spotify playlists
+      "org.opencontainers.image.created": "{{.Date}}"
+      "org.opencontainers.image.name": "{{.ProjectName}}"
+      "org.opencontainers.image.revision": "{{.FullCommit}}"
+      "org.opencontainers.image.version": '{{ envOrDefault "MONOGO_APP_VERSION" .Version }}'
+      "org.opencontainers.image.source": "{{.GitURL}}"
+      "org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
+      "org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
+      "org.opencontainers.image.licenses": "GPL-3.0-only"
+      "org.opencontainers.image.title": "{{.ProjectName}}"
+      "org.opencontainers.image.vendor": "James Tooze"
+    annotations:
+      "index,manifest:org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
+      "index,manifest:org.opencontainers.image.created": "{{.Date}}"
+      "index,manifest:org.opencontainers.image.description": >-
+        Automatically sync songs from KMHD jazz radio to your Spotify playlists
+      "index,manifest:org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
+      "index,manifest:org.opencontainers.image.licenses": "GPL-3.0-only"
+      "index,manifest:org.opencontainers.image.revision": "{{.FullCommit}}"
+      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/monogo"
+      "index,manifest:org.opencontainers.image.title": "{{.ProjectName}}"
+      "index,manifest:org.opencontainers.image.vendor": "James Tooze"
+      "index,manifest:org.opencontainers.image.version": '{{ envOrDefault "MONOGO_APP_VERSION" .Version }}'
     extra_files:
       - scripts/goreleaser_entrypoint.sh
 
@@ -146,18 +189,20 @@ archives:
     files:
       - README.md
       - LICENSE
-      - completions/*
-      - manpages/*
+      - completions/kmhd2playlist.bash
+      - completions/kmhd2playlist.fish
+      - completions/kmhd2playlist.zsh
+      - manpages/kmhd2playlist.1.gz
 
 nfpms:
   - file_name_template: '{{ .ConventionalFileName }}'
     id: packages
-    homepage: https://github.com/toozej/kmhd2playlist
+    homepage: https://github.com/toozej/monogo
     description: |-
       Automatically sync songs from KMHD jazz radio to your Spotify playlists
     maintainer: toozej
     license: GPLv3
-    vendor: kmhd2playlist
+    vendor: monogo
     bindir: /usr/bin
     section: utils
     contents:
@@ -196,8 +241,9 @@ nfpms:
 
 homebrew_casks:
   - name: kmhd2playlist
-    homepage: https://github.com/toozej/kmhd2playlist
-    description: "Automatically sync songs from KMHD jazz radio to your Spotify playlists"
+    homepage: https://github.com/toozej/monogo
+    description: >-
+      Automatically sync songs from KMHD jazz radio to your Spotify playlists
     license: GPLv3
     repository:
       owner: toozej
@@ -210,7 +256,8 @@ homebrew_casks:
       zsh: "completions/kmhd2playlist.zsh"
       fish: "completions/kmhd2playlist.fish"
     url:
-      verified: "github.com/toozej/kmhd2playlist/releases/download"
+      template: "https://github.com/toozej/monogo/releases/download/{{ envOrDefault \"MONOGO_RELEASE_TAG\" .Tag }}/{{ .ArtifactName }}"
+      verified: "github.com/toozej/monogo/releases/download"
     hooks:
       post:
         install: |
@@ -245,6 +292,7 @@ milestones:
   - close: true
 
 release:
-  disable: '{{ eq (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}'
+  mode: append
+  disable: '{{ or (eq (envOrDefault "MONOGO_APP_RELEASE" "false") "true") (eq (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true") }}'
   footer: |
-    **Full Changelog**: https://github.com/toozej/kmhd2playlist/compare/{{ .PreviousTag }}...{{ .Tag }}
+    **Full Changelog**: https://github.com/toozej/monogo/compare/{{ .PreviousTag }}...{{ .Tag }}

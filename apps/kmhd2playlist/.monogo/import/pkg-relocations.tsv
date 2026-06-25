@@ -1,0 +1,5 @@
+github.com/toozej/monogo/apps/kmhd2playlist/pkg/config	github.com/toozej/monogo/pkg/kmhd2playlist/config
+github.com/toozej/monogo/apps/kmhd2playlist/pkg/man	github.com/toozej/monogo/pkg/kmhd2playlist/man
+apps/kmhd2playlist/pkg/README.md	apps/kmhd2playlist/.monogo/original-pkg/README.md
+github.com/toozej/monogo/apps/kmhd2playlist/pkg/useragent	github.com/toozej/monogo/pkg/useragent
+github.com/toozej/monogo/apps/kmhd2playlist/pkg/version	github.com/toozej/monogo/pkg/kmhd2playlist/version

@@ -7,6 +7,13 @@ services:
     security_opt:
       - no-new-privileges:true
     read_only: true
+    command: ["sync", "--continuous"]
+    volumes:
+      - ./data:/app/data
+    environment:
+      - SPOTIFY_TOKEN_FILE_PATH=/app/data/spotify_token.json
+    env_file:
+      - .env
     labels:
       - "traefik.enable=false"
       # labels below for publishing as web service
