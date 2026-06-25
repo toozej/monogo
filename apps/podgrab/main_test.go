@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/toozej/podgrab/db"
+	"github.com/toozej/monogo/apps/podgrab/db"
 	"gorm.io/gorm"
 )
 

@@ -12,10 +12,10 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/toozej/podgrab/db"
-	"github.com/toozej/podgrab/internal/logger"
-	"github.com/toozej/podgrab/model"
-	"github.com/toozej/podgrab/service"
+	"github.com/toozej/monogo/apps/podgrab/db"
+	"github.com/toozej/monogo/apps/podgrab/internal/logger"
+	"github.com/toozej/monogo/apps/podgrab/model"
+	"github.com/toozej/monogo/apps/podgrab/service"
 )
 
 // SearchGPodderData represents search g podder data data.

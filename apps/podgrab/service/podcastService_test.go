@@ -10,9 +10,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/toozej/podgrab/db"
-	testhelpers "github.com/toozej/podgrab/internal/testing"
-	"github.com/toozej/podgrab/model"
+	"github.com/toozej/monogo/apps/podgrab/db"
+	testhelpers "github.com/toozej/monogo/apps/podgrab/internal/testing"
+	"github.com/toozej/monogo/apps/podgrab/model"
 )
 
 // TestParseOpml tests OPML file parsing.

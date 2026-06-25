@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/toozej/podgrab/db"
+	"github.com/toozej/monogo/apps/podgrab/db"
 )
 
 // TestEpisodeWorkflow_ViewEpisodeDetails tests viewing episode information.

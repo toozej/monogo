@@ -16,8 +16,8 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/toozej/podgrab/controllers"
-	"github.com/toozej/podgrab/db"
+	"github.com/toozej/monogo/apps/podgrab/controllers"
+	"github.com/toozej/monogo/apps/podgrab/db"
 )
 
 // setupWebSocketServer creates a test WebSocket server.
@@ -51,7 +51,8 @@ func TestWebSocket_Connection(t *testing.T) {
 	server := setupWebSocketServer(t)
 	defer server.Close()
 
-	// Convert http:// to ws://
+	// Derive the WebSocket URL from the test server's address. The local
+	// httptest server is plaintext, so the insecure scheme is expected here.
 	// nosemgrep: javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket - Test uses local httptest server, secure websocket not applicable
 	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws"
 

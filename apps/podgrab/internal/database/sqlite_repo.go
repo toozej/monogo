@@ -3,8 +3,8 @@ package database
 import (
 	"time"
 
-	"github.com/toozej/podgrab/db"
-	"github.com/toozej/podgrab/model"
+	"github.com/toozej/monogo/apps/podgrab/db"
+	"github.com/toozej/monogo/apps/podgrab/model"
 	"gorm.io/gorm"
 )
 

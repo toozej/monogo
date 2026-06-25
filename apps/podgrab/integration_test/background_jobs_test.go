@@ -15,9 +15,9 @@ import (
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/toozej/podgrab/db"
-	testhelpers "github.com/toozej/podgrab/internal/testing"
-	"github.com/toozej/podgrab/service"
+	"github.com/toozej/monogo/apps/podgrab/db"
+	testhelpers "github.com/toozej/monogo/apps/podgrab/internal/testing"
+	"github.com/toozej/monogo/apps/podgrab/service"
 	"gorm.io/gorm"
 )
 

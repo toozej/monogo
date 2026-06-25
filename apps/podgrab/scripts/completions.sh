@@ -3,5 +3,5 @@ set -e
 rm -rf completions
 mkdir completions
 for sh in bash zsh fish; do
-	go run ./cmd/podgrab/ completion "$sh" >"completions/podgrab.$sh"
+	go run ./ completion "$sh" >"completions/podgrab.$sh"
 done

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/toozej/podgrab/internal/logger"
+	"github.com/toozej/monogo/apps/podgrab/internal/logger"
 	"gorm.io/gorm"
 )
 

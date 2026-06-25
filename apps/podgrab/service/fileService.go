@@ -19,9 +19,9 @@ import (
 	"time"
 
 	stringy "github.com/gobeam/stringy"
-	"github.com/toozej/podgrab/db"
-	"github.com/toozej/podgrab/internal/logger"
-	"github.com/toozej/podgrab/internal/sanitize"
+	"github.com/toozej/monogo/apps/podgrab/db"
+	"github.com/toozej/monogo/apps/podgrab/internal/logger"
+	"github.com/toozej/monogo/apps/podgrab/internal/sanitize"
 )
 
 // Download download.

@@ -15,9 +15,9 @@ import (
 
 	"github.com/chromedp/chromedp"
 	"github.com/gin-gonic/gin"
-	"github.com/toozej/podgrab/controllers"
-	"github.com/toozej/podgrab/db"
-	"github.com/toozej/podgrab/service"
+	"github.com/toozej/monogo/apps/podgrab/controllers"
+	"github.com/toozej/monogo/apps/podgrab/db"
+	"github.com/toozej/monogo/apps/podgrab/service"
 	"gorm.io/gorm"
 )
 

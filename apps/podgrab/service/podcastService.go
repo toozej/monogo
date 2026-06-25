@@ -17,10 +17,10 @@ import (
 	"github.com/TheHippo/podcastindex"
 	"github.com/antchfx/xmlquery"
 	strip "github.com/grokify/html-strip-tags-go"
-	"github.com/toozej/podgrab/db"
-	"github.com/toozej/podgrab/internal/logger"
-	"github.com/toozej/podgrab/internal/sanitize"
-	"github.com/toozej/podgrab/model"
+	"github.com/toozej/monogo/apps/podgrab/db"
+	"github.com/toozej/monogo/apps/podgrab/internal/logger"
+	"github.com/toozej/monogo/apps/podgrab/internal/sanitize"
+	"github.com/toozej/monogo/apps/podgrab/model"
 	"gorm.io/gorm"
 )
 

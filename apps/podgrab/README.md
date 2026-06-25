@@ -3,11 +3,11 @@
 Self-hosted podcast manager for automatically downloading and managing podcast
 episodes.
 
-[![Build Status](https://img.shields.io/github/actions/workflow/status/toozej/podgrab/build.yml?branch=main)](https://github.com/toozej/podgrab/actions)
-[![Code Quality](https://img.shields.io/github/actions/workflow/status/toozej/podgrab/code-quality.yml?branch=main&label=code%20quality)](https://github.com/toozej/podgrab/actions)
-[![Tests](https://img.shields.io/github/actions/workflow/status/toozej/podgrab/test.yml?branch=main&label=tests)](https://github.com/toozej/podgrab/actions)
-[![E2E Tests](https://img.shields.io/github/actions/workflow/status/toozej/podgrab/e2e-test.yml?branch=main&label=e2e)](https://github.com/toozej/podgrab/actions)
-[![Go Report Card](https://goreportcard.com/badge/github.com/toozej/podgrab)](https://goreportcard.com/report/github.com/toozej/podgrab)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/toozej/podgrab/build.yml?branch=main)](https://github.com/toozej/monogo/apps/podgrab/actions)
+[![Code Quality](https://img.shields.io/github/actions/workflow/status/toozej/podgrab/code-quality.yml?branch=main&label=code%20quality)](https://github.com/toozej/monogo/apps/podgrab/actions)
+[![Tests](https://img.shields.io/github/actions/workflow/status/toozej/podgrab/test.yml?branch=main&label=tests)](https://github.com/toozej/monogo/apps/podgrab/actions)
+[![E2E Tests](https://img.shields.io/github/actions/workflow/status/toozej/podgrab/e2e-test.yml?branch=main&label=e2e)](https://github.com/toozej/monogo/apps/podgrab/actions)
+[![Go Report Card](https://goreportcard.com/badge/github.com/toozej/monogo/apps/podgrab)](https://goreportcard.com/report/github.com/toozej/monogo/apps/podgrab)
 [![codecov](https://codecov.io/gh/toozej/podgrab/branch/main/graph/badge.svg)](https://codecov.io/gh/toozej/podgrab)
 [![License](https://img.shields.io/github/license/toozej/podgrab)](LICENSE)
 [![Docker Pulls](https://img.shields.io/docker/pulls/toozej/podgrab)](https://hub.docker.com/r/toozej/podgrab)
@@ -211,9 +211,9 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/toozej/podgrab/issues)
+- **Issues**: [GitHub Issues](https://github.com/toozej/monogo/apps/podgrab/issues)
 - **Discussions**:
-  [GitHub Discussions](https://github.com/toozej/podgrab/discussions)
+  [GitHub Discussions](https://github.com/toozej/monogo/apps/podgrab/discussions)
 
 ## Credits
 

@@ -1,0 +1,367 @@
+{
+	"Module": {
+		"Path": "github.com/toozej/podgrab"
+	},
+	"Go": "1.26.0",
+	"Require": [
+		{
+			"Path": "github.com/TheHippo/podcastindex",
+			"Version": "v1.0.0"
+		},
+		{
+			"Path": "github.com/antchfx/xmlquery",
+			"Version": "v1.5.1"
+		},
+		{
+			"Path": "github.com/caarlos0/env/v11",
+			"Version": "v11.4.1"
+		},
+		{
+			"Path": "github.com/chromedp/chromedp",
+			"Version": "v0.14.2"
+		},
+		{
+			"Path": "github.com/gin-contrib/location",
+			"Version": "v1.0.3"
+		},
+		{
+			"Path": "github.com/gin-gonic/gin",
+			"Version": "v1.12.0"
+		},
+		{
+			"Path": "github.com/glebarez/sqlite",
+			"Version": "v1.11.0"
+		},
+		{
+			"Path": "github.com/gobeam/stringy",
+			"Version": "v0.0.7"
+		},
+		{
+			"Path": "github.com/gofrs/uuid/v5",
+			"Version": "v5.4.0"
+		},
+		{
+			"Path": "github.com/google/uuid",
+			"Version": "v1.6.0"
+		},
+		{
+			"Path": "github.com/gorilla/websocket",
+			"Version": "v1.5.3"
+		},
+		{
+			"Path": "github.com/grokify/html-strip-tags-go",
+			"Version": "v0.1.0"
+		},
+		{
+			"Path": "github.com/jasonlvhit/gocron",
+			"Version": "v0.0.1"
+		},
+		{
+			"Path": "github.com/joho/godotenv",
+			"Version": "v1.5.1"
+		},
+		{
+			"Path": "github.com/muesli/mango-cobra",
+			"Version": "v1.3.0"
+		},
+		{
+			"Path": "github.com/muesli/roff",
+			"Version": "v0.1.0"
+		},
+		{
+			"Path": "github.com/spf13/cobra",
+			"Version": "v1.10.2"
+		},
+		{
+			"Path": "github.com/stretchr/testify",
+			"Version": "v1.11.1"
+		},
+		{
+			"Path": "go.uber.org/zap",
+			"Version": "v1.28.0"
+		},
+		{
+			"Path": "golang.org/x/net",
+			"Version": "v0.56.0"
+		},
+		{
+			"Path": "gorm.io/gorm",
+			"Version": "v1.31.1"
+		},
+		{
+			"Path": "github.com/antchfx/xpath",
+			"Version": "v1.3.6",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/bytedance/gopkg",
+			"Version": "v0.1.4",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/bytedance/sonic",
+			"Version": "v1.15.2",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/bytedance/sonic/loader",
+			"Version": "v0.5.1",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/chromedp/cdproto",
+			"Version": "v0.0.0-20250724212937-08a3db8b4327",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/chromedp/sysutil",
+			"Version": "v1.1.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/cloudwego/base64x",
+			"Version": "v0.1.7",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/davecgh/go-spew",
+			"Version": "v1.1.1",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/dustin/go-humanize",
+			"Version": "v1.0.1",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/gabriel-vasile/mimetype",
+			"Version": "v1.4.13",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/gin-contrib/sse",
+			"Version": "v1.1.1",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/glebarez/go-sqlite",
+			"Version": "v1.22.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/go-json-experiment/json",
+			"Version": "v0.0.0-20250725192818-e39067aee2d2",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/go-playground/locales",
+			"Version": "v0.14.1",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/go-playground/universal-translator",
+			"Version": "v0.18.1",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/go-playground/validator/v10",
+			"Version": "v10.30.3",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/gobwas/httphead",
+			"Version": "v0.1.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/gobwas/pool",
+			"Version": "v0.2.1",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/gobwas/ws",
+			"Version": "v1.4.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/goccy/go-json",
+			"Version": "v0.10.6",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/goccy/go-yaml",
+			"Version": "v1.19.2",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/golang/groupcache",
+			"Version": "v0.0.0-20241129210726-2c02b8208cf8",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/inconshreveable/mousetrap",
+			"Version": "v1.1.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/jinzhu/inflection",
+			"Version": "v1.0.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/jinzhu/now",
+			"Version": "v1.1.5",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/json-iterator/go",
+			"Version": "v1.1.12",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/klauspost/cpuid/v2",
+			"Version": "v2.3.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/leodido/go-urn",
+			"Version": "v1.4.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/mattn/go-isatty",
+			"Version": "v0.0.22",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/modern-go/concurrent",
+			"Version": "v0.0.0-20180306012644-bacd9c7ef1dd",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/modern-go/reflect2",
+			"Version": "v1.0.2",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/muesli/mango",
+			"Version": "v0.2.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/muesli/mango-pflag",
+			"Version": "v0.2.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/ncruces/go-strftime",
+			"Version": "v1.0.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/pelletier/go-toml/v2",
+			"Version": "v2.4.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/pmezard/go-difflib",
+			"Version": "v1.0.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/quic-go/qpack",
+			"Version": "v0.6.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/quic-go/quic-go",
+			"Version": "v0.60.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/remyoudompheng/bigfft",
+			"Version": "v0.0.0-20230129092748-24d4a6f8daec",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/spf13/pflag",
+			"Version": "v1.0.10",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/twitchyliquid64/golang-asm",
+			"Version": "v0.15.1",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/ugorji/go/codec",
+			"Version": "v1.3.1",
+			"Indirect": true
+		},
+		{
+			"Path": "go.mongodb.org/mongo-driver/v2",
+			"Version": "v2.7.0",
+			"Indirect": true
+		},
+		{
+			"Path": "go.uber.org/multierr",
+			"Version": "v1.11.0",
+			"Indirect": true
+		},
+		{
+			"Path": "golang.org/x/arch",
+			"Version": "v0.28.0",
+			"Indirect": true
+		},
+		{
+			"Path": "golang.org/x/crypto",
+			"Version": "v0.53.0",
+			"Indirect": true
+		},
+		{
+			"Path": "golang.org/x/sys",
+			"Version": "v0.46.0",
+			"Indirect": true
+		},
+		{
+			"Path": "golang.org/x/text",
+			"Version": "v0.38.0",
+			"Indirect": true
+		},
+		{
+			"Path": "google.golang.org/protobuf",
+			"Version": "v1.36.11",
+			"Indirect": true
+		},
+		{
+			"Path": "gopkg.in/yaml.v3",
+			"Version": "v3.0.1",
+			"Indirect": true
+		},
+		{
+			"Path": "modernc.org/libc",
+			"Version": "v1.73.4",
+			"Indirect": true
+		},
+		{
+			"Path": "modernc.org/mathutil",
+			"Version": "v1.7.1",
+			"Indirect": true
+		},
+		{
+			"Path": "modernc.org/memory",
+			"Version": "v1.11.0",
+			"Indirect": true
+		},
+		{
+			"Path": "modernc.org/sqlite",
+			"Version": "v1.52.0",
+			"Indirect": true
+		}
+	],
+	"Exclude": null,
+	"Replace": null,
+	"Retract": null,
+	"Tool": null,
+	"Ignore": null
+}

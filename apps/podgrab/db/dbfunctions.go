@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/toozej/podgrab/internal/logger"
-	"github.com/toozej/podgrab/model"
+	"github.com/toozej/monogo/apps/podgrab/internal/logger"
+	"github.com/toozej/monogo/apps/podgrab/model"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )

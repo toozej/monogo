@@ -1,0 +1,43 @@
+---
+services:
+  podgrab:
+    image: toozej/podgrab:latest
+    container_name: podgrab
+    environment:
+      - CHECK_FREQUENCY=240
+    volumes:
+      - /path/to/config:/config
+      - /path/to/data:/assets
+    ports:
+      - 8080:8080
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    labels:
+      - "traefik.enable=false"
+      # labels below for publishing as web service
+      # - "traefik.docker.network=traefik"
+      # - "traefik.http.routers.podgrab.rule=Host(`podgrab.test`)"
+      # - "traefik.http.routers.podgrab.middlewares=http-redirect-https@file,headers@file"
+      # - "traefik.http.routers.podgrab-secure.entrypoints=https"
+      # - "traefik.http.routers.podgrab-secure.rule=Host(`podgrab.test`)"
+      # - "traefik.http.routers.podgrab-secure.middlewares=headers@file"
+      # - "traefik.http.routers.podgrab-secure.tls=true"
+    # networks:
+      # - traefik
+
+  podgrab-migrate:
+    build:
+      context: .
+      target: init
+    entrypoint: ["go", "run", "scripts/migrate_to_fork.go"]
+    environment:
+      - CONFIG=/config
+      - DATA=/assets
+      - LOG_LEVEL=info
+    volumes:
+      - /path/to/config:/config
+      - /path/to/data:/assets
+    profiles:
+      - migration

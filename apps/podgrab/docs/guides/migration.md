@@ -2,7 +2,7 @@
 
 Migrate podcast files and database from
 [akhilrex/podgrab](https://github.com/akhilrex/podgrab) to
-[toozej/podgrab](https://github.com/toozej/podgrab).
+[toozej/podgrab](https://github.com/toozej/monogo/apps/podgrab).
 
 ## Overview
 

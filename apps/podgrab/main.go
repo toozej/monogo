@@ -16,11 +16,13 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jasonlvhit/gocron"
 	_ "github.com/joho/godotenv/autoload"
-	"github.com/toozej/podgrab/controllers"
-	"github.com/toozej/podgrab/db"
-	"github.com/toozej/podgrab/internal/logger"
-	"github.com/toozej/podgrab/pkg/version"
-	"github.com/toozej/podgrab/service"
+	"github.com/spf13/cobra"
+	"github.com/toozej/monogo/apps/podgrab/controllers"
+	"github.com/toozej/monogo/apps/podgrab/db"
+	"github.com/toozej/monogo/apps/podgrab/internal/logger"
+	"github.com/toozej/monogo/apps/podgrab/service"
+	"github.com/toozej/monogo/pkg/man"
+	"github.com/toozej/monogo/pkg/version"
 )
 
 var (
@@ -32,7 +34,24 @@ var (
 )
 
 func main() {
-	os.Exit(run())
+	rootCmd := &cobra.Command{
+		Use:   "podgrab",
+		Short: "Self-hosted podcast manager",
+		Long: `Podgrab is a self-hosted podcast manager/downloader/archiver that downloads ` +
+			`podcast episodes as soon as they become live, with an integrated player.`,
+		// With no subcommand, run the web server. The version, man, and
+		// completion subcommands let the single binary support CLI tooling.
+		Run: func(cmd *cobra.Command, args []string) {
+			os.Exit(run())
+		},
+	}
+	rootCmd.AddCommand(version.Command())
+	rootCmd.AddCommand(man.NewManCmd())
+
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 }
 
 func run() int {
@@ -220,12 +239,12 @@ func run() int {
 	router.GET("/player", controllers.PlayerPage)
 	router.GET("/rss", controllers.GetRss)
 	router.GET("/version", func(c *gin.Context) {
-		data, err := version.JSON()
+		info, err := version.Get()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		c.Data(http.StatusOK, "application/json", data)
+		c.JSON(http.StatusOK, info)
 	})
 
 	r.GET("/ws", func(c *gin.Context) {

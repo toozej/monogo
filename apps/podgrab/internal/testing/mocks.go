@@ -5,8 +5,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/toozej/podgrab/db"
-	"github.com/toozej/podgrab/model"
+	"github.com/toozej/monogo/apps/podgrab/db"
+	"github.com/toozej/monogo/apps/podgrab/model"
 )
 
 // MockRepository is a mock implementation of database.Repository for testing.

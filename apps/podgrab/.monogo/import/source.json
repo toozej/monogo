@@ -1,0 +1,12 @@
+{
+  "source": "toozej/podgrab",
+  "vcsHost": "github.com/",
+  "owner": "toozej",
+  "repo": "podgrab",
+  "ownerRepo": "toozej/podgrab",
+  "repoURL": "https://github.com/toozej/podgrab.git",
+  "ref": "main",
+  "oldModule": "github.com/toozej/podgrab",
+  "newModule": "github.com/toozej/monogo/apps/podgrab",
+  "tagPrefix": "apps/podgrab"
+}

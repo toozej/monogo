@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/toozej/podgrab/model"
+	"github.com/toozej/monogo/apps/podgrab/model"
 )
 
 // TestGetPodcastByURL tests podcast retrieval by URL.

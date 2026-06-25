@@ -10,7 +10,7 @@ import (
 	"github.com/chromedp/chromedp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/toozej/podgrab/db"
+	"github.com/toozej/monogo/apps/podgrab/db"
 )
 
 // TestPodcastWorkflow_ViewHomePage tests accessing the home page.

@@ -25,10 +25,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/toozej/podgrab/db"
-	"github.com/toozej/podgrab/internal/logger"
-	"github.com/toozej/podgrab/internal/sanitize"
-	"github.com/toozej/podgrab/service"
+	"github.com/toozej/monogo/apps/podgrab/db"
+	"github.com/toozej/monogo/apps/podgrab/internal/logger"
+	"github.com/toozej/monogo/apps/podgrab/internal/sanitize"
+	"github.com/toozej/monogo/apps/podgrab/service"
 )
 
 // MigrationStats tracks the results of the migration.
@@ -376,13 +376,13 @@ func createTarGz(archivePath, filePath string) error {
 	if err != nil {
 		return fmt.Errorf("could not create archive file: %w", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	gzipWriter := gzip.NewWriter(file)
-	defer gzipWriter.Close()
+	defer func() { _ = gzipWriter.Close() }()
 
 	tarWriter := tar.NewWriter(gzipWriter)
-	defer tarWriter.Close()
+	defer func() { _ = tarWriter.Close() }()
 
 	return addFileToTarWriter(filePath, tarWriter)
 }
@@ -395,7 +395,7 @@ func addFileToTarWriter(filePath string, tarWriter *tar.Writer) error {
 	if err != nil {
 		return fmt.Errorf("could not open file '%s': %w", filePath, err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	stat, err := file.Stat()
 	if err != nil {

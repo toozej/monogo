@@ -27,7 +27,7 @@ LDFLAGS = -s -w \
 	-X $(VER).Builder=$(BUILDER)
 
 # Define the repository URL
-REPO_URL := https://github.com/toozej/podgrab
+REPO_URL := https://github.com/toozej/monogo/apps/podgrab
 
 # Docker image info
 IMAGE_AUTHOR = toozej
@@ -82,7 +82,7 @@ release: ## Build and sign Docker image
 
 verify: ## Verify Docker image with Cosign
 	cosign verify \
-		--certificate-identity-regexp '^https://github.com/toozej/podgrab/.github/workflows/(release|weekly-docker-refresh)\.yaml@refs/(tags/.*|heads/main)$$' \
+		--certificate-identity-regexp '^https://github.com/toozej/monogo/apps/podgrab/.github/workflows/(release|weekly-docker-refresh)\.yaml@refs/(tags/.*|heads/main)$$' \
 		--certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
 		$(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG)
 
@@ -100,7 +100,7 @@ down: ## Stop running Docker Compose project
 
 install: ## Install podgrab from latest GitHub release
 	if command -v go; then \
-			go install github.com/toozej/podgrab@latest ; \
+			go install github.com/toozej/monogo/apps/podgrab@latest ; \
 	else \
 			echo "Downloading podgrab binary for $(OS)-$(ARCH)..."; \
 			mkdir -p $(CURDIR)/tmp; \
@@ -163,7 +163,7 @@ local-sign: local-test ## Sign locally installed golang toolchain and cosign
 local-verify: ## Verify locally compiled binary
 	@echo "Warning: local-verify requires a keyless-signed artifact from GitHub Actions."
 	@echo "For local keyless signing verification, run:"
-	@echo "  cosign verify-blob --certificate-oidc-issuer='https://token.actions.githubusercontent.com' --certificate-identity-regexp='^https://github.com/toozej/podgrab/\\.github/workflows/(release|weekly-docker-refresh)\\.yaml@refs/(tags/.*|heads/main)$$' --bundle $(CURDIR)/out/podgrab.bundle $(CURDIR)/out/podgrab"
+	@echo "  cosign verify-blob --certificate-oidc-issuer='https://token.actions.githubusercontent.com' --certificate-identity-regexp='^https://github.com/toozej/monogo/apps/podgrab/\\.github/workflows/(release|weekly-docker-refresh)\\.yaml@refs/(tags/.*|heads/main)$$' --bundle $(CURDIR)/out/podgrab.bundle $(CURDIR)/out/podgrab"
 
 local-install: local-build ## Install compiled binary to local machine
 	sudo cp $(CURDIR)/out/podgrab /usr/local/bin/podgrab
@@ -237,7 +237,7 @@ pre-commit-install: ## Install pre-commit hooks and necessary binaries
 pre-commit-run: ## Run pre-commit hooks against all files
 	pre-commit run --all-files
 	# manually run the following checks since their pre-commits aren't working or don't exist
-	go-licenses report github.com/toozej/podgrab
+	go-licenses report github.com/toozej/monogo/apps/podgrab
 	govulncheck ./...
 
 update-golang-version: ## Update to latest Golang version across the repo

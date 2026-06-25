@@ -13,8 +13,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/toozej/podgrab/db"
-	testhelpers "github.com/toozej/podgrab/internal/testing"
+	"github.com/toozej/monogo/apps/podgrab/db"
+	testhelpers "github.com/toozej/monogo/apps/podgrab/internal/testing"
 	"gorm.io/gorm"
 )
 
@@ -193,8 +193,8 @@ func TestGetPodcastItemFileByID(t *testing.T) {
 			require.NoError(t, os.MkdirAll(testDataDir, 0o755))
 			// Temporarily change DATA env var for this test
 			oldData := os.Getenv("DATA")
-			os.Setenv("DATA", testDataDir)
-			defer os.Setenv("DATA", oldData)
+			_ = os.Setenv("DATA", testDataDir)
+			defer func() { _ = os.Setenv("DATA", oldData) }()
 
 			episodeID, _ := tt.setup(t, testDataDir)
 
@@ -331,8 +331,8 @@ func TestFindEpisodeFile(t *testing.T) {
 			require.NoError(t, os.MkdirAll(testDataDir, 0o755))
 			// Temporarily change DATA env var for this test
 			oldData := os.Getenv("DATA")
-			os.Setenv("DATA", testDataDir)
-			defer os.Setenv("DATA", oldData)
+			_ = os.Setenv("DATA", testDataDir)
+			defer func() { _ = os.Setenv("DATA", oldData) }()
 
 			item, expectedPath := tt.setupFiles(t, testDataDir)
 

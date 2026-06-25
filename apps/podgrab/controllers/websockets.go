@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"github.com/gorilla/websocket"
-	"github.com/toozej/podgrab/internal/logger"
+	"github.com/toozej/monogo/apps/podgrab/internal/logger"
 )
 
 // EnqueuePayload represents enqueue payload data.

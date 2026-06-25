@@ -57,6 +57,7 @@ jobs:
           - go-sort-out-gh-actions
           - kmhd2playlist
           - rss2socials
+          - podgrab
     steps:
       - uses: actions/checkout@v7.0.0
       - uses: actions/setup-go@v6

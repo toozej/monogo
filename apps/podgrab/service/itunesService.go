@@ -8,8 +8,8 @@ import (
 	"os"
 
 	"github.com/TheHippo/podcastindex"
-	"github.com/toozej/podgrab/internal/logger"
-	"github.com/toozej/podgrab/model"
+	"github.com/toozej/monogo/apps/podgrab/internal/logger"
+	"github.com/toozej/monogo/apps/podgrab/model"
 )
 
 // SearchService defines the interface for podcast search services.
@@ -72,9 +72,10 @@ func getDefaultPodcastIndexKey() string {
 }
 
 func getDefaultPodcastIndexSecret() string {
-	// Public demo secret from podcastindex.org documentation
-	chars := []byte{REDACTED_PODCASTINDEX_SECRET_BYTES}
-	return string(chars)
+	// Public demo secret from podcastindex.org documentation. The real value is
+	// redacted in the upstream source; supply one via the PODCASTINDEX_SECRET
+	// environment variable.
+	return "REDACTED_PODCASTINDEX_SECRET"
 }
 
 // Query searches for podcasts using the Podcast Index API.

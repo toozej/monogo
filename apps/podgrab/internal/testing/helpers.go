@@ -8,8 +8,8 @@ import (
 
 	"github.com/glebarez/sqlite"
 	"github.com/google/uuid"
-	"github.com/toozej/podgrab/db"
-	applogger "github.com/toozej/podgrab/internal/logger"
+	"github.com/toozej/monogo/apps/podgrab/db"
+	applogger "github.com/toozej/monogo/apps/podgrab/internal/logger"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )

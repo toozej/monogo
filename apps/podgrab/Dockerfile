@@ -3,21 +3,23 @@ FROM golang:1.26-trixie AS init
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-WORKDIR /go/podgrab/
+WORKDIR /workspace/
 
 COPY go.mod* go.sum* ./
 RUN go mod download
 
-COPY . ./
+# Copy only the selected app and shared packages so unrelated apps stay out of the build context
+COPY apps/podgrab ./apps/podgrab
+COPY pkg ./pkg
 
 FROM init AS vet
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-RUN go vet ./...
+RUN go vet ./apps/podgrab/... ./pkg/...
 
 # run tests
 FROM init AS test
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-RUN go test -coverprofile c.out -v ./... && \
+RUN go test -coverprofile c.out -v ./apps/podgrab/... ./pkg/... && \
     echo "Statements missing coverage" && \
     grep -v -e " 1$" c.out
 
@@ -30,28 +32,15 @@ ARG BRANCH=unknown
 ARG BUILT_AT=unknown
 ARG BUILDER=unknown
 
-RUN PKG=$(head -n 1 go.mod | cut -c 8-) && \
-    LDFLAGS="-s -w -X ${PKG}/pkg/version.Version=${VERSION} -X ${PKG}/pkg/version.Commit=${COMMIT} -X ${PKG}/pkg/version.Branch=${BRANCH} -X ${PKG}/pkg/version.BuiltAt=${BUILT_AT} -X ${PKG}/pkg/version.Builder=${BUILDER}" && \
-    CGO_ENABLED=0 go build -ldflags="${LDFLAGS}"
-
-# Install coreutils for sleep and other utilities utilized in devcontainer
-RUN apt-get update && apt-get install --no-install-recommends -y coreutils
+RUN LDFLAGS="-s -w -X github.com/toozej/monogo/pkg/version.Version=${VERSION} -X github.com/toozej/monogo/pkg/version.Commit=${COMMIT} -X github.com/toozej/monogo/pkg/version.Branch=${BRANCH} -X github.com/toozej/monogo/pkg/version.BuiltAt=${BUILT_AT} -X github.com/toozej/monogo/pkg/version.Builder=${BUILDER}" && \
+    CGO_ENABLED=0 go build -o /out/podgrab -ldflags="${LDFLAGS}" ./apps/podgrab
 
 # runtime image
-FROM gcr.io/distroless/static-debian13:nonroot
-WORKDIR /go/bin/
-# Copy our static executable.
-COPY --from=build /go/podgrab/podgrab /go/bin/podgrab
+FROM scratch
+# Copy our executable.
+COPY --from=build /out/podgrab /go/bin/podgrab
 # Expose port for publishing as web service
-EXPOSE 8080
-# Setup volumes for data
-ENV CONFIG=/config
-ENV DATA=/assets
-ENV UID=998
-ENV PID=100
-ENV GIN_MODE=release
-VOLUME ["/config", "/assets"]
-
-USER nonroot
+# EXPOSE 8081
 # Run the binary.
+USER 65532:65532
 ENTRYPOINT ["/go/bin/podgrab"]

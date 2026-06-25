@@ -115,6 +115,6 @@ jobs:
         run: |
           cosign version
           cosign verify \
-            --certificate-identity-regexp '^https://github.com/toozej/podgrab/\.github/workflows/(release|weekly-docker-refresh)\.yaml@refs/(tags/.*|heads/main)$' \
+            --certificate-identity-regexp '^https://github.com/toozej/monogo/apps/podgrab/\.github/workflows/(release|weekly-docker-refresh)\.yaml@refs/(tags/.*|heads/main)$' \
             --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
             ${{ matrix.registry }}toozej/podgrab:${{ matrix.tag }}

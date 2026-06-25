@@ -1,15 +1,8 @@
 ---
 services:
   podgrab:
-    image: toozej/podgrab:latest
     container_name: podgrab
-    environment:
-      - CHECK_FREQUENCY=240
-    volumes:
-      - /path/to/config:/config
-      - /path/to/data:/assets
-    ports:
-      - 8080:8080
+    image: toozej/podgrab:latest
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -26,18 +19,3 @@ services:
       # - "traefik.http.routers.podgrab-secure.tls=true"
     # networks:
       # - traefik
-
-  podgrab-migrate:
-    build:
-      context: .
-      target: init
-    entrypoint: ["go", "run", "scripts/migrate_to_fork.go"]
-    environment:
-      - CONFIG=/config
-      - DATA=/assets
-      - LOG_LEVEL=info
-    volumes:
-      - /path/to/config:/config
-      - /path/to/data:/assets
-    profiles:
-      - migration
