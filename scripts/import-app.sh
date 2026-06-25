@@ -449,12 +449,9 @@ case "$IMPORT_RELEASES" in
 		;;
 esac
 
-for workflow in \
-	"${ROOT}/.github/workflows/ci.yaml" \
-	"${ROOT}/.github/workflows/release.yaml" \
-	"${ROOT}/.github/workflows/weekly-docker-refresh.yaml"; do
-	add_app_to_matrix "$workflow"
-done
+# weekly-docker-refresh.yaml derives its matrix from released apps/<app>/vX.Y.Z
+# tags at run time, so only ci.yaml carries a static app matrix to update here.
+add_app_to_matrix "${ROOT}/.github/workflows/ci.yaml"
 
 if ! grep -q "directory: \"/apps/${APP_NAME}\"" "${ROOT}/.github/dependabot.yml"; then
 	cat >>"${ROOT}/.github/dependabot.yml" <<EOF

@@ -10,9 +10,12 @@ MAKEFLAGS += --no-builtin-rules
 APPS := $(shell find apps -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort)
 APP ?= monogo
 PACKAGE ?=
+# Release bump type for `make release` (major | minor | patch)
+TYPE ?= patch
 APP_DIR = apps/$(APP)
 APP_CONFIG = $(APP_DIR)/app.yaml
 APP_BINARY = $(shell awk -F': *' '/^binary:/ {gsub(/"/, "", $$2); print $$2; exit}' $(APP_CONFIG) 2>/dev/null)
+APP_NAME = $(shell awk -F': *' '/^name:/ {gsub(/"/, "", $$2); print $$2; exit}' $(APP_CONFIG) 2>/dev/null)
 APP_MAIN_PATH = $(shell v=$$(awk -F': *' '/^mainPath:/ {gsub(/"/, "", $$2); print $$2; exit}' $(APP_CONFIG) 2>/dev/null); if test -n "$$v"; then echo "$$v"; else echo "$(APP_DIR)"; fi)
 APP_CGO_ENABLED = $(shell v=$$(awk -F': *' '/^cgoEnabled:/ {gsub(/"/, "", $$2); print $$2; exit}' $(APP_CONFIG) 2>/dev/null); if [ "$$v" = "true" ] || [ "$$v" = "1" ]; then echo 1; else echo 0; fi)
 APP_PACKAGES = ./$(APP_DIR)/... ./pkg/...
@@ -24,7 +27,9 @@ BUILDER = $(shell whoami)@$(shell hostname)
 NOW = $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 # Version control
-VERSION = $(shell git describe --tags --exclude 'apps/*' --dirty --always 2>/dev/null || echo local)
+VERSION = $(shell tag=$$(git describe --tags --match 'apps/$(APP)/v*' --dirty 2>/dev/null || true); if test -n "$$tag"; then basename "$$tag"; else echo local; fi)
+APP_LATEST_TAG = $(shell git tag --list 'apps/$(APP)/v*' 2>/dev/null | grep -E '^apps/$(APP)/v[0-9]+\.[0-9]+\.[0-9]+$$' | sort -V | tail -n 1 || true)
+APP_VERSION_TAG = $(shell tag='$(APP_LATEST_TAG)'; if test -n "$$tag"; then basename "$$tag"; else echo v0.0.0; fi)
 COMMIT = $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 BRANCH = $(shell branch=$$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true); if test -n "$$branch"; then echo "$$branch"; else echo unknown; fi)
 
@@ -41,30 +46,28 @@ LDFLAGS += \
 
 # Docker image info
 IMAGE_AUTHOR = toozej
-IMAGE_NAME = $(APP_BINARY)
+# Docker repository names must be lower-case, so lower-case the app name
+# (e.g. RSSFFS -> rssffs). Derive from the app name (not the binary) to match
+# the image published by CI and the GoReleaser/Compose templates, which key
+# off app.yaml's `name` field.
+IMAGE_NAME = $(shell echo '$(APP_NAME)' | tr '[:upper:]' '[:lower:]')
 IMAGE_TAG = latest
-
-# Detect the OS and architecture
-OS := $(shell uname -s)
-ARCH := $(shell uname -m)
-LATEST_RELEASE_URL := https://github.com/toozej/monogo/releases/latest/download/$(APP_BINARY)_$(OS)_$(ARCH).tar.gz
 
 COSIGN_IDENTITY_REGEXP := '^https://github.com/toozej/monogo/.github/workflows/(release|weekly-docker-refresh).yaml@refs/(tags/.*|heads/main)$$'
 COSIGN_OIDC_ISSUER := 'https://token.actions.githubusercontent.com'
 
-.PHONY: all list-apps import migrate-internal-package app-check common-generate app-generate generate generate-all app-templates-check templates-check vet test build release verify verify-docker verify-docker-all-registries run up down docker-vet docker-test docker-build distroless-build distroless-run install local local-all local-update-deps local-vet local-vendor local-test local-cover local-build local-run local-kill local-iterate local-release-test local-release local-sign local-verify local-release-verify local-install docker-login pre-commit-install pre-commit-run pre-commit pre-reqs licenses licenses-all update-golang-version upload-secrets-to-gh upload-secrets-envfile-to-1pass docs diagrams mutation-test test-changed watch-test profile-cpu profile-mem profile-all benchmark clean clean-all help
-.PHONY: common-generate-no-prereqs app-generate-no-prereqs app-templates-check-no-generate docker-vet-no-generate docker-test-no-generate docker-build-no-generate local-release-test-no-generate pre-commit-install-no-prereqs pre-commit-run-no-generate
+.PHONY: all list-apps import migrate-internal-package app-check common-generate app-generate generate generate-all app-templates-check templates-check vet test build release verify verify-docker verify-docker-all-registries run up down docker-vet docker-test docker-build distroless-build distroless-run install local local-all local-update-deps local-vet local-vendor local-test local-cover local-build local-run local-kill local-iterate release-test local-install docker-login pre-commit-install pre-commit-run pre-commit pre-reqs licenses licenses-all update-golang-version upload-secrets-to-gh upload-secrets-envfile-to-1pass docs diagrams mutation-test test-changed watch-test profile-cpu profile-mem profile-all benchmark clean clean-all help
+.PHONY: common-generate-no-prereqs app-generate-no-prereqs app-templates-check-no-generate docker-vet-no-generate docker-test-no-generate docker-build-no-generate release-test-no-generate pre-commit-install-no-prereqs pre-commit-run-no-generate
 
 all: generate-all ## Run default workflow for every app using Docker where available
 	@set -e; \
 	$(MAKE) local-update-deps pre-commit-install-no-prereqs pre-commit-run-no-generate licenses-all; \
 	for app in $(APPS); do \
-		$(MAKE) app-check docker-vet-no-generate clean docker-test-no-generate docker-build-no-generate local-release-test-no-generate APP=$$app; \
+		$(MAKE) app-check docker-vet-no-generate clean docker-test-no-generate docker-build-no-generate release-test-no-generate APP=$$app; \
 	done
-local: app-check generate local-update-deps local-vet pre-commit clean local-test local-build local-release-test ## Run default workflow for APP using locally installed tools
+local: app-check generate local-update-deps local-vet pre-commit clean local-test local-build release-test ## Run default workflow for APP using locally installed tools
 local-all: generate-all ## Run local vet, test, build, and release checks for every app
 	@for app in $(APPS); do $(MAKE) local APP=$$app; done
-local-release-verify: local-release local-sign local-verify ## Release and verify APP using locally installed tools (keyless)
 
 list-apps: ## List monorepo apps
 	@printf '%s\n' $(APPS)
@@ -114,13 +117,27 @@ test: local-test ## Run go test for APP
 
 build: docker-build ## Build APP Docker image
 
-release: app-check generate docker-login ## Release APP assets using GoReleaser OSS
-	if test -e $(CURDIR)/$(APP_ENV_FILE); then \
-		set -a && . $(CURDIR)/$(APP_ENV_FILE) && set +a; \
-		goreleaser release --clean --config $(APP_DIR)/.goreleaser.yml; \
-	else \
-		echo "No environment variables found at $(CURDIR)/$(APP_ENV_FILE). Cannot release."; \
-	fi
+release: local-test ## Release APP: bump TYPE=<major|minor|patch> from the latest apps/APP/vX.Y.Z tag, push the new tag, and let CI publish
+	@set -euo pipefail; \
+	case "$(TYPE)" in major|minor|patch) ;; *) echo "TYPE must be major, minor, or patch (got '$(TYPE)')."; exit 1 ;; esac; \
+	latest=$$( { git tag --list 'apps/$(APP)/v*'; git ls-remote --tags --refs origin 'apps/$(APP)/v*' 2>/dev/null | sed 's#.*refs/tags/##'; } \
+		| grep -E '^apps/$(APP)/v[0-9]+\.[0-9]+\.[0-9]+$$' | sort -V | tail -n 1 || true); \
+	if [ -n "$$latest" ]; then version_tag="$${latest##*/}"; base="$${version_tag#v}"; else base="0.0.0"; fi; \
+	IFS=. read -r major minor patch <<< "$$base"; \
+	case "$(TYPE)" in \
+		major) major=$$((major + 1)); minor=0; patch=0 ;; \
+		minor) minor=$$((minor + 1)); patch=0 ;; \
+		patch) patch=$$((patch + 1)) ;; \
+	esac; \
+	new_version="v$${major}.$${minor}.$${patch}"; \
+	new_tag="apps/$(APP)/$${new_version}"; \
+	if git rev-parse -q --verify "refs/tags/$$new_tag" >/dev/null 2>&1 || git ls-remote --exit-code --tags origin "refs/tags/$$new_tag" >/dev/null 2>&1; then \
+		echo "$$new_tag already exists locally or on origin; aborting."; exit 1; \
+	fi; \
+	echo "Releasing $(APP) $$new_version ($(TYPE) bump from $${latest:-<none>}) at commit $$(git rev-parse --short HEAD)..."; \
+	git tag -a "$$new_tag" -m "$(APP) $$new_version"; \
+	git push origin "refs/tags/$$new_tag"; \
+	echo "Pushed $$new_tag; the Release workflow will build, sign, and publish $(APP)."
 
 verify: app-check ## Verify APP Docker image with Cosign (keyless)
 	cosign verify \
@@ -190,17 +207,37 @@ distroless-build: app-check generate ## Build APP Docker image using distroless 
 distroless-run: app-check ## Run built APP Docker image using distroless as final base
 	docker run --rm --name $(IMAGE_NAME) -v $(CURDIR)/config:/config $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG)-distroless
 
-install: app-check ## Install APP with go install, or the latest GitHub release binary
+install: app-check ## Install APP via `go install` from the latest release commit, or download the latest release binary
+	@set -euo pipefail; \
+	app_tag=$$(git ls-remote --tags --refs origin 'apps/$(APP)/v*' 2>/dev/null \
+		| awk '{sub(/^refs\/tags\//, "", $$2); print $$2}' \
+		| grep -E '^apps/$(APP)/v[0-9]+\.[0-9]+\.[0-9]+$$' \
+		| sort -V | tail -n 1 || true); \
+	if [ -z "$$app_tag" ]; then \
+		echo "No apps/$(APP)/vX.Y.Z release tag found on origin. Cannot resolve latest release."; \
+		exit 1; \
+	fi; \
+	version_tag="$${app_tag##*/}"; \
 	if command -v go >/dev/null 2>&1; then \
-		go install $(PKG)/$(APP_MAIN_PATH)@latest ; \
+		commit=$$(git ls-remote origin "refs/tags/$$app_tag" "refs/tags/$$app_tag^{}" | awk 'END {print $$1}'); \
+		echo "Installing $(APP_BINARY) via go install from $$app_tag ($$commit)..."; \
+		go install $(PKG)/$(APP_MAIN_PATH)@$$commit; \
 	else \
-		echo "Downloading $(APP_BINARY) binary for $(OS)-$(ARCH)..."; \
-		mkdir -p $(CURDIR)/tmp; \
-		curl --silent -L -o $(CURDIR)/tmp/$(APP_BINARY).tgz $(LATEST_RELEASE_URL); \
-		tar -xzf $(CURDIR)/tmp/$(APP_BINARY).tgz -C $(CURDIR)/tmp/; \
-		chmod +x $(CURDIR)/tmp/$(APP_BINARY); \
-		sudo mv $(CURDIR)/tmp/$(APP_BINARY) /usr/local/bin/$(APP_BINARY); \
-		rm -rf $(CURDIR)/tmp; \
+		goos=$$(uname -s); goarch=$$(uname -m); \
+		case "$$goarch" in \
+			x86_64|amd64) goarch=x86_64 ;; \
+			i386|i686) goarch=i386 ;; \
+			aarch64|arm64) goarch=arm64 ;; \
+			armv7*|armv6*|armhf|arm) goarch=arm ;; \
+		esac; \
+		url="https://github.com/toozej/monogo/releases/download/$$app_tag/$(APP_NAME)_$${goos}_$${goarch}.tar.gz"; \
+		echo "Downloading $(APP_BINARY) $$version_tag for $${goos}_$${goarch} from $$url..."; \
+		tmp=$$(mktemp -d); \
+		curl --fail --silent --show-error -L -o "$$tmp/$(APP_BINARY).tgz" "$$url"; \
+		tar -xzf "$$tmp/$(APP_BINARY).tgz" -C "$$tmp/"; \
+		chmod +x "$$tmp/$(APP_BINARY)"; \
+		sudo mv "$$tmp/$(APP_BINARY)" /usr/local/bin/$(APP_BINARY); \
+		rm -rf "$$tmp"; \
 	fi
 
 local-update-deps: ## Run `go get -t -u ./...` to update Go module dependencies
@@ -239,41 +276,13 @@ local-kill: app-check ## Kill any currently running locally built APP binary
 local-iterate: app-check generate ## Run APP local build and run via air when files change
 	air -c $(APP_DIR)/.air.toml
 
-local-release-test: app-generate ## Check GoReleaser config and build APP snapshot
-	$(MAKE) local-release-test-no-generate APP=$(APP)
+release-test: app-generate ## Check GoReleaser config and build APP snapshot
+	$(MAKE) release-test-no-generate APP=$(APP)
 
-local-release-test-no-generate: app-templates-check-no-generate
-	goreleaser build --clean --snapshot --config $(APP_DIR)/.goreleaser.yml
+release-test-no-generate: app-templates-check-no-generate
+	GORELEASER_CURRENT_TAG=$(APP_VERSION_TAG) goreleaser build --clean --snapshot --config $(APP_DIR)/.goreleaser.yml
 
-local-release: local-test docker-login ## Release APP assets using locally installed golang toolchain and goreleaser (keyless)
-	if test -e $(CURDIR)/$(APP_ENV_FILE); then \
-		set -a && . $(CURDIR)/$(APP_ENV_FILE) && set +a && goreleaser release --clean --config $(APP_DIR)/.goreleaser.yml; \
-	else \
-		echo "No environment variables found at $(CURDIR)/$(APP_ENV_FILE). Cannot release."; \
-	fi
-
-local-sign: app-check ## Sign APP checksums with Cosign (keyless, requires OIDC token)
-	cosign sign-blob --bundle=$(CURDIR)/dist/$(APP)/checksums.txt.sigstore.json $(CURDIR)/dist/$(APP)/checksums.txt --yes
-
-local-verify: app-check ## Verify APP checksums signature with Cosign (keyless)
-	@if cosign verify-blob \
-		--bundle $(CURDIR)/dist/$(APP)/checksums.txt.sigstore.json \
-		--certificate-identity-regexp $(COSIGN_IDENTITY_REGEXP) \
-		--certificate-oidc-issuer $(COSIGN_OIDC_ISSUER) \
-		$(CURDIR)/dist/$(APP)/checksums.txt 2>/dev/null; then \
-		echo "Verified: signed by CI workflow identity"; \
-	else \
-		echo "CI identity regexp did not match (expected for locally-signed bundles)."; \
-		echo "Falling back to issuer-only verification..."; \
-		cosign verify-blob \
-			--bundle $(CURDIR)/dist/$(APP)/checksums.txt.sigstore.json \
-			--certificate-oidc-issuer $(COSIGN_OIDC_ISSUER) \
-			$(CURDIR)/dist/$(APP)/checksums.txt && \
-		echo "Issuer validated. Inspect the certificate identity above to confirm the signer." || \
-		(echo "Verification failed: issuer validation did not pass." && exit 1); \
-	fi
-
-local-install: local-build local-verify ## Install compiled APP binary to local machine
+local-install: local-build ## Install compiled APP binary to local machine
 	sudo cp $(CURDIR)/out/$(APP_BINARY) /usr/local/bin/$(APP_BINARY)
 	sudo chmod 0755 /usr/local/bin/$(APP_BINARY)
 

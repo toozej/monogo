@@ -17,26 +17,49 @@ permissions:
   attestations: write
 
 jobs:
+  resolve-apps:
+    runs-on: ubuntu-latest
+    outputs:
+      apps: ${{ steps.list.outputs.apps }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.0
+        with:
+          fetch-depth: 0
+      - name: Fetch all tags
+        run: git fetch --force --tags
+      - name: List released apps
+        id: list
+        # Only apps with a published apps/<app>/vX.Y.Z tag have a released image
+        # to refresh; unreleased apps (e.g. one not yet tagged) are skipped so a
+        # single tagless app can't fail the whole scheduled refresh.
+        run: |
+          set -euo pipefail
+          apps=()
+          for dir in apps/*/; do
+            app="$(basename "$dir")"
+            if git for-each-ref --format='%(refname:strip=2)' "refs/tags/apps/${app}/v*" \
+              | grep -qE "^apps/${app}/v[0-9]+\.[0-9]+\.[0-9]+$"; then
+              apps+=("$app")
+            fi
+          done
+          if [ "${#apps[@]}" -eq 0 ]; then
+            json='[]'
+          else
+            json="$(printf '%s\n' "${apps[@]}" | jq -R . | jq -cs .)"
+          fi
+          echo "Released apps: ${json}"
+          echo "apps=${json}" >> "${GITHUB_OUTPUT}"
+
   goreleaser-weekly-docker-refresh:
     runs-on: ubuntu-latest
+    needs: resolve-apps
+    if: needs.resolve-apps.outputs.apps != '[]'
     strategy:
       fail-fast: false
       max-parallel: 1
       matrix:
-        app:
-          - monogo
-          - gotts-it
-          - url2anki
-          - RSSFFS
-          - go-find-liquor
-          - photos2map
-          - go-listen
-          - ghreleases2rss
-          - terranotate
-          - lego-stego
-          - files2prompt
-          - trails-completionist
-          - go-sort-out-gh-actions
+        app: ${{ fromJson(needs.resolve-apps.outputs.apps) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7.0.0
@@ -48,24 +71,37 @@ jobs:
 
       - name: Resolve latest release/tag
         id: release_tag
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          release_json="$(curl -sSL \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${GH_TOKEN}" \
-            "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest" || true)"
-          latest_tag="$(printf '%s' "${release_json}" | jq -r '.tag_name // empty' 2>/dev/null || true)"
-          if [ -z "${latest_tag}" ] || [ "${latest_tag}" = "null" ]; then
-            latest_tag="$(git for-each-ref --sort=-version:refname --count=1 --format='%(refname:strip=2)' refs/tags/v*)"
-          fi
-          if [ -z "${latest_tag}" ]; then
-            echo "Unable to resolve latest release/tag" >&2
+
+          app_tag="$(git for-each-ref \
+            --sort=-version:refname \
+            --format='%(refname:strip=2)' \
+            "refs/tags/apps/${{ matrix.app }}/v*" \
+            | grep -E '^apps/${{ matrix.app }}/v[0-9]+\.[0-9]+\.[0-9]+$' \
+            | head -n 1 || true)"
+          if [ -z "${app_tag}" ]; then
+            echo "Unable to resolve latest release/tag for ${{ matrix.app }}" >&2
             exit 1
           fi
-          echo "Using release/tag: ${latest_tag}"
-          echo "tag=${latest_tag}" >> "${GITHUB_OUTPUT}"
+
+          version_tag="${app_tag##*/}"
+          version="${version_tag#v}"
+          image="$(awk '/^name:/ {v=$0; sub(/^name:[[:space:]]*/, "", v); sub(/[[:space:]]*#.*/, "", v); gsub(/["[:space:]]/, "", v); print tolower(v); exit}' "apps/${{ matrix.app }}/app.yaml")"
+          if [ -z "$image" ]; then
+            echo "Unable to resolve Docker image name for ${{ matrix.app }}" >&2
+            exit 1
+          fi
+
+          git tag --force "$version_tag" "$GITHUB_SHA"
+
+          echo "Using release/tag: ${app_tag}"
+          {
+            echo "app_tag=${app_tag}"
+            echo "image=${image}"
+            echo "tag=${version_tag}"
+            echo "version=${version}"
+          } >> "${GITHUB_OUTPUT}"
 
       - name: Set up Go
         uses: actions/setup-go@v6
@@ -119,6 +155,8 @@ jobs:
           TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
           GORELEASER_CURRENT_TAG: ${{ steps.release_tag.outputs.tag }}
           GORELEASER_DOCKER_REFRESH: "true"
+          MONOGO_APP_VERSION: ${{ steps.release_tag.outputs.version }}
+          MONOGO_RELEASE_TAG: ${{ steps.release_tag.outputs.app_tag }}
 
       - uses: actions/attest-build-provenance@v4
         with:
@@ -126,25 +164,13 @@ jobs:
 
   verify_signed_docker_images:
     runs-on: ubuntu-latest
-    needs: goreleaser-weekly-docker-refresh
+    needs: [resolve-apps, goreleaser-weekly-docker-refresh]
+    if: needs.resolve-apps.outputs.apps != '[]'
     permissions: {}
     strategy:
       fail-fast: false
       matrix:
-        app:
-          - monogo
-          - gotts-it
-          - url2anki
-          - RSSFFS
-          - go-find-liquor
-          - photos2map
-          - go-listen
-          - ghreleases2rss
-          - terranotate
-          - lego-stego
-          - files2prompt
-          - trails-completionist
-          - go-sort-out-gh-actions
+        app: ${{ fromJson(needs.resolve-apps.outputs.apps) }}
         registry: ['', 'ghcr.io/', 'quay.io/']
         tag: ['latest', 'distroless']
     steps:
@@ -152,7 +178,9 @@ jobs:
         uses: sigstore/cosign-installer@v4.1.2 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
       - name: Verify signatures of Docker images
         run: |
+          app="${{ matrix.app }}"
+          image="${app,,}"
           cosign verify \
             --certificate-identity-regexp '^https://github.com/toozej/monogo/.github/workflows/(release|weekly-docker-refresh).yaml@refs/(tags/.*|heads/main)$' \
             --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
-            ${{ matrix.registry }}toozej/${{ matrix.app }}:${{ matrix.tag }}
+            "${{ matrix.registry }}toozej/${image}:${{ matrix.tag }}"

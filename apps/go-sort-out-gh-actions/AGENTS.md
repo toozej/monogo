@@ -330,16 +330,16 @@ type Config struct {
 | Workflow | Trigger | Purpose |
 |---|---|---|
 | `ci.yaml` | PR/push to main, weekly Mon 01:18 UTC | Pre-commit + tests + demo; Slack on failure |
-| `release.yaml` | Push `v*` tags | GoReleaser build, cosign signing, SBOM, Docker publish |
+| `release.yaml` | Push `apps/<app>/vX.Y.Z` tags | GoReleaser build, cosign signing, SBOM, Docker publish, GitHub release, Homebrew cask |
 | `weekly-docker-refresh.yaml` | Weekly Tue 03:18 UTC | Rebuild Docker for base image updates |
 | `dependabot-pin-sha.yaml` | Dependabot PRs | Auto-pin action refs to SHA |
 
 ### Release
 
-1. Tag commit with `vX.Y.Z`
-2. `release.yaml` triggers GoReleaser
+1. Run `make release APP=go-sort-out-gh-actions TYPE=<major|minor|patch>` (bumps and pushes the next `apps/go-sort-out-gh-actions/vX.Y.Z` tag), or tag and push it by hand
+2. `release.yaml` is tag-driven (no app matrix) and builds, signs, and publishes only the tagged app
 3. Builds for linux/darwin/windows, 386/amd64/arm/arm64
-4. Docker images to DockerHub, GHCR, Quay
+4. Docker images to DockerHub, GHCR, Quay; GitHub release created with `gh`; Homebrew cask published
 5. Binaries signed with cosign; SBOM via syft
 
 ## Boundaries

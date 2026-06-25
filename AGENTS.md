@@ -15,7 +15,7 @@
 - Test default app: `make test`
 - Test a specific app: `make test APP=monogo`
 - Build a local binary: `make local-build APP=monogo`
-- Check GoReleaser config and snapshot build: `make local-release-test APP=monogo`
+- Check GoReleaser config and snapshot build: `make release-test APP=monogo`
 - Run pre-commit: `make pre-commit-run`
 
 ## Adding or Updating Apps
@@ -23,8 +23,8 @@
 1. Add app code under `apps/<app>`.
 2. Add `apps/<app>/app.yaml` with the app's name, binary, source paths, build images, and description (see [docs/app-configuration.md](docs/app-configuration.md) for the full field reference).
 3. Run `make app-generate APP=<app>`.
-4. Add the app to the matrices in `.github/workflows/ci.yaml`, `release.yaml`, and `weekly-docker-refresh.yaml`.
-5. Run `make test APP=<app>` and `make local-release-test APP=<app>`.
+4. Add the app to the matrices in `.github/workflows/ci.yaml` and `weekly-docker-refresh.yaml`. The release workflow is tag-driven and does not have an app matrix.
+5. Run `make test APP=<app>` and `make release-test APP=<app>`.
 
 Prefer app-specific metadata in `app.yaml` over editing generated files directly. Shared Go packages belong in root `pkg/`; app-private code belongs in `apps/<app>/internal`. Shared build and root tooling changes belong in `templates/app/*.tmpl` or `templates/common/*.tmpl`.
 

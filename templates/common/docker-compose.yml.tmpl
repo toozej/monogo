@@ -1,9 +1,10 @@
 [[- $app := ds "app" -]]
+[[- /* Docker repository names must be lower-case (e.g. RSSFFS -> rssffs) */ -]]
 ---
 services:
   [[$app.name]]:
     container_name: [[$app.name]]
-    image: toozej/[[$app.name]]:latest
+    image: toozej/[[ strings.ToLower $app.name ]]:latest
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true

@@ -19,7 +19,7 @@ make list-apps
 make generate-all
 make test APP=monogo
 make local-build APP=monogo
-make local-release-test APP=monogo
+make release-test APP=monogo
 ```
 
 `APP` defaults to `monogo`, so `make test` and `make local-build` work for the initial app.
@@ -38,7 +38,7 @@ To add or customize an app:
 1. Create `apps/<app>/app.yaml`.
 2. Put the app's Go code under `apps/<app>`.
 3. Run `make app-generate APP=<app>`.
-4. Add the app to the GitHub Actions matrices in `.github/workflows/*.yaml`.
+4. Add the app to the GitHub Actions matrices in `.github/workflows/ci.yaml` and `.github/workflows/weekly-docker-refresh.yaml`.
 
 For normal per-app differences, change values in `apps/<app>/app.yaml`. Shared Go packages belong in root `pkg/`; app-private code belongs in `apps/<app>/internal`. For shared build or root tooling behavior, update `templates/app/*.tmpl` or `templates/common/*.tmpl` and run `make generate-all`.
 
@@ -64,7 +64,7 @@ The import target:
 7. Imports source tags under `refs/tags/apps/<repo>/`.
 8. Imports GitHub release metadata under `apps/<repo>/.monogo/releases/`.
 9. Generates app-local Docker, Compose, Air, and GoReleaser config with gomplate.
-10. Updates GitHub Actions app matrices and Dependabot Docker config.
+10. Updates GitHub Actions app matrices for CI and Docker refresh, plus Dependabot Docker config.
 11. Runs tests, local build, and GoReleaser snapshot validation.
 
 Options:
@@ -82,11 +82,20 @@ make import APP=github.example.com/owner/repo
 
 ## Release Model
 
-This repository uses GoReleaser OSS with lockstep repository tags:
+This repository uses GoReleaser OSS with independent app release tags:
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag apps/url2anki/v0.1.0
+git push origin apps/url2anki/v0.1.0
 ```
 
-The release workflow runs one GoReleaser job per app from the generated app-local `.goreleaser.yml`. This avoids GoReleaser Pro monorepo tag-prefix features while preserving the starter repository's Make, Docker, signing, packaging, and GoReleaser patterns.
+Only the tagged app is released. The workflow creates a local-only clean `vX.Y.Z` tag for GoReleaser version parsing, disables GoReleaser's SCM release creation, and then creates the real GitHub release at `apps/<app>/vX.Y.Z` with `gh`.
+
+For local release-config testing, and to cut a release:
+
+```bash
+make release-test APP=url2anki
+make release APP=url2anki TYPE=patch
+```
+
+`make release-test` checks the GoReleaser config and builds a snapshot locally. `make release` runs the app's tests, computes the next `apps/<app>/vX.Y.Z` tag by bumping `TYPE` (`major`, `minor`, or `patch`; defaults to `patch`) from the latest existing tag, then creates and pushes that tag; CI builds, signs, and publishes the release. Tagging and pushing by hand (`git tag -a apps/<app>/vX.Y.Z -m ... && git push origin apps/<app>/vX.Y.Z`) triggers the same workflow.

@@ -4,10 +4,6 @@ version: 2
 project_name: trails-completionist
 dist: dist/trails-completionist
 
-git:
-  ignore_tags:
-    - apps/*
-
 env:
   - GO111MODULE=on
 
@@ -48,7 +44,7 @@ builds:
     ldflags:
       - >-
         -s -w
-        -X github.com/toozej/monogo/pkg/version.Version={{.Version}}
+        -X github.com/toozej/monogo/pkg/version.Version=v{{ envOrDefault "MONOGO_APP_VERSION" .Version }}
         -X github.com/toozej/monogo/pkg/version.Commit={{.Commit}}
         -X github.com/toozej/monogo/pkg/version.Branch={{.Branch}}
         -X github.com/toozej/monogo/pkg/version.BuiltAt={{.CommitDate}}
@@ -66,6 +62,11 @@ docker_digest:
   name_template: 'digests.txt'
 
 changelog:
+  # Release notes are produced by `gh` (CI) / the Makefile, not GoReleaser,
+  # whenever the SCM release is disabled. Skip GoReleaser's own changelog then
+  # to avoid noisy GitHub API calls and empty .PreviousTag lookups against the
+  # local-only vX.Y.Z tag. Condition mirrors release.disable below.
+  disable: '{{ or (eq (envOrDefault "MONOGO_APP_RELEASE" "false") "true") (eq (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true") }}'
   sort: asc
   use: github
   filters:
@@ -100,10 +101,8 @@ dockers_v2:
       - 'ghcr.io/toozej/trails-completionist'
       - 'quay.io/toozej/trails-completionist'
     tags:
-      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}v{{ .Version
-        }}{{ end }}'
-      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ .Version
-        }}{{ end }}'
+      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}v{{ envOrDefault "MONOGO_APP_VERSION" .Version }}{{ end }}'
+      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ envOrDefault "MONOGO_APP_VERSION" .Version }}{{ end }}'
       - "latest"
     dockerfile: apps/trails-completionist/Dockerfile.goreleaser
     labels:
@@ -115,7 +114,7 @@ dockers_v2:
       "org.opencontainers.image.created": "{{.Date}}"
       "org.opencontainers.image.name": "{{.ProjectName}}"
       "org.opencontainers.image.revision": "{{.FullCommit}}"
-      "org.opencontainers.image.version": "{{.Version}}"
+      "org.opencontainers.image.version": '{{ envOrDefault "MONOGO_APP_VERSION" .Version }}'
       "org.opencontainers.image.source": "{{.GitURL}}"
       "org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
       "org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
@@ -133,7 +132,7 @@ dockers_v2:
       "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/monogo"
       "index,manifest:org.opencontainers.image.title": "{{.ProjectName}}"
       "index,manifest:org.opencontainers.image.vendor": "James Tooze"
-      "index,manifest:org.opencontainers.image.version": "{{.Version}}"
+      "index,manifest:org.opencontainers.image.version": '{{ envOrDefault "MONOGO_APP_VERSION" .Version }}'
     extra_files:
       - scripts/goreleaser_entrypoint.sh
   - id: trails-completionist-distroless
@@ -142,10 +141,8 @@ dockers_v2:
       - 'ghcr.io/toozej/trails-completionist'
       - 'quay.io/toozej/trails-completionist'
     tags:
-      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}v{{ .Version
-        }}-distroless{{ end }}'
-      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ .Version
-        }}-distroless{{ end }}'
+      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}v{{ envOrDefault "MONOGO_APP_VERSION" .Version }}-distroless{{ end }}'
+      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ envOrDefault "MONOGO_APP_VERSION" .Version }}-distroless{{ end }}'
       - "distroless"
     dockerfile: apps/trails-completionist/Dockerfile.goreleaser.distroless
     labels:
@@ -157,7 +154,7 @@ dockers_v2:
       "org.opencontainers.image.created": "{{.Date}}"
       "org.opencontainers.image.name": "{{.ProjectName}}"
       "org.opencontainers.image.revision": "{{.FullCommit}}"
-      "org.opencontainers.image.version": "{{.Version}}"
+      "org.opencontainers.image.version": '{{ envOrDefault "MONOGO_APP_VERSION" .Version }}'
       "org.opencontainers.image.source": "{{.GitURL}}"
       "org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
       "org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
@@ -175,7 +172,7 @@ dockers_v2:
       "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/monogo"
       "index,manifest:org.opencontainers.image.title": "{{.ProjectName}}"
       "index,manifest:org.opencontainers.image.vendor": "James Tooze"
-      "index,manifest:org.opencontainers.image.version": "{{.Version}}"
+      "index,manifest:org.opencontainers.image.version": '{{ envOrDefault "MONOGO_APP_VERSION" .Version }}'
     extra_files:
       - scripts/goreleaser_entrypoint.sh
 
@@ -259,6 +256,7 @@ homebrew_casks:
       zsh: "completions/trails-completionist.zsh"
       fish: "completions/trails-completionist.fish"
     url:
+      template: "https://github.com/toozej/monogo/releases/download/{{ envOrDefault \"MONOGO_RELEASE_TAG\" .Tag }}/{{ .ArtifactName }}"
       verified: "github.com/toozej/monogo/releases/download"
     hooks:
       post:
@@ -295,6 +293,6 @@ milestones:
 
 release:
   mode: append
-  disable: '{{ eq (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}'
+  disable: '{{ or (eq (envOrDefault "MONOGO_APP_RELEASE" "false") "true") (eq (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true") }}'
   footer: |
     **Full Changelog**: https://github.com/toozej/monogo/compare/{{ .PreviousTag }}...{{ .Tag }}

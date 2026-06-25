@@ -4,7 +4,7 @@ name: Release
 on:
   push:
     tags:
-      - "v[0-9]*.*.*"
+      - "apps/*/v[0-9]*.*.*"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -18,43 +18,73 @@ jobs:
   goreleaser:
     runs-on: ubuntu-latest
     if: contains(github.ref_name, '.')
+    outputs:
+      app: ${{ steps.release.outputs.app }}
+      app_tag: ${{ steps.release.outputs.app_tag }}
+      image: ${{ steps.release.outputs.image }}
+      version: ${{ steps.release.outputs.version }}
+      version_tag: ${{ steps.release.outputs.version_tag }}
     permissions:
-      contents: write
+      contents: read
       packages: write
       id-token: write
       attestations: write
-    strategy:
-      fail-fast: false
-      max-parallel: 1
-      matrix:
-        app:
-          - monogo
-          - gotts-it
-          - url2anki
-          - RSSFFS
-          - go-find-liquor
-          - photos2map
-          - go-listen
-          - ghreleases2rss
-          - terranotate
-          - lego-stego
-          - files2prompt
-          - trails-completionist
-          - go-sort-out-gh-actions
     steps:
-      - name: Validate semver tag
-        run: |
-          TAG="${GITHUB_REF_NAME}"
-          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::Tag '$TAG' is not a valid semver tag. Skipping release."
-            exit 1
-          fi
       - name: Checkout
         uses: actions/checkout@v7.0.0
         with:
           fetch-depth: 0
       - name: Fetch all tags
         run: git fetch --force --tags
+      - name: Parse and validate app release tag
+        id: release
+        run: |
+          set -euo pipefail
+
+          APP_TAG="${GITHUB_REF_NAME}"
+          if [[ ! "$APP_TAG" =~ ^apps/([^/]+)/v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            echo "::error::Tag '$APP_TAG' must match apps/<app>/vX.Y.Z."
+            exit 1
+          fi
+
+          APP="${BASH_REMATCH[1]}"
+          VERSION="${BASH_REMATCH[2]}.${BASH_REMATCH[3]}.${BASH_REMATCH[4]}"
+          VERSION_TAG="v${VERSION}"
+          APP_CONFIG="apps/${APP}/app.yaml"
+
+          if [ ! -f "$APP_CONFIG" ]; then
+            echo "::error::No app config found at ${APP_CONFIG}."
+            exit 1
+          fi
+
+          TAG_COMMIT="$(git rev-list -n 1 "$APP_TAG")"
+          HEAD_COMMIT="$(git rev-parse HEAD)"
+          if [ "$TAG_COMMIT" != "$HEAD_COMMIT" ] || [ "$TAG_COMMIT" != "$GITHUB_SHA" ]; then
+            echo "::error::Tag '$APP_TAG' does not point at the checked-out commit."
+            echo "tag commit: ${TAG_COMMIT}"
+            echo "HEAD: ${HEAD_COMMIT}"
+            echo "GITHUB_SHA: ${GITHUB_SHA}"
+            exit 1
+          fi
+
+          # Docker repository names must be lower-case. Take the app name's
+          # first whitespace-delimited token, dropping any inline YAML comment
+          # so a trailing `# ...` never leaks into the image reference.
+          IMAGE="$(awk '/^name:/ {v=$0; sub(/^name:[[:space:]]*/, "", v); sub(/[[:space:]]*#.*/, "", v); gsub(/["[:space:]]/, "", v); print tolower(v); exit}' "$APP_CONFIG")"
+          if [ -z "$IMAGE" ]; then
+            echo "::error::No app name configured in ${APP_CONFIG}."
+            exit 1
+          fi
+
+          git tag --force "$VERSION_TAG" "$GITHUB_SHA"
+
+          {
+            echo "app=${APP}"
+            echo "app_tag=${APP_TAG}"
+            echo "image=${IMAGE}"
+            echo "version=${VERSION}"
+            echo "version_tag=${VERSION_TAG}"
+          } >> "$GITHUB_OUTPUT"
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
@@ -63,7 +93,7 @@ jobs:
       - name: Install gomplate
         run: make pre-reqs
       - name: Generate app configs
-        run: make app-generate APP=${{ matrix.app }}
+        run: make app-generate APP=${{ steps.release.outputs.app }}
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
       - uses: sigstore/cosign-installer@v4.1.2 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
@@ -86,89 +116,133 @@ jobs:
           username: ${{ secrets.QUAY_USERNAME }}
           password: ${{ secrets.QUAY_TOKEN }}
       - name: Run GoReleaser
+        # The Homebrew cask is published in the publish_homebrew_cask job, only
+        # after the GitHub release assets it links to have been uploaded, so a
+        # failed asset upload can never leave the tap pointing at a 404.
         uses: goreleaser/goreleaser-action@v7 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
         with:
           distribution: goreleaser
           version: latest
-          args: release --clean --config apps/${{ matrix.app }}/.goreleaser.yml
+          args: release --clean --skip=homebrew --config apps/${{ steps.release.outputs.app
+            }}/.goreleaser.yml
           workdir: ${{ github.workspace }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+          GORELEASER_CURRENT_TAG: ${{ steps.release.outputs.version_tag }}
+          MONOGO_APP_RELEASE: "true"
+          MONOGO_APP_VERSION: ${{ steps.release.outputs.version }}
+          MONOGO_RELEASE_TAG: ${{ steps.release.outputs.app_tag }}
       - uses: actions/attest-build-provenance@v4
         with:
-          subject-checksums: ./dist/${{ matrix.app }}/checksums.txt
+          subject-checksums: ./dist/${{ steps.release.outputs.app }}/checksums.txt
       - uses: actions/attest-build-provenance@v4
         with:
-          subject-checksums: ./dist/${{ matrix.app }}/digests.txt
+          subject-checksums: ./dist/${{ steps.release.outputs.app }}/digests.txt
       - uses: actions/upload-artifact@v7.0.1
         with:
-          name: goreleaser-${{ matrix.app }}-dist
-          path: ./dist/${{ matrix.app }}
+          name: goreleaser-${{ steps.release.outputs.app }}-dist
+          path: ./dist/${{ steps.release.outputs.app }}
+
+  github_release:
+    runs-on: ubuntu-latest
+    needs: goreleaser
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.0
+        with:
+          fetch-depth: 0
+      - name: Fetch all tags
+        run: git fetch --force --tags
+      - uses: actions/download-artifact@v8.0.1
+        with:
+          name: goreleaser-${{ needs.goreleaser.outputs.app }}-dist
+          path: ./dist/${{ needs.goreleaser.outputs.app }}
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          scripts/create-app-release.sh \
+            "${{ needs.goreleaser.outputs.app }}" \
+            "${{ needs.goreleaser.outputs.app_tag }}" \
+            "${{ needs.goreleaser.outputs.version_tag }}" \
+            "dist/${{ needs.goreleaser.outputs.app }}"
+
+  publish_homebrew_cask:
+    runs-on: ubuntu-latest
+    needs: [goreleaser, github_release]
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.0
+        with:
+          fetch-depth: 0
+      - name: Fetch all tags
+        run: git fetch --force --tags
+      - name: Recreate clean version tag for GoReleaser
+        run: git tag --force "${{ needs.goreleaser.outputs.version_tag }}" "$GITHUB_SHA"
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '^1.26'
+          check-latest: true
+      - name: Install gomplate
+        run: make pre-reqs
+      - name: Generate app configs
+        run: make app-generate APP=${{ needs.goreleaser.outputs.app }}
+      - name: Publish Homebrew cask
+        # Builds + archives are reproducible (-trimpath, commit-pinned
+        # mod_timestamp), so the cask's checksum matches the asset that
+        # github_release already uploaded. Skip everything except the cask
+        # (the SCM release is disabled via MONOGO_APP_RELEASE, images and
+        # signatures were published by the goreleaser job).
+        uses: goreleaser/goreleaser-action@v7 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean --skip=docker,sign,sbom,nfpm,validate,announce --config apps/${{
+            needs.goreleaser.outputs.app }}/.goreleaser.yml
+          workdir: ${{ github.workspace }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+          GORELEASER_CURRENT_TAG: ${{ needs.goreleaser.outputs.version_tag }}
+          MONOGO_APP_RELEASE: "true"
+          MONOGO_APP_VERSION: ${{ needs.goreleaser.outputs.version }}
+          MONOGO_RELEASE_TAG: ${{ needs.goreleaser.outputs.app_tag }}
 
   verify_signed_checksums:
     runs-on: ubuntu-latest
     needs: goreleaser
     permissions:
       actions: read
-    strategy:
-      fail-fast: false
-      matrix:
-        app:
-          - monogo
-          - gotts-it
-          - url2anki
-          - RSSFFS
-          - go-find-liquor
-          - photos2map
-          - go-listen
-          - ghreleases2rss
-          - terranotate
-          - lego-stego
-          - files2prompt
-          - trails-completionist
-          - go-sort-out-gh-actions
     steps:
       - name: Install Cosign
         uses: sigstore/cosign-installer@v4.1.2 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
       - uses: actions/download-artifact@v8.0.1
         with:
-          name: goreleaser-${{ matrix.app }}-dist
-          path: ./dist/${{ matrix.app }}
+          name: goreleaser-${{ needs.goreleaser.outputs.app }}-dist
+          path: ./dist/${{ needs.goreleaser.outputs.app }}
       - name: Verify signature of checksums file
         run: |
           cosign verify-blob \
-            --bundle ./dist/${{ matrix.app }}/checksums.txt.sigstore.json \
+            --bundle ./dist/${{ needs.goreleaser.outputs.app }}/checksums.txt.sigstore.json \
             --certificate-identity-regexp '^https://github.com/toozej/monogo/.github/workflows/(release|weekly-docker-refresh).yaml@refs/(tags/.*|heads/main)$' \
             --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
-            ./dist/${{ matrix.app }}/checksums.txt
+            ./dist/${{ needs.goreleaser.outputs.app }}/checksums.txt
 
   trivy-scan-image:
     name: trivy-scan-image
     needs: goreleaser
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        app:
-          - monogo
-          - gotts-it
-          - url2anki
-          - RSSFFS
-          - go-find-liquor
-          - photos2map
-          - go-listen
-          - ghreleases2rss
-          - terranotate
-          - lego-stego
-          - files2prompt
-          - trails-completionist
-          - go-sort-out-gh-actions
     steps:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
         with:
-          image-ref: ghcr.io/toozej/${{ matrix.app }}:latest
+          image-ref: ghcr.io/toozej/${{ needs.goreleaser.outputs.image }}:latest
           format: 'table'
           exit-code: '1'
           ignore-unfixed: true
@@ -182,20 +256,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        app:
-          - monogo
-          - gotts-it
-          - url2anki
-          - RSSFFS
-          - go-find-liquor
-          - photos2map
-          - go-listen
-          - ghreleases2rss
-          - terranotate
-          - lego-stego
-          - files2prompt
-          - trails-completionist
-          - go-sort-out-gh-actions
         registry: ['', 'ghcr.io/', 'quay.io/']
         tag: ['latest', 'distroless']
     steps:
@@ -206,4 +266,4 @@ jobs:
           cosign verify \
             --certificate-identity-regexp '^https://github.com/toozej/monogo/.github/workflows/(release|weekly-docker-refresh).yaml@refs/(tags/.*|heads/main)$' \
             --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
-            ${{ matrix.registry }}toozej/${{ matrix.app }}:${{ matrix.tag }}
+            ${{ matrix.registry }}toozej/${{ needs.goreleaser.outputs.image }}:${{ matrix.tag }}
