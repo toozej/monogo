@@ -1,0 +1,28 @@
+---
+services:
+  kmhd2playlist:
+    container_name: kmhd2playlist
+    image: toozej/kmhd2playlist:latest
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    command: ["sync", "--continuous"]
+    volumes:
+      - ./data:/app/data
+    environment:
+      - SPOTIFY_TOKEN_FILE_PATH=/app/data/spotify_token.json
+    env_file:
+      - .env
+    labels:
+      - "traefik.enable=false"
+      # labels below for publishing as web service
+      # - "traefik.docker.network=traefik"
+      # - "traefik.http.routers.kmhd2playlist.rule=Host(`kmhd2playlist.test`)"
+      # - "traefik.http.routers.kmhd2playlist.middlewares=http-redirect-https@file,headers@file"
+      # - "traefik.http.routers.kmhd2playlist-secure.entrypoints=https"
+      # - "traefik.http.routers.kmhd2playlist-secure.rule=Host(`kmhd2playlist.test`)"
+      # - "traefik.http.routers.kmhd2playlist-secure.middlewares=headers@file"
+      # - "traefik.http.routers.kmhd2playlist-secure.tls=true"
+    # networks:
+      # - traefik
