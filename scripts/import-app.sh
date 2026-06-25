@@ -478,7 +478,7 @@ go mod tidy
 if [ "$IMPORT_SKIP_VERIFY" != "1" ]; then
 	make test APP="$APP_NAME"
 	make local-build APP="$APP_NAME"
-	make local-release-test APP="$APP_NAME"
+	make release-test APP="$APP_NAME"
 else
 	echo "Skipping verification because IMPORT_SKIP_VERIFY=1"
 fi
