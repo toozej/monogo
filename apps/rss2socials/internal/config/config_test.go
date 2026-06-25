@@ -173,7 +173,7 @@ func TestGetEnvVars(t *testing.T) {
 
 			clearEnvVars := []string{"MASTODON_URL", "MASTODON_CLIENT_KEY", "MASTODON_CLIENT_SECRET", "MASTODON_ACCESS_TOKEN", "GOTIFY_URL", "GOTIFY_TOKEN", "DEBUG", "FEED_URL", "INTERVAL", "BLUESKY_HANDLE", "BLUESKY_APPKEY", "THREADS_CLIENT_ID", "THREADS_CLIENT_SECRET", "THREADS_REDIRECT_URI", "THREADS_ACCESS_TOKEN", "THREADS_USER_ID", "POST_NEW_ENTRIES_ONLY", "SHORT_RUN", "DB_PATH"}
 			for _, key := range clearEnvVars {
-				os.Unsetenv(key)
+				_ = os.Unsetenv(key)
 			}
 
 			if tt.setupEnvFileContent != "" {
@@ -184,19 +184,22 @@ func TestGetEnvVars(t *testing.T) {
 			}
 
 			for key, value := range tt.setupEnvVars {
-				os.Setenv(key, value)
+				_ = os.Setenv(key, value)
 			}
 
 			conf, err := GetEnvVars()
+			if err != nil {
+				t.Fatalf("unexpected error from GetEnvVars(): %v", err)
+			}
 
 			if tt.expectError {
-				if err == nil {
-					t.Fatal("expected error, got nil")
+				if verr := ValidateRequired(conf); verr == nil {
+					t.Fatal("expected validation error, got nil")
 				}
 				return
 			}
-			if err != nil {
-				t.Fatalf("unexpected error from GetEnvVars(): %v", err)
+			if verr := ValidateRequired(conf); verr != nil {
+				t.Fatalf("unexpected validation error: %v", verr)
 			}
 
 			if conf.MastodonURL != tt.expectedMastodonURL {

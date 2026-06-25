@@ -2,8 +2,8 @@
 //
 // This package handles loading configuration from environment variables and .env files
 // with built-in security measures to prevent path traversal attacks. It uses the
-// github.com/caarlos0/env library for environment variable parsing and
-// github.com/joho/godotenv for .env file loading.
+// loading mechanics (.env discovery, path-traversal protection, and environment
+// parsing) provided by the shared github.com/toozej/monogo/pkg/config package.
 //
 // The configuration loading follows a priority order:
 //  1. Environment variables (highest priority)
@@ -17,7 +17,7 @@
 //
 // Example usage:
 //
-//	import "github.com/toozej/rss2socials/pkg/config"
+//	import "github.com/toozej/monogo/apps/rss2socials/internal/config"
 //
 //	func main() {
 //	conf, err := config.GetEnvVars()
@@ -30,12 +30,9 @@ package config
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 
-	"github.com/caarlos0/env/v11"
-	"github.com/joho/godotenv"
+	sharedconfig "github.com/toozej/monogo/pkg/config"
 )
 
 // Config represents the application configuration structure.
@@ -118,26 +115,18 @@ type Config struct {
 }
 
 // GetEnvVars loads and returns the application configuration from environment
-// variables and .env files with comprehensive security validation.
+// variables and .env files.
 //
-// This function performs the following operations:
-//  1. Securely determines the current working directory
-//  2. Constructs and validates the .env file path to prevent traversal attacks
-//  3. Loads .env file if it exists in the current directory
-//  4. Parses environment variables into the Config struct
-//  5. Validates required fields
-//  6. Returns the populated configuration
-//
-// Security measures implemented:
-//   - Path traversal detection and prevention using filepath.Rel
-//   - Absolute path resolution for secure path operations
-//   - Validation against ".." sequences in relative paths
-//   - Safe file existence checking before loading
+// It delegates the loading mechanics (.env discovery, path-traversal
+// protection, and environment parsing) to the shared pkg/config loader. It
+// does not enforce required fields; call ValidateRequired for that, only when
+// the main application functionality runs (not during subcommand execution
+// like version, man, or completion).
 //
 // Returns:
 //   - Config: A populated configuration struct with values from environment
 //     variables and/or .env file
-//   - error: Non-nil if any critical error occurs during configuration loading
+//   - error: Non-nil if a critical error occurs while loading configuration
 //
 // Example:
 //
@@ -147,43 +136,17 @@ type Config struct {
 //	}
 //	fmt.Printf("Mastodon URL: %s\n", conf.MastodonURL)
 func GetEnvVars() (Config, error) {
-	// Get current working directory for secure file operations
-	cwd, err := os.Getwd()
-	if err != nil {
-		return Config{}, fmt.Errorf("error getting current working directory: %w", err)
-	}
+	// Delegate .env discovery, path-traversal protection, and environment
+	// parsing to the shared loader.
+	return sharedconfig.Load[Config]()
+}
 
-	// Construct secure path for .env file within current directory
-	envPath := filepath.Join(cwd, ".env")
-
-	// Ensure the path is within our expected directory (prevent traversal)
-	cleanEnvPath, err := filepath.Abs(envPath)
-	if err != nil {
-		return Config{}, fmt.Errorf("error resolving .env file path: %w", err)
-	}
-	cleanCwd, err := filepath.Abs(cwd)
-	if err != nil {
-		return Config{}, fmt.Errorf("error resolving current directory: %w", err)
-	}
-	relPath, err := filepath.Rel(cleanCwd, cleanEnvPath)
-	if err != nil || strings.Contains(relPath, "..") {
-		return Config{}, fmt.Errorf("error: .env file path traversal detected")
-	}
-
-	// Load .env file if it exists
-	if _, err := os.Stat(envPath); err == nil {
-		if err := godotenv.Load(envPath); err != nil {
-			return Config{}, fmt.Errorf("error loading .env file: %w", err)
-		}
-	}
-
-	// Parse environment variables into config struct
-	var conf Config
-	if err := env.Parse(&conf); err != nil {
-		return Config{}, fmt.Errorf("error parsing environment variables: %w", err)
-	}
-
-	// Validate required configuration
+// ValidateRequired validates that all required configuration values are present.
+//
+// It should be called only when the main application functionality is invoked,
+// not during subcommand execution like version, man, or completion commands,
+// so that those subcommands work without a fully configured environment.
+func ValidateRequired(conf Config) error {
 	var missing []string
 	if conf.MastodonURL == "" {
 		missing = append(missing, "MASTODON_URL")
@@ -204,10 +167,9 @@ func GetEnvVars() (Config, error) {
 		missing = append(missing, "GOTIFY_TOKEN")
 	}
 	if len(missing) > 0 {
-		return conf, fmt.Errorf("required environment variables not set: %s", strings.Join(missing, ", "))
+		return fmt.Errorf("required environment variables not set: %s", strings.Join(missing, ", "))
 	}
-
-	return conf, nil
+	return nil
 }
 
 // EnabledSites returns the list of social media sites that should be posted to.

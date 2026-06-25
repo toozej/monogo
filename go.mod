@@ -23,6 +23,8 @@ require (
 	github.com/blacktop/go-termimg v0.1.26
 	github.com/bmatcuk/doublestar/v4 v4.10.0
 	github.com/bwmarrin/discordgo v0.29.0 // indirect
+	github.com/carlmjohnson/versioninfo v0.22.5 // indirect
+	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/charmbracelet/colorprofile v0.4.3 // indirect
 	github.com/charmbracelet/x/ansi v0.11.7 // indirect
 	github.com/charmbracelet/x/cellbuf v0.0.15 // indirect
@@ -32,36 +34,76 @@ require (
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/cschomburg/go-pushbullet v0.0.0-20171206132031-67759df45fbb // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
+	github.com/davhofer/botsky v0.0.0-20250218025645-d30f6a2851dd
+	github.com/davhofer/indigo v0.0.0-20250201122929-953fec9cd255 // indirect
+	github.com/dustin/go-humanize v1.0.1 // indirect
+	github.com/felixge/httpsnoop v1.1.0 // indirect
+	github.com/glebarez/go-sqlite v1.22.0 // indirect
+	github.com/glebarez/sqlite v1.11.0
 	github.com/go-echarts/go-echarts/v2 v2.7.2
+	github.com/go-logr/logr v1.4.3 // indirect
+	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-shiori/dom v0.0.0-20230515143342-73569d674e1c // indirect
 	github.com/go-telegram-bot-api/telegram-bot-api v4.6.4+incompatible // indirect
+	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/gogs/chardet v0.0.0-20211120154057-b7413eaefb8f // indirect
+	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect
 	github.com/google/go-github/v85 v85.0.0
 	github.com/google/go-querystring v1.2.0 // indirect
 	github.com/google/jsonschema-go v0.4.3 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/gregdel/pushover v1.4.0 // indirect
+	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
+	github.com/hashicorp/go-retryablehttp v0.7.8 // indirect
+	github.com/hashicorp/golang-lru v1.0.2 // indirect
 	github.com/hashicorp/hcl/v2 v2.24.0
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/ipfs/bbloom v0.1.0 // indirect
+	github.com/ipfs/boxo v0.41.0 // indirect
+	github.com/ipfs/go-block-format v0.2.3 // indirect
+	github.com/ipfs/go-cid v0.6.1 // indirect
+	github.com/ipfs/go-datastore v0.9.1 // indirect
+	github.com/ipfs/go-ipfs-blockstore v1.3.1 // indirect
+	github.com/ipfs/go-ipfs-ds-help v1.1.1 // indirect
+	github.com/ipfs/go-ipld-cbor v0.2.1 // indirect
+	github.com/ipfs/go-ipld-format v0.6.3 // indirect
+	github.com/ipfs/go-log v1.0.5 // indirect
+	github.com/ipfs/go-log/v2 v2.9.2 // indirect
+	github.com/ipfs/go-metrics-interface v0.3.0 // indirect
 	github.com/itlightning/dateparse v0.2.1 // indirect
+	github.com/jinzhu/inflection v1.0.0 // indirect
+	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/klauspost/reedsolomon v1.14.1
 	github.com/leanovate/gopter v0.2.11
 	github.com/lucasb-eyer/go-colorful v1.4.0 // indirect
 	github.com/makeworld-the-better-one/dither/v2 v2.4.0 // indirect
 	github.com/makiuchi-d/gozxing v0.1.1
+	github.com/mattn/go-isatty v0.0.22 // indirect
+	github.com/mattn/go-mastodon v0.0.11
 	github.com/mattn/go-runewidth v0.0.24 // indirect
 	github.com/mattn/go-sixel v0.0.11 // indirect
+	github.com/minio/sha256-simd v1.0.1 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/modelcontextprotocol/go-sdk v1.6.1 // indirect
+	github.com/mr-tron/base58 v1.3.0 // indirect
 	github.com/muesli/mango v0.2.0 // indirect
 	github.com/muesli/mango-pflag v0.2.0 // indirect
+	github.com/multiformats/go-base32 v0.1.0 // indirect
+	github.com/multiformats/go-base36 v0.2.0 // indirect
+	github.com/multiformats/go-multibase v0.3.0 // indirect
+	github.com/multiformats/go-multihash v0.2.3 // indirect
+	github.com/multiformats/go-varint v0.1.0 // indirect
+	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646 // indirect
 	github.com/nikoksr/notify v1.5.0
 	github.com/njayp/ophis v1.1.4
 	github.com/openai/openai-go/v3 v3.41.0
+	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
+	github.com/polydawn/refmt v0.90.0 // indirect
+	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd
 	github.com/sahilm/fuzzy v0.1.3
@@ -70,6 +112,7 @@ require (
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/slack-go/slack v0.26.0 // indirect
 	github.com/soniakeys/quant v1.0.0 // indirect
+	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/spf13/afero v1.15.0
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect
@@ -79,13 +122,24 @@ require (
 	github.com/tidwall/match v1.2.0 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tidwall/sjson v1.2.5 // indirect
+	github.com/tirthpatell/threads-go v1.9.3
 	github.com/tkrajina/gpxgo v1.4.0
+	github.com/tomnomnom/linkheader v0.0.0-20250811210735-e5fe3b51442e // indirect
 	github.com/twpayne/go-geom v1.6.1 // indirect
 	github.com/twpayne/go-gpx v1.5.0
+	github.com/whyrusleeping/cbor-gen v0.3.1 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	github.com/zclconf/go-cty v1.18.1 // indirect
 	github.com/zmb3/spotify/v2 v2.4.3
+	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.69.0 // indirect
+	go.opentelemetry.io/otel v1.44.0 // indirect
+	go.opentelemetry.io/otel/metric v1.44.0 // indirect
+	go.opentelemetry.io/otel/trace v1.44.0 // indirect
+	go.uber.org/atomic v1.11.0 // indirect
+	go.uber.org/multierr v1.11.0 // indirect
+	go.uber.org/zap v1.28.0 // indirect
 	golang.org/x/crypto v0.53.0
 	golang.org/x/image v0.43.0 // indirect
 	golang.org/x/mod v0.37.0 // indirect
@@ -99,4 +153,10 @@ require (
 	golang.org/x/tools v0.46.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
 	gopkg.in/yaml.v3 v3.0.1
+	gorm.io/gorm v1.31.1
+	lukechampine.com/blake3 v1.4.1 // indirect
+	modernc.org/libc v1.73.4 // indirect
+	modernc.org/mathutil v1.7.1 // indirect
+	modernc.org/memory v1.11.0 // indirect
+	modernc.org/sqlite v1.53.0 // indirect
 )

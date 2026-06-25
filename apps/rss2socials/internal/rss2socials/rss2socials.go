@@ -11,13 +11,13 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/toozej/rss2socials/internal/bluesky"
-	"github.com/toozej/rss2socials/internal/db"
-	"github.com/toozej/rss2socials/internal/gotify"
-	"github.com/toozej/rss2socials/internal/mastodon"
-	"github.com/toozej/rss2socials/internal/rss"
-	"github.com/toozej/rss2socials/internal/threads"
-	"github.com/toozej/rss2socials/pkg/config"
+	"github.com/toozej/monogo/apps/rss2socials/internal/bluesky"
+	"github.com/toozej/monogo/apps/rss2socials/internal/config"
+	"github.com/toozej/monogo/apps/rss2socials/internal/db"
+	"github.com/toozej/monogo/apps/rss2socials/internal/gotify"
+	"github.com/toozej/monogo/apps/rss2socials/internal/mastodon"
+	"github.com/toozej/monogo/apps/rss2socials/internal/rss"
+	"github.com/toozej/monogo/apps/rss2socials/internal/threads"
 )
 
 // shouldSkipPost checks whether a post should be skipped based on the

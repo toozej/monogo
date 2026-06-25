@@ -1,0 +1,18 @@
+---
+name: rss2socials
+binary: rss2socials
+path: apps/rss2socials
+mainPath: apps/rss2socials
+description: "Watches a RSS feed for new posts, then announces them on Mastodon"
+shortDescription: "rss2socials"
+goImage: golang:1.26-trixie
+distrolessImage: gcr.io/distroless/static-debian13:nonroot
+# cgoEnabled defaults to false. When true, builds use CGO_ENABLED=1, the runtime
+# image becomes glibc-capable (debian:trixie-slim / distroless base-debian), and
+# GoReleaser is trimmed to the native linux/amd64 platform.
+cgoEnabled: false
+# runtimeImage (optional) overrides the runtime base for the non-distroless
+# Dockerfile. Defaults to "scratch", or "debian:trixie-slim" when cgoEnabled is true.
+# runtimeImage: debian:trixie-slim
+# port (optional) is EXPOSEd in the generated Dockerfiles when set.
+# port: 8081

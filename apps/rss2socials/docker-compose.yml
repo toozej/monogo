@@ -7,19 +7,15 @@ services:
     security_opt:
       - no-new-privileges:true
     read_only: true
-    env_file:
-      - rss2socials.env
-    volumes:
-      - ./data/rss2socials/db:/data/db
     labels:
       - "traefik.enable=false"
-    # labels below for publishing as web service
-    # - "traefik.docker.network=traefik"
-    # - "traefik.http.routers.rss2socials.rule=Host(`rss2socials.test`)"
-    # - "traefik.http.routers.rss2socials.middlewares=http-redirect-https@file,headers@file"
-    # - "traefik.http.routers.rss2socials-secure.entrypoints=https"
-    # - "traefik.http.routers.rss2socials-secure.rule=Host(`rss2socials.test`)"
-    # - "traefik.http.routers.rss2socials-secure.middlewares=headers@file"
-    # - "traefik.http.routers.rss2socials-secure.tls=true"
+      # labels below for publishing as web service
+      # - "traefik.docker.network=traefik"
+      # - "traefik.http.routers.rss2socials.rule=Host(`rss2socials.test`)"
+      # - "traefik.http.routers.rss2socials.middlewares=http-redirect-https@file,headers@file"
+      # - "traefik.http.routers.rss2socials-secure.entrypoints=https"
+      # - "traefik.http.routers.rss2socials-secure.rule=Host(`rss2socials.test`)"
+      # - "traefik.http.routers.rss2socials-secure.middlewares=headers@file"
+      # - "traefik.http.routers.rss2socials-secure.tls=true"
     # networks:
-    # - traefik
+      # - traefik

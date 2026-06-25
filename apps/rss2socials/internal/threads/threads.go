@@ -6,7 +6,7 @@ import (
 
 	threadsgo "github.com/tirthpatell/threads-go"
 
-	"github.com/toozej/rss2socials/pkg/config"
+	"github.com/toozej/monogo/apps/rss2socials/internal/config"
 )
 
 func NewClient(conf config.Config) (*threadsgo.Client, error) {

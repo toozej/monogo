@@ -10,7 +10,7 @@ import (
 	"net/http"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/toozej/rss2socials/pkg/config"
+	"github.com/toozej/monogo/apps/rss2socials/internal/config"
 )
 
 // LogFailure logs the error and sends a notification to the Gotify instance.
@@ -65,7 +65,7 @@ func SendGotifyNotification(conf *config.Config, title, message string) error {
 	if err != nil {
 		return fmt.Errorf("failed to send Gotify request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("gotify returned non-OK status: %s", resp.Status)

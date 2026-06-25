@@ -8,8 +8,8 @@ import (
 	"fmt"
 
 	"github.com/mattn/go-mastodon"
-	"github.com/toozej/rss2socials/internal/rss"
-	"github.com/toozej/rss2socials/pkg/config"
+	"github.com/toozej/monogo/apps/rss2socials/internal/config"
+	"github.com/toozej/monogo/apps/rss2socials/internal/rss"
 )
 
 // GetTootContent constructs the toot message for the given RSS item.

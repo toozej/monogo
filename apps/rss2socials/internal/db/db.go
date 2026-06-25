@@ -7,7 +7,7 @@ import (
 
 	"github.com/glebarez/sqlite"
 	log "github.com/sirupsen/logrus"
-	"github.com/toozej/rss2socials/internal/rss"
+	"github.com/toozej/monogo/apps/rss2socials/internal/rss"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"gorm.io/gorm/logger"

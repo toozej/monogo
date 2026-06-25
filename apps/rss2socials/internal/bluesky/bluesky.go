@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/davhofer/botsky/pkg/botsky"
-	"github.com/toozej/rss2socials/pkg/config"
+	"github.com/toozej/monogo/apps/rss2socials/internal/config"
 )
 
 func NewClient(ctx context.Context, conf config.Config) (*botsky.Client, error) {

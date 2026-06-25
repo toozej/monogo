@@ -12,7 +12,7 @@
 //
 // Example usage:
 //
-//	import "github.com/toozej/rss2socials/cmd/rss2socials"
+//	import "github.com/toozej/monogo/apps/rss2socials/cmd/rss2socials"
 //
 //	func main() {
 //		cmd.Execute()
@@ -26,10 +26,10 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	rss2socials "github.com/toozej/rss2socials/internal/rss2socials"
-	"github.com/toozej/rss2socials/pkg/config"
-	"github.com/toozej/rss2socials/pkg/man"
-	"github.com/toozej/rss2socials/pkg/version"
+	"github.com/toozej/monogo/apps/rss2socials/internal/config"
+	rss2socials "github.com/toozej/monogo/apps/rss2socials/internal/rss2socials"
+	"github.com/toozej/monogo/pkg/man"
+	"github.com/toozej/monogo/pkg/version"
 )
 
 // conf holds the application configuration loaded from environment variables.
@@ -64,6 +64,14 @@ var rootCmd = &cobra.Command{
 //   - cmd: The cobra command being executed
 //   - args: Command-line arguments (unused, as root command takes no args)
 func rootCmdRun(cmd *cobra.Command, args []string) {
+	// Validate required configuration only when the main command runs, so that
+	// subcommands like completion, version, and man work without a fully
+	// configured environment.
+	if err := config.ValidateRequired(conf); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+		os.Exit(1)
+	}
+
 	rss2socials.Run(conf)
 }
 

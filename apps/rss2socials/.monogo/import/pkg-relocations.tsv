@@ -1,0 +1,4 @@
+github.com/toozej/monogo/apps/rss2socials/pkg/config	github.com/toozej/monogo/pkg/rss2socials/config
+github.com/toozej/monogo/apps/rss2socials/pkg/man	github.com/toozej/monogo/pkg/rss2socials/man
+apps/rss2socials/pkg/README.md	apps/rss2socials/.monogo/original-pkg/README.md
+github.com/toozej/monogo/apps/rss2socials/pkg/version	github.com/toozej/monogo/pkg/rss2socials/version

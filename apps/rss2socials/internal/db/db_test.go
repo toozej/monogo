@@ -11,7 +11,7 @@ import (
 func TestInitDB(t *testing.T) {
 	InitDB()
 	defer CloseDB()
-	defer os.Remove("./tooted_posts.db")
+	defer func() { _ = os.Remove("./tooted_posts.db") }()
 
 	assert.NotNil(t, DB, "DB should be initialized")
 
@@ -23,7 +23,7 @@ func TestInitDB(t *testing.T) {
 
 func TestCloseDB(t *testing.T) {
 	InitDB()
-	defer os.Remove("./tooted_posts.db")
+	defer func() { _ = os.Remove("./tooted_posts.db") }()
 
 	assert.NotNil(t, DB, "DB should be initialized before close")
 
@@ -39,7 +39,7 @@ func TestInitDB_CustomPath(t *testing.T) {
 	customPath := "./test_custom.db"
 	InitDB(customPath)
 	defer CloseDB()
-	defer os.Remove(customPath)
+	defer func() { _ = os.Remove(customPath) }()
 
 	assert.NotNil(t, DB, "DB should be initialized with custom path")
 }
@@ -47,7 +47,7 @@ func TestInitDB_CustomPath(t *testing.T) {
 func TestStoreTootedPost_NewPost(t *testing.T) {
 	InitDB()
 	defer CloseDB()
-	defer os.Remove("./tooted_posts.db")
+	defer func() { _ = os.Remove("./tooted_posts.db") }()
 
 	err := StoreTootedPost("https://example.com/test-post", "Test post content", "2026-01-01T00:00:00Z")
 	assert.NoError(t, err)
@@ -63,7 +63,7 @@ func TestStoreTootedPost_NewPost(t *testing.T) {
 func TestStoreTootedPost_UpdateExisting(t *testing.T) {
 	InitDB()
 	defer CloseDB()
-	defer os.Remove("./tooted_posts.db")
+	defer func() { _ = os.Remove("./tooted_posts.db") }()
 
 	err := StoreTootedPost("https://example.com/test-post", "Original content", "2026-01-01T00:00:00Z")
 	require.NoError(t, err)
@@ -80,7 +80,7 @@ func TestStoreTootedPost_UpdateExisting(t *testing.T) {
 func TestHasPostChanged_NewPost(t *testing.T) {
 	InitDB()
 	defer CloseDB()
-	defer os.Remove("./tooted_posts.db")
+	defer func() { _ = os.Remove("./tooted_posts.db") }()
 
 	exists, updated, err := HasPostChanged("https://example.com/test-post-2", "Test post 2 content")
 	assert.NoError(t, err)
@@ -91,7 +91,7 @@ func TestHasPostChanged_NewPost(t *testing.T) {
 func TestHasPostChanged_UpdatedPost(t *testing.T) {
 	InitDB()
 	defer CloseDB()
-	defer os.Remove("./tooted_posts.db")
+	defer func() { _ = os.Remove("./tooted_posts.db") }()
 
 	err := StoreTootedPost("https://example.com/test-post", "Original content", "2026-01-01T00:00:00Z")
 	require.NoError(t, err)
@@ -105,7 +105,7 @@ func TestHasPostChanged_UpdatedPost(t *testing.T) {
 func TestHasPostChanged_UnchangedPost(t *testing.T) {
 	InitDB()
 	defer CloseDB()
-	defer os.Remove("./tooted_posts.db")
+	defer func() { _ = os.Remove("./tooted_posts.db") }()
 
 	err := StoreTootedPost("https://example.com/test-post", "Test post content", "2026-01-01T00:00:00Z")
 	require.NoError(t, err)
@@ -119,7 +119,7 @@ func TestHasPostChanged_UnchangedPost(t *testing.T) {
 func TestMarkSitePosted(t *testing.T) {
 	InitDB()
 	defer CloseDB()
-	defer os.Remove("./tooted_posts.db")
+	defer func() { _ = os.Remove("./tooted_posts.db") }()
 
 	err := StoreTootedPost("https://example.com/mark-test", "content", "2026-01-01T00:00:00Z")
 	require.NoError(t, err)
@@ -142,7 +142,7 @@ func TestMarkSitePosted(t *testing.T) {
 func TestMarkSitePosted_UnknownSite(t *testing.T) {
 	InitDB()
 	defer CloseDB()
-	defer os.Remove("./tooted_posts.db")
+	defer func() { _ = os.Remove("./tooted_posts.db") }()
 
 	err := StoreTootedPost("https://example.com/test", "content", "2026-01-01T00:00:00Z")
 	require.NoError(t, err)
@@ -154,7 +154,7 @@ func TestMarkSitePosted_UnknownSite(t *testing.T) {
 func TestMarkSitePosted_NonExistentLink(t *testing.T) {
 	InitDB()
 	defer CloseDB()
-	defer os.Remove("./tooted_posts.db")
+	defer func() { _ = os.Remove("./tooted_posts.db") }()
 
 	err := MarkSitePosted("https://example.com/nonexistent", "mastodon")
 	assert.Error(t, err, "Expected error when marking non-existent link")
@@ -163,7 +163,7 @@ func TestMarkSitePosted_NonExistentLink(t *testing.T) {
 func TestIsSitePosted_UnknownSite(t *testing.T) {
 	InitDB()
 	defer CloseDB()
-	defer os.Remove("./tooted_posts.db")
+	defer func() { _ = os.Remove("./tooted_posts.db") }()
 
 	_, err := IsSitePosted("https://example.com/test", "unknown_site")
 	assert.Error(t, err, "Expected error for unknown site")
@@ -172,7 +172,7 @@ func TestIsSitePosted_UnknownSite(t *testing.T) {
 func TestIsSitePosted_NonExistentLink(t *testing.T) {
 	InitDB()
 	defer CloseDB()
-	defer os.Remove("./tooted_posts.db")
+	defer func() { _ = os.Remove("./tooted_posts.db") }()
 
 	posted, err := IsSitePosted("https://example.com/nonexistent", "mastodon")
 	assert.NoError(t, err)
@@ -182,7 +182,7 @@ func TestIsSitePosted_NonExistentLink(t *testing.T) {
 func TestMarkSitePosted_Independence(t *testing.T) {
 	InitDB()
 	defer CloseDB()
-	defer os.Remove("./tooted_posts.db")
+	defer func() { _ = os.Remove("./tooted_posts.db") }()
 
 	err := StoreTootedPost("https://example.com/indep-test", "content", "2026-01-01T00:00:00Z")
 	require.NoError(t, err)
@@ -206,7 +206,7 @@ func TestMarkSitePosted_Independence(t *testing.T) {
 func TestStoreTootedPost_PreservesSiteFlagsOnConflict(t *testing.T) {
 	InitDB()
 	defer CloseDB()
-	defer os.Remove("./tooted_posts.db")
+	defer func() { _ = os.Remove("./tooted_posts.db") }()
 
 	err := StoreTootedPost("https://example.com/reset-test", "original", "2026-01-01T00:00:00Z")
 	require.NoError(t, err)
@@ -229,7 +229,7 @@ func TestStoreTootedPost_PreservesSiteFlagsOnConflict(t *testing.T) {
 func TestIsFirstCycle(t *testing.T) {
 	InitDB()
 	defer CloseDB()
-	defer os.Remove("./tooted_posts.db")
+	defer func() { _ = os.Remove("./tooted_posts.db") }()
 
 	assert.True(t, IsFirstCycle(), "Expected IsFirstCycle() to be true on empty DB")
 
@@ -242,7 +242,7 @@ func TestIsFirstCycle(t *testing.T) {
 func TestIsFirstCycle_AfterDelete(t *testing.T) {
 	InitDB()
 	defer CloseDB()
-	defer os.Remove("./tooted_posts.db")
+	defer func() { _ = os.Remove("./tooted_posts.db") }()
 
 	err := StoreTootedPost("https://example.com/delete-test", "content", "2026-01-01T00:00:00Z")
 	require.NoError(t, err)
@@ -255,7 +255,7 @@ func TestIsFirstCycle_AfterDelete(t *testing.T) {
 func TestStoreTootedPost_ContentHashConsistency(t *testing.T) {
 	InitDB()
 	defer CloseDB()
-	defer os.Remove("./tooted_posts.db")
+	defer func() { _ = os.Remove("./tooted_posts.db") }()
 
 	link := "https://example.com/hash-test"
 	content := "consistent content"
@@ -276,7 +276,7 @@ func TestStoreTootedPost_ContentHashConsistency(t *testing.T) {
 func TestMarkSitePosted_AllSitesSequentially(t *testing.T) {
 	InitDB()
 	defer CloseDB()
-	defer os.Remove("./tooted_posts.db")
+	defer func() { _ = os.Remove("./tooted_posts.db") }()
 
 	link := "https://example.com/all-sites"
 	err := StoreTootedPost(link, "content", "2026-01-01T00:00:00Z")
@@ -305,7 +305,7 @@ func TestMarkSitePosted_AllSitesSequentially(t *testing.T) {
 func TestTootedPost_GormModel(t *testing.T) {
 	InitDB()
 	defer CloseDB()
-	defer os.Remove("./tooted_posts.db")
+	defer func() { _ = os.Remove("./tooted_posts.db") }()
 
 	post := TootedPost{
 		Link:           "https://example.com/model-test",
@@ -331,7 +331,7 @@ func TestTootedPost_GormModel(t *testing.T) {
 
 func TestMain(m *testing.M) {
 	code := m.Run()
-	os.Remove("./tooted_posts.db")
-	os.Remove("./test_custom.db")
+	_ = os.Remove("./tooted_posts.db")
+	_ = os.Remove("./test_custom.db")
 	os.Exit(code)
 }

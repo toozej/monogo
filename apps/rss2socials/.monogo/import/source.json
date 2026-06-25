@@ -1,0 +1,12 @@
+{
+  "source": "toozej/rss2socials",
+  "vcsHost": "github.com/",
+  "owner": "toozej",
+  "repo": "rss2socials",
+  "ownerRepo": "toozej/rss2socials",
+  "repoURL": "https://github.com/toozej/rss2socials.git",
+  "ref": "main",
+  "oldModule": "github.com/toozej/rss2socials",
+  "newModule": "github.com/toozej/monogo/apps/rss2socials",
+  "tagPrefix": "apps/rss2socials"
+}

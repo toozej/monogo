@@ -1,0 +1,430 @@
+{
+	"Module": {
+		"Path": "github.com/toozej/rss2socials"
+	},
+	"Go": "1.26",
+	"Require": [
+		{
+			"Path": "github.com/blushft/go-diagrams",
+			"Version": "v0.0.0-20250322201119-d91ac4ca5de4"
+		},
+		{
+			"Path": "github.com/caarlos0/env/v11",
+			"Version": "v11.4.1"
+		},
+		{
+			"Path": "github.com/davhofer/botsky",
+			"Version": "v0.0.0-20250218025645-d30f6a2851dd"
+		},
+		{
+			"Path": "github.com/glebarez/sqlite",
+			"Version": "v1.11.0"
+		},
+		{
+			"Path": "github.com/joho/godotenv",
+			"Version": "v1.5.1"
+		},
+		{
+			"Path": "github.com/mattn/go-mastodon",
+			"Version": "v0.0.11"
+		},
+		{
+			"Path": "github.com/muesli/mango-cobra",
+			"Version": "v1.3.0"
+		},
+		{
+			"Path": "github.com/muesli/roff",
+			"Version": "v0.1.0"
+		},
+		{
+			"Path": "github.com/sirupsen/logrus",
+			"Version": "v1.9.4"
+		},
+		{
+			"Path": "github.com/spf13/cobra",
+			"Version": "v1.10.2"
+		},
+		{
+			"Path": "github.com/stretchr/testify",
+			"Version": "v1.11.1"
+		},
+		{
+			"Path": "github.com/tirthpatell/threads-go",
+			"Version": "v1.9.3"
+		},
+		{
+			"Path": "gorm.io/gorm",
+			"Version": "v1.31.1"
+		},
+		{
+			"Path": "github.com/awalterschulze/gographviz",
+			"Version": "v2.0.3+incompatible",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/carlmjohnson/versioninfo",
+			"Version": "v0.22.5",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/cespare/xxhash/v2",
+			"Version": "v2.3.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/davecgh/go-spew",
+			"Version": "v1.1.1",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/davhofer/indigo",
+			"Version": "v0.0.0-20250201122929-953fec9cd255",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/dustin/go-humanize",
+			"Version": "v1.0.1",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/felixge/httpsnoop",
+			"Version": "v1.1.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/glebarez/go-sqlite",
+			"Version": "v1.22.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/go-logr/logr",
+			"Version": "v1.4.3",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/go-logr/stdr",
+			"Version": "v1.2.2",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/gogo/protobuf",
+			"Version": "v1.3.2",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/golang-jwt/jwt/v5",
+			"Version": "v5.3.1",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/google/uuid",
+			"Version": "v1.6.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/gorilla/websocket",
+			"Version": "v1.5.3",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/hashicorp/go-cleanhttp",
+			"Version": "v0.5.2",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/hashicorp/go-retryablehttp",
+			"Version": "v0.7.8",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/hashicorp/golang-lru",
+			"Version": "v1.0.2",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/inconshreveable/mousetrap",
+			"Version": "v1.1.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/ipfs/bbloom",
+			"Version": "v0.1.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/ipfs/boxo",
+			"Version": "v0.41.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/ipfs/go-block-format",
+			"Version": "v0.2.3",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/ipfs/go-cid",
+			"Version": "v0.6.1",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/ipfs/go-datastore",
+			"Version": "v0.9.1",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/ipfs/go-ipfs-blockstore",
+			"Version": "v1.3.1",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/ipfs/go-ipfs-ds-help",
+			"Version": "v1.1.1",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/ipfs/go-ipld-cbor",
+			"Version": "v0.2.1",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/ipfs/go-ipld-format",
+			"Version": "v0.6.3",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/ipfs/go-log",
+			"Version": "v1.0.5",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/ipfs/go-log/v2",
+			"Version": "v2.9.2",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/ipfs/go-metrics-interface",
+			"Version": "v0.3.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/jinzhu/inflection",
+			"Version": "v1.0.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/jinzhu/now",
+			"Version": "v1.1.5",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/klauspost/cpuid/v2",
+			"Version": "v2.3.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/mattn/go-isatty",
+			"Version": "v0.0.22",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/minio/sha256-simd",
+			"Version": "v1.0.1",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/mr-tron/base58",
+			"Version": "v1.3.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/muesli/mango",
+			"Version": "v0.2.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/muesli/mango-pflag",
+			"Version": "v0.2.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/multiformats/go-base32",
+			"Version": "v0.1.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/multiformats/go-base36",
+			"Version": "v0.2.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/multiformats/go-multibase",
+			"Version": "v0.3.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/multiformats/go-multihash",
+			"Version": "v0.2.3",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/multiformats/go-varint",
+			"Version": "v0.1.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/ncruces/go-strftime",
+			"Version": "v1.0.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/opentracing/opentracing-go",
+			"Version": "v1.2.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/pmezard/go-difflib",
+			"Version": "v1.0.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/polydawn/refmt",
+			"Version": "v0.90.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/remyoudompheng/bigfft",
+			"Version": "v0.0.0-20230129092748-24d4a6f8daec",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/spaolacci/murmur3",
+			"Version": "v1.1.0",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/spf13/pflag",
+			"Version": "v1.0.10",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/stretchr/objx",
+			"Version": "v0.5.3",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/tomnomnom/linkheader",
+			"Version": "v0.0.0-20250811210735-e5fe3b51442e",
+			"Indirect": true
+		},
+		{
+			"Path": "github.com/whyrusleeping/cbor-gen",
+			"Version": "v0.3.1",
+			"Indirect": true
+		},
+		{
+			"Path": "go.opentelemetry.io/auto/sdk",
+			"Version": "v1.2.1",
+			"Indirect": true
+		},
+		{
+			"Path": "go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp",
+			"Version": "v0.69.0",
+			"Indirect": true
+		},
+		{
+			"Path": "go.opentelemetry.io/otel",
+			"Version": "v1.44.0",
+			"Indirect": true
+		},
+		{
+			"Path": "go.opentelemetry.io/otel/metric",
+			"Version": "v1.44.0",
+			"Indirect": true
+		},
+		{
+			"Path": "go.opentelemetry.io/otel/trace",
+			"Version": "v1.44.0",
+			"Indirect": true
+		},
+		{
+			"Path": "go.uber.org/atomic",
+			"Version": "v1.11.0",
+			"Indirect": true
+		},
+		{
+			"Path": "go.uber.org/multierr",
+			"Version": "v1.11.0",
+			"Indirect": true
+		},
+		{
+			"Path": "go.uber.org/zap",
+			"Version": "v1.28.0",
+			"Indirect": true
+		},
+		{
+			"Path": "golang.org/x/crypto",
+			"Version": "v0.53.0",
+			"Indirect": true
+		},
+		{
+			"Path": "golang.org/x/net",
+			"Version": "v0.56.0",
+			"Indirect": true
+		},
+		{
+			"Path": "golang.org/x/sys",
+			"Version": "v0.46.0",
+			"Indirect": true
+		},
+		{
+			"Path": "golang.org/x/term",
+			"Version": "v0.44.0",
+			"Indirect": true
+		},
+		{
+			"Path": "golang.org/x/text",
+			"Version": "v0.38.0",
+			"Indirect": true
+		},
+		{
+			"Path": "golang.org/x/xerrors",
+			"Version": "v0.0.0-20240903120638-7835f813f4da",
+			"Indirect": true
+		},
+		{
+			"Path": "gopkg.in/yaml.v3",
+			"Version": "v3.0.1",
+			"Indirect": true
+		},
+		{
+			"Path": "lukechampine.com/blake3",
+			"Version": "v1.4.1",
+			"Indirect": true
+		},
+		{
+			"Path": "modernc.org/libc",
+			"Version": "v1.73.4",
+			"Indirect": true
+		},
+		{
+			"Path": "modernc.org/mathutil",
+			"Version": "v1.7.1",
+			"Indirect": true
+		},
+		{
+			"Path": "modernc.org/memory",
+			"Version": "v1.11.0",
+			"Indirect": true
+		},
+		{
+			"Path": "modernc.org/sqlite",
+			"Version": "v1.53.0",
+			"Indirect": true
+		}
+	],
+	"Exclude": null,
+	"Replace": null,
+	"Retract": null,
+	"Tool": null,
+	"Ignore": null
+}

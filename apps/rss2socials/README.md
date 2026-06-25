@@ -1,7 +1,7 @@
 # rss2socials
 
 ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/toozej/rss2socials)
-[![Go Report Card](https://goreportcard.com/badge/github.com/toozej/rss2socials)](https://goreportcard.com/report/github.com/toozej/rss2socials)
+[![Go Report Card](https://goreportcard.com/badge/github.com/toozej/monogo/apps/rss2socials)](https://goreportcard.com/report/github.com/toozej/monogo/apps/rss2socials)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/toozej/rss2socials/cicd.yaml)
 ![Docker Pulls](https://img.shields.io/docker/pulls/toozej/rss2socials)
 ![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/toozej/rss2socials/total)

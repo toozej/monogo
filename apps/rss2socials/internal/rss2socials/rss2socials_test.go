@@ -17,9 +17,9 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/toozej/rss2socials/internal/db"
-	"github.com/toozej/rss2socials/internal/rss"
-	"github.com/toozej/rss2socials/pkg/config"
+	"github.com/toozej/monogo/apps/rss2socials/internal/config"
+	"github.com/toozej/monogo/apps/rss2socials/internal/db"
+	"github.com/toozej/monogo/apps/rss2socials/internal/rss"
 
 	_ "github.com/glebarez/sqlite"
 )
@@ -117,7 +117,7 @@ func setupTestDB(t *testing.T) {
 	db.InitDB()
 	t.Cleanup(func() {
 		db.CloseDB()
-		os.Remove("./tooted_posts.db")
+		_ = os.Remove("./tooted_posts.db")
 	})
 }
 
@@ -228,7 +228,7 @@ func TestHandlePost_NoDuplicatesOnRestart(t *testing.T) {
 	db.InitDB()
 	t.Cleanup(func() {
 		db.CloseDB()
-		os.Remove("./tooted_posts.db")
+		_ = os.Remove("./tooted_posts.db")
 	})
 
 	handlePost(post, conf, "2026-01-01T00:00:00Z", false)
@@ -533,11 +533,11 @@ func TestRunSetup(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			clearEnv := []string{"MASTODON_URL", "MASTODON_CLIENT_KEY", "MASTODON_CLIENT_SECRET", "MASTODON_ACCESS_TOKEN", "GOTIFY_URL", "GOTIFY_TOKEN", "FEED_URL", "INTERVAL", "CATEGORY", "DEBUG"}
 			for _, key := range clearEnv {
-				os.Unsetenv(key)
+				_ = os.Unsetenv(key)
 			}
 
 			for key, val := range tt.setupEnv {
-				os.Setenv(key, val)
+				_ = os.Setenv(key, val)
 			}
 
 			cmd := &cobra.Command{}
@@ -606,7 +606,7 @@ func TestBasicIntegration(t *testing.T) {
 	db.InitDB()
 	t.Cleanup(func() {
 		db.CloseDB()
-		os.Remove("./tooted_posts.db")
+		_ = os.Remove("./tooted_posts.db")
 		db.DB = originalDB
 	})
 
