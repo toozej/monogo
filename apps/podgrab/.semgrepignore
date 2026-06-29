@@ -1,3 +1,2 @@
-# Third-party minified JavaScript libraries
-webassets/tippy-bundle.umd.min.js
-webassets/vue-multiselect.min.js
+# Third-party vendored JavaScript libraries (axios, luxon, vue, popper, etc.)
+webassets/*.js
