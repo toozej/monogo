@@ -61,11 +61,11 @@ COSIGN_OIDC_ISSUER := 'https://token.actions.githubusercontent.com'
 
 all: generate-all ## Run default workflow for every app using Docker where available
 	@set -e; \
-	$(MAKE) local-update-deps pre-commit-install-no-prereqs pre-commit-run-no-generate licenses-all; \
+	$(MAKE) local-update-deps local-vendor pre-commit-install-no-prereqs pre-commit-run-no-generate licenses-all; \
 	for app in $(APPS); do \
 		$(MAKE) app-check docker-vet-no-generate clean docker-test-no-generate docker-build-no-generate release-test-no-generate APP=$$app; \
 	done
-local: app-check generate local-update-deps local-vet pre-commit clean local-test local-build release-test ## Run default workflow for APP using locally installed tools
+local: app-check generate local-update-deps local-vendor local-vet pre-commit clean local-test local-build release-test ## Run default workflow for APP using locally installed tools
 local-all: generate-all ## Run local vet, test, build, and release checks for every app
 	@for app in $(APPS); do $(MAKE) local APP=$$app; done
 
