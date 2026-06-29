@@ -11,8 +11,25 @@ multi-ecosystem-groups:
       prefix: "chore"
       include: "scope"
 updates:
+  # Go modules: single root module for the whole monorepo (per-app go.mod
+  # files live under apps/*/.monogo/original-module/ and are archived, not built).
   - package-ecosystem: "gomod"
     directory: "/"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    patterns:
+      - "*"
+    multi-ecosystem-group: "combined"
+  # npm: go-listen ships JavaScript tests (Jest) for its web interface.
+  - package-ecosystem: "npm"
+    directory: "/apps/go-listen"
     schedule:
       interval: "weekly"
     cooldown:
@@ -39,20 +56,6 @@ updates:
     patterns:
       - "*"
     multi-ecosystem-group: "combined"
-  - package-ecosystem: "docker"
-    directory: "/apps/monogo"
-    schedule:
-      interval: "weekly"
-    cooldown:
-      default-days: 7
-    labels:
-      - "dependencies"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
-    patterns:
-      - "*"
-    multi-ecosystem-group: "combined"
   - package-ecosystem: "devcontainers"
     directory: "/"
     schedule:
@@ -67,8 +70,18 @@ updates:
     patterns:
       - "*"
     multi-ecosystem-group: "combined"
+  # Docker: glob over every app directory so newly imported apps are covered
+  # automatically, plus the hand-maintained devcontainer image. The docker
+  # ecosystem is non-recursive, so archived Dockerfiles under apps/*/.monogo/
+  # are not touched. Note: app base images (golang, distroless) are templated
+  # from each app's app.yaml, so image bumps Dependabot makes to generated
+  # apps/* Dockerfiles may be reverted on the next template re-render -- update
+  # app.yaml to make them stick. The .devcontainer/Dockerfile is not templated,
+  # so bumps there persist.
   - package-ecosystem: "docker"
-    directory: "/apps/gotts-it"
+    directories:
+      - "/apps/*"
+      - "/.devcontainer"
     schedule:
       interval: "weekly"
     cooldown:
@@ -81,190 +94,13 @@ updates:
     patterns:
       - "*"
     multi-ecosystem-group: "combined"
-  - package-ecosystem: "docker"
-    directory: "/apps/url2anki"
-    schedule:
-      interval: "weekly"
-    cooldown:
-      default-days: 7
-    labels:
-      - "dependencies"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
-    patterns:
-      - "*"
-    multi-ecosystem-group: "combined"
-  - package-ecosystem: "docker"
-    directory: "/apps/RSSFFS"
-    schedule:
-      interval: "weekly"
-    cooldown:
-      default-days: 7
-    labels:
-      - "dependencies"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
-    patterns:
-      - "*"
-    multi-ecosystem-group: "combined"
-  - package-ecosystem: "docker"
-    directory: "/apps/go-find-liquor"
-    schedule:
-      interval: "weekly"
-    cooldown:
-      default-days: 7
-    labels:
-      - "dependencies"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
-    patterns:
-      - "*"
-    multi-ecosystem-group: "combined"
-  - package-ecosystem: "docker"
-    directory: "/apps/photos2map"
-    schedule:
-      interval: "weekly"
-    cooldown:
-      default-days: 7
-    labels:
-      - "dependencies"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
-    patterns:
-      - "*"
-    multi-ecosystem-group: "combined"
-  - package-ecosystem: "docker"
-    directory: "/apps/go-listen"
-    schedule:
-      interval: "weekly"
-    cooldown:
-      default-days: 7
-    labels:
-      - "dependencies"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
-    patterns:
-      - "*"
-    multi-ecosystem-group: "combined"
-  - package-ecosystem: "docker"
-    directory: "/apps/ghreleases2rss"
-    schedule:
-      interval: "weekly"
-    cooldown:
-      default-days: 7
-    labels:
-      - "dependencies"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
-    patterns:
-      - "*"
-    multi-ecosystem-group: "combined"
-  - package-ecosystem: "docker"
-    directory: "/apps/terranotate"
-    schedule:
-      interval: "weekly"
-    cooldown:
-      default-days: 7
-    labels:
-      - "dependencies"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
-    patterns:
-      - "*"
-    multi-ecosystem-group: "combined"
-  - package-ecosystem: "docker"
-    directory: "/apps/lego-stego"
-    schedule:
-      interval: "weekly"
-    cooldown:
-      default-days: 7
-    labels:
-      - "dependencies"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
-    patterns:
-      - "*"
-    multi-ecosystem-group: "combined"
-  - package-ecosystem: "docker"
-    directory: "/apps/files2prompt"
-    schedule:
-      interval: "weekly"
-    cooldown:
-      default-days: 7
-    labels:
-      - "dependencies"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
-    patterns:
-      - "*"
-    multi-ecosystem-group: "combined"
-  - package-ecosystem: "docker"
-    directory: "/apps/trails-completionist"
-    schedule:
-      interval: "weekly"
-    cooldown:
-      default-days: 7
-    labels:
-      - "dependencies"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
-    patterns:
-      - "*"
-    multi-ecosystem-group: "combined"
-  - package-ecosystem: "docker"
-    directory: "/apps/go-sort-out-gh-actions"
-    schedule:
-      interval: "weekly"
-    cooldown:
-      default-days: 7
-    labels:
-      - "dependencies"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
-    patterns:
-      - "*"
-    multi-ecosystem-group: "combined"
-  - package-ecosystem: "docker"
-    directory: "/apps/kmhd2playlist"
-    schedule:
-      interval: "weekly"
-    cooldown:
-      default-days: 7
-    labels:
-      - "dependencies"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
-    patterns:
-      - "*"
-    multi-ecosystem-group: "combined"
-  - package-ecosystem: "docker"
-    directory: "/apps/rss2socials"
-    schedule:
-      interval: "weekly"
-    cooldown:
-      default-days: 7
-    labels:
-      - "dependencies"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
-    patterns:
-      - "*"
-    multi-ecosystem-group: "combined"
-  - package-ecosystem: "docker"
-    directory: "/apps/podgrab"
+  # Docker Compose: each app ships a docker-compose.yml (RSSFFS also a
+  # docker-compose.dev.yml). Today these only reference first-party
+  # toozej/*:latest images (nothing to bump), but this keeps third-party
+  # service images covered if any are added later.
+  - package-ecosystem: "docker-compose"
+    directories:
+      - "/apps/*"
     schedule:
       interval: "weekly"
     cooldown:
