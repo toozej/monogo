@@ -21,6 +21,8 @@ APP_CGO_ENABLED = $(shell v=$$(awk -F': *' '/^cgoEnabled:/ {gsub(/"/, "", $$2); 
 APP_PACKAGES = ./$(APP_DIR)/... ./pkg/...
 APP_ENV_FILE ?= $(APP_DIR)/.env
 APP_COSIGN_KEY ?= $(APP_DIR)/$(APP_BINARY).key
+# Per-app demo script run by `make APP=<app> demo`; each app stores its own.
+APP_DEMO ?= $(APP_DIR)/demo.sh
 
 # Build info
 BUILDER = $(shell whoami)@$(shell hostname)
@@ -56,7 +58,7 @@ IMAGE_TAG = latest
 COSIGN_IDENTITY_REGEXP := '^https://github.com/toozej/monogo/.github/workflows/(release|weekly-docker-refresh).yaml@refs/(tags/.*|heads/main)$$'
 COSIGN_OIDC_ISSUER := 'https://token.actions.githubusercontent.com'
 
-.PHONY: all list-apps import migrate-internal-package app-check common-generate app-generate generate generate-all app-templates-check templates-check vet test build release verify verify-docker verify-docker-all-registries run up down docker-vet docker-test docker-build distroless-build distroless-run install local local-all local-update-deps local-vet local-vendor local-test local-cover local-build local-run local-kill local-iterate release-test local-install docker-login pre-commit-install pre-commit-run pre-commit pre-reqs licenses licenses-all update-golang-version upload-secrets-to-gh upload-secrets-envfile-to-1pass docs diagrams mutation-test test-changed watch-test profile-cpu profile-mem profile-all benchmark clean clean-all help
+.PHONY: all list-apps import migrate-internal-package app-check common-generate app-generate generate generate-all app-templates-check templates-check vet test build release verify verify-docker verify-docker-all-registries run up down docker-vet docker-test docker-build distroless-build distroless-run install local local-all local-update-deps local-vet local-vendor local-test local-cover local-build local-run local-kill local-iterate release-test local-install docker-login pre-commit-install pre-commit-run pre-commit pre-reqs licenses licenses-all update-golang-version upload-secrets-to-gh upload-secrets-envfile-to-1pass docs diagrams mutation-test test-changed watch-test profile-cpu profile-mem profile-all benchmark demo clean clean-all help
 .PHONY: common-generate-no-prereqs app-generate-no-prereqs app-templates-check-no-generate docker-vet-no-generate docker-test-no-generate docker-build-no-generate release-test-no-generate pre-commit-install-no-prereqs pre-commit-run-no-generate
 
 all: generate-all ## Run default workflow for every app using Docker where available
@@ -276,6 +278,20 @@ local-kill: app-check ## Kill any currently running locally built APP binary
 local-iterate: app-check generate ## Run APP local build and run via air when files change
 	air -c $(APP_DIR)/.air.toml
 
+demo: app-check local-build ## Run APP demo script (apps/APP/demo.sh) against the freshly built binary
+	@if test -f "$(APP_DEMO)"; then \
+		echo "=== Running $(APP) demo ($(APP_DEMO)) ==="; \
+		APP="$(APP)" \
+		APP_DIR="$(CURDIR)/$(APP_DIR)" \
+		APP_BINARY="$(APP_BINARY)" \
+		BIN="$(CURDIR)/out/$(APP_BINARY)" \
+		REPO_ROOT="$(CURDIR)" \
+		bash "$(APP_DEMO)"; \
+	else \
+		echo "No demo script for $(APP) (expected $(APP_DEMO))."; \
+		echo "Add an executable bash script there to enable 'make APP=$(APP) demo'."; \
+	fi
+
 release-test: app-generate ## Check GoReleaser config and build APP snapshot
 	$(MAKE) release-test-no-generate APP=$(APP)
 
@@ -438,6 +454,7 @@ clean: app-check ## Remove locally compiled binaries, profiles, generated docs, 
 	@rm -rf $(CURDIR)/profiles/$(APP)
 	@rm -rf $(CURDIR)/docs/diagrams/$(APP)
 	@rm -rf $(CURDIR)/dist/$(APP)
+	@rm -rf $(APP_DIR)/demo-output
 	@rm -rf $(APP_DIR)/c.out
 	@rm -rf $(APP_DIR)/*.bundle
 	@rm -rf $(CURDIR)/manpages/$(APP_BINARY).1.gz
