@@ -473,10 +473,99 @@ func (c *Client) GetLatestSemverTag(ctx context.Context, ownerRepo string) (stri
 	return "", fmt.Errorf("no semver tags found for %s/%s", owner, repo)
 }
 
+func (c *Client) GetSemverTagForSHA(ctx context.Context, ownerRepo, targetSHA string) (string, error) {
+	targetSHA = strings.TrimSpace(targetSHA)
+	if targetSHA == "" {
+		return "", fmt.Errorf("target SHA is empty")
+	}
+
+	owner, repo, err := parseOwnerRepo(ownerRepo)
+	if err != nil {
+		return "", err
+	}
+
+	nextURL := fmt.Sprintf("%s/repos/%s/%s/tags?per_page=100", c.baseURL, owner, repo)
+	fallbackTag := ""
+
+	for nextURL != "" {
+		req, err := http.NewRequestWithContext(ctx, "GET", nextURL, nil)
+		if err != nil {
+			return "", fmt.Errorf("failed to create request: %w", err)
+		}
+		req.Header.Set("Accept", "application/vnd.github.v3+json")
+		req.Header.Set("User-Agent", "go-sort-out-gh-actions")
+
+		resp, err := c.httpClient.Do(req)
+		if err != nil {
+			return "", fmt.Errorf("failed to make request: %w", err)
+		}
+
+		c.logRateLimits(resp)
+
+		if err := c.handleRateLimit(resp); err != nil {
+			_ = resp.Body.Close()
+			return "", err
+		}
+
+		if resp.StatusCode == 404 {
+			_ = resp.Body.Close()
+			return "", fmt.Errorf("repository %s/%s not found", owner, repo)
+		}
+
+		if resp.StatusCode != 200 {
+			_ = resp.Body.Close()
+			return "", fmt.Errorf("GitHub API returned status %d", resp.StatusCode)
+		}
+
+		var tags []struct {
+			Name   string `json:"name"`
+			Commit struct {
+				SHA string `json:"sha"`
+			} `json:"commit"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&tags); err != nil {
+			_ = resp.Body.Close()
+			return "", fmt.Errorf("failed to decode response: %w", err)
+		}
+		_ = resp.Body.Close()
+
+		for _, tag := range tags {
+			if tag.Commit.SHA != targetSHA || !isSemverTag(tag.Name) {
+				continue
+			}
+			if isConcreteSemverTag(tag.Name) {
+				return tag.Name, nil
+			}
+			if fallbackTag == "" {
+				fallbackTag = tag.Name
+			}
+		}
+
+		nextURL = parseNextLink(resp.Header.Get("Link"), c.baseURLHost())
+	}
+
+	if fallbackTag != "" {
+		return fallbackTag, nil
+	}
+
+	return "", fmt.Errorf("no semver tags found for %s/%s at SHA %s", owner, repo, targetSHA)
+}
+
 func isSemverTag(tag string) bool {
 	tag = strings.TrimSpace(strings.TrimPrefix(tag, "v"))
 	_, err := semver.NewVersion(tag)
 	return err == nil
+}
+
+func isConcreteSemverTag(tag string) bool {
+	if !isSemverTag(tag) {
+		return false
+	}
+
+	tag = strings.TrimSpace(strings.TrimPrefix(tag, "v"))
+	tag = strings.SplitN(tag, "-", 2)[0]
+	tag = strings.SplitN(tag, "+", 2)[0]
+	return strings.Count(tag, ".") == 2
 }
 
 func (c *Client) CheckMultipleReleases(ctx context.Context, repos []string) (map[string]*ReleaseInfo, map[string]error) {

@@ -144,12 +144,13 @@ repos:
           '--exclude-rule', 'go.lang.security.audit.xss.no-fprintf-to-responsewriter.no-fprintf-to-responsewriter']
         # Skip intentional example/fixture/demo data shipped by imported apps
         # (e.g. terranotate's deliberately-insecure Terraform examples that serve
-        # as validator test inputs) and vendored third-party frontend JS bundles
-        # (e.g. podgrab's apps/podgrab/webassets/*.js: axios, luxon, vue, etc.).
-        # These are not real first-party code/infrastructure.
-        # pre-commit passes filenames explicitly, so this exclude — not
-        # .semgrepignore — is what actually filters them out.
-        exclude: '(^|/)(examples?|demo|demo-assets|testdata|tracks)/|(^|/)webassets/.*\.js$'
+        # as validator test inputs; go-sort-out-gh-actions' deliberately-unpinned
+        # e2e/ workflow fixtures and *example*.yaml usage docs) and vendored
+        # third-party frontend JS bundles (e.g. podgrab's apps/podgrab/webassets/
+        # *.js: axios, luxon, vue, etc.). These are not real first-party
+        # code/infrastructure. pre-commit passes filenames explicitly, so this
+        # exclude — not .semgrepignore — is what actually filters them out.
+        exclude: '(^|/)(examples?|demo|demo-assets|testdata|tracks|e2e)/|(^|/)webassets/.*\.js$|(^|/)[^/]*example[^/]*\.ya?ml$'
 
   - repo: meta
     hooks:
