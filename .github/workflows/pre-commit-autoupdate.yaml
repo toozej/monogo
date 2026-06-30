@@ -1,0 +1,96 @@
+---
+name: pre-commit autoupdate
+
+on:
+  # Stagger after CI (Mondays 01:00 UTC) so the two weekly schedules don't collide.
+  schedule:
+    - cron: "23 2 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  # Needed so the workflow can create the `dependencies` label on first run.
+  issues: write
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  autoupdate:
+    runs-on: ubuntu-latest
+    steps:
+      # Mint a GitHub App installation token. The PR is created with THIS token
+      # (not the default GITHUB_TOKEN) on purpose: PRs/pushes made with
+      # GITHUB_TOKEN do not trigger other workflows, so CI would never run on the
+      # bot PR. An App token does trigger CI, which is what gates auto-merge.
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.AUTOUPDATE_APP_ID }}
+          private-key: ${{ secrets.AUTOUPDATE_APP_PRIVATE_KEY }}
+
+      - uses: actions/checkout@v7.0.0
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '^1.26'
+          check-latest: true
+
+      - name: Install pre-commit, gomplate, and lint tools
+        # `pre-commit-install-no-prereqs` finishes by running `pre-commit
+        # autoupdate`, which bumps every hook `rev:` in .pre-commit-config.yaml.
+        # Installing the lint tools here (golangci-lint, gosec, staticcheck,
+        # etc.) is also what lets the hooks actually run in the next steps.
+        run: |
+          pip install pre-commit
+          make pre-reqs pre-commit-install-no-prereqs
+
+      - name: Generate all app configs
+        run: make generate-all
+
+      - name: Run pre-commit and vulnerability checks against updated hooks
+        # Validate the freshly-updated hooks. If any hook (or govulncheck) fails,
+        # this step fails, the job stops here, and the "Create pull request" step
+        # below never runs — so no PR is opened for a broken autoupdate. CI re-runs
+        # these same checks on the PR before auto-merge as a second line of defense.
+        run: make pre-commit-run-no-generate
+
+      - name: Ensure dependencies label exists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # --force creates the label if missing and updates it otherwise, so this
+        # never fails. Matches the `dependencies` label dependabot also uses.
+        run: |
+          gh label create dependencies \
+            --color "0366d6" \
+            --description "Pull requests that update a dependency" \
+            --force
+
+      - name: Create pull request
+        id: cpr
+        uses: peter-evans/create-pull-request@v8 # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          commit-message: "chore(pre-commit): autoupdate"
+          title: "chore(pre-commit): autoupdate"
+          body: |
+            Automated `pre-commit autoupdate`.
+
+            Hook revisions were bumped and then validated with
+            `make pre-commit-run-no-generate` (pre-commit hooks + govulncheck)
+            before this PR was opened. Full CI runs again on this PR and gates
+            auto-merge.
+          branch: "chore/pre-commit-autoupdate"
+          delete-branch: true
+          labels: dependencies
+
+      - name: Enable auto-merge
+        # Only when a PR actually exists. Auto-merge waits for the required CI
+        # checks (branch protection on main) and squash-merges once they pass; if
+        # CI fails the PR simply stays open instead of merging.
+        if: steps.cpr.outputs.pull-request-number != ''
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: gh pr merge --squash --auto "${{ steps.cpr.outputs.pull-request-number }}"
