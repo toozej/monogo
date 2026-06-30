@@ -2362,6 +2362,132 @@ func TestPinActions(t *testing.T) {
 	}
 }
 
+// TestPinActions_DetectPinnableFlow exercises the real flow where the
+// PinActionInfo.Workflow field is the base file name (as produced by
+// DetectPinnableActions) rather than the full path. A regression here means
+// PinActions reports "workflow file could not be matched to a writable file
+// path" and writes nothing.
+func TestPinActions_DetectPinnableFlow(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/repos/owner/repo/git/refs/tags/v3":
+			w.WriteHeader(200)
+			if _, err := w.Write([]byte(`{"ref":"refs/tags/v3","object":{"sha":"abc123def456","type":"commit"}}`)); err != nil {
+				t.Errorf("failed to write response: %v", err)
+			}
+		default:
+			w.WriteHeader(404)
+		}
+	}))
+	defer server.Close()
+
+	client := newTestGithubClient(server)
+	ctx := context.Background()
+
+	// Place the workflow in a nested directory so its full path differs from
+	// its base name, mirroring real ".github/workflows/ci.yaml" layouts.
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatalf("Failed to create workflows dir: %v", err)
+	}
+	content := "name: CI\non: push\njobs:\n test:\n steps:\n - uses: owner/repo@v3\n"
+	filePath := filepath.Join(workflowsDir, "ci.yaml")
+	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	wf := &workflow.WorkflowFile{
+		Path: filePath,
+		UsesWithVersions: []workflow.ActionRef{
+			{OwnerRepo: "owner/repo", Version: "v3", FullRef: "owner/repo@v3"},
+		},
+	}
+	workflowFiles := []*workflow.WorkflowFile{wf}
+
+	// Build the pinnable list the same way the pin command does, so Workflow
+	// holds the base name rather than the full path.
+	pinnable := DetectPinnableActions(workflowFiles, map[string]bool{})
+	if len(pinnable) != 1 {
+		t.Fatalf("DetectPinnableActions() returned %d actions, want 1", len(pinnable))
+	}
+	if pinnable[0].Workflow != "ci.yaml" {
+		t.Fatalf("DetectPinnableActions() Workflow = %q, want %q", pinnable[0].Workflow, "ci.yaml")
+	}
+
+	report := PinActions(ctx, client, workflowFiles, pinnable, false)
+	if got := PinUpdateFailureCount(report); got != 0 {
+		t.Fatalf("PinActions() failure count = %d, want 0", got)
+	}
+	if got := PinUpdateCount(report); got != 1 {
+		t.Fatalf("PinActions() update count = %d, want 1", got)
+	}
+
+	result, err := os.ReadFile(filePath)
+	if err != nil {
+		t.Fatalf("Failed to read updated file: %v", err)
+	}
+	if !strings.Contains(string(result), "owner/repo@abc123def456 # v3") {
+		t.Errorf("Expected action to be pinned to SHA with version comment, got: %s", string(result))
+	}
+}
+
+func TestPinActions_UsesMatchingConcreteSemverTagComment(t *testing.T) {
+	const sha = "abc123def456"
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/repos/owner/repo/git/refs/tags/v3":
+			w.WriteHeader(200)
+			if _, err := w.Write([]byte(`{"ref":"refs/tags/v3","object":{"sha":"` + sha + `","type":"commit"}}`)); err != nil {
+				t.Errorf("failed to write response: %v", err)
+			}
+		case "/repos/owner/repo/tags":
+			w.WriteHeader(200)
+			if _, err := w.Write([]byte(`[
+				{"name":"v3.2.1","commit":{"sha":"` + sha + `"}},
+				{"name":"v3","commit":{"sha":"` + sha + `"}},
+				{"name":"latest","commit":{"sha":"` + sha + `"}}
+			]`)); err != nil {
+				t.Errorf("failed to write response: %v", err)
+			}
+		default:
+			w.WriteHeader(404)
+		}
+	}))
+	defer server.Close()
+
+	client := newTestGithubClient(server)
+	ctx := context.Background()
+
+	tmpDir := t.TempDir()
+	filePath := filepath.Join(tmpDir, "ci.yaml")
+	content := "name: CI\non: push\njobs:\n test:\n steps:\n - uses: owner/repo@v3\n"
+	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	wf := &workflow.WorkflowFile{
+		Path: filePath,
+		UsesWithVersions: []workflow.ActionRef{
+			{OwnerRepo: "owner/repo", Version: "v3", FullRef: "owner/repo@v3"},
+		},
+	}
+
+	report := PinActions(ctx, client, []*workflow.WorkflowFile{wf}, DetectPinnableActions([]*workflow.WorkflowFile{wf}, map[string]bool{}), false)
+	if got := PinUpdateFailureCount(report); got != 0 {
+		t.Fatalf("PinActions() failure count = %d, want 0", got)
+	}
+
+	result, err := os.ReadFile(filePath)
+	if err != nil {
+		t.Fatalf("Failed to read updated file: %v", err)
+	}
+	if !strings.Contains(string(result), "owner/repo@"+sha+" # v3.2.1") {
+		t.Errorf("Expected concrete semver tag comment, got: %s", string(result))
+	}
+}
+
 func TestPinActions_ActionPath(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {

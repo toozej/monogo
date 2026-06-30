@@ -496,6 +496,7 @@ func PinActions(ctx context.Context, ghClient *github.Client, workflowFiles []*w
 	}
 
 	shaCache := make(map[string]string)
+	versionCommentCache := make(map[string]string)
 	shaResolveErrs := make(map[string]string)
 	for key, pin := range uniquePins {
 		sha, err := ghClient.GetRefSHA(ctx, pin.ownerRepo, pin.version)
@@ -506,8 +507,15 @@ func PinActions(ctx context.Context, ghClient *github.Client, workflowFiles []*w
 			continue
 		}
 		shaCache[key] = sha
+		versionCommentCache[key] = pin.version
 		if verbose {
 			fmt.Printf(" Resolved %s@%s -> %s\n", pin.ownerRepo, pin.version, sha)
+		}
+
+		if semverTag, err := ghClient.GetSemverTagForSHA(ctx, pin.ownerRepo, sha); err == nil {
+			versionCommentCache[key] = semverTag
+		} else if verbose {
+			fmt.Printf(" Could not find a matching semver tag for %s@%s (%s): %v\n", pin.ownerRepo, pin.version, sha, err)
 		}
 	}
 
@@ -534,11 +542,15 @@ func PinActions(ctx context.Context, ghClient *github.Client, workflowFiles []*w
 			continue
 		}
 
-		newUse := workflow.ActionRef{OwnerRepo: action.OwnerRepo, ActionPath: action.ActionPath, Version: sha}.Key() + " # " + action.Version
+		versionComment := versionCommentCache[key]
+		if versionComment == "" {
+			versionComment = action.Version
+		}
+		newUse := workflow.ActionRef{OwnerRepo: action.OwnerRepo, ActionPath: action.ActionPath, Version: sha}.Key() + " # " + versionComment
 
 		matched := false
 		for _, wf := range workflowFiles {
-			if wf.Path == action.Workflow {
+			if filepath.Base(wf.Path) == action.Workflow || wf.Path == action.Workflow {
 				pendingByFile[wf.Path] = append(pendingByFile[wf.Path], FileUpdate{
 					OldUse: oldUse,
 					NewUse: newUse,
