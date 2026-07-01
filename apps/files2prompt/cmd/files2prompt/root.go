@@ -30,6 +30,7 @@ import (
 
 	"github.com/toozej/monogo/apps/files2prompt/internal/config"
 	"github.com/toozej/monogo/apps/files2prompt/internal/files2prompt"
+	"github.com/toozej/monogo/pkg/avatar"
 	"github.com/toozej/monogo/pkg/man"
 	"github.com/toozej/monogo/pkg/version"
 )
@@ -210,6 +211,7 @@ func init() {
 
 	// add sub-commands
 	rootCmd.AddCommand(
+		avatar.NewCommand("files2prompt"),
 		man.NewManCmd(),
 		version.Command(),
 	)

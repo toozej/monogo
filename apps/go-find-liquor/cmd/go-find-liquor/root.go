@@ -42,6 +42,7 @@ import (
 
 	"github.com/toozej/monogo/apps/go-find-liquor/internal/config"
 	"github.com/toozej/monogo/apps/go-find-liquor/internal/runner"
+	"github.com/toozej/monogo/pkg/avatar"
 	"github.com/toozej/monogo/pkg/man"
 	"github.com/toozej/monogo/pkg/version"
 )
@@ -188,6 +189,7 @@ func init() {
 
 	// add sub-commands
 	rootCmd.AddCommand(
+		avatar.NewCommand("go-find-liquor"),
 		man.NewManCmd(),
 		version.Command(),
 	)

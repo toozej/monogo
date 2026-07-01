@@ -53,6 +53,7 @@ import (
 	"github.com/toozej/monogo/apps/photos2map/internal/config"
 	"github.com/toozej/monogo/apps/photos2map/internal/extract"
 	"github.com/toozej/monogo/apps/photos2map/internal/output"
+	"github.com/toozej/monogo/pkg/avatar"
 	"github.com/toozej/monogo/pkg/man"
 	"github.com/toozej/monogo/pkg/version"
 )
@@ -173,6 +174,7 @@ func init() {
 
 	// add sub-commands
 	rootCmd.AddCommand(
+		avatar.NewCommand("photos2map"),
 		man.NewManCmd(),
 		version.Command(),
 	)

@@ -27,6 +27,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/toozej/monogo/apps/kmhd2playlist/internal/config"
+	"github.com/toozej/monogo/pkg/avatar"
 	"github.com/toozej/monogo/pkg/man"
 	"github.com/toozej/monogo/pkg/version"
 )
@@ -120,6 +121,7 @@ func init() {
 
 	// add sub-commands
 	rootCmd.AddCommand(
+		avatar.NewCommand("kmhd2playlist"),
 		newSyncCmd(),
 		newSearchCmd(),
 		man.NewManCmd(),

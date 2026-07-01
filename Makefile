@@ -389,10 +389,12 @@ update-golang-version: ## Update to latest Golang version across the repo
 	@VERSION=`curl -s "https://go.dev/dl/?mode=json" | jq -r '.[0].version' | sed 's/go//' | cut -d '.' -f 1,2`; \
 	$(CURDIR)/scripts/update_golang_version.sh $$VERSION
 
-docs: ## Serve Go documentation
-	@echo "Starting Go documentation server on localhost"
-	@echo "Use Ctrl+C to stop the server"
-	go doc -http
+docs: app-check ## Serve Go documentation; browser opens to APP's package, whole module stays browsable
+	@echo "=== Serving Go documentation (browser opens to $(APP)) ==="
+	@echo "go doc -http prints its URL below (e.g. http://localhost:<port>) and opens your browser to"
+	@echo "the ./$(APP_MAIN_PATH) package. Every package in the module stays browsable from there."
+	@echo "Press Ctrl+C to stop the server."
+	go doc -http ./$(APP_MAIN_PATH)
 
 diagrams: app-generate ## Generate APP architectural diagrams using go-diagrams
 	@echo "Generating architectural diagrams for $(APP)..."

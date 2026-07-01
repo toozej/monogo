@@ -28,6 +28,7 @@ import (
 
 	"github.com/toozej/monogo/apps/terranotate/internal/config"
 	"github.com/toozej/monogo/apps/terranotate/internal/tfenv"
+	"github.com/toozej/monogo/pkg/avatar"
 	"github.com/toozej/monogo/pkg/man"
 	"github.com/toozej/monogo/pkg/version"
 )
@@ -131,6 +132,7 @@ func init() {
 
 	// add sub-commands
 	rootCmd.AddCommand(
+		avatar.NewCommand("terranotate"),
 		man.NewManCmd(),
 		version.Command(),
 	)

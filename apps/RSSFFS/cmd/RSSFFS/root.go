@@ -30,6 +30,7 @@ import (
 
 	"github.com/toozej/monogo/apps/RSSFFS/internal/RSSFFS"
 	"github.com/toozej/monogo/apps/RSSFFS/internal/config"
+	"github.com/toozej/monogo/pkg/avatar"
 	"github.com/toozej/monogo/pkg/man"
 	"github.com/toozej/monogo/pkg/version"
 )
@@ -183,6 +184,7 @@ func init() {
 
 	// add sub-commands
 	rootCmd.AddCommand(
+		avatar.NewCommand("RSSFFS"),
 		man.NewManCmd(),
 		version.Command(),
 		NewServeCommand(),

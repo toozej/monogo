@@ -28,6 +28,7 @@ import (
 
 	"github.com/toozej/monogo/apps/rss2socials/internal/config"
 	rss2socials "github.com/toozej/monogo/apps/rss2socials/internal/rss2socials"
+	"github.com/toozej/monogo/pkg/avatar"
 	"github.com/toozej/monogo/pkg/man"
 	"github.com/toozej/monogo/pkg/version"
 )
@@ -168,6 +169,7 @@ func init() {
 
 	// add sub-commands
 	rootCmd.AddCommand(
+		avatar.NewCommand("rss2socials"),
 		man.NewManCmd(),
 		version.Command(),
 	)

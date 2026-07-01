@@ -25,6 +25,7 @@ import (
 	"github.com/toozej/monogo/apps/gotts-it/internal/config"
 	"github.com/toozej/monogo/apps/gotts-it/internal/slug"
 	"github.com/toozej/monogo/apps/gotts-it/internal/tts"
+	"github.com/toozej/monogo/pkg/avatar"
 	"github.com/toozej/monogo/pkg/man"
 	"github.com/toozej/monogo/pkg/version"
 )
@@ -175,7 +176,7 @@ func init() {
 	rootCmd.AddCommand(
 		man.NewManCmd(),
 		version.Command(),
-		newAvatarCmd(),
+		avatar.NewCommand("gotts-it"),
 		newServerCmd(),
 	)
 }

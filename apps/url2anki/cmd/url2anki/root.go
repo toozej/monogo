@@ -28,6 +28,7 @@ import (
 
 	"github.com/toozej/monogo/apps/url2anki/internal/config"
 	"github.com/toozej/monogo/apps/url2anki/internal/url2anki"
+	"github.com/toozej/monogo/pkg/avatar"
 	"github.com/toozej/monogo/pkg/man"
 	"github.com/toozej/monogo/pkg/version"
 )
@@ -132,6 +133,7 @@ func init() {
 
 	// add sub-commands
 	rootCmd.AddCommand(
+		avatar.NewCommand("url2anki"),
 		man.NewManCmd(),
 		version.Command(),
 	)

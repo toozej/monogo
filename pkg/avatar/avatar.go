@@ -1,3 +1,10 @@
+// Package avatar provides a shared, hidden "avatar" cobra command that renders
+// an application's mascot image in the terminal using the go-termimg library.
+//
+// Every monorepo app wires the same command via avatar.NewCommand("<app>").
+// The command renders ./img/avatar.png (or a --url/--path override) and falls
+// back to ASCII art labeled with the app name when the terminal cannot render
+// images or the source is unavailable.
 package avatar
 
 import (
@@ -11,6 +18,14 @@ import (
 
 	"github.com/blacktop/go-termimg"
 )
+
+// DefaultAvatarURL is the URL to the project's GitHub avatar/mascot image.
+const DefaultAvatarURL = "https://github.com/toozej.png"
+
+// DefaultAvatarPath is a local fallback path for the avatar image. It is
+// resolved relative to the working directory, so each app renders its own
+// ./img/avatar.png.
+const DefaultAvatarPath = "./img/avatar.png"
 
 const maxAvatarSize = 10 * 1024 * 1024
 
@@ -90,15 +105,16 @@ func RenderFromFile(path string, width, height int, w io.Writer) error {
 	return err
 }
 
-// PrintFallback prints a text-based avatar fallback when image rendering fails.
-func PrintFallback(w io.Writer) {
-	_, _ = fmt.Fprint(w, `
+// PrintFallback prints a text-based avatar fallback, labeled with appName,
+// when image rendering fails.
+func PrintFallback(w io.Writer, appName string) {
+	_, _ = fmt.Fprintf(w, `
     ____ ___ ___ _____
    / ___||_ _| / _ \___ /
    | |    | | | | | ||_ \
    | |___ | | | |_| |__) |
     \____|___| \___/____/
 
-    go-sort-out-gh-actions
-`)
+    %s
+`, appName)
 }
