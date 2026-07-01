@@ -897,3 +897,38 @@ func TestGetAllPodcastItemsWithoutSize(t *testing.T) {
 	require.NoError(t, err, "Should query items")
 	assert.Len(t, *items, 2, "Should return items with zero size")
 }
+
+// TestGetAllPodcastItemsByIDsOrderAndInjection verifies that the requested ID
+// order is preserved and that a SQL-injection payload supplied as an ID is
+// treated as a bound parameter rather than executable SQL.
+func TestGetAllPodcastItemsByIDsOrderAndInjection(t *testing.T) {
+	database := SetupTestDB(t)
+	defer TeardownTestDB(t, database)
+
+	originalDB := DB
+	DB = database
+	defer func() { DB = originalDB }()
+
+	podcast := CreateTestPodcast(t, database)
+	a := CreateTestPodcastItem(t, database, podcast.ID)
+	b := CreateTestPodcastItem(t, database, podcast.ID)
+	c := CreateTestPodcastItem(t, database, podcast.ID)
+
+	// Request an order distinct from insertion order.
+	want := []string{c.ID, a.ID, b.ID}
+	got, err := GetAllPodcastItemsByIDs(want)
+	require.NoError(t, err, "Should retrieve items without error")
+	require.Len(t, *got, 3, "Should return all three items")
+	for i, item := range *got {
+		assert.Equal(t, want[i], item.ID, "Order should match the requested ID order")
+	}
+
+	// An injection payload must not execute; the table must remain usable.
+	payload := "x' THEN 1 WHEN '" + a.ID + "'); DROP TABLE podcast_items;--"
+	_, err = GetAllPodcastItemsByIDs([]string{payload, a.ID})
+	require.NoError(t, err, "Injection payload should be treated as a plain value")
+
+	after, err := GetAllPodcastItemsByIDs([]string{a.ID})
+	require.NoError(t, err, "Table should remain queryable after injection attempt")
+	assert.Len(t, *after, 1, "Existing row should still be retrievable")
+}

@@ -4,7 +4,6 @@ package db
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -202,18 +201,25 @@ func GetAllPodcastItemsByPodcastIDs(podcastIDs []string, podcastItems *[]Podcast
 func GetAllPodcastItemsByIDs(podcastItemIDs []string) (*[]PodcastItem, error) {
 	var podcastItems []PodcastItem
 
-	var sb strings.Builder
+	query := DB.Debug().Preload(clause.Associations).Where("id in ?", podcastItemIDs)
 
-	sb.WriteString("\n CASE ID \n")
-
-	for i, v := range podcastItemIDs {
-		fmt.Fprintf(&sb, "WHEN '%v' THEN %v \n", v, i+1)
+	// Preserve the caller-supplied ordering with a CASE expression. The IDs can
+	// originate from user-supplied query parameters (e.g. the player page's
+	// "itemIDs" query array), so they are passed as bound parameters and never
+	// interpolated into the SQL string, preventing SQL injection.
+	if len(podcastItemIDs) > 0 {
+		var sb strings.Builder
+		sb.WriteString("CASE id ")
+		vars := make([]any, 0, len(podcastItemIDs)*2)
+		for i, id := range podcastItemIDs {
+			sb.WriteString("WHEN ? THEN ? ")
+			vars = append(vars, id, i+1)
+		}
+		sb.WriteString("END")
+		query = query.Order(clause.OrderBy{Expression: clause.Expr{SQL: sb.String(), Vars: vars}})
 	}
 
-	fmt.Fprintln(&sb, "END")
-
-	// CodeQL go/sql-injection: GORM's Where with placeholder parameter is safe - podcastItemIDs are UUIDs from the database, not user input
-	result := DB.Debug().Preload(clause.Associations).Where("id in ?", podcastItemIDs).Order(sb.String()).Find(&podcastItems) // lgtm[go/sql-injection]
+	result := query.Find(&podcastItems)
 	return &podcastItems, result.Error
 }
 
