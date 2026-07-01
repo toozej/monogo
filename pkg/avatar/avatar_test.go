@@ -41,7 +41,7 @@ func TestDefaultConstants(t *testing.T) {
 
 func TestPrintFallback(t *testing.T) {
 	var buf bytes.Buffer
-	PrintFallback(&buf)
+	PrintFallback(&buf, "example-app")
 
 	output := buf.String()
 
@@ -50,15 +50,11 @@ func TestPrintFallback(t *testing.T) {
 		contains string
 	}{
 		{
-			name:     "output contains gotts-it",
-			contains: "gotts-it",
+			name:     "output contains the app name",
+			contains: "example-app",
 		},
 		{
 			name:     "output contains ascii art",
-			contains: "____",
-		},
-		{
-			name:     "output contains ____ header",
 			contains: "____",
 		},
 		{
@@ -78,7 +74,7 @@ func TestPrintFallback(t *testing.T) {
 
 func TestPrintFallback_WritesToWriter(t *testing.T) {
 	var buf bytes.Buffer
-	PrintFallback(&buf)
+	PrintFallback(&buf, "any")
 	if buf.Len() == 0 {
 		t.Error("PrintFallback should write data to the writer")
 	}

@@ -200,3 +200,13 @@ require (
 	modernc.org/memory v1.11.0 // indirect
 	modernc.org/sqlite v1.53.0 // indirect
 )
+
+// github.com/davhofer/indigo (pulled in transitively via rss2socials -> botsky)
+// requires github.com/gocql/gocql at the placeholder version
+// v0.0.0-00010101000000-000000000000 and resolves it with a replace in its own
+// go.mod. Go ignores replace directives from dependency modules, so we must
+// mirror indigo's replace here (github.com/scylladb/gocql v1.14.4) for the
+// module graph to resolve. No package in this module imports gocql, so this is
+// inert for builds/tests; it only silences the "invalid version: unknown
+// revision 000000000000" warning emitted when tools load the full module graph.
+replace github.com/gocql/gocql => github.com/scylladb/gocql v1.14.4

@@ -1,4 +1,4 @@
-package cmd
+package avatar
 
 import (
 	"bytes"
@@ -7,11 +7,10 @@ import (
 	"testing"
 
 	"github.com/spf13/cobra"
-	"github.com/toozej/monogo/apps/go-sort-out-gh-actions/internal/avatar"
 )
 
-func TestNewAvatarCmd_ReturnsCommand(t *testing.T) {
-	cmd := newAvatarCmd()
+func TestNewCommand_ReturnsCommand(t *testing.T) {
+	cmd := NewCommand("example-app")
 
 	if cmd == nil {
 		t.Fatal("Expected non-nil command, got nil")
@@ -23,6 +22,10 @@ func TestNewAvatarCmd_ReturnsCommand(t *testing.T) {
 
 	if cmd.Short == "" {
 		t.Error("Expected Short to be set, got empty string")
+	}
+
+	if !strings.Contains(cmd.Long, "example-app") {
+		t.Errorf("Expected Long to mention the app name, got %q", cmd.Long)
 	}
 
 	if !cmd.Hidden {
@@ -42,15 +45,15 @@ func TestNewAvatarCmd_ReturnsCommand(t *testing.T) {
 	}
 }
 
-func TestNewAvatarCmd_Flags(t *testing.T) {
-	cmd := newAvatarCmd()
+func TestNewCommand_Flags(t *testing.T) {
+	cmd := NewCommand("example-app")
 
 	tests := []struct {
 		name        string
 		wantDefault string
 	}{
-		{name: "url", wantDefault: avatar.DefaultAvatarURL},
-		{name: "path", wantDefault: avatar.DefaultAvatarPath},
+		{name: "url", wantDefault: DefaultAvatarURL},
+		{name: "path", wantDefault: DefaultAvatarPath},
 		{name: "width", wantDefault: "40"},
 		{name: "height", wantDefault: "20"},
 	}
@@ -68,16 +71,16 @@ func TestNewAvatarCmd_Flags(t *testing.T) {
 	}
 }
 
-func TestNewAvatarCmd_Hidden(t *testing.T) {
-	cmd := newAvatarCmd()
+func TestNewCommand_Hidden(t *testing.T) {
+	cmd := NewCommand("example-app")
 
 	if !cmd.Hidden {
 		t.Error("Expected avatar command to be hidden")
 	}
 }
 
-func TestNewAvatarCmd_ExecuteWithNoArgs(t *testing.T) {
-	cmd := newAvatarCmd()
+func TestNewCommand_ExecuteWithNoArgs(t *testing.T) {
+	cmd := NewCommand("example-app")
 
 	var stdout, stderr bytes.Buffer
 	cmd.SetOut(&stdout)
@@ -90,28 +93,31 @@ func TestNewAvatarCmd_ExecuteWithNoArgs(t *testing.T) {
 	}
 }
 
-func TestRunAvatar_FallbackWhenNoURLOrPath(t *testing.T) {
+func TestRun_FallbackWhenNoURLOrPath(t *testing.T) {
 	// Capture stdout to verify fallback is printed
 	origStdout := os.Stdout
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	runAvatar("", "", 40, 20)
+	run("example-app", "", "", 40, 20)
 
 	_ = w.Close()
 	os.Stdout = origStdout
 
 	var buf bytes.Buffer
-	io := &buf
-	_, _ = io.ReadFrom(r)
+	_, _ = buf.ReadFrom(r)
 
 	output := buf.String()
-	if !strings.Contains(output, "go-sort-out-gh-actions") {
+	if !strings.Contains(output, "example-app") {
 		t.Errorf("expected fallback ASCII art in output when no URL or path provided, got: %q", output)
 	}
 }
 
-func TestRunAvatar_DefaultPathFallsBack(t *testing.T) {
+func TestRun_DefaultPathFallsBack(t *testing.T) {
+	origCaps := detectCapabilities
+	defer func() { detectCapabilities = origCaps }()
+	detectCapabilities = func() imageCapabilities { return imageCapabilities{Halfblocks: true} }
+
 	origStdout := os.Stdout
 	rOut, wOut, _ := os.Pipe()
 	os.Stdout = wOut
@@ -120,7 +126,7 @@ func TestRunAvatar_DefaultPathFallsBack(t *testing.T) {
 	rErr, wErr, _ := os.Pipe()
 	os.Stderr = wErr
 
-	runAvatar("", "./img/nonexistent-avatar.png", 40, 20)
+	run("example-app", "", "./img/nonexistent-avatar.png", 40, 20)
 
 	_ = wOut.Close()
 	_ = wErr.Close()
@@ -133,7 +139,7 @@ func TestRunAvatar_DefaultPathFallsBack(t *testing.T) {
 	var stderr bytes.Buffer
 	_, _ = stderr.ReadFrom(rErr)
 
-	if !strings.Contains(stdout.String(), "go-sort-out-gh-actions") {
+	if !strings.Contains(stdout.String(), "example-app") {
 		t.Errorf("expected fallback ASCII art in stdout, got: %q", stdout.String())
 	}
 
@@ -142,8 +148,12 @@ func TestRunAvatar_DefaultPathFallsBack(t *testing.T) {
 	}
 }
 
-func TestRunAvatar_InvalidPathFallsBack(t *testing.T) {
+func TestRun_InvalidPathFallsBack(t *testing.T) {
 	// When path is given but invalid, it should fall back to ASCII
+	origCaps := detectCapabilities
+	defer func() { detectCapabilities = origCaps }()
+	detectCapabilities = func() imageCapabilities { return imageCapabilities{Halfblocks: true} }
+
 	origStdout := os.Stdout
 	rOut, wOut, _ := os.Pipe()
 	os.Stdout = wOut
@@ -152,7 +162,7 @@ func TestRunAvatar_InvalidPathFallsBack(t *testing.T) {
 	rErr, wErr, _ := os.Pipe()
 	os.Stderr = wErr
 
-	runAvatar("", "/nonexistent/path.png", 40, 20)
+	run("example-app", "", "/nonexistent/path.png", 40, 20)
 
 	_ = wOut.Close()
 	_ = wErr.Close()
@@ -166,11 +176,47 @@ func TestRunAvatar_InvalidPathFallsBack(t *testing.T) {
 	_, _ = stderr.ReadFrom(rErr)
 
 	// Should print fallback to stdout
-	if !strings.Contains(stdout.String(), "go-sort-out-gh-actions") {
+	if !strings.Contains(stdout.String(), "example-app") {
 		t.Errorf("expected fallback ASCII art in stdout, got: %q", stdout.String())
 	}
 
 	// Should print error to stderr
+	if !strings.Contains(stderr.String(), "Failed to render avatar image") {
+		t.Errorf("expected error message in stderr, got: %q", stderr.String())
+	}
+}
+
+func TestRun_URLPathWhenNoLocalPath(t *testing.T) {
+	// With an empty path but a bogus URL, run should attempt the URL branch
+	// and fall back to ASCII art on failure.
+	origCaps := detectCapabilities
+	defer func() { detectCapabilities = origCaps }()
+	detectCapabilities = func() imageCapabilities { return imageCapabilities{Halfblocks: true} }
+
+	origStdout := os.Stdout
+	rOut, wOut, _ := os.Pipe()
+	os.Stdout = wOut
+
+	origStderr := os.Stderr
+	rErr, wErr, _ := os.Pipe()
+	os.Stderr = wErr
+
+	run("example-app", "http://insecure.example.com/a.png", "", 40, 20)
+
+	_ = wOut.Close()
+	_ = wErr.Close()
+	os.Stdout = origStdout
+	os.Stderr = origStderr
+
+	var stdout bytes.Buffer
+	_, _ = stdout.ReadFrom(rOut)
+
+	var stderr bytes.Buffer
+	_, _ = stderr.ReadFrom(rErr)
+
+	if !strings.Contains(stdout.String(), "example-app") {
+		t.Errorf("expected fallback ASCII art in stdout, got: %q", stdout.String())
+	}
 	if !strings.Contains(stderr.String(), "Failed to render avatar image") {
 		t.Errorf("expected error message in stderr, got: %q", stderr.String())
 	}

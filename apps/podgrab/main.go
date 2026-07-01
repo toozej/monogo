@@ -21,6 +21,7 @@ import (
 	"github.com/toozej/monogo/apps/podgrab/db"
 	"github.com/toozej/monogo/apps/podgrab/internal/logger"
 	"github.com/toozej/monogo/apps/podgrab/service"
+	"github.com/toozej/monogo/pkg/avatar"
 	"github.com/toozej/monogo/pkg/man"
 	"github.com/toozej/monogo/pkg/version"
 )
@@ -47,6 +48,7 @@ func main() {
 	}
 	rootCmd.AddCommand(version.Command())
 	rootCmd.AddCommand(man.NewManCmd())
+	rootCmd.AddCommand(avatar.NewCommand("podgrab"))
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
