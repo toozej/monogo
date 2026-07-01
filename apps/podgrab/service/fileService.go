@@ -22,6 +22,7 @@ import (
 	"github.com/toozej/monogo/apps/podgrab/db"
 	"github.com/toozej/monogo/apps/podgrab/internal/logger"
 	"github.com/toozej/monogo/apps/podgrab/internal/sanitize"
+	"github.com/toozej/monogo/pkg/urlsafe"
 )
 
 // Download download.
@@ -52,9 +53,10 @@ func Download(link, episodeTitle, podcastName, episodePathName string) (string, 
 	req, err := getRequest(link)
 	if err != nil {
 		logger.Log.Errorw("Error creating request: "+link, err)
+		return "", err
 	}
 
-	resp, err := client.Do(req) // #nosec G704 -- URL comes from user-provided podcast RSS feeds
+	resp, err := client.Do(req) // #nosec G704 -- link validated by urlsafe.Validate in getRequest
 	if err != nil {
 		logger.Log.Errorw("Error getting response: "+link, err)
 		return "", err
@@ -144,7 +146,7 @@ func DownloadPodcastCoverImage(link, podcastName string) (string, error) {
 		return "", err
 	}
 
-	resp, err := client.Do(req) // #nosec G704 -- URL comes from user-provided podcast RSS feeds
+	resp, err := client.Do(req) // #nosec G704 -- link validated by urlsafe.Validate in getRequest
 	if err != nil {
 		logger.Log.Errorw("Error getting response: "+link, err)
 		return "", err
@@ -202,7 +204,7 @@ func DownloadImage(link, episodeID, podcastName string) (string, error) {
 		return "", err
 	}
 
-	resp, err := client.Do(req) // #nosec G704 -- URL comes from user-provided podcast RSS feeds
+	resp, err := client.Do(req) // #nosec G704 -- link validated by urlsafe.Validate in getRequest
 	if err != nil {
 		logger.Log.Errorw("Error getting response: "+link, err)
 		return "", err
@@ -316,12 +318,13 @@ func deleteOldBackup() {
 
 // GetFileSizeFromURL get file size from url.
 func GetFileSizeFromURL(urlString string) (int64, error) {
-	// Validate URL to prevent SSRF attacks
-	if err := validateURL(urlString); err != nil {
+	// Validate URL to prevent SSRF attacks: reject non-HTTP(S) schemes and
+	// (unless explicitly allowed) private/internal targets.
+	if err := urlsafe.Validate(urlString, allowPrivateNetwork()); err != nil {
 		return 0, err
 	}
 
-	resp, err := http.Head(urlString) // #nosec G107 -- URL validated by validateURL function above
+	resp, err := http.Head(urlString) // #nosec G107 -- URL validated by urlsafe.Validate above
 	if err != nil {
 		return 0, err
 	}
@@ -433,6 +436,14 @@ func httpClient() *http.Client {
 }
 
 func getRequest(urlStr string) (*http.Request, error) {
+	// Guard against SSRF: urlStr is a user-supplied podcast feed/enclosure/image
+	// URL, so reject non-HTTP(S) schemes and (unless explicitly allowed)
+	// private/internal targets before building the request. This covers every
+	// download path (Download, DownloadPodcastCoverImage, DownloadImage).
+	if err := urlsafe.Validate(urlStr, allowPrivateNetwork()); err != nil {
+		return nil, fmt.Errorf("refusing to fetch URL: %w", err)
+	}
+
 	req, err := http.NewRequest("GET", urlStr, http.NoBody)
 	if err != nil {
 		return nil, err
@@ -509,20 +520,6 @@ func validatePath(filePath, baseDir string) error {
 	// Check for path traversal attempts
 	if strings.HasPrefix(rel, ".."+string(filepath.Separator)) || rel == ".." {
 		return fmt.Errorf("path traversal detected: %s", filePath)
-	}
-
-	return nil
-}
-
-func validateURL(urlString string) error {
-	parsedURL, err := url.Parse(urlString) //nolint:all // Named return intentionally shadows import
-	if err != nil {
-		return fmt.Errorf("invalid URL: %w", err)
-	}
-
-	// Only allow HTTP and HTTPS schemes
-	if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
-		return fmt.Errorf("invalid URL scheme: %s", parsedURL.Scheme)
 	}
 
 	return nil

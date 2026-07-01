@@ -643,3 +643,31 @@ func TestGetAllBackupFiles(t *testing.T) {
 		assert.True(t, files[i] > files[i+1], "Files should be sorted in reverse order")
 	}
 }
+
+// TestGetRequestRejectsUnsafeURL verifies the SSRF guard is wired into
+// getRequest, which every download path (Download, DownloadPodcastCoverImage,
+// DownloadImage) funnels through.
+func TestGetRequestRejectsUnsafeURL(t *testing.T) {
+	// A non-HTTP(S) scheme is rejected regardless of ALLOW_PRIVATE_NETWORK.
+	_, err := getRequest("ftp://example.com/feed.xml")
+	require.Error(t, err, "Should reject non-HTTP(S) schemes")
+	require.Contains(t, err.Error(), "refusing to fetch URL", "Should be rejected by the SSRF guard")
+
+	// With private networking disabled, an internal target is rejected too.
+	t.Setenv("ALLOW_PRIVATE_NETWORK", "false")
+	_, err = getRequest("http://127.0.0.1/internal")
+	require.Error(t, err, "Should reject private/internal IPs when not allowed")
+	require.Contains(t, err.Error(), "refusing to fetch URL", "Should be rejected by the SSRF guard")
+}
+
+// TestGetFileSizeFromURLRejectsUnsafeURL verifies the SSRF guard is wired into
+// GetFileSizeFromURL's HEAD request.
+func TestGetFileSizeFromURLRejectsUnsafeURL(t *testing.T) {
+	_, err := GetFileSizeFromURL("ftp://example.com/big.mp3")
+	require.Error(t, err, "Should reject non-HTTP(S) schemes")
+
+	t.Setenv("ALLOW_PRIVATE_NETWORK", "false")
+	// nosemgrep: problem-based-packs.insecure-transport.go-stdlib.grequests-http-request.grequests-http-request -- intentional: asserting the guard rejects this http metadata endpoint
+	_, err = GetFileSizeFromURL("http://169.254.169.254/latest/meta-data/")
+	require.Error(t, err, "Should reject link-local metadata endpoint when private networking is disabled")
+}
