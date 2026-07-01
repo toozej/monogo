@@ -15,6 +15,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/sirupsen/logrus"
 	"github.com/toozej/monogo/apps/go-listen/internal/types"
+	"github.com/toozej/monogo/pkg/urlsafe"
 )
 
 // ScraperService defines the interface for web scraping operations.
@@ -53,16 +54,21 @@ type ScraperConfig struct {
 	RetryBackoff   time.Duration
 	UserAgent      string
 	MaxContentSize int64
+	// AllowPrivateNetwork permits scraping URLs that resolve to private/internal
+	// IP ranges. It defaults to false so user-supplied URLs cannot be used for
+	// SSRF against internal services; enable it only for trusted internal use.
+	AllowPrivateNetwork bool
 }
 
 // DefaultScraperConfig returns the default scraper configuration.
 func DefaultScraperConfig() ScraperConfig {
 	return ScraperConfig{
-		Timeout:        30 * time.Second,
-		MaxRetries:     3,
-		RetryBackoff:   2 * time.Second,
-		UserAgent:      "go-listen/1.0 (Web Scraper)",
-		MaxContentSize: 10 * 1024 * 1024, // 10MB
+		Timeout:             30 * time.Second,
+		MaxRetries:          3,
+		RetryBackoff:        2 * time.Second,
+		UserAgent:           "go-listen/1.0 (Web Scraper)",
+		MaxContentSize:      10 * 1024 * 1024, // 10MB
+		AllowPrivateNetwork: false,
 	}
 }
 
@@ -318,6 +324,13 @@ func (w *WebScraper) fetchWithRetry(url string) (string, error) {
 
 // fetchURL fetches HTML content from a URL.
 func (w *WebScraper) fetchURL(url string) (string, error) {
+	// Guard against SSRF: url originates from the user-supplied scrape request,
+	// so reject non-HTTP(S) schemes and (unless explicitly allowed) targets that
+	// resolve to private/internal IP ranges before making the request.
+	if err := urlsafe.Validate(url, w.config.AllowPrivateNetwork); err != nil {
+		return "", fmt.Errorf("refusing to scrape URL: %w", err)
+	}
+
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to create request: %w", err)
@@ -326,9 +339,8 @@ func (w *WebScraper) fetchURL(url string) (string, error) {
 	req.Header.Set("User-Agent", w.config.UserAgent)
 
 	startTime := time.Now()
-	// #nosec G704 -- url comes from the user-supplied scrape request; the /api/scrape-artists
-	// endpoint is authentication-protected and fetching arbitrary public URLs is by design.
-	// (Hardening follow-up: block private/internal IP ranges as RSSFFS's validateURL does.)
+	// #nosec G704 -- url validated by urlsafe.Validate above; fetching arbitrary
+	// public URLs is the scraper's intended, authenticated function.
 	resp, err := w.httpClient.Do(req)
 	duration := time.Since(startTime)
 

@@ -21,6 +21,7 @@ import (
 	"github.com/toozej/monogo/apps/podgrab/internal/logger"
 	"github.com/toozej/monogo/apps/podgrab/internal/sanitize"
 	"github.com/toozej/monogo/apps/podgrab/model"
+	"github.com/toozej/monogo/pkg/urlsafe"
 	"gorm.io/gorm"
 )
 
@@ -957,8 +958,25 @@ func DeleteTag(id string) error {
 	return nil
 }
 
+// allowPrivateNetwork reports whether outbound requests may target private or
+// internal IP ranges. It is controlled by the ALLOW_PRIVATE_NETWORK env var and
+// defaults to false, so user-added feed URLs cannot be used for SSRF against
+// internal services. Self-hosted setups that legitimately fetch feeds from a
+// private network can opt in with ALLOW_PRIVATE_NETWORK=true.
+func allowPrivateNetwork() bool {
+	allow, _ := strconv.ParseBool(os.Getenv("ALLOW_PRIVATE_NETWORK"))
+	return allow
+}
+
 func makeQuery(url string) ([]byte, error) {
 	logger.Log.Debugw("Making query", "url", url)
+
+	// Guard against SSRF: url is a user-supplied podcast feed URL, so reject
+	// non-HTTP(S) schemes and (unless explicitly allowed) private/internal
+	// targets before making the request.
+	if err := urlsafe.Validate(url, allowPrivateNetwork()); err != nil {
+		return nil, fmt.Errorf("refusing to fetch feed URL: %w", err)
+	}
 
 	client := &http.Client{
 		Timeout: 30 * time.Second,
@@ -977,7 +995,7 @@ func makeQuery(url string) ([]byte, error) {
 	}
 	req.Header.Set("Accept", "*/*")
 
-	resp, err := client.Do(req) // #nosec G704 // lgtm[go/request-forgery] -- URL is a user-provided podcast RSS feed URL, SSRF is by design
+	resp, err := client.Do(req) // #nosec G704 -- url validated by urlsafe.Validate above; fetching user-added podcast feed URLs is by design
 	if err != nil {
 		return nil, fmt.Errorf("error making request: %w", err)
 	}

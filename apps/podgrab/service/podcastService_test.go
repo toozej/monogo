@@ -628,6 +628,16 @@ func TestMakeQuery_NetworkError(t *testing.T) {
 	assert.Error(t, err, "Should error on network failure")
 }
 
+// TestMakeQuery_RejectsUnsafeURL confirms the SSRF guard is wired into
+// makeQuery. A non-HTTP(S) scheme is rejected regardless of the
+// ALLOW_PRIVATE_NETWORK setting, so no env manipulation is needed here (the
+// private/internal IP blocking itself is covered by pkg/urlsafe tests).
+func TestMakeQuery_RejectsUnsafeURL(t *testing.T) {
+	_, err := makeQuery("ftp://example.com/feed.xml")
+	require.Error(t, err, "Should reject non-HTTP(S) schemes")
+	require.Contains(t, err.Error(), "refusing to fetch feed URL", "Should be rejected by the SSRF guard")
+}
+
 // TestExportOmpl tests OPML export functionality.
 func TestExportOmpl(t *testing.T) {
 	database := testhelpers.SetupTestDB(t)

@@ -64,6 +64,13 @@ func checkChromeAvailable() bool {
 
 // TestMain sets up the test environment before running E2E tests.
 func TestMain(m *testing.M) {
+	// The E2E suite drives podcast adds against the local test server, so allow
+	// requests to private/internal ranges (makeQuery's SSRF guard blocks these
+	// by default in production).
+	if err := os.Setenv("ALLOW_PRIVATE_NETWORK", "true"); err != nil {
+		panic(err)
+	}
+
 	// Check if Chrome is available
 	if !checkChromeAvailable() {
 		fmt.Println("WARNING: Chrome/Chromium not found. E2E tests will be skipped.")
