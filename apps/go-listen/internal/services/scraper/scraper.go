@@ -326,7 +326,10 @@ func (w *WebScraper) fetchURL(url string) (string, error) {
 	req.Header.Set("User-Agent", w.config.UserAgent)
 
 	startTime := time.Now()
-	resp, err := w.httpClient.Do(req) // #nosec G704 -- URL is from config, not user input
+	// #nosec G704 -- url comes from the user-supplied scrape request; the /api/scrape-artists
+	// endpoint is authentication-protected and fetching arbitrary public URLs is by design.
+	// (Hardening follow-up: block private/internal IP ranges as RSSFFS's validateURL does.)
+	resp, err := w.httpClient.Do(req)
 	duration := time.Since(startTime)
 
 	if err != nil {
