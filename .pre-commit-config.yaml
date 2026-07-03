@@ -34,37 +34,29 @@ repos:
         name: Check for existence of private key in repo
         description: https://github.com/pre-commit/pre-commit-hooks/blob/master/pre_commit_hooks/detect_private_key.py
       - id: trailing-whitespace
-        name: Remove trailing whitespace in YAML,Bash files
+        name: Remove trailing whitespace in YAML,Bash,Python files
         description: https://github.com/pre-commit/pre-commit-hooks/blob/master/pre_commit_hooks/trailing_whitespace_fixer.py
-        files: \.(sh|yaml|yml)$
+        files: \.(py|sh|yaml|yml)$
       - id: end-of-file-fixer
         name: Ensure EOF is consistently only a newline
         description: https://github.com/pre-commit/pre-commit-hooks/blob/master/pre_commit_hooks/end_of_file_fixer.py
-        files: \.(sh|yaml|yml)$
+        files: \.(py|sh|yaml|yml)$
       - id: mixed-line-ending
         name: Ensure line-ending is consistent
         description: https://github.com/pre-commit/pre-commit-hooks/blob/master/pre_commit_hooks/mixed_line_ending.py
-        files: \.(sh|yaml|yml)$
+        files: \.(py|sh|yaml|yml)$
       - id: check-executables-have-shebangs
         name: Checks that non-binary executables have a proper shebang
         description: https://github.com/pre-commit/pre-commit-hooks/blob/master/pre_commit_hooks/check_executables_have_shebangs.py
-        files: \.(sh)$
+        files: \.(py|sh)$
       - id: check-shebang-scripts-are-executable
         name: Checks that scripts with shebangs are executable.
         description: https://github.com/pre-commit/pre-commit-hooks/blob/master/pre_commit_hooks/check_shebang_scripts_are_executable.py
-        files: \.(sh)$
-          #- id: check-json
-          #  name: Attempts to load all json files to verify syntax.
-          #  description: https://github.com/pre-commit/pre-commit-hooks/blob/master/pre_commit_hooks/check_json.py
-          #  files: \.(json)$
-          #- id: check-toml
-          #  name: Attempts to load all toml files to verify syntax.
-          #  description: https://github.com/pre-commit/pre-commit-hooks/blob/master/pre_commit_hooks/check_toml.py
-          #  files: \.(toml)$
-      - id: check-yaml
-        name: Attempts to load all yaml files to verify syntax.
-        description: https://github.com/pre-commit/pre-commit-hooks/blob/master/pre_commit_hooks/check_yaml.py
-        files: \.(yaml)$
+        files: \.(py|sh)$
+      - id: check-toml
+        name: Attempts to load all toml files to verify syntax.
+        description: https://github.com/pre-commit/pre-commit-hooks/blob/master/pre_commit_hooks/check_toml.py
+        files: \.(toml)$
 
   # format yaml
   - repo: https://github.com/jumanjihouse/pre-commit-hook-yamlfmt
@@ -128,6 +120,46 @@ repos:
     rev: v1.7.12
     hooks:
       - id: actionlint
+
+  # Python linting and formatting
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.20
+    hooks:
+      - id: ruff
+        args: ["--fix"]
+      - id: ruff-format
+
+  # Find dead Python code
+  - repo: https://github.com/jendrikseipp/vulture
+    rev: v2.16
+    hooks:
+      - id: vulture
+        args: ["scripts"]
+
+  # Python security scanning
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.9.4
+    hooks:
+      - id: bandit
+        args: ["-iii", "-lll", "-q"]
+
+  # Modernize Python syntax to target 3.11+
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v3.21.2
+    hooks:
+      - id: pyupgrade
+        args: ["--py311-plus"]
+
+  # Additional Python grep-based checks
+  - repo: https://github.com/pre-commit/pygrep-hooks
+    rev: v1.10.0
+    hooks:
+      - id: python-check-blanket-type-ignore
+      - id: python-check-mock-methods
+      - id: python-no-eval
+      - id: python-use-type-annotations
+      - id: text-unicode-replacement-char
+      - id: python-no-log-warn
 
   # run semgrep on all known filetypes
   - repo: https://github.com/semgrep/pre-commit

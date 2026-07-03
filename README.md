@@ -44,6 +44,31 @@ For normal per-app differences, change values in `apps/<app>/app.yaml`. Shared G
 
 See [docs/app-configuration.md](docs/app-configuration.md) for the full `app.yaml` field reference, including CGO builds (`cgoEnabled`), runtime image selection (`runtimeImage`), and exposed ports (`port`).
 
+## Create a New App
+
+Run the scaffold script to clone the `monogo` starter into a new app directory and wire it into CI:
+
+```bash
+make new-app APP=mytool
+```
+
+The script (`scripts/create-new-app.py`) copies `apps/monogo` to `apps/mytool`, renames command packages, rewrites imports, updates `app.yaml`, amends the CI app matrix, and appends the Dependabot Docker entry. It finishes by running `go mod tidy` and `make app-generate APP=mytool` so the generated configs are committed.
+
+After scaffolding:
+
+1. Edit `apps/mytool/app.yaml` to describe the service and tweak build settings.
+2. Replace `internal/starter` and extend `cmd/mytool` with real functionality.
+3. Run `make test APP=mytool` and `make local-build APP=mytool` to verify everything compiles.
+4. Commit the new files; CI and Dependabot already include the app once the script completes.
+
+### Remove an App
+
+```bash
+make delete-app APP=mytool
+```
+
+The deletion helper (`scripts/delete-app.py`) removes `apps/mytool`, prunes generated artefacts, and updates shared automation like the CI matrix and Dependabot Docker entries before running `go mod tidy`. Review `git status` afterward to ensure any extra references (docs, dashboards, secret stores) are cleaned up.
+
 ## Import Existing Services
 
 Import an existing Go service with its Git history. `APP=owner/repo` defaults to `github.com/owner/repo`; include a hostname to import from another VCS host:

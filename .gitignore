@@ -38,3 +38,4 @@ prompt.md
 TASKS.md
 .kiro/
 .kilocode/
+**/__pycache__/
