@@ -6,6 +6,7 @@
 package scraper
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -194,7 +195,18 @@ func (w *WebScraper) ScrapeAndAddToPlaylist(url, cssSelector, playlistID string,
 	}
 
 	// Step 2: Fuzzy match artists against Spotify
-	matchResults := w.matchArtists(artists)
+	matchResults, err := w.matchArtists(artists)
+	if err != nil {
+		// A reauthorization error aborts the whole batch: the user's Spotify
+		// refresh token is no longer valid, so every subsequent operation would
+		// fail the same way. Return the typed error (still wrapping
+		// types.ErrReauthenticationRequired) so the caller can redirect the
+		// user to sign in again instead of failing each artist individually.
+		result.MatchResults = matchResults
+		result.Message = fmt.Sprintf("Spotify reauthorization required while matching artists: %v", err)
+		result.Errors = append(result.Errors, err.Error())
+		return result, err
+	}
 	result.MatchResults = matchResults
 
 	// Step 3: Add matched artists to playlist
@@ -211,6 +223,15 @@ func (w *WebScraper) ScrapeAndAddToPlaylist(url, cssSelector, playlistID string,
 		if !force && w.playlist != nil {
 			dupResult, err := w.duplicateChecker(playlistID, matchResult.Artist.ID)
 			if err != nil {
+				if errors.Is(err, types.ErrReauthenticationRequired) {
+					w.logger.WithError(err).WithFields(logrus.Fields{
+						"artist_id":   matchResult.Artist.ID,
+						"artist_name": matchResult.Artist.Name,
+						"playlist_id": playlistID,
+					}).Warn("Spotify reauthorization required during duplicate check; aborting scrape")
+					result.Errors = append(result.Errors, err.Error())
+					return result, err
+				}
 				w.logger.WithError(err).WithFields(logrus.Fields{
 					"artist_id":   matchResult.Artist.ID,
 					"artist_name": matchResult.Artist.Name,
@@ -232,6 +253,12 @@ func (w *WebScraper) ScrapeAndAddToPlaylist(url, cssSelector, playlistID string,
 		// Get top 5 tracks for the artist
 		tracks, err := w.playlist.GetTop5Tracks(matchResult.Artist.ID)
 		if err != nil {
+			if errors.Is(err, types.ErrReauthenticationRequired) {
+				w.logger.WithError(err).WithField("artist_id", matchResult.Artist.ID).Warn("Spotify reauthorization required while fetching top tracks; aborting scrape")
+				matchResult.Error = err.Error()
+				result.Errors = append(result.Errors, fmt.Sprintf("Artist %s: %v", matchResult.Artist.Name, err))
+				return result, err
+			}
 			matchResult.Error = fmt.Sprintf("Failed to get tracks: %v", err)
 			result.FailureCount++
 			result.Errors = append(result.Errors, fmt.Sprintf("Artist %s: %v", matchResult.Artist.Name, err))
@@ -247,6 +274,15 @@ func (w *WebScraper) ScrapeAndAddToPlaylist(url, cssSelector, playlistID string,
 
 		err = w.trackAdder(playlistID, trackIDs)
 		if err != nil {
+			if errors.Is(err, types.ErrReauthenticationRequired) {
+				w.logger.WithError(err).WithFields(logrus.Fields{
+					"artist_id":   matchResult.Artist.ID,
+					"playlist_id": playlistID,
+				}).Warn("Spotify reauthorization required while adding tracks; aborting scrape")
+				matchResult.Error = err.Error()
+				result.Errors = append(result.Errors, fmt.Sprintf("Artist %s: %v", matchResult.Artist.Name, err))
+				return result, err
+			}
 			matchResult.Error = fmt.Sprintf("Failed to add tracks: %v", err)
 			result.FailureCount++
 			result.Errors = append(result.Errors, fmt.Sprintf("Artist %s: %v", matchResult.Artist.Name, err))
@@ -436,10 +472,16 @@ func (w *WebScraper) addTracksToPlaylistDefault(playlistID string, trackIDs []st
 }
 
 // matchArtists performs batch fuzzy matching of artist names against Spotify.
-// It filters out low confidence matches and selects the best match for each query.
-func (w *WebScraper) matchArtists(artistNames []string) []ArtistMatchResult {
+// It filters out low confidence matches and selects the best match for each
+// query. Per-artist search failures (e.g. low confidence) are recorded on the
+// individual result and do not abort the batch. However, a reauthorization
+// error (types.ErrReauthenticationRequired) — which indicates the user's
+// Spotify refresh token is no longer valid — is returned immediately so the
+// caller can stop processing and prompt the user to sign in again rather than
+// failing every remaining artist against an unusable token.
+func (w *WebScraper) matchArtists(artistNames []string) ([]ArtistMatchResult, error) {
 	if len(artistNames) == 0 {
-		return []ArtistMatchResult{}
+		return []ArtistMatchResult{}, nil
 	}
 
 	w.logger.WithField("artist_count", len(artistNames)).Info("Starting batch artist matching")
@@ -447,7 +489,12 @@ func (w *WebScraper) matchArtists(artistNames []string) []ArtistMatchResult {
 	results := make([]ArtistMatchResult, 0, len(artistNames))
 
 	for _, query := range artistNames {
-		result := w.matchSingleArtist(query)
+		result, err := w.matchSingleArtist(query)
+		if err != nil {
+			// Abort the entire batch: the refresh token is invalid and every
+			// subsequent search would fail the same way.
+			return results, err
+		}
 		results = append(results, result)
 	}
 
@@ -458,11 +505,15 @@ func (w *WebScraper) matchArtists(artistNames []string) []ArtistMatchResult {
 		"failed":         w.countFailed(results),
 	}).Info("Completed batch artist matching")
 
-	return results
+	return results, nil
 }
 
-// matchSingleArtist matches a single artist query against Spotify with confidence filtering.
-func (w *WebScraper) matchSingleArtist(query string) ArtistMatchResult {
+// matchSingleArtist matches a single artist query against Spotify with
+// confidence filtering. It returns the match result and, separately, an error.
+// The error is non-nil only for fatal failures that should abort the batch —
+// specifically types.ErrReauthenticationRequired. Ordinary search failures and
+// low-confidence matches are recorded on the returned result with no error.
+func (w *WebScraper) matchSingleArtist(query string) (ArtistMatchResult, error) {
 	result := ArtistMatchResult{
 		Query:   query,
 		Matched: false,
@@ -471,9 +522,15 @@ func (w *WebScraper) matchSingleArtist(query string) ArtistMatchResult {
 	// Use the fuzzy searcher to find the best match
 	artist, confidence, err := w.searcher.FindBestMatch(query)
 	if err != nil {
+		// A reauth error means the user must sign in again; surface it so the
+		// batch aborts instead of failing every artist individually.
+		if errors.Is(err, types.ErrReauthenticationRequired) {
+			w.logger.WithError(err).WithField("query", query).Warn("Spotify reauthorization required during artist search; aborting batch match")
+			return result, err
+		}
 		w.logger.WithError(err).WithField("query", query).Warn("Failed to find artist match")
 		result.Error = err.Error()
-		return result
+		return result, nil
 	}
 
 	result.Artist = artist
@@ -490,7 +547,7 @@ func (w *WebScraper) matchSingleArtist(query string) ArtistMatchResult {
 			"threshold":  MinConfidenceThreshold,
 		}).Warn("Skipping artist due to low confidence match")
 		result.Error = fmt.Sprintf("confidence %.2f below threshold %.2f", confidence, MinConfidenceThreshold)
-		return result
+		return result, nil
 	}
 
 	// Log successful match
@@ -503,7 +560,7 @@ func (w *WebScraper) matchSingleArtist(query string) ArtistMatchResult {
 	}).Info("Artist matched")
 
 	result.Matched = true
-	return result
+	return result, nil
 }
 
 // countMatched counts the number of successfully matched artists.

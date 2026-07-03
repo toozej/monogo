@@ -2,6 +2,7 @@ package youtubemusic
 
 import (
 	"bytes"
+	"crypto/sha1" // #nosec G505 -- SAPISIDHASH requires SHA-1 to match YouTube Music's auth scheme
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/toozej/monogo/apps/kmhd2playlist/internal/config"
@@ -58,6 +60,10 @@ func NewClient(cfg config.YouTubeMusicConfig, logger *logrus.Logger) (*Client, e
 		return nil, fmt.Errorf("youtube music cookie is required")
 	}
 
+	if _, err := extractSAPISID(cfg.Cookie); err != nil {
+		return nil, fmt.Errorf("invalid youtube music cookie: %w", err)
+	}
+
 	tokenFile, err := cfg.GetTokenFilePath()
 	if err != nil {
 		logger.WithError(err).Warn("Could not determine token file path")
@@ -100,6 +106,12 @@ func (c *Client) doRequest(endpoint string, body any) ([]byte, error) {
 	req.Header.Set("Referer", referer)
 	req.Header.Set("Cookie", c.cookie)
 	req.Header.Set("X-Goog-AuthUser", "0")
+	req.Header.Set("X-Origin", origin)
+	if authHeader, err := c.authorizationHeader(); err != nil {
+		c.logger.WithError(err).Debug("Skipping Authorization header for YouTube Music request")
+	} else {
+		req.Header.Set("Authorization", authHeader)
+	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -153,6 +165,57 @@ func (c *Client) CompleteAuth(cookie, _ string) error {
 
 	c.logger.Info("YouTube Music authentication completed via cookie")
 	return nil
+}
+
+func (c *Client) authorizationHeader() (string, error) {
+	sapisid, err := extractSAPISID(c.cookie)
+	if err != nil {
+		return "", err
+	}
+
+	timestamp := time.Now().Unix()
+	payload := fmt.Sprintf("%d %s %s", timestamp, origin, sapisid)
+	sum := sha1.Sum([]byte(payload)) // #nosec G401 -- required by YouTube Music SAPISIDHASH auth // nosemgrep:go.lang.security.audit.crypto.use_of_weak_crypto.use-of-sha1
+	return fmt.Sprintf("SAPISIDHASH %d_%x", timestamp, sum), nil
+}
+
+func extractSAPISID(cookie string) (string, error) {
+	cookies := parseCookieString(cookie)
+	if len(cookies) == 0 {
+		return "", fmt.Errorf("cookie string is empty or malformed")
+	}
+
+	if value := cookies["SAPISID"]; value != "" {
+		return value, nil
+	}
+	if value := cookies["__Secure-3PAPISID"]; value != "" {
+		return value, nil
+	}
+
+	return "", fmt.Errorf("SAPISID or __Secure-3PAPISID not found")
+}
+
+func parseCookieString(cookie string) map[string]string {
+	parts := strings.Split(cookie, ";")
+	result := make(map[string]string, len(parts))
+
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+
+		kv := strings.SplitN(part, "=", 2)
+		if len(kv) != 2 {
+			continue
+		}
+
+		key := strings.TrimSpace(kv[0])
+		value := strings.TrimSpace(kv[1])
+		result[key] = value
+	}
+
+	return result
 }
 
 func (c *Client) SearchArtist(query string) (*Artist, error) {

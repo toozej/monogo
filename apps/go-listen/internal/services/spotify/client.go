@@ -2,17 +2,48 @@ package spotify
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/toozej/monogo/apps/go-listen/internal/config"
+	"github.com/toozej/monogo/apps/go-listen/internal/types"
 	"github.com/zmb3/spotify/v2"
 	spotifyauth "github.com/zmb3/spotify/v2/auth"
 	"golang.org/x/oauth2"
 )
+
+// isInvalidGrantError reports whether err is (or wraps) an OAuth2 "invalid_grant"
+// error returned by the Spotify token endpoint. Per Spotify's refresh token
+// documentation, the token endpoint returns invalid_grant when a refresh token
+// is expired, revoked, or otherwise invalid, and the app must discard the
+// refresh token and restart the authorization flow rather than retrying.
+func isInvalidGrantError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var retrieveErr *oauth2.RetrieveError
+	if errors.As(err, &retrieveErr) {
+		return retrieveErr.ErrorCode == "invalid_grant"
+	}
+	// Fall back to a substring check for wrapped error strings from
+	// alternative transport implementations.
+	return strings.Contains(err.Error(), "invalid_grant")
+}
+
+// authenticator abstracts the spotifyauth.Authenticator methods the Client
+// depends on, allowing the refresh/reauth path to be unit-tested with a fake
+// implementation instead of hitting the live Spotify token endpoint.
+type authenticator interface {
+	AuthURL(state string, opts ...oauth2.AuthCodeOption) string
+	Exchange(ctx context.Context, code string, opts ...oauth2.AuthCodeOption) (*oauth2.Token, error)
+	RefreshToken(ctx context.Context, token *oauth2.Token) (*oauth2.Token, error)
+	Client(ctx context.Context, token *oauth2.Token) *http.Client
+}
 
 // Client wraps the Spotify client with authentication and configuration
 type Client struct {
@@ -22,7 +53,7 @@ type Client struct {
 	token      *oauth2.Token
 	tokenMu    sync.RWMutex
 	ctx        context.Context
-	auth       *spotifyauth.Authenticator
+	auth       authenticator
 	isUserAuth bool
 	authURL    string
 	state      string
@@ -139,7 +170,20 @@ func (c *Client) CompleteAuth(code, state string) error {
 	return nil
 }
 
-// RefreshToken refreshes the access token if needed
+// RefreshToken refreshes the access token if needed.
+//
+// Spotify refresh tokens issued to apps have a 6-month lifetime and are not
+// extended by refreshing. When the token endpoint responds with an
+// "invalid_grant" error (refresh token expired, revoked, or otherwise
+// invalid), this method discards the stored token and authenticated client so
+// a failed refresh is never retried with the same token. The returned error
+// wraps ErrReauthenticationRequired so callers can detect the need to send the
+// user through the authorization flow again via errors.Is.
+//
+// This behavior only applies to user-issued tokens; Client Credentials flows
+// are unaffected.
+//
+// See: https://developer.spotify.com/documentation/web-api/tutorials/refreshing-tokens
 func (c *Client) RefreshToken() error {
 	c.tokenMu.Lock()
 	defer c.tokenMu.Unlock()
@@ -158,6 +202,16 @@ func (c *Client) RefreshToken() error {
 	// Use the authenticator to refresh the token following library patterns
 	newToken, err := c.auth.RefreshToken(c.ctx, c.token)
 	if err != nil {
+		// Per Spotify's guidance, do not retry a failed refresh. When the
+		// refresh token is expired, revoked, or invalid the token endpoint
+		// returns invalid_grant; discard the stored credentials first so the
+		// user is forced to reauthorize rather than retrying with a bad token.
+		if isInvalidGrantError(err) {
+			c.logger.WithError(err).Warn("Spotify refresh token is no longer valid; discarding stored token and requiring reauthorization")
+			c.discardAuthLocked()
+			return fmt.Errorf("%w: %v", types.ErrReauthenticationRequired, err)
+		}
+
 		return fmt.Errorf("failed to refresh token: %w", err)
 	}
 
@@ -169,6 +223,14 @@ func (c *Client) RefreshToken() error {
 
 	c.logger.Info("Spotify access token refreshed successfully")
 	return nil
+}
+
+// discardAuthLocked clears all cached authentication state so that subsequent
+// calls require the user to reauthorize. The caller must hold c.tokenMu.
+func (c *Client) discardAuthLocked() {
+	c.token = nil
+	c.client = nil
+	c.isUserAuth = false
 }
 
 // SearchArtist searches for an artist by name and returns the best match

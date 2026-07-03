@@ -1,9 +1,26 @@
 package types
 
 import (
+	"errors"
 	"net/http"
 	"time"
 )
+
+// ErrReauthenticationRequired is returned (wrapped) by a SpotifyService
+// implementation when the refresh token can no longer be used because it is
+// expired, revoked, or otherwise invalid. Callers should detect this with
+// errors.Is and send the user through the authorization code flow again
+// instead of retrying the refresh.
+//
+// Per Spotify's refresh token guidance, on an invalid_grant error the app
+// must discard the stored token and redirect the user to sign in again rather
+// than retrying the refresh request.
+//
+// See: https://developer.spotify.com/documentation/web-api/tutorials/refreshing-tokens
+//
+// This only applies to user-issued tokens; Client Credentials flows are
+// unaffected.
+var ErrReauthenticationRequired = errors.New("spotify refresh token is no longer valid; user reauthorization is required")
 
 // SpotifyService defines the interface for Spotify API operations
 type SpotifyService interface {

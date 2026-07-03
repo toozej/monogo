@@ -4,6 +4,7 @@ import (
 	"context"
 	"embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -266,6 +267,9 @@ func (s *Server) handleGetPlaylists(w http.ResponseWriter, r *http.Request) {
 	// Get playlists from the playlist manager
 	playlists, err := s.playlist.GetIncomingPlaylists()
 	if err != nil {
+		if s.handleReauthIfNeeded(w, r, err) {
+			return
+		}
 		s.logger.WithContext(r.Context()).WithField("component", "server").WithError(err).Error("Failed to retrieve playlists")
 		s.writeJSONError(w, "Failed to retrieve playlists: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -332,6 +336,9 @@ func (s *Server) handleAddArtist(w http.ResponseWriter, r *http.Request) {
 	// Add artist to playlist
 	result, err := s.playlist.AddArtistToPlaylist(req.ArtistName, req.PlaylistID, req.Force)
 	if err != nil {
+		if s.handleReauthIfNeeded(w, r, err) {
+			return
+		}
 		s.logger.WithContext(r.Context()).WithField("component", "server").WithError(err).Error("Failed to add artist to playlist")
 		s.writeJSONError(w, "Failed to add artist: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -403,6 +410,9 @@ func (s *Server) handleScrapeArtists(w http.ResponseWriter, r *http.Request) {
 	// Perform scraping operation
 	result, err := s.scraper.ScrapeAndAddToPlaylist(req.URL, req.CSSSelector, req.PlaylistID, req.Force)
 	if err != nil {
+		if s.handleReauthIfNeeded(w, r, err) {
+			return
+		}
 		s.logger.WithContext(r.Context()).WithField("component", "server").WithError(err).Error("Failed to scrape artists")
 		s.writeJSONError(w, "Failed to scrape artists: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -474,6 +484,29 @@ func (s *Server) generateEmbedURL(playlistURI string) string {
 		return fmt.Sprintf("https://open.spotify.com/embed/playlist/%s?utm_source=generator&theme=0", playlistID)
 	}
 	return ""
+}
+
+// handleReauthIfNeeded reports whether err indicates the Spotify refresh
+// token is no longer valid and, if so, writes a 401 response instructing the
+// client to reauthenticate. Per Spotify's refresh token guidance, when a
+// refresh fails with invalid_grant the app must redirect the user to sign in
+// again rather than retrying. Returns true when the error was handled.
+func (s *Server) handleReauthIfNeeded(w http.ResponseWriter, r *http.Request, err error) bool {
+	if !errors.Is(err, types.ErrReauthenticationRequired) {
+		return false
+	}
+	s.logger.WithContext(r.Context()).WithField("component", "server").WithError(err).Warn("Spotify reauthorization required; client must sign in again")
+	authURL := s.spotify.GetAuthURL()
+	response := types.APIResponse{
+		Success: false,
+		Error:   "Spotify reauthorization required",
+		Data: map[string]interface{}{
+			"reauth_required": true,
+			"auth_url":        authURL,
+		},
+	}
+	s.writeJSONResponse(w, response, http.StatusUnauthorized)
+	return true
 }
 
 // writeJSONResponse writes a JSON response

@@ -10,6 +10,11 @@ import (
 	"github.com/toozej/monogo/apps/kmhd2playlist/internal/config"
 )
 
+const (
+	testValidCookie    = "SAPISID=test_cookie_value; HSID=foo"
+	testValidCookieAlt = "SAPISID=new_cookie_value; HSID=foo"
+)
+
 func TestNewClient_WithEmptyCookie(t *testing.T) {
 	logger := logrus.New()
 	logger.SetLevel(logrus.ErrorLevel)
@@ -30,7 +35,7 @@ func TestNewClient_WithValidCookie(t *testing.T) {
 	logger.SetLevel(logrus.ErrorLevel)
 
 	cfg := config.YouTubeMusicConfig{
-		Cookie:        "test_cookie_value",
+		Cookie:        testValidCookie,
 		TokenFilePath: filepath.Join(t.TempDir(), "test_token.json"),
 	}
 
@@ -40,12 +45,27 @@ func TestNewClient_WithValidCookie(t *testing.T) {
 	assert.True(t, client.IsAuthenticated())
 }
 
+func TestNewClient_WithCookieMissingSAPISID(t *testing.T) {
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+
+	cfg := config.YouTubeMusicConfig{
+		Cookie:        "CONSENT=YES+1; HSID=foo",
+		TokenFilePath: filepath.Join(t.TempDir(), "test_token.json"),
+	}
+
+	client, err := NewClient(cfg, logger)
+	assert.Error(t, err)
+	assert.Nil(t, client)
+	assert.Contains(t, err.Error(), "SAPISID")
+}
+
 func TestClient_IsAuthenticated(t *testing.T) {
 	logger := logrus.New()
 	logger.SetLevel(logrus.ErrorLevel)
 
 	cfg := config.YouTubeMusicConfig{
-		Cookie:        "test_cookie_value",
+		Cookie:        testValidCookie,
 		TokenFilePath: filepath.Join(t.TempDir(), "test_token.json"),
 	}
 
@@ -65,7 +85,7 @@ func TestClient_GetAuthURL(t *testing.T) {
 	logger.SetLevel(logrus.ErrorLevel)
 
 	cfg := config.YouTubeMusicConfig{
-		Cookie:        "test_cookie_value",
+		Cookie:        testValidCookie,
 		TokenFilePath: filepath.Join(t.TempDir(), "test_token.json"),
 	}
 
@@ -79,7 +99,7 @@ func TestClient_CompleteAuth(t *testing.T) {
 	logger.SetLevel(logrus.ErrorLevel)
 
 	cfg := config.YouTubeMusicConfig{
-		Cookie:        "test_cookie_value",
+		Cookie:        testValidCookie,
 		TokenFilePath: filepath.Join(t.TempDir(), "test_token.json"),
 	}
 
@@ -93,7 +113,7 @@ func TestClient_CompleteAuth(t *testing.T) {
 	assert.False(t, client.IsAuthenticated())
 
 	// Complete auth with a new cookie
-	err = client.CompleteAuth("new_cookie_value", "")
+	err = client.CompleteAuth(testValidCookieAlt, "")
 	assert.NoError(t, err)
 	assert.True(t, client.IsAuthenticated())
 }
@@ -103,7 +123,7 @@ func TestClient_CompleteAuth_EmptyCookie(t *testing.T) {
 	logger.SetLevel(logrus.ErrorLevel)
 
 	cfg := config.YouTubeMusicConfig{
-		Cookie:        "test_cookie_value",
+		Cookie:        testValidCookie,
 		TokenFilePath: filepath.Join(t.TempDir(), "test_token.json"),
 	}
 
@@ -121,7 +141,7 @@ func TestClient_SearchArtist_NotAuthenticated(t *testing.T) {
 	logger.SetLevel(logrus.ErrorLevel)
 
 	cfg := config.YouTubeMusicConfig{
-		Cookie:        "test_cookie_value",
+		Cookie:        testValidCookie,
 		TokenFilePath: filepath.Join(t.TempDir(), "test_token.json"),
 	}
 
@@ -144,7 +164,7 @@ func TestClient_GetArtistTopTracks_NotAuthenticated(t *testing.T) {
 	logger.SetLevel(logrus.ErrorLevel)
 
 	cfg := config.YouTubeMusicConfig{
-		Cookie:        "test_cookie_value",
+		Cookie:        testValidCookie,
 		TokenFilePath: filepath.Join(t.TempDir(), "test_token.json"),
 	}
 
@@ -166,7 +186,7 @@ func TestClient_GetUserPlaylists_NotAuthenticated(t *testing.T) {
 	logger.SetLevel(logrus.ErrorLevel)
 
 	cfg := config.YouTubeMusicConfig{
-		Cookie:        "test_cookie_value",
+		Cookie:        testValidCookie,
 		TokenFilePath: filepath.Join(t.TempDir(), "test_token.json"),
 	}
 
@@ -188,7 +208,7 @@ func TestClient_AddTracksToPlaylist_NotAuthenticated(t *testing.T) {
 	logger.SetLevel(logrus.ErrorLevel)
 
 	cfg := config.YouTubeMusicConfig{
-		Cookie:        "test_cookie_value",
+		Cookie:        testValidCookie,
 		TokenFilePath: filepath.Join(t.TempDir(), "test_token.json"),
 	}
 
@@ -209,7 +229,7 @@ func TestClient_CheckTracksInPlaylist_NotAuthenticated(t *testing.T) {
 	logger.SetLevel(logrus.ErrorLevel)
 
 	cfg := config.YouTubeMusicConfig{
-		Cookie:        "test_cookie_value",
+		Cookie:        testValidCookie,
 		TokenFilePath: filepath.Join(t.TempDir(), "test_token.json"),
 	}
 
@@ -232,7 +252,7 @@ func TestClient_CheckTracksInPlaylist_EmptyTrackIDs(t *testing.T) {
 	logger.SetLevel(logrus.ErrorLevel)
 
 	cfg := config.YouTubeMusicConfig{
-		Cookie:        "test_cookie_value",
+		Cookie:        testValidCookie,
 		TokenFilePath: filepath.Join(t.TempDir(), "test_token.json"),
 	}
 
@@ -254,7 +274,7 @@ func TestClient_CreatePlaylist_NotAuthenticated(t *testing.T) {
 	logger.SetLevel(logrus.ErrorLevel)
 
 	cfg := config.YouTubeMusicConfig{
-		Cookie:        "test_cookie_value",
+		Cookie:        testValidCookie,
 		TokenFilePath: filepath.Join(t.TempDir(), "test_token.json"),
 	}
 
@@ -276,7 +296,7 @@ func TestClient_AddTracksToPlaylist_EmptyTrackIDs(t *testing.T) {
 	logger.SetLevel(logrus.ErrorLevel)
 
 	cfg := config.YouTubeMusicConfig{
-		Cookie:        "test_cookie_value",
+		Cookie:        testValidCookie,
 		TokenFilePath: filepath.Join(t.TempDir(), "test_token.json"),
 	}
 
@@ -302,7 +322,7 @@ func TestClient_ConcurrentIsAuthenticated(t *testing.T) {
 	logger.SetLevel(logrus.ErrorLevel)
 
 	cfg := config.YouTubeMusicConfig{
-		Cookie:        "test_cookie_value",
+		Cookie:        testValidCookie,
 		TokenFilePath: filepath.Join(t.TempDir(), "test_token.json"),
 	}
 
