@@ -58,7 +58,7 @@ IMAGE_TAG = latest
 COSIGN_IDENTITY_REGEXP := '^https://github.com/toozej/monogo/.github/workflows/(release|weekly-docker-refresh).yaml@refs/(tags/.*|heads/main)$$'
 COSIGN_OIDC_ISSUER := 'https://token.actions.githubusercontent.com'
 
-.PHONY: all list-apps import migrate-internal-package app-check common-generate app-generate generate generate-all app-templates-check templates-check vet test build release verify verify-docker verify-docker-all-registries run up down docker-vet docker-test docker-build distroless-build distroless-run install local local-all local-update-deps local-vet local-vendor local-test local-cover local-build local-run local-kill local-iterate release-test local-install docker-login pre-commit-install pre-commit-run pre-commit pre-reqs licenses licenses-all update-golang-version upload-secrets-to-gh upload-secrets-envfile-to-1pass docs diagrams mutation-test test-changed watch-test profile-cpu profile-mem profile-all benchmark demo clean clean-all help
+.PHONY: all list-apps import new-app migrate-internal-package app-check common-generate app-generate generate generate-all app-templates-check templates-check vet test build release verify verify-docker verify-docker-all-registries run up down docker-vet docker-test docker-build distroless-build distroless-run install local local-all local-update-deps local-vet local-vendor local-test local-cover local-build local-run local-kill local-iterate release-test local-install docker-login pre-commit-install pre-commit-run pre-commit pre-reqs licenses licenses-all update-golang-version upload-secrets-to-gh upload-secrets-envfile-to-1pass docs diagrams mutation-test test-changed watch-test profile-cpu profile-mem profile-all benchmark demo clean clean-all help
 .PHONY: common-generate-no-prereqs app-generate-no-prereqs app-templates-check-no-generate docker-vet-no-generate docker-test-no-generate docker-build-no-generate release-test-no-generate pre-commit-install-no-prereqs pre-commit-run-no-generate
 
 all: generate-all ## Run default workflow for every app using Docker where available
@@ -76,6 +76,9 @@ list-apps: ## List monorepo apps
 
 import: ## Import a Go service repo into apps/, preserving history and release metadata; usage: make import APP=[vcs-host/]owner/repo
 	$(CURDIR)/scripts/import-app.sh "$(APP)"
+
+new-app: ## Scaffold a new minimal app under apps/<name>/ and generate its build configs; usage: make new-app APP=<app-name>
+	$(CURDIR)/scripts/create-new-app.sh "$(APP)"
 
 migrate-internal-package: ## Move apps/APP/internal/PACKAGE to pkg/PACKAGE and verify affected apps; usage: make migrate-internal-package APP=monogo PACKAGE=starter
 	$(CURDIR)/scripts/migrate-internal-package.sh "$(APP)" "$(PACKAGE)"
