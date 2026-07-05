@@ -6,6 +6,8 @@
 ![Docker Pulls](https://img.shields.io/docker/pulls/toozej/go-find-liquor)
 ![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/toozej/go-find-liquor/total)
 
+<img src="img/avatar.png" alt="go-find-liquor avatar" style="background-color: #FFFFFF;" />
+
 Oregon Liquor Search Notification Service using [the OLCC Liquor Search website](http://www.oregonliquorsearch.com/), Go, and the [nikoksr/notify library](https://github.com/nikoksr/notify).
 
 ## Features

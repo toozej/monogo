@@ -13,6 +13,11 @@ episodes.
 [![Docker Pulls](https://img.shields.io/docker/pulls/toozej/podgrab)](https://hub.docker.com/r/toozej/podgrab)
 [![Go Version](https://img.shields.io/github/go-mod/go-version/toozej/podgrab)](go.mod)
 
+<img src="img/avatar.png" alt="podgrab avatar" style="background-color: #FFFFFF;" />
+
+Self-hosted podcast manager for automatically downloading and managing podcast
+episodes.
+
 ## Features
 
 - 🎙️ **Automatic Downloads**: Subscribe to podcasts and automatically download

@@ -6,6 +6,8 @@
 ![Docker Pulls](https://img.shields.io/docker/pulls/toozej/url2anki)
 ![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/toozej/url2anki/total)
 
+<img src="img/avatar.png" alt="url2anki avatar" style="background-color: #FFFFFF;" />
+
 Generate Anki flashcards from a URL
 
 ## usage

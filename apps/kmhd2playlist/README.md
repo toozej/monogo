@@ -6,13 +6,15 @@
 ![Docker Pulls](https://img.shields.io/docker/pulls/toozej/kmhd2playlist)
 ![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/toozej/kmhd2playlist/total)
 
-> 🎷 Automatically sync songs from KMHD jazz radio to your Spotify playlists
+<img src="img/avatar.png" alt="kmhd2playlist avatar" style="background-color: #FFFFFF;" />
 
-**kmhd2playlist** is a Go application that fetches the KMHD jazz radio playlist via JSON API and automatically adds newly played songs to your Spotify playlist. It uses fuzzy matching to find the best artist matches and can run continuously to keep your playlist up-to-date with the latest jazz discoveries.
+> 🎷 Automatically sync songs from KMHD jazz radio to your Spotify or YouTube Music playlists
+
+**kmhd2playlist** is a Go application that fetches the KMHD jazz radio playlist via JSON API and automatically adds newly played songs to your Spotify or YouTube Music playlist. It uses fuzzy matching to find the best artist matches and can run continuously to keep your playlist up-to-date with the latest jazz discoveries.
 
 ## ✨ Features
 
-- 🎯 **Smart Matching**: Uses fuzzy search to find the best artist matches on Spotify
+- 🎯 **Smart Matching**: Uses fuzzy search to find the best artist matches on Spotify or YouTube Music
 - 🔄 **Continuous Sync**: Monitor KMHD in real-time with configurable intervals
 - 🎵 **Duplicate Prevention**: Automatically skips songs already in your playlist
 - 🔐 **OAuth Integration**: Secure Spotify authentication with local callback server
@@ -45,47 +47,88 @@ make up
 ## ⚙️ Configuration
 
 1. **Copy the sample environment file:**
-   ```bash
-   cp .env.sample .env
-   ```
+    ```bash
+    cp .env.sample .env
+    ```
 
-2. **Configure your Spotify app:**
-   - Visit [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
-   - Create a new app and get your Client ID and Secret
-   - Set redirect URI to `http://localhost:8080/callback`
+2. **Choose your music provider:**
+
+    ### Spotify Setup (default)
+    - Visit [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
+    - Create a new app and get your Client ID and Secret
+    - Set redirect URI to `http://localhost:8080/callback`
+
+    ### YouTube Music Setup
+    - Log into YouTube Music in your browser
+    - Export your browser cookies and extract the value of the Cookie request header for requests to `music.youtube.com`
+    - Set that full Cookie header value as the `YOUTUBEMUSIC_COOKIE` environment variable (this should be the raw cookie string — do NOT point this variable to a file path)
+
+    **Getting your YouTube Music cookie:**
+
+    1. Open [music.youtube.com](https://music.youtube.com) and ensure you're logged in
+    2. Open your browser's developer tools:
+       - **Firefox**: `Ctrl+Shift+I` / `Cmd+Opt+I` → Network tab
+       - **Chrome**: `Ctrl+Shift+I` / `Cmd+Opt+I` → Network tab
+       - **Safari**: `Cmd+Opt+I` → Network tab
+    3. Refresh the page and click on a `music.youtube.com` request
+    4. In the **Request Headers**, find the `Cookie` header (note the capitalisation shown in the request headers)
+    5. Copy the entire Cookie header value (one or more `name=value` pairs separated by `; `) and paste it into your `.env` file as `YOUTUBEMUSIC_COOKIE`
+
+    Example (placeholder — replace with your actual cookie header):
+
+    ```bash
+    YOUTUBEMUSIC_COOKIE='SID=xxxxxxxxxx; HSID=xxxxxxxxxx; SSID=xxxxxxxxxx; __Secure-3PAPISID=xxxxxxxxxx'
+    ```
+
+    Notes:
+    - Wrap the value in single quotes in your `.env` file to avoid shell expansion or parsing issues when the value contains spaces or semicolons.
+    - Ensure the cookie is a single-line string with no newlines or leading/trailing whitespace.
+    - Include either `SAPISID` or `__Secure-3PAPISID` in the cookie; YouTube Music requires one of these values for authenticated requests.
+    - The application sends this value directly as the HTTP `Cookie` header when talking to YouTube Music.
+    - The app also persists auth state to `YOUTUBEMUSIC_TOKEN_FILE_PATH` (a JSON file containing `{"cookie": "..."`}), so once a valid cookie has been saved you can rely on the token file for subsequent runs.
+
+    Alternatively, you can use a browser extension like "EditThisCookie" to view and export cookies from the `youtube.com` or `music.youtube.com` domain.
 
 3. **Update `.env` with your credentials:**
-   ```bash
-   # Required Spotify Configuration
-   SPOTIFY_CLIENT_ID=your_client_id_here
-   SPOTIFY_CLIENT_SECRET=your_client_secret_here
-   SPOTIFY_REDIRECT_URI=http://localhost:8080/callback
-   SPOTIFY_PLAYLIST_NAME_PREFIX=KMHD
+    ```bash
+    # Music Provider Selection (spotify or youtube)
+    MUSIC_CLIENT=spotify
 
-   # Optional KMHD Configuration (uses defaults if not set)
-   KMHD_API_ENDPOINT=https://www.kmhd.org/pf/api/v3/content/fetch/playlist
-   KMHD_HTTP_TIMEOUT=30
-   ```
+    # Required Spotify Configuration
+    SPOTIFY_CLIENT_ID=your_client_id_here
+    SPOTIFY_CLIENT_SECRET=your_client_secret_here
+    SPOTIFY_REDIRECT_URI=http://localhost:8080/callback
+    SPOTIFY_PLAYLIST_NAME_PREFIX=KMHD
 
-   **Monthly Playlist Feature**: The app creates monthly playlists automatically based on your prefix configuration:
-   - Set `SPOTIFY_PLAYLIST_NAME_PREFIX=KMHD` to create playlists like "KMHD-2025-10", "KMHD-2025-11", etc.
-   - Each month gets its own playlist to keep them manageable (recommended)
-   - Leave the prefix empty to use your first existing playlist (legacy behavior)
-   
-   **Important: Manual Folder Organization Required**
-   - **Spotify's API limitation**: Folders cannot be created or managed programmatically
-   - **What the app does**: Creates playlists with consistent naming and provides organization instructions
-   - **What you must do**: Manually organize playlists into folders using Spotify Desktop
-   - **Recommendation**: Create a folder named after your prefix (e.g., "KMHD") and drag monthly playlists into it
+    # Required YouTube Music Configuration (if MUSIC_CLIENT=youtube)
+    # Set the full `Cookie` request header value from music.youtube.com (one line)
+    YOUTUBEMUSIC_COOKIE='SID=xxxxxxxxxx; HSID=xxxxxxxxxx; SSID=xxxxxxxxxx; __Secure-3PAPISID=xxxxxxxxxx'
+    YOUTUBEMUSIC_PLAYLIST_NAME_PREFIX=KMHD
+
+    # Optional KMHD Configuration (uses defaults if not set)
+    KMHD_API_ENDPOINT=https://www.kmhd.org/pf/api/v3/content/fetch/playlist
+    KMHD_HTTP_TIMEOUT=30
+    ```
+
+    **Monthly Playlist Feature**: The app creates monthly playlists automatically based on your prefix configuration:
+    - Set `SPOTIFY_PLAYLIST_NAME_PREFIX=KMHD` or `YOUTUBEMUSIC_PLAYLIST_NAME_PREFIX=KMHD` to create playlists like "KMHD-2025-10", "KMHD-2025-11", etc.
+    - Each month gets its own playlist to keep them manageable (recommended)
+    - Leave the prefix empty to use your first existing playlist (legacy behavior)
+    
+    **Important: Manual Folder Organization Required**
+    - **Spotify's API limitation**: Folders cannot be created or managed programmatically
+    - **What the app does**: Creates playlists with consistent naming and provides organization instructions
+    - **What you must do**: Manually organize playlists into folders using Spotify Desktop
+    - **Recommendation**: Create a folder named after your prefix (e.g., "KMHD") and drag monthly playlists into it
 
 ## 🎮 Usage
 
 ### Understanding the Workflow
 
-1. **First Run**: App creates a new monthly playlist (e.g., "KMHD-2025-10")
+1. **First Run**: App creates a new monthly playlist (e.g., "KMHD-2025-10") on your selected provider
 2. **Playlist Population**: Songs from KMHD are automatically added to the current month's playlist
 3. **Monthly Rotation**: Each month, a new playlist is created automatically
-4. **Manual Organization**: You organize playlists into folders using Spotify Desktop (optional but recommended)
+4. **Manual Organization**: You organize playlists into folders using Spotify Desktop (optional but recommended, Spotify only)
 
 ### Sync Commands
 
@@ -149,16 +192,18 @@ docker run --rm --env-file .env -v ./data:/app/data toozej/kmhd2playlist:latest 
 
 ### Token Persistence in Docker
 
-When running in Docker, the Spotify authentication token needs to be persisted between container restarts. The application supports configuring the token file path via the `SPOTIFY_TOKEN_FILE_PATH` environment variable:
+When running in Docker, the music provider authentication token needs to be persisted between container restarts. The application supports configuring the token file path via environment variables:
 
 ```bash
 # For Docker Compose (already configured in docker-compose.yml)
 SPOTIFY_TOKEN_FILE_PATH=/app/data/spotify_token.json
+YOUTUBEMUSIC_TOKEN_FILE_PATH=/app/data/youtubemusic_token.json
 
 # For standalone Docker runs
 docker run --rm \
   --env-file .env \
   -e SPOTIFY_TOKEN_FILE_PATH=/app/data/spotify_token.json \
+  -e YOUTUBEMUSIC_TOKEN_FILE_PATH=/app/data/youtubemusic_token.json \
   -v ./data:/app/data \
   toozej/kmhd2playlist:latest sync --continuous
 ```
@@ -171,11 +216,15 @@ This ensures your authentication persists between container restarts and you won
 
 | Variable | Description | Default |
 |----------|-------------|---------|
+| `MUSIC_CLIENT` | Music provider to use (`spotify` or `youtube`) | `spotify` |
 | `SPOTIFY_CLIENT_ID` | Spotify app client ID | Required |
 | `SPOTIFY_CLIENT_SECRET` | Spotify app client secret | Required |
 | `SPOTIFY_REDIRECT_URI` | OAuth redirect URI | `http://localhost:8080/callback` |
 | `SPOTIFY_PLAYLIST_NAME_PREFIX` | Prefix for monthly playlists (creates "{prefix}-YYYY-MM" format) | Uses first existing playlist |
 | `SPOTIFY_TOKEN_FILE_PATH` | Path to store Spotify auth token | `~/.config/kmhd2playlist/spotify_token.json` |
+| `YOUTUBEMUSIC_COOKIE` | YouTube Music `Cookie` request header value (full cookie string; not a file path). Wrap in single quotes in `.env` if needed. | Required for youtube provider |
+| `YOUTUBEMUSIC_PLAYLIST_NAME_PREFIX` | Prefix for monthly playlists (creates "{prefix}-YYYY-MM" format) | Uses first existing playlist |
+| `YOUTUBEMUSIC_TOKEN_FILE_PATH` | Path to store YouTube Music auth token | `~/.config/kmhd2playlist/youtubemusic_token.json` |
 | `KMHD_API_ENDPOINT` | KMHD JSON API endpoint | `https://www.kmhd.org/pf/api/v3/content/fetch/playlist` |
 | `KMHD_HTTP_TIMEOUT` | API request timeout (seconds) | `30` |
 | `SERVER_HOST` | OAuth callback host | `127.0.0.1` |
@@ -242,80 +291,15 @@ The application provides detailed logging and sync summaries:
 
 The app provides clear instructions and reminders, but folder organization remains a manual process due to Spotify's API restrictions.
 
-## 🏗️ Development
-
-### Prerequisites
-
-- Go 1.25+
-- Make
-- Docker (optional)
-
-### Setup Development Environment
-
-```bash
-# Install development dependencies
-make pre-reqs
-
-# Set up pre-commit hooks
-make pre-commit-install
-
-# Run the full development workflow
-make local
-```
-
-### Project Structure
-
-```
-├── cmd/kmhd2playlist/     # CLI application entry point
-├── internal/
-│   ├── api/              # KMHD JSON API integration
-│   ├── spotify/          # Spotify API integration  
-│   ├── search/           # Fuzzy artist matching
-│   └── types/            # Shared data structures
-├── pkg/
-│   ├── config/           # Configuration management
-│   └── version/          # Version information
-└── scripts/              # Build and deployment scripts
-```
-
-### Testing
-
-```bash
-# Run all tests
-make local-test
-
-# Run tests with coverage
-make local-cover
-
-# Run mutation tests
-make mutation-test
-
-# Watch for changes and test
-make watch-test
-```
-
-### Development Workflow
-
-
-```bash
-# Set up development environment
-make pre-reqs
-
-# Make changes and test continuously
-make local-iterate
-
-# Run full test suite before committing
-make local-test local-cover pre-commit
-```
 
 ## 🙏 Acknowledgments
 
 - 🎷 **KMHD Jazz Radio** for providing excellent jazz programming
 - 🎵 **Spotify** for their comprehensive music API
+- 🎵 **YouTube Music** for their music platform
 - 🧠 [**KMHD Fetcher**](https://github.com/mccutchen/kmhd-playlist-fetcher/) for alerting me to the available KMHD radio playlist API
 - 🛠️ **Go Community** for excellent tooling and libraries
 
 ---
 
 **Made with ❤️ for jazz lovers everywhere** 🎺
-

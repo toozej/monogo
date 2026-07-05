@@ -6,6 +6,8 @@
 ![Docker Pulls](https://img.shields.io/docker/pulls/toozej/trails-completionist)
 ![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/toozej/trails-completionist/total)
 
+<img src="img/avatar.png" alt="trails-completionist avatar" style="background-color: #FFFFFF;" />
+
 A simple Golang application to parse a list of trails, then display that in a searchable HTML table for ease of tracking completion of trails. Optionally convert a directory of TCX trail files to GPX for ease of parsing.
 
 ## 🚀 Features

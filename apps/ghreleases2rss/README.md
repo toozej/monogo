@@ -6,6 +6,8 @@
 ![Docker Pulls](https://img.shields.io/docker/pulls/toozej/ghreleases2rss)
 ![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/toozej/ghreleases2rss/total)
 
+<img src="img/avatar.png" alt="ghreleases2rss avatar" style="background-color: #FFFFFF;" />
+
 Subscribe to GitHub releases feeds from RSS reader
 
 ## usage

@@ -6,6 +6,8 @@
 ![Docker Pulls](https://img.shields.io/docker/pulls/toozej/rssffs)
 ![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/toozej/RSSFFS/total)
 
+<img src="img/avatar.png" alt="RSSFFS avatar" style="background-color: #FFFFFF;" />
+
 RSS Feed Finder [and] Subscriber finds RSS feeds on the user-inputted URL, and subscribes to them in your [Miniflux RSS feed reader](https://miniflux.app) instance.
 
 RSSFFS provides both a command-line interface and a web-based interface for discovering and subscribing to RSS feeds.

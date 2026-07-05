@@ -6,6 +6,8 @@
 ![Docker Pulls](https://img.shields.io/docker/pulls/toozej/rss2socials)
 ![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/toozej/rss2socials/total)
 
+<img src="img/avatar.png" alt="rss2socials avatar" style="background-color: #FFFFFF;" />
+
 rss2socials is a CLI tool that monitors an RSS feed for new posts and automatically posts updates to specified social platforms (Mastodon, Bluesky, Threads). This application is designed for easy configuration and seamless integration.
 
 ## Features

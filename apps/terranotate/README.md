@@ -6,6 +6,8 @@
 ![Docker Pulls](https://img.shields.io/docker/pulls/toozej/terranotate)
 ![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/toozej/terranotate/total)
 
+<img src="img/avatar.png" alt="terranotate avatar" style="background-color: #FFFFFF;" />
+
 **Terranotate** is a powerful Go-based tool for parsing, validating, and auto-fixing structured comments in Terraform code. It helps teams enforce documentation standards, compliance requirements, and metadata consistency across their infrastructure as code.
 
 ## Features

@@ -6,6 +6,8 @@
 ![Docker Pulls](https://img.shields.io/docker/pulls/toozej/photos2map)
 ![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/toozej/photos2map/total)
 
+<img src="img/avatar.png" alt="photos2map avatar" style="background-color: #FFFFFF;" />
+
 Generate a GPX file or map on a HTML page from an input directory of image files containing GPS coordinates in their EXIF metadata
 
 ## Usage
