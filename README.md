@@ -1,4 +1,4 @@
-# monogo
+# golang-starter
 
 ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/toozej/monogo)
 [![Go Report Card](https://goreportcard.com/badge/github.com/toozej/monogo)](https://goreportcard.com/report/github.com/toozej/monogo)
@@ -8,7 +8,7 @@
 ![Docker Pulls](https://img.shields.io/docker/pulls/toozej/monogo)
 ![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/toozej/monogo/total)
 
-`monogo` is a Go monorepo based on the `golang-starter` template. It keeps shared repository concerns at the root while each app lives under `apps/<app>`.
+`golang-starter` is the starter app in this Go monorepo. It keeps shared repository concerns at the root while each app lives under `apps/<app>`.
 
 The root `go.mod`, `go.sum`, `.pre-commit-config.yaml`, `.devcontainer/`, workflows, scripts, Makefile, and `pkg/` packages are shared. App-local Docker and GoReleaser files are generated from `templates/app`; app-local Air and Compose files plus root shared files such as `.env.sample` are generated from `templates/common`.
 
@@ -17,12 +17,12 @@ The root `go.mod`, `go.sum`, `.pre-commit-config.yaml`, `.devcontainer/`, workfl
 ```bash
 make list-apps
 make generate-all
-make test APP=monogo
-make local-build APP=monogo
-make release-test APP=monogo
+make test APP=golang-starter
+make local-build APP=golang-starter
+make release-test APP=golang-starter
 ```
 
-`APP` defaults to `monogo`, so `make test` and `make local-build` work for the initial app.
+`APP` defaults to `golang-starter`, so `make test` and `make local-build` work for the starter app.
 
 ## Generated Configs
 
@@ -46,13 +46,13 @@ See [docs/app-configuration.md](docs/app-configuration.md) for the full `app.yam
 
 ## Create a New App
 
-Run the scaffold script to clone the `monogo` starter into a new app directory and wire it into CI:
+Run the scaffold script to clone the `golang-starter` app into a new app directory and wire it into CI:
 
 ```bash
 make new-app APP=mytool
 ```
 
-The script (`scripts/create-new-app.py`) copies `apps/monogo` to `apps/mytool`, renames command packages, rewrites imports, updates `app.yaml`, amends the CI app matrix, and appends the Dependabot Docker entry. It finishes by running `go mod tidy` and `make app-generate APP=mytool` so the generated configs are committed.
+The script (`scripts/create-new-app.py`) copies `apps/golang-starter` to `apps/mytool`, renames command packages, rewrites imports, updates `app.yaml`, amends the CI app matrix, and appends the Dependabot Docker entry. It finishes by running `go mod tidy` and `make app-generate APP=mytool` so the generated configs are committed.
 
 After scaffolding:
 
@@ -103,7 +103,7 @@ make import APP=toozej/go-listen IMPORT_SKIP_VERIFY=1
 make import APP=github.example.com/owner/repo
 ```
 
-`make import` requires a clean, committed monogo baseline before it runs. GitHub release records are not part of Git history, so the target imports release metadata with `gh`; use `IMPORT_RELEASES=assets` to download release assets too.
+`make import` requires a clean, committed starter-app baseline before it runs. GitHub release records are not part of Git history, so the target imports release metadata with `gh`; use `IMPORT_RELEASES=assets` to download release assets too.
 
 ## Release Model
 

@@ -10,14 +10,14 @@ import (
 )
 
 func TestRootCmdStructure(t *testing.T) {
-	if rootCmd.Use != "monogo" {
-		t.Errorf("expected Use='monogo', got '%s'", rootCmd.Use)
+	if rootCmd.Use != "golang-starter" {
+		t.Errorf("expected Use='golang-starter', got '%s'", rootCmd.Use)
 	}
-	if rootCmd.Short != "monogo starter template" {
-		t.Errorf("expected Short='monogo starter template', got '%s'", rootCmd.Short)
+	if rootCmd.Short != "golang-starter starter template" {
+		t.Errorf("expected Short='golang-starter starter template', got '%s'", rootCmd.Short)
 	}
-	if rootCmd.Long != "Monogo starter template using cobra, logrus, dotenv and env modules" {
-		t.Errorf("expected Long='Monogo starter template using cobra, logrus, dotenv and env modules', got '%s'", rootCmd.Long)
+	if rootCmd.Long != "Golang starter template using cobra, logrus, dotenv and env modules" {
+		t.Errorf("expected Long='Golang starter template using cobra, logrus, dotenv and env modules', got '%s'", rootCmd.Long)
 	}
 	if rootCmd.PersistentPreRun == nil {
 		t.Error("expected PersistentPreRun to be set, got nil")

@@ -2,8 +2,8 @@
 FROM gcr.io/distroless/static-debian13:nonroot
 # Copy our static executable.
 ARG TARGETPLATFORM
-COPY $TARGETPLATFORM/monogo /go/bin/monogo
+COPY $TARGETPLATFORM/golang-starter /go/bin/golang-starter
 # Expose port for publishing as web service
 # EXPOSE 8081
 # Run the binary.
-ENTRYPOINT ["/go/bin/monogo"]
+ENTRYPOINT ["/go/bin/golang-starter"]

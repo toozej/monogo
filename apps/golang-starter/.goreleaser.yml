@@ -1,8 +1,8 @@
 ---
 version: 2
 
-project_name: monogo
-dist: dist/monogo
+project_name: golang-starter
+dist: dist/golang-starter
 
 env:
   - GO111MODULE=on
@@ -14,14 +14,14 @@ env_files:
 before:
   hooks:
     - go mod tidy
-    - ./scripts/completions.sh monogo
-    - ./scripts/manpages.sh monogo
+    - ./scripts/completions.sh golang-starter
+    - ./scripts/manpages.sh golang-starter
 
 snapshot:
   version_template: '{{ incpatch .Version }}-next'
 
 builds:
-  - id: monogo
+  - id: golang-starter
     env:
       - CGO_ENABLED=0
     goos:
@@ -49,8 +49,8 @@ builds:
         -X github.com/toozej/monogo/pkg/version.Branch={{.Branch}}
         -X github.com/toozej/monogo/pkg/version.BuiltAt={{.CommitDate}}
         -X github.com/toozej/monogo/pkg/version.Builder=goreleaser
-    main: ./apps/monogo
-    binary: monogo
+    main: ./apps/golang-starter
+    binary: golang-starter
 
 universal_binaries:
   - replace: false
@@ -95,22 +95,22 @@ changelog:
       order: 9999
 
 dockers_v2:
-  - id: monogo
+  - id: golang-starter
     images:
-      - 'toozej/monogo'
-      - 'ghcr.io/toozej/monogo'
-      - 'quay.io/toozej/monogo'
+      - 'toozej/golang-starter'
+      - 'ghcr.io/toozej/golang-starter'
+      - 'quay.io/toozej/golang-starter'
     tags:
       - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}v{{ envOrDefault "MONOGO_APP_VERSION" .Version }}{{ end }}'
       - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ envOrDefault "MONOGO_APP_VERSION" .Version }}{{ end }}'
       - "latest"
-    dockerfile: apps/monogo/Dockerfile.goreleaser
+    dockerfile: apps/golang-starter/Dockerfile.goreleaser
     labels:
       "io.artifacthub.package.readme-url": "https://github.com/toozej/monogo/raw/main/README.md"
       "io.artifacthub.package.maintainers": "[{\"name\":\"toozej\"}]"
       "io.artifacthub.package.license": "GPLv3"
       "org.opencontainers.image.description": >-
-        Monogo starter app
+        Golang starter app
       "org.opencontainers.image.created": "{{.Date}}"
       "org.opencontainers.image.name": "{{.ProjectName}}"
       "org.opencontainers.image.revision": "{{.FullCommit}}"
@@ -125,7 +125,7 @@ dockers_v2:
       "index,manifest:org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
       "index,manifest:org.opencontainers.image.created": "{{.Date}}"
       "index,manifest:org.opencontainers.image.description": >-
-        Monogo starter app
+        Golang starter app
       "index,manifest:org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
       "index,manifest:org.opencontainers.image.licenses": "GPL-3.0-only"
       "index,manifest:org.opencontainers.image.revision": "{{.FullCommit}}"
@@ -135,22 +135,22 @@ dockers_v2:
       "index,manifest:org.opencontainers.image.version": '{{ envOrDefault "MONOGO_APP_VERSION" .Version }}'
     extra_files:
       - scripts/goreleaser_entrypoint.sh
-  - id: monogo-distroless
+  - id: golang-starter-distroless
     images:
-      - 'toozej/monogo'
-      - 'ghcr.io/toozej/monogo'
-      - 'quay.io/toozej/monogo'
+      - 'toozej/golang-starter'
+      - 'ghcr.io/toozej/golang-starter'
+      - 'quay.io/toozej/golang-starter'
     tags:
       - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}v{{ envOrDefault "MONOGO_APP_VERSION" .Version }}-distroless{{ end }}'
       - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ envOrDefault "MONOGO_APP_VERSION" .Version }}-distroless{{ end }}'
       - "distroless"
-    dockerfile: apps/monogo/Dockerfile.goreleaser.distroless
+    dockerfile: apps/golang-starter/Dockerfile.goreleaser.distroless
     labels:
       "io.artifacthub.package.readme-url": "https://github.com/toozej/monogo/raw/main/README.md"
       "io.artifacthub.package.maintainers": "[{\"name\":\"toozej\"}]"
       "io.artifacthub.package.license": "GPLv3"
       "org.opencontainers.image.description": >-
-        Monogo starter app
+        Golang starter app
       "org.opencontainers.image.created": "{{.Date}}"
       "org.opencontainers.image.name": "{{.ProjectName}}"
       "org.opencontainers.image.revision": "{{.FullCommit}}"
@@ -165,7 +165,7 @@ dockers_v2:
       "index,manifest:org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
       "index,manifest:org.opencontainers.image.created": "{{.Date}}"
       "index,manifest:org.opencontainers.image.description": >-
-        Monogo starter app
+        Golang starter app
       "index,manifest:org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
       "index,manifest:org.opencontainers.image.licenses": "GPL-3.0-only"
       "index,manifest:org.opencontainers.image.revision": "{{.FullCommit}}"
@@ -189,41 +189,41 @@ archives:
     files:
       - README.md
       - LICENSE
-      - completions/monogo.bash
-      - completions/monogo.fish
-      - completions/monogo.zsh
-      - manpages/monogo.1.gz
+      - completions/golang-starter.bash
+      - completions/golang-starter.fish
+      - completions/golang-starter.zsh
+      - manpages/golang-starter.1.gz
 
 nfpms:
   - file_name_template: '{{ .ConventionalFileName }}'
     id: packages
     homepage: https://github.com/toozej/monogo
     description: |-
-      Monogo starter app
+      Golang starter app
     maintainer: toozej
     license: GPLv3
     vendor: monogo
     bindir: /usr/bin
     section: utils
     contents:
-      - src: ./completions/monogo.bash
-        dst: /usr/share/bash-completion/completions/monogo
+      - src: ./completions/golang-starter.bash
+        dst: /usr/share/bash-completion/completions/golang-starter
         file_info:
           mode: 0644
-      - src: ./completions/monogo.fish
-        dst: /usr/share/fish/completions/monogo.fish
+      - src: ./completions/golang-starter.fish
+        dst: /usr/share/fish/completions/golang-starter.fish
         file_info:
           mode: 0644
-      - src: ./completions/monogo.zsh
-        dst: /usr/share/zsh/vendor-completions/_monogo
+      - src: ./completions/golang-starter.zsh
+        dst: /usr/share/zsh/vendor-completions/_golang-starter
         file_info:
           mode: 0644
-      - src: ./manpages/monogo.1.gz
-        dst: /usr/share/man/man1/monogo.1.gz
+      - src: ./manpages/golang-starter.1.gz
+        dst: /usr/share/man/man1/golang-starter.1.gz
         file_info:
           mode: 0644
       - src: ./LICENSE
-        dst: /usr/share/doc/monogo/copyright
+        dst: /usr/share/doc/golang-starter/copyright
         file_info:
           mode: 0644
     formats:
@@ -240,21 +240,21 @@ nfpms:
         - changelog-file-missing-in-native-package
 
 homebrew_casks:
-  - name: monogo
+  - name: golang-starter
     homepage: https://github.com/toozej/monogo
     description: >-
-      Monogo starter app
+      Golang starter app
     license: GPLv3
     repository:
       owner: toozej
       name: homebrew-tap
       token: "{{ .Env.TAP_GITHUB_TOKEN }}"
     manpages:
-      - "manpages/monogo.1.gz"
+      - "manpages/golang-starter.1.gz"
     completions:
-      bash: "completions/monogo.bash"
-      zsh: "completions/monogo.zsh"
-      fish: "completions/monogo.fish"
+      bash: "completions/golang-starter.bash"
+      zsh: "completions/golang-starter.zsh"
+      fish: "completions/golang-starter.fish"
     url:
       template: "https://github.com/toozej/monogo/releases/download/{{ envOrDefault \"MONOGO_RELEASE_TAG\" .Tag }}/{{ .ArtifactName }}"
       verified: "github.com/toozej/monogo/releases/download"
@@ -262,7 +262,7 @@ homebrew_casks:
       post:
         install: |
           if OS.mac?
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/monogo"]
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/golang-starter"]
           end
 
 sboms:

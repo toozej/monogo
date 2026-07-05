@@ -42,7 +42,7 @@ jobs:
       fail-fast: false
       matrix:
         app:
-          - monogo
+          - golang-starter
           - gotts-it
           - url2anki
           - RSSFFS

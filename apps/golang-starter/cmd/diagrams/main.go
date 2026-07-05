@@ -1,4 +1,4 @@
-// Package main provides diagram generation utilities for the monogo app.
+// Package main provides diagram generation utilities for the golang-starter app.
 package main
 
 import (
@@ -15,11 +15,11 @@ import (
 )
 
 const (
-	appName     = "monogo"
-	appBinary   = "monogo"
-	appPath     = "apps/monogo"
-	appMainPath = "apps/monogo"
-	outputDir   = "docs/diagrams/monogo"
+	appName     = "golang-starter"
+	appBinary   = "golang-starter"
+	appPath     = "apps/golang-starter"
+	appMainPath = "apps/golang-starter"
+	outputDir   = "docs/diagrams/golang-starter"
 )
 
 var sourceRoot = "."

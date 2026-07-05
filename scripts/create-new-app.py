@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Scaffold a new app from the monogo starter template."""
+"""Scaffold a new app from the golang-starter template."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from collections.abc import Iterable
 
 
 ROOT = Path(__file__).resolve().parent.parent
-STARTER_APP = ROOT / "apps" / "monogo"
+STARTER_APP = ROOT / "apps" / "golang-starter"
 
 
 class ScaffoldError(RuntimeError):
@@ -32,7 +32,7 @@ def parse_args(argv: list[str]) -> str:
         description=textwrap.dedent(
             """
             Scaffolds a new minimal Go app under apps/<app-name>/ that follows the
-            monogo conventions used by the `monogo` starter (cobra-based CLI, shared
+            golang-starter conventions used by the `golang-starter` template app (cobra-based CLI, shared
             `pkg/config` loader, simple internal starter package, demo script).
 
             It then runs 'make app-generate APP=<app>' and 'go mod tidy' so the new app
@@ -259,37 +259,6 @@ def add_app_to_ci_matrix(app_name: str) -> None:
         ci_path.write_text("\n".join(result) + "\n")
 
 
-def update_dependabot(app_name: str) -> None:
-    dependabot_path = ROOT / ".github" / "dependabot.yml"
-    if not dependabot_path.exists():
-        return
-    marker = f'directory: "/apps/{app_name}"'
-    original = dependabot_path.read_text()
-    if marker in original:
-        return
-    block = textwrap.dedent(
-        f"""
-          - package-ecosystem: "docker"
-            directory: "/apps/{app_name}"
-            schedule:
-              interval: "weekly"
-            cooldown:
-              default-days: 7
-            labels:
-              - "dependencies"
-            commit-message:
-              prefix: "chore"
-              include: "scope"
-            patterns:
-              - "*"
-            multi-ecosystem-group: "combined"
-        """
-    ).strip("\n")
-    prefix = "\n" if original and not original.endswith("\n") else ""
-    with dependabot_path.open("a", encoding="utf-8") as fh:
-        fh.write(prefix + block + "\n")
-
-
 def run_command(command: list[str], cwd: Path) -> None:
     subprocess.run(command, check=True, cwd=cwd)
 
@@ -321,7 +290,6 @@ def scaffold(app_name: str) -> None:
     write_gitignore(target_dir)
 
     add_app_to_ci_matrix(app_name)
-    update_dependabot(app_name)
 
     run_command(["go", "mod", "tidy"], ROOT)
     try_run_make_app_generate(app_name)
@@ -336,7 +304,7 @@ def scaffold(app_name: str) -> None:
     print("  - Replace internal/starter with your app's real logic")
     print(f"  - Add commands under cmd/{app_name}/ as needed")
     print(f"  - Run 'make test APP={app_name}' and 'make local-build APP={app_name}'")
-    print(f"  - Commit the new files; {app_name} is now part of CI and dependabot")
+    print(f"  - Commit the new files; {app_name} is now part of CI workflow")
 
 
 def main(argv: list[str]) -> int:

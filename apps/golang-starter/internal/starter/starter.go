@@ -1,15 +1,15 @@
-// Package starter provides the core functionality for the monogo application.
+// Package starter provides the core functionality for the golang-starter application.
 //
 // This package contains the main business logic that demonstrates a simple greeting
 // functionality. It serves as a template for implementing core application features
-// in a monogo project.
+// in a golang-starter project.
 //
 // The package is designed to be called from the command-line interface and can
 // be easily extended with additional functionality as needed for specific use cases.
 //
 // Example usage:
 //
-//	import "github.com/toozej/monogo/apps/monogo/internal/starter"
+//	import "github.com/toozej/monogo/apps/golang-starter/internal/starter"
 //
 //	func main() {
 //		starter.Run("Alice")

@@ -54,8 +54,8 @@ def validate_app_name(app_name: str) -> None:
         raise DeleteAppError(
             f"APP must be a single-segment name using [A-Za-z0-9._-], got: '{app_name}'"
         )
-    if app_name == "monogo":
-        raise DeleteAppError("Refusing to delete the starter app 'monogo'")
+    if app_name == "golang-starter":
+        raise DeleteAppError("Refusing to delete the starter app 'golang-starter'")
 
 
 def require_repo_layout(app_name: str) -> Path:

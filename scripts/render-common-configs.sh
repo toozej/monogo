@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP="${1:-${APP:-monogo}}"
+APP="${1:-${APP:-golang-starter}}"
 
 APP_DIR="${ROOT}/apps/${APP}"
 APP_CONFIG="${APP_DIR}/app.yaml"

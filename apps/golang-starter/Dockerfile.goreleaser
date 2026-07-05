@@ -2,7 +2,7 @@
 FROM scratch
 # Copy our static executable.
 ARG TARGETPLATFORM
-COPY $TARGETPLATFORM/monogo /go/bin/monogo
+COPY $TARGETPLATFORM/golang-starter /go/bin/golang-starter
 # Run the binary.
 USER 65532:65532
-ENTRYPOINT ["/go/bin/monogo"]
+ENTRYPOINT ["/go/bin/golang-starter"]

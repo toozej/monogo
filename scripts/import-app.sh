@@ -150,7 +150,7 @@ add_app_to_matrix() {
 	mv "$tmp" "$file"
 }
 
-if [ -z "$SOURCE" ] || [ "$SOURCE" = "monogo" ]; then
+if [ -z "$SOURCE" ] || [ "$SOURCE" = "golang-starter" ]; then
 	die "usage: make import APP=[vcs-host/]owner/repo [IMPORT_REF=main] [IMPORT_NAME=app-name]"
 fi
 

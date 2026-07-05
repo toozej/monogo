@@ -11,14 +11,14 @@ import (
 )
 
 func TestGeneratedAppMetadata(t *testing.T) {
-	if appName != "monogo" {
-		t.Fatalf("appName = %q, want monogo", appName)
+	if appName != "golang-starter" {
+		t.Fatalf("appName = %q, want golang-starter", appName)
 	}
-	if appBinary != "monogo" {
-		t.Fatalf("appBinary = %q, want monogo", appBinary)
+	if appBinary != "golang-starter" {
+		t.Fatalf("appBinary = %q, want golang-starter", appBinary)
 	}
-	if outputDir != "docs/diagrams/monogo" {
-		t.Fatalf("outputDir = %q, want docs/diagrams/monogo", outputDir)
+	if outputDir != "docs/diagrams/golang-starter" {
+		t.Fatalf("outputDir = %q, want docs/diagrams/golang-starter", outputDir)
 	}
 }
 

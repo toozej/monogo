@@ -1,10 +1,10 @@
 ---
-name: monogo
-binary: monogo
-path: apps/monogo
-mainPath: apps/monogo
-description: Monogo starter app
-shortDescription: monogo starter app
+name: golang-starter
+binary: golang-starter
+path: apps/golang-starter
+mainPath: apps/golang-starter
+description: Golang starter app
+shortDescription: golang-starter starter app
 goImage: golang:1.26-trixie
 distrolessImage: gcr.io/distroless/static-debian13:nonroot
 # cgoEnabled defaults to false. When true, builds use CGO_ENABLED=1, the runtime

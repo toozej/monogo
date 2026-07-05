@@ -8,7 +8,7 @@ MAKEFLAGS += --no-builtin-rules
 .DEFAULT_GOAL := help
 
 APPS := $(shell find apps -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort)
-APP ?= monogo
+APP ?= golang-starter
 PACKAGE ?=
 # Release bump type for `make release` (major | minor | patch)
 TYPE ?= patch
@@ -83,11 +83,11 @@ new-app: ## Scaffold a new minimal app under apps/<name>/ and generate its build
 delete-app: ## Remove apps/<name>/ and clean shared references; usage: make delete-app APP=<app-name>
 	$(CURDIR)/scripts/delete-app.py "$(APP)"
 
-migrate-internal-package: ## Move apps/APP/internal/PACKAGE to pkg/PACKAGE and verify affected apps; usage: make migrate-internal-package APP=monogo PACKAGE=starter
+migrate-internal-package: ## Move apps/APP/internal/PACKAGE to pkg/PACKAGE and verify affected apps; usage: make migrate-internal-package APP=golang-starter PACKAGE=starter
 	$(CURDIR)/scripts/migrate-internal-package.sh "$(APP)" "$(PACKAGE)"
 
 app-check: ## Validate APP points at a configured app
-	@test -n "$(APP)" || (echo "APP is required, e.g. make test APP=monogo" && exit 1)
+	@test -n "$(APP)" || (echo "APP is required, e.g. make test APP=golang-starter" && exit 1)
 	@test -f "$(APP_CONFIG)" || (echo "No app config found at $(APP_CONFIG)" && exit 1)
 	@test -n "$(APP_BINARY)" || (echo "No binary configured in $(APP_CONFIG)" && exit 1)
 

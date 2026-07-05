@@ -1,4 +1,4 @@
-// Package config defines the monogo starter application's configuration.
+// Package config defines the golang-starter application's configuration.
 //
 // The struct lives with the app, while the loading mechanics (.env discovery,
 // path-traversal protection, and environment parsing) are provided by the
@@ -7,7 +7,7 @@ package config
 
 import sharedconfig "github.com/toozej/monogo/pkg/config"
 
-// Config represents the monogo application configuration. Fields are tagged
+// Config represents the golang-starter application configuration. Fields are tagged
 // with the environment variable names used to populate them.
 type Config struct {
 	// Username specifies the username for application operations. It is loaded
