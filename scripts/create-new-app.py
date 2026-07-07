@@ -86,9 +86,9 @@ def require_cmd(name: str) -> None:
 def copy_starter(app_name: str) -> Path:
     target_dir = ROOT / "apps" / app_name
     shutil.copytree(STARTER_APP, target_dir)
-    legacy_cmd = target_dir / "cmd" / "monogo"
-    if legacy_cmd.exists():
-        legacy_cmd.rename(target_dir / "cmd" / app_name)
+    starter_cmd = target_dir / "cmd" / "golang-starter"
+    if starter_cmd.exists():
+        starter_cmd.rename(target_dir / "cmd" / app_name)
     return target_dir
 
 
@@ -117,18 +117,23 @@ def apply_replacements(
 ) -> None:
     module_path = f"github.com/toozej/monogo/apps/{app_name}"
     replacements = {
-        "github.com/toozej/monogo/apps/monogo": module_path,
-        "apps/monogo": f"apps/{app_name}",
-        "docs/diagrams/monogo": f"docs/diagrams/{app_name}",
-        "dist/monogo": f"dist/{app_name}",
+        "github.com/toozej/monogo/apps/golang-starter": module_path,
+        "apps/golang-starter": f"apps/{app_name}",
+        "docs/diagrams/golang-starter": f"docs/diagrams/{app_name}",
+        "dist/golang-starter": f"dist/{app_name}",
     }
     title = title_case(app_name)
     upper = app_name.upper()
 
+    # The starter refers to itself by the lowercase slug "golang-starter" in
+    # import/cmd paths, the binary name, and doc comments. Unlike the old
+    # "monogo" app name, "golang-starter" never collides with the repo-root
+    # module (github.com/toozej/monogo), so it is replaced unconditionally.
+    # The title/upper forms cover any human-readable prose added to the starter.
     regex_rules = [
-        (re.compile(r"(?<!github\.com/toozej/)Monogo"), title),
-        (re.compile(r"(?<!github\.com/toozej/)MONOGO"), upper),
-        (re.compile(r"(?<!github\.com/toozej/)monogo"), app_name),
+        (re.compile(r"Golang[ -]Starter"), title),
+        (re.compile(r"GOLANG[ _-]STARTER"), upper),
+        (re.compile(r"golang-starter"), app_name),
     ]
 
     for path, text in iter_text_files(target_dir):
