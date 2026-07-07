@@ -131,10 +131,14 @@ func (s *Searcher) AgeVerification() error {
 	if err != nil {
 		return fmt.Errorf("failed to get page: %w", err)
 	}
-	defer func() { _ = resp.Body.Close() }()
 
-	// Parse the form for the age verification
+	// Parse the form for the age verification, then close this response before
+	// issuing the POST below. Closing explicitly (rather than via defer) avoids
+	// a deferred closure capturing the reused `resp` variable: when the POST's
+	// Do returned (nil, err), the still-registered first defer dereferenced the
+	// now-nil `resp` and panicked instead of returning the error.
 	_, err = goquery.NewDocumentFromReader(resp.Body)
+	_ = resp.Body.Close()
 	if err != nil {
 		return fmt.Errorf("failed to parse page: %w", err)
 	}
