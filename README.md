@@ -129,20 +129,38 @@ make import APP=github.example.com/owner/repo
 
 ## Release Model
 
-This repository uses GoReleaser OSS with independent app release tags:
+This repository uses GoReleaser OSS with independent, per-app release tags of the form `apps/<app>/vX.Y.Z`. Pushing such a tag triggers the [Release workflow](.github/workflows/release.yaml), which builds, signs, and publishes **only** that app: binaries and archives, Docker images on Docker Hub / GHCR / Quay, and a Homebrew cask. The workflow creates a local-only clean `vX.Y.Z` tag for GoReleaser version parsing, disables GoReleaser's SCM release creation, and then creates the real GitHub release at `apps/<app>/vX.Y.Z` with `gh`.
+
+### Trigger a release of a specific app
+
+The recommended path computes the next version and pushes the tag for you:
 
 ```bash
-git tag apps/url2anki/v0.1.0
+make release APP=url2anki TYPE=patch   # TYPE = major | minor | patch (default: patch)
+```
+
+`make release` runs the app's tests, computes the next `apps/<app>/vX.Y.Z` tag by bumping `TYPE` from the app's latest existing tag (checking both local tags and `origin`), then creates and pushes it. CI builds, signs, and publishes the rest.
+
+Equivalently, tag and push by hand:
+
+```bash
+git tag -a apps/url2anki/v0.1.0 -m "url2anki v0.1.0"
 git push origin apps/url2anki/v0.1.0
 ```
 
-Only the tagged app is released. The workflow creates a local-only clean `vX.Y.Z` tag for GoReleaser version parsing, disables GoReleaser's SCM release creation, and then creates the real GitHub release at `apps/<app>/vX.Y.Z` with `gh`.
+Before releasing, validate the GoReleaser config and build a snapshot locally with `make release-test APP=url2anki`.
 
-For local release-config testing, and to cut a release:
+### Weekly Docker refresh
+
+The [Weekly Docker Refresh workflow](.github/workflows/weekly-docker-refresh.yaml) runs on a schedule (and on demand via **Run workflow** / `workflow_dispatch`). For every app that has a published `apps/<app>/vX.Y.Z` tag, it checks out that exact released commit and rebuilds the `latest` and `distroless` images so they pick up upstream base-image (distroless / Debian) security patches without changing the released source or version. It does not create a GitHub release or move the versioned image tags. Apps whose latest tag predates the monorepo cutover (see below) are skipped with an error until they are re-released from the monorepo.
+
+### First-time monorepo cutover
+
+Apps imported from their own repos (via `make import`) still carry only their original-repo tags, which point at pre-monorepo commits. To publish the first monorepo release for every imported app in one pass, use the idempotent helper:
 
 ```bash
-make release-test APP=url2anki
-make release APP=url2anki TYPE=patch
+scripts/cutover-release-apps.py            # dry run: print the per-app plan
+scripts/cutover-release-apps.py --execute  # create and push the cutover tags
 ```
 
-`make release-test` checks the GoReleaser config and builds a snapshot locally. `make release` runs the app's tests, computes the next `apps/<app>/vX.Y.Z` tag by bumping `TYPE` (`major`, `minor`, or `patch`; defaults to `patch`) from the latest existing tag, then creates and pushes that tag; CI builds, signs, and publishes the release. Tagging and pushing by hand (`git tag -a apps/<app>/vX.Y.Z -m ... && git push origin apps/<app>/vX.Y.Z`) triggers the same workflow.
+For each imported app it computes a **minor version bump above the app's most recent original-repo tag** (e.g. `v1.4.2` → `v1.5.0`; an app with no prior tag starts at `v0.1.0`) and pushes `apps/<app>/v<bumped>` at `HEAD`, which triggers the Release workflow. The in-repo starter (`golang-starter`) is skipped. It is safe to re-run: apps whose target release already exists are skipped, so you can iterate and fix release issues. Use `--retry-failed` to re-trigger apps that were tagged but whose release did not complete, and `--preflight` to run `make release-test APP=<app>` before tagging each app. Run `scripts/cutover-release-apps.py --help` for all options.
