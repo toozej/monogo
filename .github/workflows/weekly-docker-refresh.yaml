@@ -69,7 +69,7 @@ jobs:
       - name: Fetch all tags
         run: git fetch --force --tags
 
-      - name: Resolve latest release/tag
+      - name: Resolve and check out latest release commit
         id: release_tag
         run: |
           set -euo pipefail
@@ -87,15 +87,33 @@ jobs:
 
           version_tag="${app_tag##*/}"
           version="${version_tag#v}"
-          image="$(awk '/^name:/ {v=$0; sub(/^name:[[:space:]]*/, "", v); sub(/[[:space:]]*#.*/, "", v); gsub(/["[:space:]]/, "", v); print tolower(v); exit}' "apps/${{ matrix.app }}/app.yaml")"
+          release_sha="$(git rev-list -n 1 "$app_tag")"
+
+          # Rebuild the exact released code on fresh base images: detach onto the
+          # commit the release tag points at so GoReleaser builds that source,
+          # while Docker re-pulls the FROM base layers (picking up upstream
+          # patches). The keyless cosign identity is fixed by the workflow ref
+          # (heads/main), not the checked-out commit, so signing is unaffected.
+          git checkout --force --detach "$release_sha"
+
+          app_config="apps/${{ matrix.app }}/app.yaml"
+          if [ ! -f "$app_config" ]; then
+            echo "::error::${app_tag} (${release_sha}) is not a monorepo release" \
+              "commit (missing ${app_config}); re-release ${{ matrix.app }} from" \
+              "the monorepo before it can be refreshed." >&2
+            exit 1
+          fi
+
+          image="$(awk '/^name:/ {v=$0; sub(/^name:[[:space:]]*/, "", v); sub(/[[:space:]]*#.*/, "", v); gsub(/["[:space:]]/, "", v); print tolower(v); exit}' "$app_config")"
           if [ -z "$image" ]; then
             echo "Unable to resolve Docker image name for ${{ matrix.app }}" >&2
             exit 1
           fi
 
-          git tag --force "$version_tag" "$GITHUB_SHA"
+          # GoReleaser parses a clean vX.Y.Z tag; point it at the released commit.
+          git tag --force "$version_tag" "$release_sha"
 
-          echo "Using release/tag: ${app_tag}"
+          echo "Using release/tag: ${app_tag} (${release_sha})"
           {
             echo "app_tag=${app_tag}"
             echo "image=${image}"
