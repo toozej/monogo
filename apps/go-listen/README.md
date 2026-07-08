@@ -1,10 +1,9 @@
 # go-listen
 
-![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/toozej/go-listen)
-[![Go Report Card](https://goreportcard.com/badge/github.com/toozej/monogo/apps/go-listen)](https://goreportcard.com/report/github.com/toozej/monogo/apps/go-listen)
-![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/toozej/go-listen/cicd.yaml)
+![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/toozej/monogo)
+![GitHub Actions CI Workflow Status](https://img.shields.io/github/actions/workflow/status/toozej/monogo/ci.yaml)
 ![Docker Pulls](https://img.shields.io/docker/pulls/toozej/go-listen)
-![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/toozej/go-listen/total)
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/toozej/monogo/total)
 
 <img src="img/avatar.png" alt="go-listen avatar" style="background-color: #FFFFFF;" />
 

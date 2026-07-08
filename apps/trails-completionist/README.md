@@ -1,10 +1,9 @@
 # trails-completionist
 
-![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/toozej/trails-completionist)
-[![Go Report Card](https://goreportcard.com/badge/github.com/toozej/monogo/apps/trails-completionist)](https://goreportcard.com/report/github.com/toozej/monogo/apps/trails-completionist)
-![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/toozej/trails-completionist/cicd.yaml)
+![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/toozej/monogo)
+![GitHub Actions CI Workflow Status](https://img.shields.io/github/actions/workflow/status/toozej/monogo/ci.yaml)
 ![Docker Pulls](https://img.shields.io/docker/pulls/toozej/trails-completionist)
-![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/toozej/trails-completionist/total)
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/toozej/monogo/total)
 
 <img src="img/avatar.png" alt="trails-completionist avatar" style="background-color: #FFFFFF;" />
 

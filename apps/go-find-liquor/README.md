@@ -1,10 +1,9 @@
 # go-find-liquor (GFL)
 
-![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/toozej/go-find-liquor)
-[![Go Report Card](https://goreportcard.com/badge/github.com/toozej/monogo/apps/go-find-liquor)](https://goreportcard.com/report/github.com/toozej/monogo/apps/go-find-liquor)
-![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/toozej/go-find-liquor/cicd.yaml)
+![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/toozej/monogo)
+![GitHub Actions CI Workflow Status](https://img.shields.io/github/actions/workflow/status/toozej/monogo/ci.yaml)
 ![Docker Pulls](https://img.shields.io/docker/pulls/toozej/go-find-liquor)
-![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/toozej/go-find-liquor/total)
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/toozej/monogo/total)
 
 <img src="img/avatar.png" alt="go-find-liquor avatar" style="background-color: #FFFFFF;" />
 

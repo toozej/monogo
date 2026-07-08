@@ -1,10 +1,9 @@
 # RSSFFS
 
-![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/toozej/RSSFFS)
-[![Go Report Card](https://goreportcard.com/badge/github.com/toozej/monogo/apps/RSSFFS)](https://goreportcard.com/report/github.com/toozej/monogo/apps/RSSFFS)
-![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/toozej/RSSFFS/cicd.yaml)
+![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/toozej/monogo)
+![GitHub Actions CI Workflow Status](https://img.shields.io/github/actions/workflow/status/toozej/monogo/ci.yaml)
 ![Docker Pulls](https://img.shields.io/docker/pulls/toozej/rssffs)
-![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/toozej/RSSFFS/total)
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/toozej/monogo/total)
 
 <img src="img/avatar.png" alt="RSSFFS avatar" style="background-color: #FFFFFF;" />
 

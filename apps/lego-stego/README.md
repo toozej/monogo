@@ -1,12 +1,11 @@
 # lego-stego
 
-![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/toozej/lego-stego)
-[![Go Report Card](https://goreportcard.com/badge/github.com/toozej/monogo/apps/lego-stego)](https://goreportcard.com/report/github.com/toozej/monogo/apps/lego-stego)
-![GitHub Actions CI Workflow Status](https://img.shields.io/github/actions/workflow/status/toozej/lego-stego/ci.yaml)
-![GitHub Actions Release Workflow Status](https://img.shields.io/github/actions/workflow/status/toozej/lego-stego/release.yaml)
-![GitHub Actions Weekly Docker Refresh Workflow Status](https://img.shields.io/github/actions/workflow/status/toozej/lego-stego/weekly-docker-refresh.yaml)
+![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/toozej/monogo)
+![GitHub Actions CI Workflow Status](https://img.shields.io/github/actions/workflow/status/toozej/monogo/ci.yaml)
+![GitHub Actions Release Workflow Status](https://img.shields.io/github/actions/workflow/status/toozej/monogo/release.yaml)
+![GitHub Actions Weekly Docker Refresh Workflow Status](https://img.shields.io/github/actions/workflow/status/toozej/monogo/weekly-docker-refresh.yaml)
 ![Docker Pulls](https://img.shields.io/docker/pulls/toozej/lego-stego)
-![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/toozej/lego-stego/total)
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/toozej/monogo/total)
 
 Go-based CLI tool for [Steganography](https://en.wikipedia.org/wiki/Steganography)
 

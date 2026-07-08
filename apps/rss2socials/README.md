@@ -1,10 +1,9 @@
 # rss2socials
 
-![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/toozej/rss2socials)
-[![Go Report Card](https://goreportcard.com/badge/github.com/toozej/monogo/apps/rss2socials)](https://goreportcard.com/report/github.com/toozej/monogo/apps/rss2socials)
-![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/toozej/rss2socials/cicd.yaml)
+![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/toozej/monogo)
+![GitHub Actions CI Workflow Status](https://img.shields.io/github/actions/workflow/status/toozej/monogo/ci.yaml)
 ![Docker Pulls](https://img.shields.io/docker/pulls/toozej/rss2socials)
-![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/toozej/rss2socials/total)
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/toozej/monogo/total)
 
 <img src="img/avatar.png" alt="rss2socials avatar" style="background-color: #FFFFFF;" />
 

@@ -1,10 +1,9 @@
 # url2anki
 
-![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/toozej/url2anki)
-[![Go Report Card](https://goreportcard.com/badge/github.com/toozej/monogo/apps/url2anki)](https://goreportcard.com/report/github.com/toozej/monogo/apps/url2anki)
-![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/toozej/url2anki/cicd.yaml)
+![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/toozej/monogo)
+![GitHub Actions CI Workflow Status](https://img.shields.io/github/actions/workflow/status/toozej/monogo/ci.yaml)
 ![Docker Pulls](https://img.shields.io/docker/pulls/toozej/url2anki)
-![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/toozej/url2anki/total)
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/toozej/monogo/total)
 
 <img src="img/avatar.png" alt="url2anki avatar" style="background-color: #FFFFFF;" />
 

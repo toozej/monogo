@@ -3,15 +3,10 @@
 Self-hosted podcast manager for automatically downloading and managing podcast
 episodes.
 
-[![Build Status](https://img.shields.io/github/actions/workflow/status/toozej/podgrab/build.yml?branch=main)](https://github.com/toozej/monogo/apps/podgrab/actions)
-[![Code Quality](https://img.shields.io/github/actions/workflow/status/toozej/podgrab/code-quality.yml?branch=main&label=code%20quality)](https://github.com/toozej/monogo/apps/podgrab/actions)
-[![Tests](https://img.shields.io/github/actions/workflow/status/toozej/podgrab/test.yml?branch=main&label=tests)](https://github.com/toozej/monogo/apps/podgrab/actions)
-[![E2E Tests](https://img.shields.io/github/actions/workflow/status/toozej/podgrab/e2e-test.yml?branch=main&label=e2e)](https://github.com/toozej/monogo/apps/podgrab/actions)
-[![Go Report Card](https://goreportcard.com/badge/github.com/toozej/monogo/apps/podgrab)](https://goreportcard.com/report/github.com/toozej/monogo/apps/podgrab)
-[![codecov](https://codecov.io/gh/toozej/podgrab/branch/main/graph/badge.svg)](https://codecov.io/gh/toozej/podgrab)
-[![License](https://img.shields.io/github/license/toozej/podgrab)](LICENSE)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/toozej/monogo/ci.yaml)](https://github.com/toozej/monogo/actions/workflows/ci.yaml)
+[![License](https://img.shields.io/github/license/toozej/monogo)](LICENSE)
 [![Docker Pulls](https://img.shields.io/docker/pulls/toozej/podgrab)](https://hub.docker.com/r/toozej/podgrab)
-[![Go Version](https://img.shields.io/github/go-mod/go-version/toozej/podgrab)](go.mod)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/toozej/monogo)](https://github.com/toozej/monogo/blob/main/apps/podgrab/go.mod)
 
 <img src="img/avatar.png" alt="podgrab avatar" style="background-color: #FFFFFF;" />
 

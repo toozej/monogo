@@ -1,12 +1,11 @@
 # go-sort-out-gh-actions
 
-![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/toozej/go-sort-out-gh-actions)
-[![Go Report Card](https://goreportcard.com/badge/github/toozej/go-sort-out-gh-actions)](https://goreportcard.com/report/github/toozej/go-sort-out-gh-actions)
-![GitHub Actions CI Workflow Status](https://img.shields.io/github/actions/workflow/status/toozej/go-sort-out-gh-actions/ci.yaml)
-![GitHub Actions Release Workflow Status](https://img.shields.io/github/actions/workflow/status/toozej/go-sort-out-gh-actions/release.yaml)
-![GitHub Actions Weekly Docker Refresh Workflow Status](https://img.shields.io/github/actions/workflow/status/toozej/go-sort-out-gh-actions/weekly-docker-refresh.yaml)
+![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/toozej/monogo)
+![GitHub Actions CI Workflow Status](https://img.shields.io/github/actions/workflow/status/toozej/monogo/ci.yaml)
+![GitHub Actions Release Workflow Status](https://img.shields.io/github/actions/workflow/status/toozej/monogo/release.yaml)
+![GitHub Actions Weekly Docker Refresh Workflow Status](https://img.shields.io/github/actions/workflow/status/toozej/monogo/weekly-docker-refresh.yaml)
 ![Docker Pulls](https://img.shields.io/docker/pulls/toozej/go-sort-out-gh-actions)
-![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/toozej/go-sort-out-gh-actions/total)
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/toozej/monogo/total)
 
 <img src="img/avatar.png" alt="go-sort-out-gh-actions avatar"/>
 
