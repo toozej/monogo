@@ -16,6 +16,10 @@ before:
     - go mod tidy
     - ./scripts/completions.sh kmhd2playlist
     - ./scripts/manpages.sh kmhd2playlist
+    # Must run last: pins the mtimes of the files bundled into the archive to
+    # the commit timestamp so the tarball (and thus the Homebrew cask checksum)
+    # is byte-for-byte reproducible across independent builds.
+    - ./scripts/normalize-archive-mtimes.sh kmhd2playlist
 
 snapshot:
   version_template: '{{ incpatch .Version }}-next'
@@ -54,6 +58,10 @@ builds:
 
 universal_binaries:
   - replace: false
+    # Pin the merged universal binary's mtime to the commit timestamp (as
+    # builds.mod_timestamp does for the per-arch binaries) so the Darwin_all
+    # archive is reproducible too.
+    mod_timestamp: '{{ .CommitTimestamp }}'
 
 checksum:
   name_template: 'checksums.txt'
@@ -241,6 +249,12 @@ nfpms:
 
 homebrew_casks:
   - name: kmhd2playlist
+    # Render the cask into dist/ during the release build, but do NOT push it to
+    # the tap from here. The publish_homebrew_cask CI job commits that
+    # already-rendered file to the tap after the GitHub release assets exist, so
+    # the cask's SHA-256 always matches the exact archive users download (both
+    # come from this single build). See .github/workflows/release.yaml.
+    skip_upload: "true"
     homepage: https://github.com/toozej/monogo
     description: >-
       Automatically sync songs from KMHD jazz radio to your Spotify playlists

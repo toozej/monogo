@@ -58,7 +58,7 @@ IMAGE_TAG = latest
 COSIGN_IDENTITY_REGEXP := '^https://github.com/toozej/monogo/.github/workflows/(release|weekly-docker-refresh).yaml@refs/(tags/.*|heads/main)$$'
 COSIGN_OIDC_ISSUER := 'https://token.actions.githubusercontent.com'
 
-.PHONY: all list-apps import new-app delete-app migrate-internal-package app-check common-generate app-generate generate generate-all app-templates-check templates-check vet test build release verify verify-docker verify-docker-all-registries run up down docker-vet docker-test docker-build distroless-build distroless-run install local local-all local-update-deps local-vet local-vendor local-test local-cover local-build local-run local-kill local-iterate release-test local-install docker-login pre-commit-install pre-commit-run pre-commit pre-reqs licenses licenses-all update-golang-version upload-secrets-to-gh upload-secrets-envfile-to-1pass docs diagrams mutation-test test-changed watch-test profile-cpu profile-mem profile-all benchmark demo clean clean-all help
+.PHONY: all list-apps import new-app delete-app migrate-internal-package app-check common-generate app-generate generate generate-all app-templates-check templates-check vet test build release delete-release verify verify-docker verify-docker-all-registries run up down docker-vet docker-test docker-build distroless-build distroless-run install local local-all local-update-deps local-vet local-vendor local-test local-cover local-build local-run local-kill local-iterate release-test local-install docker-login pre-commit-install pre-commit-run pre-commit pre-reqs licenses licenses-all update-golang-version upload-secrets-to-gh upload-secrets-envfile-to-1pass docs diagrams mutation-test test-changed watch-test profile-cpu profile-mem profile-all benchmark demo clean clean-all help
 .PHONY: common-generate-no-prereqs app-generate-no-prereqs app-templates-check-no-generate docker-vet-no-generate docker-test-no-generate docker-build-no-generate release-test-no-generate pre-commit-install-no-prereqs pre-commit-run-no-generate
 
 all: generate-all ## Run default workflow for every app using Docker where available
@@ -146,6 +146,36 @@ release: local-test ## Release APP: bump TYPE=<major|minor|patch> from the lates
 	git tag -a "$$new_tag" -m "$(APP) $$new_version"; \
 	git push origin "refs/tags/$$new_tag"; \
 	echo "Pushed $$new_tag; the Release workflow will build, sign, and publish $(APP)."
+
+delete-release: ## Delete a release: its GitHub release plus the apps/APP/VERSION tag locally and on origin; usage: make delete-release APP=<app-name> VERSION=<vX.Y.Z>
+	@set -euo pipefail; \
+	test -n "$(APP)" || { echo "APP is required, e.g. make delete-release APP=go-listen VERSION=v1.2.3"; exit 1; }; \
+	if [ "$(origin VERSION)" = "file" ] || [ "$(origin VERSION)" = "default" ]; then \
+		echo "VERSION must be passed explicitly, e.g. make delete-release APP=$(APP) VERSION=v1.2.3"; exit 1; \
+	fi; \
+	echo "$(VERSION)" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$$' || { echo "VERSION must look like vX.Y.Z (got '$(VERSION)')."; exit 1; }; \
+	tag="apps/$(APP)/$(VERSION)"; \
+	echo "Deleting release $$tag (GitHub release + local/origin tags)..."; \
+	if command -v gh >/dev/null 2>&1; then \
+		if gh release view "$$tag" >/dev/null 2>&1; then \
+			gh release delete "$$tag" --yes && echo "  deleted GitHub release $$tag"; \
+		else \
+			echo "  no GitHub release $$tag (skipping)"; \
+		fi; \
+	else \
+		echo "  gh not installed (skipping GitHub release deletion)"; \
+	fi; \
+	if git rev-parse -q --verify "refs/tags/$$tag" >/dev/null 2>&1; then \
+		git tag -d "$$tag" >/dev/null && echo "  deleted local tag $$tag"; \
+	else \
+		echo "  no local tag $$tag (skipping)"; \
+	fi; \
+	if git ls-remote --exit-code --tags origin "refs/tags/$$tag" >/dev/null 2>&1; then \
+		git push origin --delete "refs/tags/$$tag" && echo "  deleted origin tag $$tag"; \
+	else \
+		echo "  no origin tag $$tag (skipping)"; \
+	fi; \
+	echo "Done."
 
 verify: app-check ## Verify APP Docker image with Cosign (keyless)
 	cosign verify \

@@ -13,10 +13,12 @@
 - Generate configs: `make generate-all`
 - List apps: `make list-apps`
 - Test default app: `make test`
-- Test a specific app: `make test APP=monogo`
-- Build a local binary: `make local-build APP=monogo`
-- Check GoReleaser config and snapshot build: `make release-test APP=monogo`
+- Test a specific app: `make test APP=golang-starter`
+- Build a local binary: `make local-build APP=golang-starter`
+- Check GoReleaser config and snapshot build: `make release-test APP=golang-starter`
 - Run pre-commit: `make pre-commit-run`
+
+`APP` defaults to `golang-starter`. **Use `golang-starter` to validate any change that affects all apps** — edits to `templates/app/*.tmpl`, `templates/common/*.tmpl`, root `scripts/`, the `Makefile`, or the release workflow. It is the minimal in-repo starter app (no app-specific dependencies, fastest to build), so it is the quickest signal a repo-wide change is safe: exercise it first (e.g. `make release-test APP=golang-starter`, and for packaging/release changes a `goreleaser release --snapshot` build), then apply the change everywhere with `make generate-all`.
 
 ## Adding or Updating Apps
 
@@ -40,6 +42,13 @@ App metadata and build options live in `apps/<app>/app.yaml`. See [docs/app-conf
 - GitHub release metadata is written under `apps/<app>/.monogo/releases`; release assets are downloaded only with `IMPORT_RELEASES=assets`.
 - Imported `pkg/` contents are moved to root `pkg/`. If a root package name already exists, the imported package is placed under `pkg/<app>/...` and imports are rewritten to that path.
 - After import, inspect `apps/<app>/app.yaml` for the selected `mainPath`, `binary`, and description.
+
+## Releases
+
+- Releases are per-app, triggered by pushing an `apps/<app>/vX.Y.Z` tag. Use `make release APP=<app> TYPE=<major|minor|patch>` to bump and push; CI (`.github/workflows/release.yaml`) builds, signs, and publishes binaries/archives, Docker images, and the Homebrew cask.
+- **Delete a bad release:** `make delete-release APP=<app> VERSION=vX.Y.Z` removes the GitHub release and deletes the tag both locally and on `origin`. `VERSION` must be passed explicitly.
+- **Reproducible archives:** per-arch archives are byte-for-byte reproducible across builds — `-trimpath` + commit-pinned `mod_timestamp`, `scripts/normalize-archive-mtimes.sh` (a GoReleaser `before` hook, which must run last, pinning bundled files' mtimes to the commit timestamp), and `gzip -n` manpages. The `Darwin_all` universal binary is the one exception (GoReleaser merges arches in nondeterministic order); its mtime is pinned but its content is not reproducible. This is harmless because each release comes from a single build.
+- **Homebrew cask:** the cask is rendered by the same GoReleaser build that produces the archives — `skip_upload: "true"` keeps that build from pushing it — and committed to `toozej/homebrew-tap` by the `publish_homebrew_cask` job via `scripts/publish-homebrew-cask.sh`, only after the GitHub release assets exist. Because the cask and the uploaded archives come from one build, the cask's SHA-256 always matches the downloaded asset. Do **not** re-run GoReleaser in a second job to publish the cask — rebuilding on another runner reintroduces checksum mismatches.
 
 ## Style and Tooling
 
