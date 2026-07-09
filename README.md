@@ -132,6 +132,12 @@ Use `IMPORT_ARGS=--metadata-only` when the app code has already been migrated in
 
 This repository uses GoReleaser OSS with independent, per-app release tags of the form `apps/<app>/vX.Y.Z`. Pushing such a tag triggers the [Release workflow](.github/workflows/release.yaml), which builds, signs, and publishes **only** that app: binaries and archives, Docker images on Docker Hub / GHCR / Quay, and a Homebrew cask. The workflow creates a local-only clean `vX.Y.Z` tag for GoReleaser version parsing, disables GoReleaser's SCM release creation, and then creates the real GitHub release at `apps/<app>/vX.Y.Z` with `gh`.
 
+### Reproducible builds and the Homebrew cask
+
+Per-app archives are built reproducibly: `-trimpath` and a commit-pinned `mod_timestamp`, plus mtime normalization of every file bundled into an archive (`scripts/normalize-archive-mtimes.sh`, a GoReleaser `before` hook that stamps README/LICENSE/completions/manpages to the commit timestamp) and `gzip -n` manpages, make the per-arch archives byte-for-byte identical across independent builds. The `Darwin_all` universal binary is the one exception — GoReleaser merges the two architectures in nondeterministic order — but that is cosmetic, since each release is produced by a single build.
+
+The Homebrew cask is rendered by that **same** GoReleaser build (with `skip_upload: "true"`, so it is not pushed from the build job), and its `sha256` values are computed from the exact archives that build produced. The `publish_homebrew_cask` job then commits the rendered cask to [`toozej/homebrew-tap`](https://github.com/toozej/homebrew-tap) via `scripts/publish-homebrew-cask.sh`, only after the GitHub release assets exist. Because the cask and the uploaded archives come from one build, the cask's checksum always matches the file `brew` downloads. Do not add a second GoReleaser run to publish the cask — rebuilding on another runner is what previously caused `brew upgrade` SHA-256 mismatches.
+
 ### Trigger a release of a specific app
 
 The recommended path computes the next version and pushes the tag for you:
@@ -150,6 +156,16 @@ git push origin apps/url2anki/v0.1.0
 ```
 
 Before releasing, validate the GoReleaser config and build a snapshot locally with `make release-test APP=url2anki`.
+
+### Delete a bad release
+
+To remove a release that was published in error (wrong version, broken assets, an old checksum-mismatched cask, etc.):
+
+```bash
+make delete-release APP=url2anki VERSION=v1.6.0
+```
+
+This deletes the GitHub release for `apps/<app>/<version>` and removes that tag both **locally and on `origin`**. Each step is guarded and skips cleanly if the release or tag is already gone, and `VERSION` must be passed explicitly as `vX.Y.Z` (it will not fall back to a computed value). Afterward, cut a fresh release with `make release`, or recreate and push the same tag to rebuild that version.
 
 ### Weekly Docker refresh
 
