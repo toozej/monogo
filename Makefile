@@ -74,8 +74,8 @@ local-all: generate-all ## Run local vet, test, build, and release checks for ev
 list-apps: ## List monorepo apps
 	@printf '%s\n' $(APPS)
 
-import: ## Import a Go service repo into apps/, preserving history and release metadata; usage: make import APP=[vcs-host/]owner/repo
-	$(CURDIR)/scripts/import-app.sh "$(APP)"
+import: ## Import a Go service repo into apps/, preserving history and release metadata; usage: make import APP=[vcs-host/]owner/repo IMPORT_ARGS=--metadata-only
+	$(CURDIR)/scripts/import-app.sh "$(APP)" $(IMPORT_ARGS)
 
 new-app: ## Scaffold a new minimal app under apps/<name>/ and generate its build configs; usage: make new-app APP=<app-name>
 	$(CURDIR)/scripts/create-new-app.py "$(APP)"

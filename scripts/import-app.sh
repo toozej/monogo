@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SOURCE="${1:-}"
+SOURCE=""
 
 DEFAULT_VCS_HOST="github.com/"
 IMPORT_REF="${IMPORT_REF:-}"
@@ -10,6 +10,7 @@ IMPORT_NAME="${IMPORT_NAME:-}"
 IMPORT_RELEASES="${IMPORT_RELEASES:-metadata}"
 IMPORT_SKIP_VERIFY="${IMPORT_SKIP_VERIFY:-0}"
 IMPORT_TAG_PREFIX="${IMPORT_TAG_PREFIX:-}"
+IMPORT_METADATA_ONLY="${IMPORT_METADATA_ONLY:-0}"
 
 die() {
 	echo "error: $*" >&2
@@ -57,6 +58,30 @@ rewrite_imports() {
 	fi
 	rm -f "$tmp"
 }
+
+while [ "$#" -gt 0 ]; do
+	case "$1" in
+		--metadata-only)
+			IMPORT_METADATA_ONLY=1
+			shift
+			;;
+		--)
+			shift
+			break
+			;;
+		-*)
+			die "unknown option: $1"
+			;;
+		*)
+			if [ -z "$SOURCE" ]; then
+				SOURCE="$1"
+				shift
+				continue
+			fi
+			die "unexpected extra argument: $1"
+			;;
+	esac
+done
 
 relocate_imported_pkg() {
 	local app_pkg="${APP_DIR}/pkg"
@@ -151,7 +176,7 @@ add_app_to_matrix() {
 }
 
 if [ -z "$SOURCE" ] || [ "$SOURCE" = "golang-starter" ]; then
-	die "usage: make import APP=[vcs-host/]owner/repo [IMPORT_REF=main] [IMPORT_NAME=app-name]"
+	die "usage: make import APP=[vcs-host/]owner/repo [IMPORT_REF=main] [IMPORT_NAME=app-name] [--metadata-only]"
 fi
 
 require_cmd git
@@ -218,6 +243,11 @@ APP_NAME="${IMPORT_NAME:-$REPO}"
 APP_NAME="${APP_NAME%.git}"
 APP_DIR="${ROOT}/apps/${APP_NAME}"
 ROOT_MODULE="$(awk '/^module / {print $2; exit}' "${ROOT}/go.mod")"
+APP_EXISTS=0
+
+if [ -d "$APP_DIR" ]; then
+	APP_EXISTS=1
+fi
 
 case "$APP_NAME" in
 	*[!A-Za-z0-9._-]*)
@@ -226,7 +256,13 @@ case "$APP_NAME" in
 esac
 
 if [ -e "$APP_DIR" ]; then
-	die "$APP_DIR already exists"
+	if [ "$IMPORT_METADATA_ONLY" != "1" ]; then
+		die "$APP_DIR already exists"
+	fi
+fi
+
+if [ "$IMPORT_METADATA_ONLY" = "1" ] && [ "$APP_EXISTS" = "0" ]; then
+	die "$APP_DIR does not exist; metadata-only import expects the app code to already be present"
 fi
 
 cd "$ROOT"
@@ -249,17 +285,17 @@ if [ -z "$REF" ]; then
 fi
 
 echo "Importing ${VCS_HOST}${OWNER_REPO}@${REF} into apps/${APP_NAME}"
-git subtree add \
-	--prefix "apps/${APP_NAME}" \
-	"$REPO_URL" \
-	"$REF" \
-	-m "chore(import): import ${VCS_HOST}${OWNER_REPO} into apps/${APP_NAME}"
 
-if [ ! -f "${APP_DIR}/go.mod" ]; then
-	die "imported repository does not contain a root go.mod"
+if [ "$IMPORT_METADATA_ONLY" != "1" ]; then
+	git subtree add \
+		--prefix "apps/${APP_NAME}" \
+		"$REPO_URL" \
+		"$REF" \
+		-m "chore(import): import ${VCS_HOST}${OWNER_REPO} into apps/${APP_NAME}"
+else
+	echo "Metadata-only mode: skipping git subtree import and code relocation"
 fi
 
-OLD_MODULE="$(awk '/^module / {print $2; exit}' "${APP_DIR}/go.mod")"
 APP_METADATA_DIR="${APP_DIR}/.monogo"
 ORIGINAL_MODULE_DIR="${APP_METADATA_DIR}/original-module"
 ORIGINAL_CONFIG_DIR="${APP_METADATA_DIR}/original-config"
@@ -267,68 +303,75 @@ IMPORT_METADATA_DIR="${APP_METADATA_DIR}/import"
 
 mkdir -p "$APP_METADATA_DIR" "$IMPORT_METADATA_DIR"
 
-go mod edit -json "${APP_DIR}/go.mod" >"${IMPORT_METADATA_DIR}/go-mod.json"
-
-jq -r '.Require[]? | "\(.Path)@\(.Version)"' "${IMPORT_METADATA_DIR}/go-mod.json" | while read -r requirement; do
-	[ -n "$requirement" ] || continue
-	req_path="${requirement%@*}"
-	if [ "$req_path" = "$OLD_MODULE" ] || [ "$req_path" = "$ROOT_MODULE" ]; then
-		continue
-	fi
-	go mod edit -require="$requirement"
-done
-
-jq -c '.Replace[]?' "${IMPORT_METADATA_DIR}/go-mod.json" | while read -r replacement; do
-	old_path="$(jq -r '.Old.Path' <<<"$replacement")"
-	old_version="$(jq -r '.Old.Version // ""' <<<"$replacement")"
-	new_path="$(jq -r '.New.Path' <<<"$replacement")"
-	new_version="$(jq -r '.New.Version // ""' <<<"$replacement")"
-
-	old="$old_path"
-	if [ -n "$old_version" ]; then
-		old="${old}@${old_version}"
+if [ "$IMPORT_METADATA_ONLY" != "1" ]; then
+	if [ ! -f "${APP_DIR}/go.mod" ]; then
+		die "imported repository does not contain a root go.mod"
 	fi
 
-	if [ -n "$new_version" ]; then
-		new="${new_path}@${new_version}"
-	elif [[ "$new_path" = ./* || "$new_path" = ../* ]]; then
-		new="./apps/${APP_NAME}/${new_path}"
-	else
-		new="$new_path"
+	OLD_MODULE="$(awk '/^module / {print $2; exit}' "${APP_DIR}/go.mod")"
+	go mod edit -json "${APP_DIR}/go.mod" >"${IMPORT_METADATA_DIR}/go-mod.json"
+
+	jq -r '.Require[]? | "\(.Path)@\(.Version)"' "${IMPORT_METADATA_DIR}/go-mod.json" | while read -r requirement; do
+		[ -n "$requirement" ] || continue
+		req_path="${requirement%@*}"
+		if [ "$req_path" = "$OLD_MODULE" ] || [ "$req_path" = "$ROOT_MODULE" ]; then
+			continue
+		fi
+		go mod edit -require="$requirement"
+	done
+
+	jq -c '.Replace[]?' "${IMPORT_METADATA_DIR}/go-mod.json" | while read -r replacement; do
+		old_path="$(jq -r '.Old.Path' <<<"$replacement")"
+		old_version="$(jq -r '.Old.Version // ""' <<<"$replacement")"
+		new_path="$(jq -r '.New.Path' <<<"$replacement")"
+		new_version="$(jq -r '.New.Version // ""' <<<"$replacement")"
+
+		old="$old_path"
+		if [ -n "$old_version" ]; then
+			old="${old}@${old_version}"
+		fi
+
+		if [ -n "$new_version" ]; then
+			new="${new_path}@${new_version}"
+		elif [[ "$new_path" = ./* || "$new_path" = ../* ]]; then
+			new="./apps/${APP_NAME}/${new_path}"
+		else
+			new="$new_path"
+		fi
+
+		go mod edit -replace="${old}=${new}"
+	done
+
+	mkdir -p "$ORIGINAL_MODULE_DIR"
+	move_path "${APP_DIR}/go.mod" "${ORIGINAL_MODULE_DIR}/go.mod"
+	if [ -f "${APP_DIR}/go.sum" ]; then
+		move_path "${APP_DIR}/go.sum" "${ORIGINAL_MODULE_DIR}/go.sum"
 	fi
 
-	go mod edit -replace="${old}=${new}"
-done
+	if [ -n "$OLD_MODULE" ] && [ "$OLD_MODULE" != "$ROOT_MODULE/apps/$APP_NAME" ]; then
+		rewrite_imports "$OLD_MODULE" "${ROOT_MODULE}/apps/${APP_NAME}" "$APP_DIR"
+	fi
 
-mkdir -p "$ORIGINAL_MODULE_DIR"
-move_path "${APP_DIR}/go.mod" "${ORIGINAL_MODULE_DIR}/go.mod"
-if [ -f "${APP_DIR}/go.sum" ]; then
-	move_path "${APP_DIR}/go.sum" "${ORIGINAL_MODULE_DIR}/go.sum"
+	relocate_imported_pkg
+
+	shopt -s nullglob
+	for original in \
+		"${APP_DIR}/.air.toml" \
+		"${APP_DIR}/.goreleaser.yml" \
+		"${APP_DIR}/.goreleaser.yaml" \
+		"${APP_DIR}/.pre-commit-config.yaml" \
+		"${APP_DIR}/docker-compose.yml" \
+		"${APP_DIR}/Makefile" \
+		"${APP_DIR}"/Dockerfile \
+		"${APP_DIR}"/Dockerfile.*; do
+		[ -e "$original" ] || continue
+		relative="${original#"$APP_DIR"/}"
+		move_path "$original" "${ORIGINAL_CONFIG_DIR}/${relative}"
+	done
+	shopt -u nullglob
+
+	go mod tidy
 fi
-
-if [ -n "$OLD_MODULE" ] && [ "$OLD_MODULE" != "$ROOT_MODULE/apps/$APP_NAME" ]; then
-	rewrite_imports "$OLD_MODULE" "${ROOT_MODULE}/apps/${APP_NAME}" "$APP_DIR"
-fi
-
-relocate_imported_pkg
-
-shopt -s nullglob
-for original in \
-	"${APP_DIR}/.air.toml" \
-	"${APP_DIR}/.goreleaser.yml" \
-	"${APP_DIR}/.goreleaser.yaml" \
-	"${APP_DIR}/.pre-commit-config.yaml" \
-	"${APP_DIR}/docker-compose.yml" \
-	"${APP_DIR}/Makefile" \
-	"${APP_DIR}"/Dockerfile \
-	"${APP_DIR}"/Dockerfile.*; do
-	[ -e "$original" ] || continue
-	relative="${original#"$APP_DIR"/}"
-	move_path "$original" "${ORIGINAL_CONFIG_DIR}/${relative}"
-done
-shopt -u nullglob
-
-go mod tidy
 
 MAIN_PACKAGES="$(go list -f '{{if eq .Name "main"}}{{.ImportPath}}{{end}}' "./apps/${APP_NAME}/..." | sed '/^$/d')"
 MAIN_COUNT="$(printf '%s\n' "$MAIN_PACKAGES" | sed '/^$/d' | wc -l | tr -d ' ')"
@@ -387,9 +430,10 @@ cat >"${IMPORT_METADATA_DIR}/source.json" <<EOF
   "ownerRepo": "$(yaml_escape "$OWNER_REPO")",
   "repoURL": "$(yaml_escape "$REPO_URL")",
   "ref": "$(yaml_escape "$REF")",
-  "oldModule": "$(yaml_escape "$OLD_MODULE")",
+  "oldModule": "$(yaml_escape "${OLD_MODULE:-}")",
   "newModule": "$(yaml_escape "${ROOT_MODULE}/apps/${APP_NAME}")",
-  "tagPrefix": "$(yaml_escape "${IMPORT_TAG_PREFIX:-apps/${APP_NAME}}")"
+  "tagPrefix": "$(yaml_escape "${IMPORT_TAG_PREFIX:-apps/${APP_NAME}}")",
+  "mode": "$(yaml_escape "$(if [ "$IMPORT_METADATA_ONLY" = "1" ]; then printf 'metadata-only'; else printf 'full'; fi)")"
 }
 EOF
 
@@ -473,7 +517,10 @@ EOF
 fi
 
 make app-generate APP="$APP_NAME"
-go mod tidy
+
+if [ "$IMPORT_METADATA_ONLY" != "1" ]; then
+	go mod tidy
+fi
 
 if [ "$IMPORT_SKIP_VERIFY" != "1" ]; then
 	make test APP="$APP_NAME"

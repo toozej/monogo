@@ -119,11 +119,14 @@ make import APP=toozej/go-listen IMPORT_REF=main
 make import APP=toozej/go-listen IMPORT_NAME=listen
 make import APP=toozej/go-listen IMPORT_RELEASES=assets
 make import APP=toozej/go-listen IMPORT_RELEASES=none
+make import APP=toozej/go-listen IMPORT_ARGS=--metadata-only
 make import APP=toozej/go-listen IMPORT_SKIP_VERIFY=1
 make import APP=github.example.com/owner/repo
 ```
 
 `make import` requires a clean, committed starter-app baseline before it runs. GitHub release records are not part of Git history, so the target imports release metadata with `gh`; use `IMPORT_RELEASES=assets` to download release assets too.
+
+Use `IMPORT_ARGS=--metadata-only` when the app code has already been migrated into `apps/<app>` by a separate step and you only want the importer to collect release metadata, import source tags, write `app.yaml`, update the workflow/dependabot entries, and regenerate app-local config.
 
 ## Release Model
 
