@@ -90,27 +90,6 @@ jobs:
         with:
           go-version: '^1.26'
           check-latest: true
-          # setup-go's default `cache: true` keys on go.sum, which would create
-          # a separate cache entry per job. The explicit `Cache Go build
-          # outputs` step below uses the release commit SHA so both goreleaser
-          # and publish_homebrew_cask jobs share one GOCACHE.
-          cache: false
-      # Cache the Go build cache and module downloads keyed on the release
-      # commit SHA so the goreleaser and publish_homebrew_cask jobs share
-      # GOCACHE contents. Both jobs resolve to the same SHA (the tag's
-      # commit), so the second job's `go build` invocations (goreleaser
-      # re-runs builds for every OS/arch during the cask-only re-run)
-      # hit the cache populated by the first job instead of recompiling
-      # every binary from scratch.
-      - name: Cache Go build outputs
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-go-
       - name: Install gomplate
         run: make pre-reqs
       - name: Generate app configs
@@ -210,22 +189,6 @@ jobs:
         with:
           go-version: '^1.26'
           check-latest: true
-          # See the matching step in the goreleaser job for why this is
-          # disabled: a single SHA-keyed cache is shared between jobs.
-          cache: false
-      # Restores the GOCACHE populated by the goreleaser job for the same
-      # release SHA, so the cask-only rerun skips recompiling every OS/arch
-      # target. See goreleaser job for the matching `Cache Go build outputs`
-      # step.
-      - name: Cache Go build outputs
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-go-
       - name: Install gomplate
         run: make pre-reqs
       - name: Generate app configs
