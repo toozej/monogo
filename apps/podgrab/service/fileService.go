@@ -4,10 +4,12 @@ package service
 import (
 	"archive/tar"
 	"compress/gzip"
+	"context"
 	"encoding/xml"
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -61,8 +63,11 @@ func Download(link, episodeTitle, podcastName, episodePathName string) (string, 
 		logger.Log.Errorw("Error getting response: "+link, err)
 		return "", err
 	}
-
-	// Check HTTP status code
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			logger.Log.Errorw("Error closing response body", "error", closeErr)
+		}
+	}()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return "", fmt.Errorf("HTTP error: %d %s", resp.StatusCode, resp.Status)
 	}
@@ -79,11 +84,6 @@ func Download(link, episodeTitle, podcastName, episodePathName string) (string, 
 		logger.Log.Errorw("Error creating file"+link, err)
 		return "", err
 	}
-	defer func() {
-		if closeErr := resp.Body.Close(); closeErr != nil {
-			logger.Log.Errorw("Error closing response body", closeErr)
-		}
-	}()
 	_, erra := io.Copy(file, resp.Body)
 	defer func() {
 		if closeErr := file.Close(); closeErr != nil {
@@ -151,6 +151,14 @@ func DownloadPodcastCoverImage(link, podcastName string) (string, error) {
 		logger.Log.Errorw("Error getting response: "+link, err)
 		return "", err
 	}
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			logger.Log.Errorw("Error closing response body", "error", closeErr)
+		}
+	}()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "", fmt.Errorf("HTTP error: %d %s", resp.StatusCode, resp.Status)
+	}
 
 	fileName := getFileName(link, "folder", ".jpg")
 	folder := createDataFolderIfNotExists(podcastName)
@@ -173,11 +181,6 @@ func DownloadPodcastCoverImage(link, podcastName string) (string, error) {
 		logger.Log.Errorw("Error creating file"+link, err)
 		return "", err
 	}
-	defer func() {
-		if closeErr := resp.Body.Close(); closeErr != nil {
-			logger.Log.Errorw("Error closing response body", closeErr)
-		}
-	}()
 	_, erra := io.Copy(file, resp.Body)
 	defer func() {
 		if closeErr := file.Close(); closeErr != nil {
@@ -209,6 +212,14 @@ func DownloadImage(link, episodeID, podcastName string) (string, error) {
 		logger.Log.Errorw("Error getting response: "+link, err)
 		return "", err
 	}
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			logger.Log.Errorw("Error closing response body", "error", closeErr)
+		}
+	}()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "", fmt.Errorf("HTTP error: %d %s", resp.StatusCode, resp.Status)
+	}
 
 	fileName := getFileName(link, episodeID, ".jpg")
 	folder := createDataFolderIfNotExists(podcastName)
@@ -231,11 +242,6 @@ func DownloadImage(link, episodeID, podcastName string) (string, error) {
 		logger.Log.Errorw("Error creating file"+link, err)
 		return "", err
 	}
-	defer func() {
-		if closeErr := resp.Body.Close(); closeErr != nil {
-			logger.Log.Errorw("Error closing response body", closeErr)
-		}
-	}()
 	_, erra := io.Copy(file, resp.Body)
 	defer func() {
 		if closeErr := file.Close(); closeErr != nil {
@@ -324,7 +330,11 @@ func GetFileSizeFromURL(urlString string) (int64, error) {
 		return 0, err
 	}
 
-	resp, err := http.Head(urlString) // #nosec G107 -- URL validated by urlsafe.Validate above
+	req, err := http.NewRequest(http.MethodHead, urlString, http.NoBody)
+	if err != nil {
+		return 0, err
+	}
+	resp, err := httpClient().Do(req) // #nosec G704 -- every redirect and dial is validated by httpClient
 	if err != nil {
 		return 0, err
 	}
@@ -425,14 +435,60 @@ func addFileToTarWriter(filePath string, tarWriter *tar.Writer) error {
 
 	return nil
 }
+
+var (
+	lookupIPAddr = net.DefaultResolver.LookupIPAddr
+	networkDial  = (&net.Dialer{Timeout: 30 * time.Second}).DialContext
+)
+
+func isInternalAddress(ip net.IP) bool {
+	return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() ||
+		ip.IsLinkLocalMulticast() || ip.IsUnspecified()
+}
+
+// safeDialContext resolves and validates the address at dial time, then dials
+// the validated IP directly. This closes the DNS-rebinding window between the
+// initial URL validation and the actual connection.
+func safeDialContext(ctx context.Context, network, address string) (net.Conn, error) {
+	if allowPrivateNetwork() {
+		return networkDial(ctx, network, address)
+	}
+
+	host, port, err := net.SplitHostPort(address)
+	if err != nil {
+		return nil, fmt.Errorf("invalid dial address %q: %w", address, err)
+	}
+	ips, err := lookupIPAddr(ctx, host)
+	if err != nil {
+		return nil, fmt.Errorf("resolving %s: %w", host, err)
+	}
+	if len(ips) == 0 {
+		return nil, fmt.Errorf("hostname %s resolved to no addresses", host)
+	}
+	for _, resolved := range ips {
+		if isInternalAddress(resolved.IP) {
+			return nil, fmt.Errorf("refusing to dial private/internal address %s for %s", resolved.IP, host)
+		}
+	}
+
+	return networkDial(ctx, network, net.JoinHostPort(ips[0].IP.String(), port))
+}
+
 func httpClient() *http.Client {
-	client := http.Client{
-		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.Proxy = nil
+	transport.DialContext = safeDialContext
+
+	return &http.Client{
+		Timeout:   30 * time.Second,
+		Transport: transport,
+		CheckRedirect: func(req *http.Request, _ []*http.Request) error {
+			if err := urlsafe.Validate(req.URL.String(), allowPrivateNetwork()); err != nil {
+				return fmt.Errorf("refusing redirect target: %w", err)
+			}
 			return nil
 		},
 	}
-
-	return &client
 }
 
 func getRequest(urlStr string) (*http.Request, error) {

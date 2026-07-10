@@ -2,6 +2,9 @@
 package service
 
 import (
+	"context"
+	"errors"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -670,4 +673,32 @@ func TestGetFileSizeFromURLRejectsUnsafeURL(t *testing.T) {
 	// nosemgrep: problem-based-packs.insecure-transport.go-stdlib.grequests-http-request.grequests-http-request -- intentional: asserting the guard rejects this http metadata endpoint
 	_, err = GetFileSizeFromURL("http://169.254.169.254/latest/meta-data/")
 	require.Error(t, err, "Should reject link-local metadata endpoint when private networking is disabled")
+}
+
+func TestHTTPClientRejectsUnsafeRedirect(t *testing.T) {
+	t.Setenv("ALLOW_PRIVATE_NETWORK", "false")
+	req, err := http.NewRequest(http.MethodGet, "http://169.254.169.254/latest/meta-data/", http.NoBody)
+	require.NoError(t, err)
+
+	err = httpClient().CheckRedirect(req, nil)
+	require.ErrorContains(t, err, "refusing redirect target")
+}
+
+func TestSafeDialContextRejectsReboundInternalAddress(t *testing.T) {
+	t.Setenv("ALLOW_PRIVATE_NETWORK", "false")
+	originalLookup := lookupIPAddr
+	originalDial := networkDial
+	t.Cleanup(func() {
+		lookupIPAddr = originalLookup
+		networkDial = originalDial
+	})
+	lookupIPAddr = func(context.Context, string) ([]net.IPAddr, error) {
+		return []net.IPAddr{{IP: net.ParseIP("127.0.0.1")}}, nil
+	}
+	networkDial = func(context.Context, string, string) (net.Conn, error) {
+		return nil, errors.New("dial should not be reached")
+	}
+
+	_, err := safeDialContext(context.Background(), "tcp", "example.test:80")
+	require.ErrorContains(t, err, "private/internal")
 }

@@ -394,41 +394,15 @@ func GetPodcastItemFileByID(c *gin.Context) {
 	}
 }
 
-// audioExtensions is a list of supported audio file extensions
-var audioExtensions = []string{".mp3", ".m4a", ".ogg", ".wav", ".flac", ".aac", ".wma"}
-
-// isAudioFile checks if a filename has a supported audio extension
-func isAudioFile(name string) bool {
-	lowerName := strings.ToLower(name)
-	for _, ext := range audioExtensions {
-		if strings.HasSuffix(lowerName, ext) {
-			return true
-		}
-	}
-	return false
-}
-
-// scanDirForAudio scans a directory for audio files and returns the first one found
-func scanDirForAudio(dirPath string) string {
-	entries, err := os.ReadDir(dirPath)
-	if err != nil {
-		return ""
-	}
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-		if isAudioFile(entry.Name()) {
-			return filepath.Join(dirPath, entry.Name())
-		}
-	}
-	return ""
-}
-
-// findEpisodeFile attempts to locate an episode file by searching the podcast's directory.
-// This provides backward compatibility when folder naming conventions change or paths are wrong.
+// findEpisodeFile attempts to locate the same episode filename in the current
+// and legacy podcast directories. It never substitutes another episode's file.
 // #nosec G703 -- dataPath is from env var, podcast name is sanitized
 func findEpisodeFile(item *db.PodcastItem) string {
+	episodeFileName := filepath.Base(item.DownloadPath)
+	if episodeFileName == "." || episodeFileName == string(filepath.Separator) || episodeFileName == "" {
+		return ""
+	}
+
 	dataPath := os.Getenv("DATA")
 	if dataPath == "" {
 		dataPath = "./assets"
@@ -448,40 +422,21 @@ func findEpisodeFile(item *db.PodcastItem) string {
 		sanitizedName := sanitize.Name(podcastName)
 		podcastDir := filepath.Join(dataPath, sanitizedName)
 
-		// Check if the directory exists
-		if dirInfo, err := os.Stat(podcastDir); err == nil && dirInfo.IsDir() {
-			if file := scanDirForAudio(podcastDir); file != "" {
-				return file
-			}
+		candidate := filepath.Join(podcastDir, episodeFileName)
+		if info, err := os.Stat(candidate); err == nil && info.Mode().IsRegular() {
+			return candidate
 		}
 
 		// Also try the old-style folder name (with spaces/unsanitized)
 		oldStyleDir := filepath.Join(dataPath, podcastName)
 		if oldStyleDir != podcastDir {
-			if dirInfo, err := os.Stat(oldStyleDir); err == nil && dirInfo.IsDir() {
-				if file := scanDirForAudio(oldStyleDir); file != "" {
-					return file
-				}
+			candidate = filepath.Join(oldStyleDir, episodeFileName)
+			if info, err := os.Stat(candidate); err == nil && info.Mode().IsRegular() {
+				return candidate
 			}
 		}
 	}
-
-	// Fallback: walk the entire assets directory looking for any audio file
-	// This is slower but handles edge cases
-	var foundPath string
-	//nolint:errcheck // Walk errors are handled per-file via walkErr; we continue searching despite errors
-	_ = filepath.Walk(dataPath, func(path string, info os.FileInfo, walkErr error) error {
-		if walkErr != nil || info.IsDir() {
-			return nil
-		}
-		if isAudioFile(info.Name()) {
-			foundPath = path
-			return filepath.SkipAll
-		}
-		return nil
-	})
-
-	return foundPath
+	return ""
 }
 
 // GetFileContentType handles the get file content type request.
@@ -868,6 +823,10 @@ func UpdateSetting(c *gin.Context) {
 	err := c.ShouldBind(&settingModel)
 
 	if err == nil {
+		if settingModel.MaxDownloadConcurrency < 1 {
+			c.JSON(http.StatusBadRequest, gin.H{"message": "maxDownloadConcurrency must be at least 1"})
+			return
+		}
 		err = service.UpdateSettings(
 			settingModel.DownloadOnAdd,
 			settingModel.InitialDownloadCount,

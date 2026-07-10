@@ -667,41 +667,48 @@ func DownloadMissingEpisodes() error {
 		return nil
 	}
 	db.Lock(jobName, 120)
+	defer db.Unlock(jobName)
 	setting := db.GetOrCreateSetting()
+	if setting.MaxDownloadConcurrency < 1 {
+		return fmt.Errorf("max download concurrency must be at least 1")
+	}
 
 	data, err := db.GetAllPodcastItemsToBeDownloaded()
-
-	logger.Log.Infow("Processing episodes", "count", len(*data))
 	if err != nil {
 		return err
 	}
-	var wg sync.WaitGroup
-	for index := range *data {
-		wg.Add(1)
-		go func(item db.PodcastItem, setting db.Setting) {
-			defer wg.Done()
-			// Skip episodes without a download URL (e.g., text-only posts)
-			if item.FileURL == "" {
-				logger.Log.Warnw("skipping episode with empty download URL", "episode", item.Title, "podcast", item.Podcast.Title)
-				return
-			}
-			podcastFileName := FormatFileName(&item, setting.FileNameFormat)
-			url, dlErr := Download(item.FileURL, item.Title, item.Podcast.Title, podcastFileName)
-			if dlErr != nil {
-				logger.Log.Errorw("downloading episode", "error", dlErr)
-				return
-			}
-			if err := SetPodcastItemAsDownloaded(item.ID, url); err != nil {
-				logger.Log.Errorw("setting podcast item as downloaded", "error", err)
-			}
-		}((*data)[index], *setting)
+	logger.Log.Infow("Processing episodes", "count", len(*data))
 
-		if index%setting.MaxDownloadConcurrency == 0 {
-			wg.Wait()
-		}
+	jobs := make(chan db.PodcastItem)
+	var wg sync.WaitGroup
+	workerCount := min(setting.MaxDownloadConcurrency, len(*data))
+	for range workerCount {
+		wg.Add(1)
+		go func(setting db.Setting) {
+			defer wg.Done()
+			for item := range jobs {
+				// Skip episodes without a download URL (e.g., text-only posts)
+				if item.FileURL == "" {
+					logger.Log.Warnw("skipping episode with empty download URL", "episode", item.Title, "podcast", item.Podcast.Title)
+					continue
+				}
+				podcastFileName := FormatFileName(&item, setting.FileNameFormat)
+				url, dlErr := Download(item.FileURL, item.Title, item.Podcast.Title, podcastFileName)
+				if dlErr != nil {
+					logger.Log.Errorw("downloading episode", "error", dlErr)
+					continue
+				}
+				if err := SetPodcastItemAsDownloaded(item.ID, url); err != nil {
+					logger.Log.Errorw("setting podcast item as downloaded", "error", err)
+				}
+			}
+		}(*setting)
 	}
+	for item := range *data {
+		jobs <- (*data)[item]
+	}
+	close(jobs)
 	wg.Wait()
-	db.Unlock(jobName)
 	return nil
 }
 
@@ -934,9 +941,11 @@ func DeletePodcast(id string, deleteFiles bool) error {
 		}
 	}
 
-	err = deletePodcastFolder(podcast.Title)
-	if err != nil {
-		return err
+	if deleteFiles {
+		err = deletePodcastFolder(podcast.Title)
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
 	}
 
 	err = db.DeletePodcastByID(id)
@@ -978,10 +987,6 @@ func makeQuery(url string) ([]byte, error) {
 		return nil, fmt.Errorf("refusing to fetch feed URL: %w", err)
 	}
 
-	client := &http.Client{
-		Timeout: 30 * time.Second,
-	}
-
 	req, err := http.NewRequest("GET", url, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("error creating request: %w", err)
@@ -995,7 +1000,7 @@ func makeQuery(url string) ([]byte, error) {
 	}
 	req.Header.Set("Accept", "*/*")
 
-	resp, err := client.Do(req) // #nosec G704 -- url validated by urlsafe.Validate above; fetching user-added podcast feed URLs is by design
+	resp, err := httpClient().Do(req) // #nosec G704 -- every redirect and dial is validated by httpClient
 	if err != nil {
 		return nil, fmt.Errorf("error making request: %w", err)
 	}
@@ -1078,6 +1083,9 @@ func UpdateSettings(
 	maxDownloadKeep int,
 	userAgent string,
 ) error {
+	if maxDownloadConcurrency < 1 {
+		return fmt.Errorf("max download concurrency must be at least 1")
+	}
 	setting := db.GetOrCreateSetting()
 
 	setting.AutoDownload = autoDownload

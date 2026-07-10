@@ -16,4 +16,19 @@ cgoEnabled: false
 # Dockerfile. Defaults to "scratch", or "debian:trixie-slim" when cgoEnabled is true.
 # runtimeImage: debian:trixie-slim
 # port (optional) is EXPOSEd in the generated Dockerfiles when set.
-# port: 8081
+port: 8080
+writableDirs:
+  - /config
+  - /assets
+compose:
+  environment:
+    CONFIG: /config
+    DATA: /assets
+  ports:
+    - 8080:8080
+  volumes:
+    - podgrab-config:/config
+    - podgrab-assets:/assets
+  namedVolumes:
+    - podgrab-config
+    - podgrab-assets

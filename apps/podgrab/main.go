@@ -171,14 +171,7 @@ func run() int {
 	r.SetHTMLTemplate(tmpl)
 
 	pass := os.Getenv("PASSWORD")
-	var router *gin.RouterGroup
-	if pass != "" {
-		router = r.Group("/", gin.BasicAuth(gin.Accounts{
-			"podgrab": pass,
-		}))
-	} else {
-		router = &r.RouterGroup
-	}
+	router := applicationRouter(r, pass)
 
 	dataPath := os.Getenv("DATA")
 	backupPath := path.Join(os.Getenv("CONFIG"), "backups")
@@ -249,9 +242,7 @@ func run() int {
 		c.JSON(http.StatusOK, info)
 	})
 
-	r.GET("/ws", func(c *gin.Context) {
-		controllers.Wshandler(c.Writer, c.Request)
-	})
+	registerWebsocketRoute(router)
 	go controllers.HandleWebsocketMessages()
 
 	go assetEnv()
@@ -263,6 +254,19 @@ func run() int {
 	}
 
 	return 0
+}
+
+func applicationRouter(r *gin.Engine, password string) *gin.RouterGroup {
+	if password == "" {
+		return &r.RouterGroup
+	}
+	return r.Group("/", gin.BasicAuth(gin.Accounts{"podgrab": password}))
+}
+
+func registerWebsocketRoute(router *gin.RouterGroup) {
+	router.GET("/ws", func(c *gin.Context) {
+		controllers.Wshandler(c.Writer, c.Request)
+	})
 }
 func setupSettings() gin.HandlerFunc {
 	return func(c *gin.Context) {

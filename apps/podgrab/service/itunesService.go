@@ -54,38 +54,21 @@ type PodcastIndexService struct {
 func getPodcastIndexCredentials() (apiKey, apiSecret string) {
 	apiKey = os.Getenv("PODCASTINDEX_KEY")
 	apiSecret = os.Getenv("PODCASTINDEX_SECRET")
-
-	// Use demo credentials if environment variables are not set
-	// These are public demo credentials from podcastindex.org
-	if apiKey == "" {
-		apiKey = getDefaultPodcastIndexKey()
-	}
-	if apiSecret == "" {
-		apiSecret = getDefaultPodcastIndexSecret()
-	}
 	return apiKey, apiSecret
-}
-
-func getDefaultPodcastIndexKey() string {
-	// Public demo key from podcastindex.org documentation
-	return "REDACTED_PODCASTINDEX_KEY"
-}
-
-func getDefaultPodcastIndexSecret() string {
-	// Public demo secret from podcastindex.org documentation. The real value is
-	// redacted in the upstream source; supply one via the PODCASTINDEX_SECRET
-	// environment variable.
-	return "REDACTED_PODCASTINDEX_SECRET"
 }
 
 // Query searches for podcasts using the Podcast Index API.
 func (service PodcastIndexService) Query(q string) []*model.CommonSearchResultModel {
 	key, secret := getPodcastIndexCredentials()
+	if key == "" || secret == "" {
+		logger.Log.Error("Podcast Index search requires PODCASTINDEX_KEY and PODCASTINDEX_SECRET")
+		return []*model.CommonSearchResultModel{}
+	}
 	c := podcastindex.NewClient(key, secret)
 	var toReturn []*model.CommonSearchResultModel
 	podcasts, err := c.Search(q)
 	if err != nil {
-		logger.Log.Fatal(err.Error())
+		logger.Log.Errorw("searching Podcast Index", "error", err)
 		return toReturn
 	}
 

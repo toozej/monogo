@@ -1,12 +1,24 @@
 [[- $app := ds "app" -]]
 [[- $distroless := $app.distrolessImage -]]
 [[- if conv.ToBool (index $app "cgoEnabled") -]][[- $distroless = strings.ReplaceAll "static-" "base-" $distroless -]][[- end -]]
+[[ if index $app "writableDirs" -]]
+FROM [[$app.goImage]] AS filesystem
+RUN mkdir -p[[ range index $app "writableDirs" ]] /container-root[[.]][[ end ]] && \
+    chown -R 65532:65532 /container-root
+[[ end -]]
 # runtime image including CA certs and tzdata
 FROM [[$distroless]]
 # Copy our static executable.
 ARG TARGETPLATFORM
 COPY $TARGETPLATFORM/[[$app.binary]] /go/bin/[[$app.binary]]
+[[ range index $app "writableDirs" -]]
+COPY --from=filesystem --chown=65532:65532 /container-root[[.]] [[.]]
+[[ end -]]
 # Expose port for publishing as web service
+[[- if index $app "port" ]]
+EXPOSE [[$app.port]]
+[[- else ]]
 # EXPOSE 8081
+[[- end ]]
 # Run the binary.
 ENTRYPOINT ["/go/bin/[[$app.binary]]"]

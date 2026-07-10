@@ -7,6 +7,14 @@ services:
     security_opt:
       - no-new-privileges:true
     read_only: true
+    environment:
+      CONFIG: "/config"
+      DATA: "/assets"
+    ports:
+      - "8080:8080"
+    volumes:
+      - "podgrab-config:/config"
+      - "podgrab-assets:/assets"
     labels:
       - "traefik.enable=false"
       # labels below for publishing as web service
@@ -19,3 +27,6 @@ services:
       # - "traefik.http.routers.podgrab-secure.tls=true"
     # networks:
       # - traefik
+volumes:
+  podgrab-config:
+  podgrab-assets:
