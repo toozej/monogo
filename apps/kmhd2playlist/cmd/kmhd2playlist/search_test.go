@@ -179,7 +179,7 @@ func TestNewSearchCmd(t *testing.T) {
 	assert.Equal(t, "search [query]", cmd.Use)
 	assert.Equal(t, "Search for songs in KMHD playlist", cmd.Short)
 	assert.Contains(t, cmd.Long, "fuzzy matching")
-	assert.NotNil(t, cmd.Run)
+	assert.NotNil(t, cmd.RunE)
 }
 
 func TestInitializeKMHDAPIClient(t *testing.T) {

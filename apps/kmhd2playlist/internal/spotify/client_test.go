@@ -3,9 +3,40 @@ package spotify
 import (
 	"path/filepath"
 	"testing"
+	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/toozej/monogo/apps/kmhd2playlist/internal/config"
 )
+
+func TestOAuthStateIsRandomAndExpires(t *testing.T) {
+	newTestClient := func() *Client {
+		client, err := NewClient(config.SpotifyConfig{
+			ClientID:      "client-id",
+			ClientSecret:  "client-secret",
+			RedirectURL:   "http://127.0.0.1:8080/callback",
+			TokenFilePath: filepath.Join(t.TempDir(), "spotify_token.json"),
+		}, logrus.New())
+		if err != nil {
+			t.Fatalf("NewClient() error = %v", err)
+		}
+		return client
+	}
+
+	first := newTestClient()
+	second := newTestClient()
+	if first.state == second.state {
+		t.Fatal("OAuth state must be unique per authentication attempt")
+	}
+	if err := first.CompleteAuth("code", "wrong-state"); err == nil {
+		t.Fatal("CompleteAuth() accepted an incorrect OAuth state")
+	}
+
+	first.stateTime = time.Now().Add(-11 * time.Minute)
+	if err := first.CompleteAuth("code", first.state); err == nil {
+		t.Fatal("CompleteAuth() accepted an expired OAuth state")
+	}
+}
 
 func TestSpotifyConfigGetTokenFilePath(t *testing.T) {
 	tests := []struct {

@@ -4,9 +4,13 @@ package cmd
 import (
 	"context"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"math/big"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -24,7 +28,8 @@ func newSyncCmd() *cobra.Command {
 		Long: `Sync the latest songs from KMHD jazz radio to your music service playlist.
 This command fetches songs from the KMHD JSON API and adds them
 to your specified playlist using fuzzy matching.`,
-		Run: runSync,
+		Args: cobra.NoArgs,
+		RunE: runSync,
 	}
 
 	cmd.Flags().BoolP("continuous", "c", false, "Run continuously, checking for new songs every hour with randomized timing")
@@ -34,9 +39,18 @@ to your specified playlist using fuzzy matching.`,
 }
 
 // runSync executes the sync command.
-func runSync(cmd *cobra.Command, args []string) {
-	continuous, _ := cmd.Flags().GetBool("continuous")
-	interval, _ := cmd.Flags().GetDuration("interval")
+func runSync(cmd *cobra.Command, args []string) error {
+	continuous, err := cmd.Flags().GetBool("continuous")
+	if err != nil {
+		return err
+	}
+	interval, err := cmd.Flags().GetDuration("interval")
+	if err != nil {
+		return err
+	}
+	if continuous && interval <= 0 {
+		return fmt.Errorf("continuous sync interval must be greater than zero")
+	}
 
 	if continuous {
 		log.WithField("interval", interval).Info("Starting continuous KMHD to music service sync operation")
@@ -47,18 +61,15 @@ func runSync(cmd *cobra.Command, args []string) {
 	// Initialize services using configuration
 	kmhdScraper, musicService, fuzzySongSearcher, err := initializeAllServices()
 	if err != nil {
-		log.WithError(err).Fatal("Failed to initialize services")
-		return
+		return fmt.Errorf("failed to initialize services: %w", err)
 	}
 
 	// Check if music service is authenticated, if not, start auth flow
 	if !musicService.IsAuthenticated() {
 		log.Info("Music service authentication required. Starting authentication flow...")
 
-		err := authenticateMusicService(musicService)
-		if err != nil {
-			log.WithError(err).Fatal("Failed to authenticate with music service")
-			return
+		if err := authenticateMusicService(musicService); err != nil {
+			return fmt.Errorf("failed to authenticate with music service: %w", err)
 		}
 
 		log.Info("Music service authentication completed successfully")
@@ -74,35 +85,34 @@ func runSync(cmd *cobra.Command, args []string) {
 	}
 	targetPlaylist, err := getOrCreateMonthlyPlaylist(musicService, playlistPrefix)
 	if err != nil {
-		log.WithError(err).Error("Failed to get or create monthly playlist")
-		return
+		return fmt.Errorf("failed to get or create monthly playlist: %w", err)
 	}
 
 	log.WithField("playlist", targetPlaylist.Name).Info("Using playlist as sync target")
 
-	// For radio monitoring, we don't need to track "seen songs" across cycles
-	// since the same song can legitimately play multiple times and users might want it added each time
-	// The duplicate checking will handle preventing actual duplicates in the playlist
-
 	// Run sync operation
 	if continuous {
-		runContinuousSync(kmhdScraper, musicService, fuzzySongSearcher, targetPlaylist, interval)
+		ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
+		defer stop()
+		return runContinuousSync(ctx, kmhdScraper, musicService, fuzzySongSearcher, targetPlaylist, playlistPrefix, interval)
 	} else {
-		// For single sync, use a seenSongs map to avoid processing the same song multiple times within one batch
 		seenSongs := make(map[string]bool)
-		runSingleSync(kmhdScraper, musicService, fuzzySongSearcher, targetPlaylist, seenSongs)
+		return runSingleSync(kmhdScraper, musicService, fuzzySongSearcher, targetPlaylist, seenSongs)
 	}
 }
 
 // runContinuousSync runs the sync operation continuously at the specified interval with randomization
-func runContinuousSync(kmhdScraper types.KMHDScraper, musicService types.MusicService, fuzzySongSearcher *search.FuzzySongSearcher, targetPlaylist types.Playlist, interval time.Duration) {
+func runContinuousSync(ctx context.Context, kmhdScraper types.KMHDScraper, musicService types.MusicService, fuzzySongSearcher *search.FuzzySongSearcher, targetPlaylist types.Playlist, playlistPrefix string, interval time.Duration) error {
 	log.Info("🎵 Starting continuous sync mode - monitoring KMHD for new songs...")
 	fmt.Printf("🎵 Monitoring KMHD every %v (with randomization) for new songs...\n", interval)
 	fmt.Printf("Press Ctrl+C to stop\n\n")
 
 	// Run initial sync
-	cycleSeen := make(map[string]bool)
-	runSingleSync(kmhdScraper, musicService, fuzzySongSearcher, targetPlaylist, cycleSeen)
+	processedSongs := make(map[string]bool)
+	if err := runSingleSync(kmhdScraper, musicService, fuzzySongSearcher, targetPlaylist, processedSongs); err != nil {
+		log.WithError(err).Warn("Initial sync completed with errors; failed songs will be retried")
+	}
+	playlistMonth := time.Now().Format("2006-01")
 
 	// Continue monitoring with randomized intervals
 	for {
@@ -118,14 +128,34 @@ func runContinuousSync(kmhdScraper types.KMHDScraper, musicService types.MusicSe
 		fmt.Printf("⏰ Next sync scheduled for: %s (in %v)\n",
 			nextSyncTime.Format("2006-01-02 15:04:05"), nextSyncDuration)
 
-		// Wait for the calculated duration
-		time.Sleep(nextSyncDuration)
+		timer := time.NewTimer(nextSyncDuration)
+		select {
+		case <-ctx.Done():
+			if !timer.Stop() {
+				select {
+				case <-timer.C:
+				default:
+				}
+			}
+			return nil
+		case <-timer.C:
+		}
 
 		log.Debug("Running scheduled sync check")
-		// Create a fresh cycle-specific seenSongs map for each cycle
-		// Global tracking prevents cross-day duplicates in long-running sessions
-		cycleSeen := make(map[string]bool)
-		runSingleSync(kmhdScraper, musicService, fuzzySongSearcher, targetPlaylist, cycleSeen)
+		currentMonth := time.Now().Format("2006-01")
+		if currentMonth != playlistMonth {
+			var err error
+			targetPlaylist, err = getOrCreateMonthlyPlaylist(musicService, playlistPrefix)
+			if err != nil {
+				log.WithError(err).Error("Failed to rotate monthly playlist; will retry next cycle")
+				continue
+			}
+			playlistMonth = currentMonth
+			processedSongs = make(map[string]bool)
+		}
+		if err := runSingleSync(kmhdScraper, musicService, fuzzySongSearcher, targetPlaylist, processedSongs); err != nil {
+			log.WithError(err).Warn("Scheduled sync completed with errors; failed songs will be retried")
+		}
 	}
 }
 
@@ -137,12 +167,11 @@ func calculateNextSyncTime(baseInterval time.Duration) time.Duration {
 	return baseInterval + randomOffset
 }
 
-// globalSeenSongs tracks songs across all sync cycles to prevent cross-day duplicates
-// in long-running sessions. Key format: "artist - title"
-var globalSeenSongs = make(map[string]time.Time)
-
 // generateSecureRandomInt generates a cryptographically secure random integer in the range [0, max)
 func generateSecureRandomInt(max int64) int64 {
+	if max <= 0 {
+		return 0
+	}
 	n, err := rand.Int(rand.Reader, big.NewInt(max))
 	if err != nil {
 		// Fallback to current time-based offset if crypto/rand fails
@@ -152,18 +181,17 @@ func generateSecureRandomInt(max int64) int64 {
 }
 
 // runSingleSync runs a single sync operation
-func runSingleSync(kmhdScraper types.KMHDScraper, musicService types.MusicService, fuzzySongSearcher *search.FuzzySongSearcher, targetPlaylist types.Playlist, seenSongs map[string]bool) {
+func runSingleSync(kmhdScraper types.KMHDScraper, musicService types.MusicService, fuzzySongSearcher *search.FuzzySongSearcher, targetPlaylist types.Playlist, seenSongs map[string]bool) error {
 	// Fetch KMHD playlist from JSON API
 	log.Debug("Fetching KMHD playlist from JSON API...")
 	songCollection, err := kmhdScraper.ScrapePlaylist()
 	if err != nil {
-		log.WithError(err).Error("Failed to fetch KMHD playlist from API")
-		return
+		return fmt.Errorf("failed to fetch KMHD playlist from API: %w", err)
 	}
 
 	if len(songCollection.Songs) == 0 {
 		log.Debug("No songs found in KMHD playlist")
-		return
+		return nil
 	}
 
 	// Check for invalid songs
@@ -202,25 +230,23 @@ func runSingleSync(kmhdScraper types.KMHDScraper, musicService types.MusicServic
 	newSongs := filterNewSongs(songCollection.Songs, seenSongs)
 	if len(newSongs) == 0 {
 		log.Debug("No new songs found")
-		return
+		return nil
 	}
 
 	log.WithField("new_song_count", len(newSongs)).Info("Found new songs to sync")
 
 	// Sync new songs to music service
-	syncSongsToService(newSongs, musicService, fuzzySongSearcher, targetPlaylist, seenSongs)
+	return syncSongsToService(newSongs, musicService, fuzzySongSearcher, targetPlaylist, seenSongs)
 }
 
-// filterNewSongs returns only songs that haven't been seen in this cycle or globally
-// This prevents duplicate processing within the same batch and across multiple days
-// in long-running sessions. Duplicate checking provides additional protection.
+// filterNewSongs returns valid songs not already confirmed in this sync session.
 func filterNewSongs(songs []types.Song, seenSongs map[string]bool) []types.Song {
 	var newSongs []types.Song
+	batchSeen := make(map[string]bool)
 
 	log.WithFields(log.Fields{
-		"total_songs":       len(songs),
-		"cycle_seen_songs":  len(seenSongs),
-		"global_seen_songs": len(globalSeenSongs),
+		"total_songs":     len(songs),
+		"confirmed_songs": len(seenSongs),
 	}).Debug("Filtering songs for processing")
 
 	for i, song := range songs {
@@ -238,45 +264,24 @@ func filterNewSongs(songs []types.Song, seenSongs map[string]bool) []types.Song 
 		// Create a unique key for the song (artist + title)
 		songKey := fmt.Sprintf("%s - %s", song.Artist, song.Title)
 
-		// Check if song was seen in current cycle
-		cycleSeenBefore := seenSongs[songKey]
-
-		// Check if song was seen globally (across all cycles)
-		globalSeenTime, globalSeenBefore := globalSeenSongs[songKey]
+		confirmedBefore := seenSongs[songKey]
+		batchSeenBefore := batchSeen[songKey]
 
 		log.WithFields(log.Fields{
-			"song_index":         i,
-			"song_key":           songKey,
-			"artist":             song.Artist,
-			"title":              song.Title,
-			"cycle_seen_before":  cycleSeenBefore,
-			"global_seen_before": globalSeenBefore,
-			"global_seen_time":   globalSeenTime,
+			"song_index":        i,
+			"song_key":          songKey,
+			"artist":            song.Artist,
+			"title":             song.Title,
+			"confirmed_before":  confirmedBefore,
+			"batch_seen_before": batchSeenBefore,
 		}).Debug("Checking song for filtering")
 
-		// Skip if seen in current cycle or globally
-		if cycleSeenBefore {
-			log.WithField("song_key", songKey).Debug("Song already seen in this cycle, skipping")
+		if confirmedBefore || batchSeenBefore {
+			log.WithField("song_key", songKey).Debug("Song already processed or present in this batch, skipping")
 			continue
 		}
-
-		if globalSeenBefore {
-			log.WithFields(log.Fields{
-				"song_key":        songKey,
-				"first_seen_time": globalSeenTime,
-			}).Debug("Song already seen in previous session, skipping")
-			continue
-		}
-
-		// Song is new - add to both tracking maps
 		newSongs = append(newSongs, song)
-		seenSongs[songKey] = true
-		globalSeenSongs[songKey] = time.Now()
-
-		log.WithFields(log.Fields{
-			"song_key":   songKey,
-			"added_time": time.Now(),
-		}).Debug("Song marked as new for processing")
+		batchSeen[songKey] = true
 	}
 
 	log.WithFields(log.Fields{
@@ -288,11 +293,12 @@ func filterNewSongs(songs []types.Song, seenSongs map[string]bool) []types.Song 
 }
 
 // syncSongsToService syncs the API-fetched songs to the specified music service playlist
-func syncSongsToService(songs []types.Song, musicService types.MusicService, fuzzySongSearcher *search.FuzzySongSearcher, targetPlaylist types.Playlist, seenSongs map[string]bool) {
+func syncSongsToService(songs []types.Song, musicService types.MusicService, fuzzySongSearcher *search.FuzzySongSearcher, targetPlaylist types.Playlist, seenSongs map[string]bool) error {
 	log.WithField("playlist", targetPlaylist.Name).Debug("Starting sync to music service playlist")
 
 	syncedCount := 0
 	skippedCount := 0
+	var syncErrors []error
 
 	for i, song := range songs {
 		// Log the song found on KMHD before processing
@@ -312,11 +318,13 @@ func syncSongsToService(songs []types.Song, musicService types.MusicService, fuz
 			}).Warn("Failed to find song match, skipping song")
 			fmt.Printf("   ❌ Could not find song on music service: %s\n", err.Error())
 			skippedCount++
+			syncErrors = append(syncErrors, fmt.Errorf("match %s: %w", song.String(), err))
 			continue
 		}
 
-		// Skip low confidence matches
-		if songMatch.OverallConfidence < 0.5 {
+		// Require both the artist and title to be plausible. A strong artist match
+		// must not compensate for an unrelated title in the weighted score.
+		if songMatch.OverallConfidence < 0.5 || songMatch.ArtistConfidence < 0.5 || songMatch.SongConfidence < 0.5 {
 			log.WithFields(log.Fields{
 				"kmhd_song":          song.String(),
 				"overall_confidence": songMatch.OverallConfidence,
@@ -325,6 +333,7 @@ func syncSongsToService(songs []types.Song, musicService types.MusicService, fuz
 			}).Debug("Low confidence match, skipping song")
 			fmt.Printf("   ❌ Low confidence match (%.2f), skipping\n", songMatch.OverallConfidence)
 			skippedCount++
+			syncErrors = append(syncErrors, fmt.Errorf("match %s: confidence %.2f below threshold", song.String(), songMatch.OverallConfidence))
 			continue
 		}
 
@@ -341,14 +350,24 @@ func syncSongsToService(songs []types.Song, musicService types.MusicService, fuz
 			log.WithFields(log.Fields{
 				"playlist": targetPlaylist.Name,
 				"error":    err.Error(),
-			}).Warn("Failed to check existing tracks, attempting to add anyway")
-		} else if len(existing) > 0 && existing[0] {
+			}).Warn("Failed to check existing tracks, deferring song")
+			skippedCount++
+			syncErrors = append(syncErrors, fmt.Errorf("check whether %s is already in playlist: %w", song.String(), err))
+			continue
+		}
+		if len(existing) != len(trackIDs) {
+			skippedCount++
+			syncErrors = append(syncErrors, fmt.Errorf("playlist duplicate check returned %d results for %d tracks", len(existing), len(trackIDs)))
+			continue
+		}
+		if existing[0] {
 			log.WithFields(log.Fields{
 				"kmhd_song": song.String(),
 				"playlist":  targetPlaylist.Name,
 			}).Debug("Track already exists in playlist, skipping")
 			fmt.Printf("   ⏭️  Track already in playlist: %s\n", songMatch.Track.Name)
 			skippedCount++
+			seenSongs[songKey(song)] = true
 			continue
 		}
 
@@ -362,6 +381,7 @@ func syncSongsToService(songs []types.Song, musicService types.MusicService, fuz
 			}).Warn("Failed to add track to playlist")
 			fmt.Printf("   ❌ Failed to add to playlist: %s\n", err.Error())
 			skippedCount++
+			syncErrors = append(syncErrors, fmt.Errorf("add %s to playlist: %w", song.String(), err))
 			continue
 		}
 
@@ -373,6 +393,7 @@ func syncSongsToService(songs []types.Song, musicService types.MusicService, fuz
 
 		fmt.Printf("   ✅ Added to playlist: %s\n", songMatch.Track.Name)
 		syncedCount++
+		seenSongs[songKey(song)] = true
 	}
 
 	// Display sync summary
@@ -384,12 +405,21 @@ func syncSongsToService(songs []types.Song, musicService types.MusicService, fuz
 		fmt.Printf("   • Target playlist: %s\n", targetPlaylist.Name)
 		fmt.Println()
 	}
+	return errors.Join(syncErrors...)
+}
+
+func songKey(song types.Song) string {
+	return fmt.Sprintf("%s - %s", song.Artist, song.Title)
 }
 
 // getOrCreateMonthlyPlaylist finds or creates a monthly playlist based on the configured prefix.
 // Creates playlists with format: "{prefix}-YYYY-MM" (e.g., "KMHD-2025-10")
 // If no prefix is configured, it returns the first existing playlist.
 func getOrCreateMonthlyPlaylist(musicService types.MusicService, playlistNamePrefix string) (types.Playlist, error) {
+	return getOrCreateMonthlyPlaylistAt(musicService, playlistNamePrefix, time.Now())
+}
+
+func getOrCreateMonthlyPlaylistAt(musicService types.MusicService, playlistNamePrefix string, now time.Time) (types.Playlist, error) {
 	// Get user's playlists
 	playlists, err := musicService.GetUserPlaylists("")
 	if err != nil {
@@ -399,14 +429,13 @@ func getOrCreateMonthlyPlaylist(musicService types.MusicService, playlistNamePre
 	// If no playlist name prefix is configured, use the first playlist (backward compatibility)
 	if playlistNamePrefix == "" {
 		if len(playlists) == 0 {
-			return types.Playlist{}, fmt.Errorf("no playlists found and no prefix configured. Please create a playlist or set SPOTIFY_PLAYLIST_NAME_PREFIX")
+			return types.Playlist{}, fmt.Errorf("no playlists found and no prefix configured; create a playlist or configure a playlist name prefix")
 		}
-		log.Warn("No playlist name prefix configured (SPOTIFY_PLAYLIST_NAME_PREFIX), using first playlist")
+		log.Warn("No playlist name prefix configured, using first playlist")
 		return playlists[0], nil
 	}
 
 	// Generate current month's playlist name
-	now := time.Now()
 	monthlyPlaylistName := fmt.Sprintf("%s-%04d-%02d", playlistNamePrefix, now.Year(), now.Month())
 
 	log.WithFields(log.Fields{
