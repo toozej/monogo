@@ -410,6 +410,9 @@ description: "$(yaml_escape "$DESCRIPTION")"
 shortDescription: "${APP_NAME}"
 goImage: golang:1.26-trixie
 distrolessImage: gcr.io/distroless/static-debian13:nonroot
+# distrolessOnly builds a single CA/tzdata-capable release image and applies
+# both the normal and distroless tag families to it.
+distrolessOnly: false
 # cgoEnabled defaults to false. When true, builds use CGO_ENABLED=1, the runtime
 # image becomes glibc-capable (debian:trixie-slim / distroless base-debian), and
 # GoReleaser is trimmed to the native linux/amd64 platform.

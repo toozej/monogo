@@ -7,6 +7,7 @@ description: "A self-hosted podcast manager/downloader/archiver tool to download
 shortDescription: "podgrab"
 goImage: golang:1.26-trixie
 distrolessImage: gcr.io/distroless/static-debian13:nonroot
+distrolessOnly: true
 # cgoEnabled defaults to false. When true, builds use CGO_ENABLED=1, the runtime
 # image becomes glibc-capable (debian:trixie-slim / distroless base-debian), and
 # GoReleaser is trimmed to the native linux/amd64 platform.

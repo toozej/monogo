@@ -1,5 +1,5 @@
 # runtime image
-FROM scratch
+FROM gcr.io/distroless/static-debian13:nonroot
 # Copy our static executable.
 ARG TARGETPLATFORM
 COPY $TARGETPLATFORM/ghreleases2rss /go/bin/ghreleases2rss

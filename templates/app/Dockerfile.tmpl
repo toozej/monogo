@@ -5,6 +5,10 @@
 [[- $runtime := "scratch" -]]
 [[- if eq $cgo "1" -]][[- $runtime = "debian:trixie-slim" -]][[- end -]]
 [[- if index $app "runtimeImage" -]][[- $runtime = $app.runtimeImage -]][[- end -]]
+[[- if conv.ToBool (index $app "distrolessOnly") -]]
+[[- $runtime = $app.distrolessImage -]]
+[[- if eq $cgo "1" -]][[- $runtime = strings.ReplaceAll "static-" "base-" $runtime -]][[- end -]]
+[[- end -]]
 # setup project and deps
 FROM [[$app.goImage]] AS init
 

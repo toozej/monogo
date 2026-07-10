@@ -36,7 +36,7 @@ RUN LDFLAGS="-s -w -X github.com/toozej/monogo/pkg/version.Version=${VERSION} -X
     CGO_ENABLED=0 go build -o /out/kmhd2playlist -ldflags="${LDFLAGS}" ./apps/kmhd2playlist
 
 # runtime image
-FROM scratch
+FROM gcr.io/distroless/static-debian13:nonroot
 # Copy our executable.
 COPY --from=build /out/kmhd2playlist /go/bin/kmhd2playlist
 # Expose port for publishing as web service

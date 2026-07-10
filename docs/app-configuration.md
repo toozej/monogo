@@ -19,6 +19,7 @@ the devcontainer build. Run `make app-generate APP=<app>` after editing
 | `shortDescription` | yes | Short description. |
 | `goImage` | yes | Builder image for the Docker build stages, e.g. `golang:1.26-trixie`. |
 | `distrolessImage` | yes | Distroless runtime image for `Dockerfile.distroless`, e.g. `gcr.io/distroless/static-debian13:nonroot`. |
+| `distrolessOnly` | no (default `false`) | Builds only the distroless release image. That image receives both the normal (`latest`, version) and distroless (`distroless`, version-distroless) tags. The generated default Dockerfile also uses the distroless runtime. Use this for apps that require CA certificates or timezone data. |
 | `cgoEnabled` | no (default `false`) | Toggles `CGO_ENABLED`. See [CGO apps](#cgo-apps). |
 | `runtimeImage` | no | Overrides the runtime base in the non-distroless `Dockerfile`. Defaults to `scratch`, or `debian:trixie-slim` when `cgoEnabled` is `true`. |
 | `port` | no | When set, `EXPOSE <port>` is emitted in the generated Dockerfiles. |
@@ -47,6 +48,15 @@ the runtime and release configuration so the result still runs and builds:
   platform (cross-compiling cgo needs target C toolchains), the macOS
   `universal_binaries` step is dropped, and each `dockers_v2` image is pinned to
   `platforms: [linux/amd64]`.
+
+## Distroless-only apps
+
+Set `distrolessOnly: true` when an app requires runtime data that `scratch`
+does not provide, such as CA certificates or timezone data. GoReleaser emits a
+single distroless image for these apps and applies both tag families to the same
+digest: `latest`/plain version tags and `distroless`/distroless-version tags.
+The weekly refresh and signature-verification workflows continue to verify both
+stable aliases without building a duplicate scratch image.
 
 ### Implementation notes
 
