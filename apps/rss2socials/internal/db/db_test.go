@@ -226,6 +226,42 @@ func TestStoreTootedPost_PreservesSiteFlagsOnConflict(t *testing.T) {
 	assert.True(t, mastodonPosted, "Expected mastodon_posted to be preserved after StoreTootedPost with updated content")
 }
 
+func TestStoreUpdatedPostResetsDeliveryState(t *testing.T) {
+	InitDB()
+	defer CloseDB()
+	defer func() { _ = os.Remove("./tooted_posts.db") }()
+
+	link := "https://example.com/update-delivery"
+	require.NoError(t, StoreTootedPost(link, "original", "2026-01-01T00:00:00Z"))
+	for _, site := range []string{"mastodon", "bluesky", "threads"} {
+		require.NoError(t, MarkSitePosted(link, site))
+	}
+
+	require.NoError(t, StoreUpdatedPost(link, "updated", "2026-01-02T00:00:00Z"))
+	for _, site := range []string{"mastodon", "bluesky", "threads"} {
+		posted, err := IsSitePosted(link, site)
+		require.NoError(t, err)
+		assert.False(t, posted, "%s should be eligible for the new content version", site)
+	}
+	pending, err := IsUpdatePending(link)
+	require.NoError(t, err)
+	assert.True(t, pending)
+}
+
+func TestSeedPostMarksSnapshotDelivered(t *testing.T) {
+	InitDB()
+	defer CloseDB()
+	defer func() { _ = os.Remove("./tooted_posts.db") }()
+
+	link := "https://example.com/initial-snapshot"
+	require.NoError(t, SeedPost(link, "existing", "2026-01-01T00:00:00Z"))
+	for _, site := range []string{"mastodon", "bluesky", "threads"} {
+		posted, err := IsSitePosted(link, site)
+		require.NoError(t, err)
+		assert.True(t, posted, "%s should not announce the initial snapshot", site)
+	}
+}
+
 func TestIsFirstCycle(t *testing.T) {
 	InitDB()
 	defer CloseDB()

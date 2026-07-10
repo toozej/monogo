@@ -1,6 +1,7 @@
 package mastodon
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -20,6 +21,25 @@ func TestGetTootContent_WithContent(t *testing.T) {
 	result := GetTootContent(post)
 	if result != expected {
 		t.Errorf("Expected '%s', got '%s'", expected, result)
+	}
+}
+
+func TestTootPostContextSendsIdempotencyKey(t *testing.T) {
+	const key = "rss2socials-test-key"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Idempotency-Key"); got != key {
+			t.Errorf("Idempotency-Key = %q, want %q", got, key)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"123"}`))
+	}))
+	defer server.Close()
+
+	err := TootPostContext(context.Background(), config.Config{
+		MastodonURL: server.URL, MastodonAccessToken: "token",
+	}, "hello", key)
+	if err != nil {
+		t.Fatalf("TootPostContext() error = %v", err)
 	}
 }
 

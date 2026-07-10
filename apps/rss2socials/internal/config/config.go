@@ -30,6 +30,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 
 	sharedconfig "github.com/toozej/monogo/pkg/config"
@@ -148,26 +149,86 @@ func GetEnvVars() (Config, error) {
 // so that those subcommands work without a fully configured environment.
 func ValidateRequired(conf Config) error {
 	var missing []string
-	if conf.MastodonURL == "" {
-		missing = append(missing, "MASTODON_URL")
+	if conf.FeedURL == "" {
+		missing = append(missing, "FEED_URL")
+	} else if err := validateHTTPURL("FEED_URL", conf.FeedURL); err != nil {
+		return err
 	}
-	if conf.MastodonClientKey == "" {
-		missing = append(missing, "MASTODON_CLIENT_KEY")
+	if conf.Interval <= 0 {
+		return fmt.Errorf("INTERVAL must be greater than zero")
 	}
-	if conf.MastodonClientSecret == "" {
-		missing = append(missing, "MASTODON_CLIENT_SECRET")
+
+	sites := conf.EnabledSites()
+	if len(sites) == 0 {
+		return fmt.Errorf("at least one social site must be configured")
 	}
-	if conf.MastodonAccessToken == "" {
-		missing = append(missing, "MASTODON_ACCESS_TOKEN")
-	}
-	if conf.GotifyURL == "" {
-		missing = append(missing, "GOTIFY_URL")
-	}
-	if conf.GotifyToken == "" {
-		missing = append(missing, "GOTIFY_TOKEN")
+	seen := make(map[string]struct{}, len(sites))
+	for _, site := range sites {
+		if _, ok := seen[site]; ok {
+			continue
+		}
+		seen[site] = struct{}{}
+		switch site {
+		case "mastodon":
+			if conf.MastodonURL == "" {
+				missing = append(missing, "MASTODON_URL")
+			}
+			if conf.MastodonClientKey == "" {
+				missing = append(missing, "MASTODON_CLIENT_KEY")
+			}
+			if conf.MastodonClientSecret == "" {
+				missing = append(missing, "MASTODON_CLIENT_SECRET")
+			}
+			if conf.MastodonAccessToken == "" {
+				missing = append(missing, "MASTODON_ACCESS_TOKEN")
+			}
+		case "bluesky":
+			if conf.BlueskyHandle == "" {
+				missing = append(missing, "BLUESKY_HANDLE")
+			}
+			if conf.BlueskyAppKey == "" {
+				missing = append(missing, "BLUESKY_APPKEY")
+			}
+		case "threads":
+			if conf.ThreadsToken == "" {
+				missing = append(missing, "THREADS_ACCESS_TOKEN")
+			}
+			if conf.ThreadsClientID == "" {
+				missing = append(missing, "THREADS_CLIENT_ID")
+			}
+			if conf.ThreadsClientSecret == "" {
+				missing = append(missing, "THREADS_CLIENT_SECRET")
+			}
+			if conf.ThreadsRedirectURI == "" {
+				missing = append(missing, "THREADS_REDIRECT_URI")
+			}
+		default:
+			return fmt.Errorf("unknown social site %q", site)
+		}
 	}
 	if len(missing) > 0 {
 		return fmt.Errorf("required environment variables not set: %s", strings.Join(missing, ", "))
+	}
+	if _, ok := seen["mastodon"]; ok {
+		if err := validateHTTPURL("MASTODON_URL", conf.MastodonURL); err != nil {
+			return err
+		}
+	}
+	if (conf.GotifyURL == "") != (conf.GotifyToken == "") {
+		return fmt.Errorf("GOTIFY_URL and GOTIFY_TOKEN must be configured together")
+	}
+	if conf.GotifyURL != "" {
+		if err := validateHTTPURL("GOTIFY_URL", conf.GotifyURL); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateHTTPURL(name, value string) error {
+	parsed, err := url.Parse(value)
+	if err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+		return fmt.Errorf("%s must be an absolute HTTP(S) URL", name)
 	}
 	return nil
 }

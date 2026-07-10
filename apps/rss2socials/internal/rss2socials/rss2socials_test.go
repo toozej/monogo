@@ -1,6 +1,7 @@
 package rss2socials
 
 import (
+	"context"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
@@ -377,6 +378,50 @@ func TestHandlePost_UpdatedPostReposts(t *testing.T) {
 	post.Content = "updated content"
 	handlePost(post, conf, "2026-01-01T00:00:00Z", false)
 	assert.Equal(t, 2, postCount, "Should post again for updated content")
+}
+
+func TestHandlePost_UpdatedPostFailureRetriesSameDelivery(t *testing.T) {
+	setupTestDB(t)
+
+	callCount := 0
+	var updateKeys []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		callCount++
+		if callCount > 1 {
+			updateKeys = append(updateKeys, r.Header.Get("Idempotency-Key"))
+		}
+		if callCount == 2 {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"123"}`))
+	}))
+	defer server.Close()
+
+	conf := &config.Config{
+		MastodonURL: server.URL, MastodonClientKey: "key",
+		MastodonClientSecret: "secret", MastodonAccessToken: "token",
+	}
+	post := rss.RSSItem{Link: "https://example.com/retry-update", Content: "original", Title: "Post"}
+	assert.NoError(t, handlePost(post, conf, "2026-01-01T00:00:00Z", false))
+
+	post.Content = "updated"
+	assert.Error(t, handlePost(post, conf, "2026-01-01T00:00:00Z", false))
+	pending, err := db.IsUpdatePending(post.Link)
+	assert.NoError(t, err)
+	assert.True(t, pending)
+
+	assert.NoError(t, handlePost(post, conf, "2026-01-01T00:00:00Z", false))
+	assert.NoError(t, handlePost(post, conf, "2026-01-01T00:00:00Z", false))
+	assert.Equal(t, 3, callCount, "successful retry must converge without another post")
+	if assert.Len(t, updateKeys, 2) {
+		assert.NotEmpty(t, updateKeys[0])
+		assert.Equal(t, updateKeys[0], updateKeys[1], "retries must use the same remote idempotency key")
+	}
+	pending, err = db.IsUpdatePending(post.Link)
+	assert.NoError(t, err)
+	assert.False(t, pending)
 }
 
 func TestHandlePost_CategoryMismatchSkips(t *testing.T) {
@@ -847,7 +892,7 @@ func TestRun_ShortRunPostsThreeMostRecent(t *testing.T) {
 		FeedURL:              rssURL,
 		Interval:             60,
 		ShortRun:             true,
-		PostNewEntriesOnly:   true,
+		PostNewEntriesOnly:   false,
 		DBPath:               dbFile,
 		MastodonURL:          mastodonURL,
 		MastodonClientKey:    "key",
@@ -881,7 +926,7 @@ func TestRun_ShortRunWithFewerThanThreeItems(t *testing.T) {
 		FeedURL:              rssURL,
 		Interval:             60,
 		ShortRun:             true,
-		PostNewEntriesOnly:   true,
+		PostNewEntriesOnly:   false,
 		DBPath:               dbFile,
 		MastodonURL:          mastodonURL,
 		MastodonClientKey:    "key",
@@ -915,7 +960,7 @@ func TestRun_ShortRunWithExactlyThreeItems(t *testing.T) {
 		FeedURL:              rssURL,
 		Interval:             60,
 		ShortRun:             true,
-		PostNewEntriesOnly:   true,
+		PostNewEntriesOnly:   false,
 		DBPath:               dbFile,
 		MastodonURL:          mastodonURL,
 		MastodonClientKey:    "key",
@@ -955,7 +1000,7 @@ func TestRun_ShortRunExitsWithoutSleeping(t *testing.T) {
 		FeedURL:              rssURL,
 		Interval:             60, // 60 minutes
 		ShortRun:             true,
-		PostNewEntriesOnly:   true,
+		PostNewEntriesOnly:   false,
 		DBPath:               dbFile,
 		MastodonURL:          mastodonURL,
 		MastodonClientKey:    "key",
@@ -1058,7 +1103,7 @@ func TestRun_ShortRunSecondCycleDoesNotRepost(t *testing.T) {
 		t.Fatal("First Run() did not exit within 5s")
 	}
 	firstRunCalls := atomic.LoadInt32(&mastodonCalls)
-	assert.Equal(t, int32(3), firstRunCalls, "First cycle should post 3 items")
+	assert.Equal(t, int32(0), firstRunCalls, "First snapshot should be seeded without posting")
 
 	db.CloseDB()
 
@@ -1090,7 +1135,7 @@ func TestRun_ShortRunPostsToAllConfiguredSites(t *testing.T) {
 		FeedURL:              rssURL,
 		Interval:             60,
 		ShortRun:             true,
-		PostNewEntriesOnly:   true,
+		PostNewEntriesOnly:   false,
 		DBPath:               dbFile,
 		SocialSites:          []string{"mastodon"},
 		MastodonURL:          mastodonURL,
@@ -1190,8 +1235,8 @@ func TestRun_PostNewEntriesOnly_SkipsOldPubDates(t *testing.T) {
 		t.Fatal("Run() did not exit within 5s")
 	}
 
-	assert.Equal(t, int32(1), atomic.LoadInt32(&mastodonCalls),
-		"PostNewEntriesOnly should skip posts with pubDate older than startup time")
+	assert.Equal(t, int32(0), atomic.LoadInt32(&mastodonCalls),
+		"PostNewEntriesOnly should seed the entire first snapshot without posting")
 }
 
 func TestRun_PostNewEntriesOnly_AllowsNewPubDates(t *testing.T) {
@@ -1233,8 +1278,8 @@ func TestRun_PostNewEntriesOnly_AllowsNewPubDates(t *testing.T) {
 		t.Fatal("Run() did not exit within 5s")
 	}
 
-	assert.Equal(t, int32(1), atomic.LoadInt32(&mastodonCalls),
-		"PostNewEntriesOnly should allow posts with pubDate newer than startup time")
+	assert.Equal(t, int32(0), atomic.LoadInt32(&mastodonCalls),
+		"PostNewEntriesOnly should seed future-dated entries in the first snapshot without posting")
 }
 
 func TestRun_PostNewEntriesOnly_NoPubDatePostsAll(t *testing.T) {
@@ -1273,8 +1318,8 @@ func TestRun_PostNewEntriesOnly_NoPubDatePostsAll(t *testing.T) {
 		t.Fatal("Run() did not exit within 5s")
 	}
 
-	assert.Equal(t, int32(1), atomic.LoadInt32(&mastodonCalls),
-		"PostNewEntriesOnly should post items without pubDate (backward compatible)")
+	assert.Equal(t, int32(0), atomic.LoadInt32(&mastodonCalls),
+		"PostNewEntriesOnly should seed entries without pubDate instead of posting them")
 }
 
 func TestRun_PostNewEntriesOnlyDisabled_PostsAllRegardlessOfPubDate(t *testing.T) {
@@ -1318,4 +1363,109 @@ func TestRun_PostNewEntriesOnlyDisabled_PostsAllRegardlessOfPubDate(t *testing.T
 
 	assert.Equal(t, int32(1), atomic.LoadInt32(&mastodonCalls),
 		"When PostNewEntriesOnly is disabled, posts should not be filtered by pubDate")
+}
+
+func TestRun_PostNewEntriesOnlyPostsUnseenBackdatedItem(t *testing.T) {
+	dbFile := setupRunTestDB(t)
+	oldDate := time.Now().Add(-7 * 24 * time.Hour).Format(time.RFC1123Z)
+	items := []rss.RSSItem{{Title: "Baseline", Link: "https://example.com/baseline", Content: "old", PubDate: oldDate}}
+
+	rssServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		feed := rss.RSSFeed{}
+		feed.Channel.Items = items
+		_ = xml.NewEncoder(w).Encode(feed)
+	}))
+	defer rssServer.Close()
+	var calls int32
+	mastodonServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&calls, 1)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"1"}`))
+	}))
+	defer mastodonServer.Close()
+
+	conf := config.Config{
+		FeedURL: rssServer.URL, Interval: 1, ShortRun: true, PostNewEntriesOnly: true,
+		DBPath: dbFile, SocialSites: []string{"mastodon"}, MastodonURL: mastodonServer.URL,
+		MastodonClientKey: "key", MastodonClientSecret: "secret", MastodonAccessToken: "token",
+	}
+	assert.NoError(t, Run(conf))
+	assert.Equal(t, int32(0), atomic.LoadInt32(&calls), "initial snapshot must only be seeded")
+
+	items = append(items, rss.RSSItem{
+		Title: "Published during downtime", Link: "https://example.com/downtime",
+		Content: "new to this installation", PubDate: oldDate,
+	})
+	assert.NoError(t, Run(conf))
+	assert.Equal(t, int32(1), atomic.LoadInt32(&calls), "DB absence, not pubDate, identifies a new item")
+}
+
+func TestRun_ShortRunReturnsFeedFailure(t *testing.T) {
+	dbFile := setupRunTestDB(t)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	conf := config.Config{
+		FeedURL: server.URL, Interval: 1, ShortRun: true, DBPath: dbFile,
+		SocialSites: []string{"mastodon"}, MastodonURL: "https://social.example.com",
+		MastodonClientKey: "key", MastodonClientSecret: "secret", MastodonAccessToken: "token",
+	}
+	if err := Run(conf); err == nil {
+		t.Fatal("Run() error = nil, want feed failure")
+	}
+}
+
+func TestRunReturnsDatabaseOpenFailure(t *testing.T) {
+	conf := config.Config{
+		FeedURL: "https://example.com/feed.xml", Interval: 1, ShortRun: true,
+		DBPath:      filepath.Join(t.TempDir(), "missing", "database.sqlite"),
+		SocialSites: []string{"mastodon"}, MastodonURL: "https://social.example.com",
+		MastodonClientKey: "key", MastodonClientSecret: "secret", MastodonAccessToken: "token",
+	}
+	if err := Run(conf); err == nil {
+		t.Fatal("Run() error = nil, want database-open failure")
+	}
+}
+
+func TestRunContextPacesFeedFailures(t *testing.T) {
+	dbFile := setupRunTestDB(t)
+	var calls int32
+	firstCall := make(chan struct{}, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&calls, 1)
+		select {
+		case firstCall <- struct{}{}:
+		default:
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() {
+		done <- RunContext(ctx, config.Config{
+			FeedURL: server.URL, Interval: 1, DBPath: dbFile,
+			SocialSites: []string{"mastodon"}, MastodonURL: "https://social.example.com",
+			MastodonClientKey: "key", MastodonClientSecret: "secret", MastodonAccessToken: "token",
+		})
+	}()
+	<-firstCall
+	time.Sleep(50 * time.Millisecond)
+	assert.Equal(t, int32(1), atomic.LoadInt32(&calls), "feed failures must wait before retrying")
+	cancel()
+	assert.ErrorIs(t, <-done, context.Canceled)
+}
+
+func TestNewestPostsSortsByPublicationDate(t *testing.T) {
+	posts := []rss.RSSItem{
+		{Link: "https://example.com/old", PubDate: "Mon, 01 Jan 2024 00:00:00 +0000"},
+		{Link: "https://example.com/new", PubDate: "Wed, 03 Jan 2024 00:00:00 +0000"},
+		{Link: "https://example.com/middle", PubDate: "Tue, 02 Jan 2024 00:00:00 +0000"},
+	}
+	got := newestPosts(posts, 2)
+	assert.Equal(t, []string{"https://example.com/new", "https://example.com/middle"},
+		[]string{got[0].Link, got[1].Link})
 }

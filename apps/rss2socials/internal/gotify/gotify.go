@@ -4,10 +4,14 @@ package gotify
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strings"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/toozej/monogo/apps/rss2socials/internal/config"
@@ -36,6 +40,12 @@ func LogSuccess(message string, conf *config.Config) {
 
 // SendGotifyNotification sends a notification to Gotify.
 func SendGotifyNotification(conf *config.Config, title, message string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	return SendGotifyNotificationContext(ctx, conf, title, message)
+}
+
+func SendGotifyNotificationContext(ctx context.Context, conf *config.Config, title, message string) error {
 	// sendGotifyNotification sends a notification to the Gotify instance using the provided configuration.
 	// It marshals the notification data as JSON and posts it via HTTP.
 	if conf.GotifyURL == "" || conf.GotifyToken == "" {
@@ -53,14 +63,23 @@ func SendGotifyNotification(conf *config.Config, title, message string) error {
 		return fmt.Errorf("failed to marshal Gotify notification: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", fmt.Sprintf("%s/message?token=%s", conf.GotifyURL, conf.GotifyToken), bytes.NewBuffer(jsonData))
+	endpoint, err := url.Parse(conf.GotifyURL)
+	if err != nil || endpoint.Host == "" || (endpoint.Scheme != "http" && endpoint.Scheme != "https") {
+		return errors.New("gotify URL must be an absolute HTTP(S) URL")
+	}
+	endpoint.Path = strings.TrimRight(endpoint.Path, "/") + "/message"
+	query := endpoint.Query()
+	query.Set("token", conf.GotifyToken)
+	endpoint.RawQuery = query.Encode()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint.String(), bytes.NewReader(jsonData))
 	if err != nil {
 		return fmt.Errorf("failed to create Gotify request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{}
+	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req) // #nosec G704 -- GotifyURL is from config, not user input
 	if err != nil {
 		return fmt.Errorf("failed to send Gotify request: %w", err)

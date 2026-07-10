@@ -21,12 +21,12 @@ type TootedPost struct {
 	MastodonPosted bool `gorm:"default:false"`
 	BlueskyPosted  bool `gorm:"default:false"`
 	ThreadsPosted  bool `gorm:"default:false"`
+	PendingUpdate  bool `gorm:"default:false"`
 }
 
 var DB *gorm.DB
 
-func InitDB(path ...string) {
-	var err error
+func InitDB(path ...string) error {
 	dbPath := "./tooted_posts.db"
 	if len(path) > 0 && path[0] != "" {
 		dbPath = path[0]
@@ -35,29 +35,57 @@ func InitDB(path ...string) {
 	}
 
 	log.Debugf("Opening database at %s", dbPath)
-	DB, err = gorm.Open(sqlite.Open(dbPath), &gorm.Config{
+	database, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
 	if err != nil {
-		log.Fatal("Failed to open database:", err)
+		return fmt.Errorf("open database %q: %w", dbPath, err)
 	}
 
-	err = DB.AutoMigrate(&TootedPost{})
-	if err != nil {
-		log.Fatal("Failed to auto-migrate database:", err)
+	if err := database.AutoMigrate(&TootedPost{}); err != nil {
+		if sqlDB, dbErr := database.DB(); dbErr == nil {
+			_ = sqlDB.Close()
+		}
+		return fmt.Errorf("migrate database %q: %w", dbPath, err)
 	}
+	DB = database
+	return nil
 }
 
-func CloseDB() {
+func CloseDB() error {
+	if DB == nil {
+		return nil
+	}
 	sqlDB, err := DB.DB()
 	if err != nil {
-		log.Error("Error getting underlying sql.DB: ", err)
-		return
+		return fmt.Errorf("get database connection: %w", err)
 	}
-	err = sqlDB.Close()
-	if err != nil {
-		log.Error("Error closing SQLite database connection: ", err)
+	if err := sqlDB.Close(); err != nil {
+		return fmt.Errorf("close database: %w", err)
 	}
+	return nil
+}
+
+// StoreUpdatedPost records new content and makes every site eligible to post
+// that content. It is separate from StoreTootedPost so retries of unchanged
+// content preserve per-site success flags.
+func StoreUpdatedPost(link string, content string, startupTime string) error {
+	contentHash := fmt.Sprintf("%x", rss.HashContent(content))
+	post := TootedPost{
+		Link:          link,
+		ContentHash:   contentHash,
+		Timestamp:     time.Now().Format(time.RFC3339),
+		StartupTime:   startupTime,
+		PendingUpdate: true,
+	}
+	result := DB.Clauses(clause.OnConflict{
+		Columns: []clause.Column{{Name: "link"}},
+		DoUpdates: clause.AssignmentColumns([]string{
+			"content_hash", "timestamp", "startup_time", "pending_update",
+			"mastodon_posted", "bluesky_posted", "threads_posted",
+		}),
+	}).Create(&post)
+	return result.Error
 }
 
 func StoreTootedPost(link string, content string, startupTime string) error {
@@ -73,6 +101,35 @@ func StoreTootedPost(link string, content string, startupTime string) error {
 		DoUpdates: clause.AssignmentColumns([]string{"content_hash", "timestamp", "startup_time"}),
 	}).Create(&post)
 	return result.Error
+}
+
+func SeedPost(link string, content string, startupTime string) error {
+	return seedPost(DB, link, content, startupTime)
+}
+
+func SeedPosts(posts []rss.RSSItem, startupTime string) error {
+	return DB.Transaction(func(tx *gorm.DB) error {
+		for _, post := range posts {
+			if err := seedPost(tx, post.Link, post.Content, startupTime); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func seedPost(database *gorm.DB, link string, content string, startupTime string) error {
+	contentHash := fmt.Sprintf("%x", rss.HashContent(content))
+	post := TootedPost{
+		Link:           link,
+		ContentHash:    contentHash,
+		Timestamp:      time.Now().Format(time.RFC3339),
+		StartupTime:    startupTime,
+		MastodonPosted: true,
+		BlueskyPosted:  true,
+		ThreadsPosted:  true,
+	}
+	return database.Clauses(clause.OnConflict{DoNothing: true}).Create(&post).Error
 }
 
 var validSites = map[string]string{
@@ -138,11 +195,39 @@ func HasPostChanged(link string, content string) (exists bool, updated bool, err
 	return true, false, nil
 }
 
-func IsFirstCycle() bool {
+func IsUpdatePending(link string) (bool, error) {
+	var post TootedPost
+	result := DB.Select("pending_update").Where("link = ?", link).First(&post)
+	if result.Error != nil {
+		return false, result.Error
+	}
+	return post.PendingUpdate, nil
+}
+
+func MarkUpdateComplete(link string) error {
+	result := DB.Model(&TootedPost{}).Where("link = ?", link).Update("pending_update", false)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("no post found with link: %s", link)
+	}
+	return nil
+}
+
+func IsFirstCycleE() (bool, error) {
 	var count int64
 	if err := DB.Model(&TootedPost{}).Count(&count).Error; err != nil {
+		return false, err
+	}
+	return count == 0, nil
+}
+
+func IsFirstCycle() bool {
+	first, err := IsFirstCycleE()
+	if err != nil {
 		log.Errorf("Error counting posts: %v", err)
 		return false
 	}
-	return count == 0
+	return first
 }

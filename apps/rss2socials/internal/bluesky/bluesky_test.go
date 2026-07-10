@@ -2,6 +2,7 @@ package bluesky
 
 import (
 	"context"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -58,8 +59,8 @@ func TestNewClient_MissingCredentials(t *testing.T) {
 }
 
 func TestPost_Integration(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test in short mode")
+	if os.Getenv("RSS2SOCIALS_LIVE_TESTS") == "" {
+		t.Skip("set RSS2SOCIALS_LIVE_TESTS=1 to run live integration tests")
 	}
 
 	conf := config.Config{
@@ -71,8 +72,8 @@ func TestPost_Integration(t *testing.T) {
 }
 
 func TestNewClient_Integration(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test in short mode")
+	if os.Getenv("RSS2SOCIALS_LIVE_TESTS") == "" {
+		t.Skip("set RSS2SOCIALS_LIVE_TESTS=1 to run live integration tests")
 	}
 
 	conf := config.Config{

@@ -20,8 +20,11 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -36,7 +39,8 @@ import (
 // conf holds the application configuration loaded from environment variables.
 // It is populated during package initialization and can be modified by command-line flags.
 var (
-	conf config.Config
+	conf          config.Config
+	configLoadErr error
 	// debug controls the logging level for the application.
 	// When true, debug-level logging is enabled through logrus.
 	debug bool
@@ -55,7 +59,7 @@ var rootCmd = &cobra.Command{
 	Long:             `Watches a RSS feed for new posts, then announces them on various social media sites`,
 	Args:             cobra.ExactArgs(0),
 	PersistentPreRun: rootCmdPreRun,
-	Run:              rootCmdRun,
+	RunE:             rootCmdRun,
 }
 
 // rootCmdRun is the main execution function for the root command.
@@ -64,16 +68,14 @@ var rootCmd = &cobra.Command{
 // Parameters:
 //   - cmd: The cobra command being executed
 //   - args: Command-line arguments (unused, as root command takes no args)
-func rootCmdRun(cmd *cobra.Command, args []string) {
+func rootCmdRun(cmd *cobra.Command, args []string) error {
 	// Validate required configuration only when the main command runs, so that
 	// subcommands like completion, version, and man work without a fully
 	// configured environment.
-	if err := config.ValidateRequired(conf); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
-		os.Exit(1)
+	if configLoadErr != nil {
+		return fmt.Errorf("load configuration: %w", configLoadErr)
 	}
-
-	rss2socials.Run(conf)
+	return rss2socials.RunContext(cmd.Context(), conf)
 }
 
 // rootCmdPreRun performs setup operations before executing the root command.
@@ -104,8 +106,11 @@ func rootCmdPreRun(cmd *cobra.Command, args []string) {
 //		cmd.Execute()
 //	}
 func Execute() {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	rootCmd.SetContext(ctx)
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err.Error())
+		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
 	}
 }
@@ -123,12 +128,7 @@ func Execute() {
 // configuration values from environment variables.
 func init() {
 	// get configuration from environment variables
-	var err error
-	conf, err = config.GetEnvVars()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error loading configuration: %v\n", err)
-		os.Exit(1)
-	}
+	conf, configLoadErr = config.GetEnvVars()
 
 	// create rootCmd-level flags
 	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "Enable debug-level logging")
