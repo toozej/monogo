@@ -3,6 +3,8 @@ package fixer
 import (
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/afero"
@@ -45,7 +47,8 @@ func (cf *CommentFixer) FixFile(filename string, resources []parser.TerraformRes
 	errorsByResource := cf.groupErrorsByResource(errors)
 
 	// Process each resource
-	for _, resource := range resources {
+	for resourceIndex := len(resources) - 1; resourceIndex >= 0; resourceIndex-- {
+		resource := resources[resourceIndex]
 		resourceKey := fmt.Sprintf("%s.%s", resource.Type, resource.Name)
 		resourceErrors, hasErrors := errorsByResource[resourceKey]
 
@@ -248,13 +251,13 @@ func (cf *CommentFixer) getPlaceholderValue(field string) string {
 		case "boolean":
 			return "true"
 		case "integer":
-			if validation.Min > 0 {
-				return fmt.Sprintf("%d", int(validation.Min))
+			if validation.Min != nil {
+				return fmt.Sprintf("%d", int(*validation.Min))
 			}
 			return "1"
 		case "float":
-			if validation.Min > 0 {
-				return fmt.Sprintf("%.1f", validation.Min)
+			if validation.Min != nil {
+				return fmt.Sprintf("%.1f", *validation.Min)
 			}
 			return "1.0"
 		case "array":
@@ -478,42 +481,33 @@ func (cf *CommentFixer) allPrefixesHaveComments(resource parser.TerraformResourc
 // findInsertionPoint finds where to insert comments for a resource
 // It places comments immediately above the resource declaration, skipping any existing comments
 func (cf *CommentFixer) findInsertionPoint(lines []string, resourceStartLine int) int {
-	// Start from the line before the resource
-	insertLine := resourceStartLine - 1
-	if insertLine < 0 {
+	resourceIndex := resourceStartLine - 1
+	if resourceIndex <= 0 {
 		return 0
 	}
-
-	// Scan backwards to skip existing non-managed comments
-	// We want to insert our managed comments right before the resource declaration
-	// but after any existing user comments
-	for insertLine > 0 {
-		trimmed := strings.TrimSpace(lines[insertLine])
-
-		// If it's a blank line or existing managed comment, place our comments here
-		if trimmed == "" {
-			// Keep the blank line, insert before it
-			return insertLine
-		}
-
-		// If it's a user comment (not managed), we want to insert AFTER it
-		if strings.HasPrefix(trimmed, "#") {
-			// Check if it's a managed comment
-			if strings.HasPrefix(trimmed, "# @") || strings.HasPrefix(trimmed, "# terraform:") {
-				// Skip managed comments
-				insertLine--
-				continue
-			}
-			// It's a user comment, insert after it
-			return insertLine + 1
-		}
-
-		// If it's code, insert here
-		return insertLine + 1
+	if resourceIndex > len(lines) {
+		resourceIndex = len(lines)
 	}
 
-	// Insert at the beginning if we've scanned to the top
-	return 0
+	// Keep a contiguous managed annotation block together. New annotations go
+	// before that block; otherwise they go immediately before the resource.
+	insertIndex := resourceIndex
+	foundManaged := false
+	for i := resourceIndex - 1; i >= 0; i-- {
+		trimmed := strings.TrimSpace(lines[i])
+		managedStart := strings.HasPrefix(trimmed, "# @") || strings.HasPrefix(trimmed, "# terraform:")
+		if managedStart {
+			foundManaged = true
+			insertIndex = i
+			continue
+		}
+		if foundManaged && strings.HasPrefix(trimmed, "#") {
+			insertIndex = i
+			continue
+		}
+		break
+	}
+	return insertIndex
 }
 
 // getApplicableRules returns applicable rules for a resource type
@@ -537,22 +531,79 @@ func CopyFile(fs afero.Fs, src, dst string) error {
 	}
 	defer func() { _ = sourceFile.Close() }()
 
-	// #nosec G304 - Destination path derived from user input
-	destFile, err := fs.Create(dst)
+	info, err := sourceFile.Stat()
 	if err != nil {
 		return err
 	}
-	defer func() { _ = destFile.Close() }()
+	return writeAtomic(fs, dst, sourceFile, info.Mode())
+}
 
-	_, err = io.Copy(destFile, sourceFile)
-	/*
-		if err != nil {
+// CopyFileExclusive copies src to dst without replacing an existing destination.
+func CopyFileExclusive(fs afero.Fs, src, dst string) error {
+	sourceFile, err := fs.Open(src)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = sourceFile.Close() }()
+	info, err := sourceFile.Stat()
+	if err != nil {
+		return err
+	}
+	destFile, err := fs.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_EXCL, info.Mode().Perm())
+	if err != nil {
+		return err
+	}
+	removeDestination := true
+	defer func() {
+		_ = destFile.Close()
+		if removeDestination {
+			_ = fs.Remove(dst)
+		}
+	}()
+	if _, err := io.Copy(destFile, sourceFile); err != nil {
+		return err
+	}
+	if syncer, ok := destFile.(interface{ Sync() error }); ok {
+		if err := syncer.Sync(); err != nil {
 			return err
 		}
-		// Afero files might not implement Sync, so checking interface
-		if syncer, ok := destFile.(interface{ Sync() error }); ok {
-			return syncer.Sync()
+	}
+	if err := destFile.Close(); err != nil {
+		return err
+	}
+	removeDestination = false
+	return nil
+}
+
+// WriteFileAtomic replaces a file only after its complete new contents are durable.
+func WriteFileAtomic(fs afero.Fs, filename string, contents []byte, mode os.FileMode) error {
+	return writeAtomic(fs, filename, strings.NewReader(string(contents)), mode)
+}
+
+func writeAtomic(fs afero.Fs, dst string, source io.Reader, mode os.FileMode) error {
+	dir := filepath.Dir(dst)
+	temp, err := afero.TempFile(fs, dir, ".terranotate-*")
+	if err != nil {
+		return err
+	}
+	tempName := temp.Name()
+	defer func() {
+		_ = temp.Close()
+		_ = fs.Remove(tempName)
+	}()
+	if err := fs.Chmod(tempName, mode.Perm()); err != nil {
+		return err
+	}
+	if _, err := io.Copy(temp, source); err != nil {
+		return err
+	}
+	if syncer, ok := temp.(interface{ Sync() error }); ok {
+		if err := syncer.Sync(); err != nil {
+			return err
 		}
-	*/
-	return err
+	}
+	if err := temp.Close(); err != nil {
+		return err
+	}
+	return fs.Rename(tempName, dst)
 }

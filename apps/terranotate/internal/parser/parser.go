@@ -5,7 +5,9 @@ import (
 	"io"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -36,6 +38,11 @@ type TerraformResource struct {
 type CommentParser struct {
 	fs       afero.Fs
 	prefixes []string // Comment prefixes to look for (e.g., "@metadata", "@docs")
+}
+
+type positionedCommentLine struct {
+	text string
+	line int
 }
 
 func NewCommentParser(fs afero.Fs, prefixes []string) *CommentParser {
@@ -75,7 +82,7 @@ func (cp *CommentParser) ParseFile(filename string) ([]TerraformResource, error)
 		return nil, fmt.Errorf("lex error: %s", diags.Error())
 	}
 
-	// Extract all comments with their positions
+	// Extract all comments with their positions.
 	comments := cp.extractComments(tokens)
 
 	// Parse resources from the syntax tree
@@ -84,10 +91,11 @@ func (cp *CommentParser) ParseFile(filename string) ([]TerraformResource, error)
 
 	for _, block := range body.Blocks {
 		if block.Type == "resource" {
-			resource := cp.parseResource(block, comments)
+			resource := cp.parseResource(block)
 			resources = append(resources, resource)
 		}
 	}
+	cp.associateComments(resources, comments)
 
 	return resources, nil
 }
@@ -95,90 +103,97 @@ func (cp *CommentParser) ParseFile(filename string) ([]TerraformResource, error)
 // extractComments extracts all comments from tokens and parses structured fields
 func (cp *CommentParser) extractComments(tokens hclsyntax.Tokens) []StructuredComment {
 	var comments []StructuredComment
-	var commentBuffer []string
-	var bufferStartLine int
-	var inMultiLine bool
+	var block []positionedCommentLine
+	lastLine := 0
+	flush := func() {
+		if len(block) == 0 {
+			return
+		}
+		comments = append(comments, cp.parseCommentBlock(block)...)
+		block = nil
+	}
 
-	for i, token := range tokens {
-		if token.Type == hclsyntax.TokenComment {
-			text := string(token.Bytes)
-			line := token.Range.Start.Line
-
-			// Check if this starts a new comment block
-			if !inMultiLine {
-				bufferStartLine = line
-				inMultiLine = true
+	for _, token := range tokens {
+		if token.Type != hclsyntax.TokenComment {
+			flush()
+			lastLine = 0
+			continue
+		}
+		lines := strings.Split(strings.TrimSuffix(string(token.Bytes), "\n"), "\n")
+		for offset, raw := range lines {
+			line := token.Range.Start.Line + offset
+			if len(block) > 0 && line > lastLine+1 {
+				flush()
 			}
-
-			commentBuffer = append(commentBuffer, text)
-
-			// Check if next token is also a comment on the next line (continuation)
-			isLastToken := i == len(tokens)-1
-			nextIsComment := !isLastToken && tokens[i+1].Type == hclsyntax.TokenComment
-			nextIsAdjacent := !isLastToken && tokens[i+1].Range.Start.Line == line+1
-
-			// If this is the end of a comment block, process it
-			if isLastToken || !nextIsComment || !nextIsAdjacent {
-				structured := cp.parseMultiLineComment(commentBuffer, bufferStartLine, line)
-				if structured != nil {
-					comments = append(comments, *structured)
-				}
-				commentBuffer = nil
-				inMultiLine = false
+			cleaned := cleanCommentLine(raw)
+			if cleaned != "" {
+				block = append(block, positionedCommentLine{text: cleaned, line: line})
+				lastLine = line
 			}
 		}
 	}
+	flush()
 
 	return comments
 }
 
-// parseMultiLineComment processes a buffer of comment lines
-func (cp *CommentParser) parseMultiLineComment(lines []string, startLine, endLine int) *StructuredComment {
-	if len(lines) == 0 {
-		return nil
-	}
+func cleanCommentLine(line string) string {
+	line = strings.TrimSpace(line)
+	line = strings.TrimPrefix(line, "//")
+	line = strings.TrimPrefix(line, "#")
+	line = strings.TrimPrefix(line, "/*")
+	line = strings.TrimSuffix(line, "*/")
+	line = strings.TrimPrefix(strings.TrimSpace(line), "*")
+	return strings.TrimSpace(line)
+}
 
-	// Clean and combine all lines
-	var cleanedLines []string
-	for _, line := range lines {
-		cleaned := strings.TrimPrefix(line, "//")
-		cleaned = strings.TrimPrefix(cleaned, "#")
-		cleaned = strings.TrimSpace(cleaned)
-		if cleaned != "" {
-			cleanedLines = append(cleanedLines, cleaned)
-		}
-	}
-
-	if len(cleanedLines) == 0 {
-		return nil
-	}
-
-	// Check if first line starts with any of our prefixes
-	var matchedPrefix string
+func (cp *CommentParser) matchPrefix(line string) string {
 	for _, prefix := range cp.prefixes {
-		if strings.HasPrefix(cleanedLines[0], prefix) {
-			matchedPrefix = prefix
-			break
+		if !strings.HasPrefix(line, prefix) {
+			continue
+		}
+		rest := strings.TrimPrefix(line, prefix)
+		if rest == "" || unicode.IsSpace(rune(rest[0])) {
+			return prefix
 		}
 	}
+	return ""
+}
 
-	if matchedPrefix == "" {
-		return nil
+func (cp *CommentParser) parseCommentBlock(lines []positionedCommentLine) []StructuredComment {
+	var comments []StructuredComment
+	var current []positionedCommentLine
+	var prefix string
+	flush := func() {
+		if prefix == "" || len(current) == 0 {
+			return
+		}
+		text := make([]string, 0, len(current))
+		for _, line := range current {
+			text = append(text, line.text)
+		}
+		fullText := strings.Join(text, "\n")
+		comments = append(comments, StructuredComment{
+			Prefix:  prefix,
+			Fields:  cp.parseCommentFields(fullText),
+			Raw:     fullText,
+			Line:    current[0].line,
+			EndLine: current[len(current)-1].line,
+		})
 	}
 
-	// Join all lines for parsing
-	fullText := strings.Join(cleanedLines, "\n")
-
-	// Parse fields with support for nested structures
-	fields := cp.parseCommentFields(fullText)
-
-	return &StructuredComment{
-		Prefix:  matchedPrefix,
-		Fields:  fields,
-		Raw:     fullText,
-		Line:    startLine,
-		EndLine: endLine,
+	for _, line := range lines {
+		if matched := cp.matchPrefix(line.text); matched != "" {
+			flush()
+			prefix = matched
+			current = current[:0]
+		}
+		if prefix != "" {
+			current = append(current, line)
+		}
 	}
+	flush()
+	return comments
 }
 
 // parseCommentFields extracts key:value pairs from a comment with nested structure support
@@ -198,7 +213,7 @@ func (cp *CommentParser) parseCommentFields(text string) map[string]interface{} 
 	// Remove prefix from first line
 	firstLine := lines[0]
 	for _, prefix := range cp.prefixes {
-		if strings.HasPrefix(firstLine, prefix) {
+		if cp.matchPrefix(firstLine) == prefix {
 			firstLine = strings.TrimSpace(strings.TrimPrefix(firstLine, prefix))
 			lines[0] = firstLine
 			break
@@ -229,13 +244,18 @@ func (cp *CommentParser) parseCommentFields(text string) map[string]interface{} 
 func (cp *CommentParser) extractKeyValuePairs(line string, fields map[string]interface{}) {
 	// Pattern to match key:value pairs (supports nested keys with dots)
 	// Matches word.word:value where value stops before the next word.word: pattern
-	fieldRegex := regexp.MustCompile(`([\w\.]+):(\S+)`)
-	matches := fieldRegex.FindAllStringSubmatch(line, -1)
+	fieldRegex := regexp.MustCompile(`(?:^|\s)([\w.]+):`)
+	matches := fieldRegex.FindAllStringSubmatchIndex(line, -1)
 
-	for _, match := range matches {
-		if len(match) == 3 {
-			key := match[1]
-			value := strings.TrimSpace(match[2])
+	for i, match := range matches {
+		if len(match) >= 4 {
+			key := line[match[2]:match[3]]
+			valueEnd := len(line)
+			if i+1 < len(matches) {
+				valueEnd = matches[i+1][0]
+			}
+			value := strings.TrimSpace(line[match[1]:valueEnd])
+			value = strings.Trim(value, `"'`)
 
 			// Handle nested keys (e.g., "contact.email" or "config.db.host")
 			if strings.Contains(key, ".") {
@@ -287,19 +307,12 @@ func (cp *CommentParser) parseValue(value string) interface{} {
 		return false
 	}
 
-	// Try to parse as number
-	if num, err := fmt.Sscanf(value, "%d", new(int)); err == nil && num == 1 {
-		var i int
-		if _, err := fmt.Sscanf(value, "%d", &i); err == nil {
-			return i
-		}
+	// Parse numbers only when the complete value is numeric.
+	if i, err := strconv.Atoi(value); err == nil {
+		return i
 	}
-
-	if num, err := fmt.Sscanf(value, "%f", new(float64)); err == nil && num == 1 {
-		var f float64
-		if _, err := fmt.Sscanf(value, "%f", &f); err == nil {
-			return f
-		}
+	if f, err := strconv.ParseFloat(value, 64); err == nil {
+		return f
 	}
 
 	// Check for array notation [item1,item2,item3]
@@ -319,7 +332,7 @@ func (cp *CommentParser) parseValue(value string) interface{} {
 }
 
 // parseResource extracts resource information and associates comments
-func (cp *CommentParser) parseResource(block *hclsyntax.Block, comments []StructuredComment) TerraformResource {
+func (cp *CommentParser) parseResource(block *hclsyntax.Block) TerraformResource {
 	resource := TerraformResource{
 		Type:       block.Labels[0],
 		Name:       block.Labels[1],
@@ -333,20 +346,33 @@ func (cp *CommentParser) parseResource(block *hclsyntax.Block, comments []Struct
 		resource.Attributes[name] = cp.extractAttributeValue(attr)
 	}
 
-	// Associate comments with this resource
-	for _, comment := range comments {
-		// Preceding comments: within 5 lines before the resource
-		if comment.Line < resource.StartLine && comment.Line >= resource.StartLine-5 {
-			resource.PrecedingComments = append(resource.PrecedingComments, comment)
-		}
+	return resource
+}
 
-		// Inline comments: within the resource block
-		if comment.Line >= resource.StartLine && comment.Line <= resource.EndLine {
-			resource.InlineComments = append(resource.InlineComments, comment)
+func (cp *CommentParser) associateComments(resources []TerraformResource, comments []StructuredComment) {
+	for commentIndex, comment := range comments {
+		associated := false
+		for i := range resources {
+			if comment.Line >= resources[i].StartLine && comment.EndLine <= resources[i].EndLine {
+				resources[i].InlineComments = append(resources[i].InlineComments, comment)
+				associated = true
+				break
+			}
+		}
+		if associated {
+			continue
+		}
+		blockEndLine := comment.EndLine
+		for next := commentIndex + 1; next < len(comments) && comments[next].Line <= blockEndLine+1; next++ {
+			blockEndLine = comments[next].EndLine
+		}
+		for i := range resources {
+			if blockEndLine < resources[i].StartLine && blockEndLine >= resources[i].StartLine-5 {
+				resources[i].PrecedingComments = append(resources[i].PrecedingComments, comment)
+				break
+			}
 		}
 	}
-
-	return resource
 }
 
 // extractAttributeValue extracts the value from an attribute

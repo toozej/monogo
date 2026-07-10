@@ -249,6 +249,97 @@ func TestRevertFix(t *testing.T) {
 	}
 }
 
+func TestFixPreservesOriginalBackupAcrossPartialRuns(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	schema := `global:
+  required_prefixes: ["@metadata"]
+  prefix_rules:
+    "@metadata":
+      required_fields: [owner]
+field_validations:
+  owner:
+    type: string
+    pattern: "^valid-owner$"
+`
+	original := "resource \"test\" \"example\" {}\n"
+	if err := afero.WriteFile(fs, "/schema.yaml", []byte(schema), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := afero.WriteFile(fs, "/main.tf", []byte(original), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := Fix(fs, "/main.tf", "/schema.yaml"); err == nil {
+		t.Fatal("expected generated placeholder to require manual correction")
+	}
+	if info, err := fs.Stat("/main.tf"); err != nil {
+		t.Fatal(err)
+	} else if info.Mode().Perm() != 0o600 {
+		t.Fatalf("fix changed file mode to %o", info.Mode().Perm())
+	}
+	if err := Fix(fs, "/main.tf", "/schema.yaml"); err == nil {
+		t.Fatal("expected second partial fix to remain nonzero")
+	}
+	backup, err := afero.ReadFile(fs, "/main.tf.bak")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(backup) != original {
+		t.Fatalf("backup was overwritten: %q", backup)
+	}
+	if err := RevertFix(fs, "/main.tf"); err != nil {
+		t.Fatal(err)
+	}
+	restored, err := afero.ReadFile(fs, "/main.tf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(restored) != original {
+		t.Fatalf("restored content = %q, want original", restored)
+	}
+}
+
+func TestDirectoryRevertIgnoresUnrelatedBackupFiles(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	if err := fs.MkdirAll("/dir", 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := afero.WriteFile(fs, "/dir/notes.bak", []byte("unrelated"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := afero.WriteFile(fs, "/dir/main.tf.bak", []byte("terraform"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := RevertFix(fs, "/dir"); err != nil {
+		t.Fatal(err)
+	}
+	if exists, _ := afero.Exists(fs, "/dir/notes"); exists {
+		t.Fatal("unrelated .bak file was restored")
+	}
+	if exists, _ := afero.Exists(fs, "/dir/notes.bak"); !exists {
+		t.Fatal("unrelated .bak file was removed")
+	}
+}
+
+func TestFixReturnsBatchFailures(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	if err := afero.WriteFile(fs, "/schema.yaml", []byte(`global: {required_prefixes: []}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := fs.MkdirAll("/infra", 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := afero.WriteFile(fs, "/infra/valid.tf", []byte(`resource "test" "valid" {}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := afero.WriteFile(fs, "/infra/invalid.tf", []byte(`resource "test" "invalid" {`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := Fix(fs, "/infra", "/schema.yaml"); err == nil {
+		t.Fatal("expected batch fix to return the per-file parse error")
+	}
+}
+
 // Helper for tests
 func contains(s, substr string) bool {
 	return strings.Contains(s, substr)

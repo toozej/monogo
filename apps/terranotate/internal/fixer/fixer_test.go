@@ -1,6 +1,7 @@
 package fixer
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -217,8 +218,8 @@ func TestFindInsertionPoint(t *testing.T) {
 				"  cidr_block = \"10.0.0.0/16\"",
 				"}",
 			},
-			resourceStartLine: 1,
-			expected:          0, // inserts at blank line before resource
+			resourceStartLine: 2,
+			expected:          1,
 		},
 		{
 			name: "resource with user comment",
@@ -229,7 +230,7 @@ func TestFindInsertionPoint(t *testing.T) {
 				"  cidr_block = \"10.0.0.0/16\"",
 				"}",
 			},
-			resourceStartLine: 2,
+			resourceStartLine: 3,
 			expected:          2, // inserts after user comment
 		},
 		{
@@ -241,8 +242,8 @@ func TestFindInsertionPoint(t *testing.T) {
 				"  cidr_block = \"10.0.0.0/16\"",
 				"}",
 			},
-			resourceStartLine: 2,
-			expected:          0, // skips managed comment and inserts at blank line
+			resourceStartLine: 3,
+			expected:          1, // inserts before the managed annotation block
 		},
 	}
 
@@ -340,6 +341,55 @@ func TestFixFile(t *testing.T) {
 
 	if !strings.Contains(fixedContent, "team:") {
 		t.Error("Fixed content should contain team field")
+	}
+}
+
+func TestFixFileProcessesResourcesBottomUp(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	var source strings.Builder
+	for i := 1; i <= 6; i++ {
+		source.WriteString(fmt.Sprintf("resource \"test\" \"r%d\" {}\n", i))
+	}
+	if err := afero.WriteFile(fs, "/many.tf", []byte(source.String()), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	schema := validator.ValidationSchema{Global: validator.GlobalRules{
+		RequiredPrefixes: []string{"@metadata"},
+		PrefixRules: map[string]validator.PrefixRule{
+			"@metadata": {RequiredFields: []string{"owner"}},
+		},
+	}}
+	p := parser.NewCommentParser(fs, []string{"@metadata"})
+	resources, err := p.ParseFile("/many.tf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	validationErrors := make([]validator.ValidationError, 0, len(resources))
+	for _, resource := range resources {
+		validationErrors = append(validationErrors, validator.ValidationError{
+			ResourceType: resource.Type,
+			ResourceName: resource.Name,
+			Message:      "Missing required comment prefix: @metadata",
+		})
+	}
+	fixed, count, err := NewCommentFixer(fs, schema).FixFile("/many.tf", resources, validationErrors)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 6 {
+		t.Fatalf("applied %d fixes, want 6", count)
+	}
+	if err := afero.WriteFile(fs, "/fixed.tf", []byte(fixed), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	fixedResources, err := p.ParseFile("/fixed.tf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, resource := range fixedResources {
+		if len(resource.PrecedingComments) != 1 {
+			t.Errorf("%s.%s has %d adjacent annotations, want 1", resource.Type, resource.Name, len(resource.PrecedingComments))
+		}
 	}
 }
 

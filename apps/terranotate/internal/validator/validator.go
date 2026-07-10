@@ -1,6 +1,7 @@
 package validator
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"regexp"
@@ -48,10 +49,10 @@ type FieldValidation struct {
 	Type          string   `yaml:"type"`
 	AllowedValues []string `yaml:"allowed_values"`
 	Pattern       string   `yaml:"pattern"`
-	MinLength     int      `yaml:"min_length"`
-	Min           float64  `yaml:"min"`
-	Max           float64  `yaml:"max"`
-	MinItems      int      `yaml:"min_items"`
+	MinLength     *int     `yaml:"min_length"`
+	Min           *float64 `yaml:"min"`
+	Max           *float64 `yaml:"max"`
+	MinItems      *int     `yaml:"min_items"`
 }
 
 // ValidationError represents a validation failure
@@ -72,8 +73,9 @@ type ValidationResult struct {
 
 // SchemaValidator handles schema-based validation
 type SchemaValidator struct {
-	fs     afero.Fs
-	schema ValidationSchema
+	fs       afero.Fs
+	schema   ValidationSchema
+	patterns map[string]*regexp.Regexp
 }
 
 // NewSchemaValidator creates a new validator from a schema file
@@ -81,25 +83,90 @@ func NewSchemaValidator(fs afero.Fs, schemaFile string) (*SchemaValidator, error
 	if fs == nil {
 		fs = afero.NewOsFs()
 	}
+	schema, patterns, err := loadSchema(fs, schemaFile)
+	if err != nil {
+		return nil, err
+	}
+	return &SchemaValidator{fs: fs, schema: schema, patterns: patterns}, nil
+}
+
+// LoadSchema reads and semantically validates a schema for generators and fixers.
+func LoadSchema(fs afero.Fs, schemaFile string) (ValidationSchema, error) {
+	if fs == nil {
+		fs = afero.NewOsFs()
+	}
+	schema, _, err := loadSchema(fs, schemaFile)
+	return schema, err
+}
+
+func loadSchema(fs afero.Fs, schemaFile string) (ValidationSchema, map[string]*regexp.Regexp, error) {
+	var schema ValidationSchema
 
 	// #nosec G304 - Schema file is provided by user via CLI, using afero abstraction
 	f, err := fs.Open(schemaFile)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read schema file: %w", err)
+		return schema, nil, fmt.Errorf("failed to read schema file: %w", err)
 	}
 	defer func() { _ = f.Close() }()
 
 	data, err := io.ReadAll(f)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read schema file content: %w", err)
+		return schema, nil, fmt.Errorf("failed to read schema file content: %w", err)
 	}
 
-	var schema ValidationSchema
-	if err := yaml.Unmarshal(data, &schema); err != nil {
-		return nil, fmt.Errorf("failed to parse schema: %w", err)
+	decoder := yaml.NewDecoder(bytes.NewReader(data))
+	decoder.KnownFields(true)
+	if err := decoder.Decode(&schema); err != nil {
+		return schema, nil, fmt.Errorf("failed to parse schema: %w", err)
 	}
+	patterns, err := validateSchema(schema)
+	if err != nil {
+		return schema, nil, fmt.Errorf("invalid schema: %w", err)
+	}
+	return schema, patterns, nil
+}
 
-	return &SchemaValidator{fs: fs, schema: schema}, nil
+func validateSchema(schema ValidationSchema) (map[string]*regexp.Regexp, error) {
+	patterns := make(map[string]*regexp.Regexp)
+	for name, validation := range schema.FieldValidations {
+		switch validation.Type {
+		case "string", "boolean", "integer", "float", "array":
+		default:
+			return nil, fmt.Errorf("field %q has unsupported type %q", name, validation.Type)
+		}
+		if validation.Pattern != "" && validation.Type != "string" {
+			return nil, fmt.Errorf("field %q uses pattern with non-string type %q", name, validation.Type)
+		}
+		if len(validation.AllowedValues) > 0 && validation.Type != "string" {
+			return nil, fmt.Errorf("field %q uses allowed_values with non-string type %q", name, validation.Type)
+		}
+		if validation.MinLength != nil && validation.Type != "string" {
+			return nil, fmt.Errorf("field %q uses min_length with non-string type %q", name, validation.Type)
+		}
+		if (validation.Min != nil || validation.Max != nil) && validation.Type != "integer" && validation.Type != "float" {
+			return nil, fmt.Errorf("field %q uses numeric bounds with type %q", name, validation.Type)
+		}
+		if validation.MinItems != nil && validation.Type != "array" {
+			return nil, fmt.Errorf("field %q uses min_items with non-array type %q", name, validation.Type)
+		}
+		if validation.Pattern != "" {
+			compiled, err := regexp.Compile(validation.Pattern)
+			if err != nil {
+				return nil, fmt.Errorf("field %q has invalid pattern: %w", name, err)
+			}
+			patterns[name] = compiled
+		}
+		if validation.Min != nil && validation.Max != nil && *validation.Min > *validation.Max {
+			return nil, fmt.Errorf("field %q has min greater than max", name)
+		}
+		if validation.MinLength != nil && *validation.MinLength < 0 {
+			return nil, fmt.Errorf("field %q has negative min_length", name)
+		}
+		if validation.MinItems != nil && *validation.MinItems < 0 {
+			return nil, fmt.Errorf("field %q has negative min_items", name)
+		}
+	}
+	return patterns, nil
 }
 
 // ValidateResources validates all resources against the schema
@@ -232,8 +299,13 @@ func (sv *SchemaValidator) validateNestedFields(resource parser.TerraformResourc
 			if nested, ok := val.(map[string]interface{}); ok {
 				current = nested
 			} else {
-				// Not a nested object, can't validate further
-				return errors
+				return append(errors, ValidationError{
+					ResourceType: resource.Type,
+					ResourceName: resource.Name,
+					Line:         comment.Line,
+					Severity:     "error",
+					Message:      fmt.Sprintf("%s: Field '%s' must be a nested structure", prefix, nestedPath),
+				})
 			}
 		} else {
 			// Nested path doesn't exist - check if any required fields
@@ -308,26 +380,41 @@ func (sv *SchemaValidator) fieldExists(fields map[string]interface{}, fieldPath 
 // validateFieldValues validates field value constraints
 func (sv *SchemaValidator) validateFieldValues(resource parser.TerraformResource, comment parser.StructuredComment, prefix string) []ValidationError {
 	var errors []ValidationError
-
-	for fieldName, fieldValue := range comment.Fields {
-		if fieldName == "_content" {
-			continue
-		}
-
-		// Get validation rules for this field
-		validation, exists := sv.schema.FieldValidations[fieldName]
+	sv.walkFields(comment.Fields, "", func(fieldPath string, fieldValue interface{}) {
+		validation, exists := sv.schema.FieldValidations[fieldPath]
+		validationName := fieldPath
 		if !exists {
-			continue // No validation rules defined
+			parts := strings.Split(fieldPath, ".")
+			validationName = parts[len(parts)-1]
+			validation, exists = sv.schema.FieldValidations[validationName]
 		}
-
-		errors = append(errors, sv.validateFieldValue(resource, comment, prefix, fieldName, fieldValue, validation)...)
-	}
+		if exists {
+			errors = append(errors, sv.validateFieldValue(resource, comment, prefix, fieldPath, fieldValue, validationName, validation)...)
+		}
+	})
 
 	return errors
 }
 
+func (sv *SchemaValidator) walkFields(fields map[string]interface{}, prefix string, visit func(string, interface{})) {
+	for name, value := range fields {
+		if name == "_content" {
+			continue
+		}
+		path := name
+		if prefix != "" {
+			path = prefix + "." + name
+		}
+		if nested, ok := value.(map[string]interface{}); ok {
+			sv.walkFields(nested, path, visit)
+			continue
+		}
+		visit(path, value)
+	}
+}
+
 // validateFieldValue validates a single field value
-func (sv *SchemaValidator) validateFieldValue(resource parser.TerraformResource, comment parser.StructuredComment, prefix, fieldName string, fieldValue interface{}, validation FieldValidation) []ValidationError {
+func (sv *SchemaValidator) validateFieldValue(resource parser.TerraformResource, comment parser.StructuredComment, prefix, fieldName string, fieldValue interface{}, validationName string, validation FieldValidation) []ValidationError {
 	var errors []ValidationError
 
 	// Type validation
@@ -346,9 +433,8 @@ func (sv *SchemaValidator) validateFieldValue(resource parser.TerraformResource,
 		}
 
 		// Pattern validation
-		if validation.Pattern != "" {
-			matched, err := regexp.MatchString(validation.Pattern, strVal)
-			if err == nil && !matched {
+		if pattern := sv.patterns[validationName]; pattern != nil {
+			if !pattern.MatchString(strVal) {
 				errors = append(errors, ValidationError{
 					ResourceType: resource.Type,
 					ResourceName: resource.Name,
@@ -380,13 +466,13 @@ func (sv *SchemaValidator) validateFieldValue(resource parser.TerraformResource,
 		}
 
 		// Min length
-		if validation.MinLength > 0 && len(strVal) < validation.MinLength {
+		if validation.MinLength != nil && len(strVal) < *validation.MinLength {
 			errors = append(errors, ValidationError{
 				ResourceType: resource.Type,
 				ResourceName: resource.Name,
 				Line:         comment.Line,
 				Severity:     "error",
-				Message:      fmt.Sprintf("%s: Field '%s' must be at least %d characters, got %d", prefix, fieldName, validation.MinLength, len(strVal)),
+				Message:      fmt.Sprintf("%s: Field '%s' must be at least %d characters, got %d", prefix, fieldName, *validation.MinLength, len(strVal)),
 			})
 		}
 
@@ -414,23 +500,23 @@ func (sv *SchemaValidator) validateFieldValue(resource parser.TerraformResource,
 			return errors
 		}
 
-		if validation.Min != 0 && float64(intVal) < validation.Min {
+		if validation.Min != nil && float64(intVal) < *validation.Min {
 			errors = append(errors, ValidationError{
 				ResourceType: resource.Type,
 				ResourceName: resource.Name,
 				Line:         comment.Line,
 				Severity:     "error",
-				Message:      fmt.Sprintf("%s: Field '%s' value %d is below minimum %v", prefix, fieldName, intVal, validation.Min),
+				Message:      fmt.Sprintf("%s: Field '%s' value %d is below minimum %v", prefix, fieldName, intVal, *validation.Min),
 			})
 		}
 
-		if validation.Max != 0 && float64(intVal) > validation.Max {
+		if validation.Max != nil && float64(intVal) > *validation.Max {
 			errors = append(errors, ValidationError{
 				ResourceType: resource.Type,
 				ResourceName: resource.Name,
 				Line:         comment.Line,
 				Severity:     "error",
-				Message:      fmt.Sprintf("%s: Field '%s' value %d exceeds maximum %v", prefix, fieldName, intVal, validation.Max),
+				Message:      fmt.Sprintf("%s: Field '%s' value %d exceeds maximum %v", prefix, fieldName, intVal, *validation.Max),
 			})
 		}
 
@@ -447,23 +533,23 @@ func (sv *SchemaValidator) validateFieldValue(resource parser.TerraformResource,
 			return errors
 		}
 
-		if validation.Min != 0 && floatVal < validation.Min {
+		if validation.Min != nil && floatVal < *validation.Min {
 			errors = append(errors, ValidationError{
 				ResourceType: resource.Type,
 				ResourceName: resource.Name,
 				Line:         comment.Line,
 				Severity:     "error",
-				Message:      fmt.Sprintf("%s: Field '%s' value %.2f is below minimum %.2f", prefix, fieldName, floatVal, validation.Min),
+				Message:      fmt.Sprintf("%s: Field '%s' value %.2f is below minimum %.2f", prefix, fieldName, floatVal, *validation.Min),
 			})
 		}
 
-		if validation.Max != 0 && floatVal > validation.Max {
+		if validation.Max != nil && floatVal > *validation.Max {
 			errors = append(errors, ValidationError{
 				ResourceType: resource.Type,
 				ResourceName: resource.Name,
 				Line:         comment.Line,
 				Severity:     "error",
-				Message:      fmt.Sprintf("%s: Field '%s' value %.2f exceeds maximum %.2f", prefix, fieldName, floatVal, validation.Max),
+				Message:      fmt.Sprintf("%s: Field '%s' value %.2f exceeds maximum %.2f", prefix, fieldName, floatVal, *validation.Max),
 			})
 		}
 
@@ -480,13 +566,13 @@ func (sv *SchemaValidator) validateFieldValue(resource parser.TerraformResource,
 			return errors
 		}
 
-		if validation.MinItems > 0 && len(arrVal) < validation.MinItems {
+		if validation.MinItems != nil && len(arrVal) < *validation.MinItems {
 			errors = append(errors, ValidationError{
 				ResourceType: resource.Type,
 				ResourceName: resource.Name,
 				Line:         comment.Line,
 				Severity:     "error",
-				Message:      fmt.Sprintf("%s: Field '%s' must have at least %d items, got %d", prefix, fieldName, validation.MinItems, len(arrVal)),
+				Message:      fmt.Sprintf("%s: Field '%s' must have at least %d items, got %d", prefix, fieldName, *validation.MinItems, len(arrVal)),
 			})
 		}
 	}
