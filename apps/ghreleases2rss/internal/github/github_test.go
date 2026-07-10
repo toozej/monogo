@@ -53,6 +53,9 @@ func TestGetReleaseFeedURL(t *testing.T) {
 			want:    "",
 			wantErr: true,
 		},
+		{name: "GitHub URL with extra path", input: "https://github.com/owner/repo/issues", wantErr: true},
+		{name: "Lookalike GHCR host", input: "https://evilghcr.io/owner/repo", wantErr: true},
+		{name: "Invalid repository characters", input: "owner/repo name", wantErr: true},
 	}
 
 	for _, tt := range tests {

@@ -55,19 +55,18 @@ var rootCmd = &cobra.Command{
 	Long:             `Subscribe to GitHub repo release feeds in Miniflux`,
 	Args:             cobra.ExactArgs(0),
 	PersistentPreRun: rootCmdPreRun,
-	Run:              rootCmdRun,
+	RunE:             rootCmdRun,
 }
 
 // rootCmdRun is a wrapper function that validates configuration and passes
 // the loaded configuration to the ghreleases2rss.Run function.
-func rootCmdRun(cmd *cobra.Command, args []string) {
+func rootCmdRun(cmd *cobra.Command, args []string) error {
 	// Validate required configuration only when main command runs
 	if err := config.ValidateRequired(conf); err != nil {
-		fmt.Printf("Error: %s\n", err)
-		os.Exit(1)
+		return err
 	}
 
-	ghreleases2rss.Run(cmd, args, conf)
+	return ghreleases2rss.Run(cmd, args, conf)
 }
 
 // rootCmdPreRun performs setup operations before executing the root command.

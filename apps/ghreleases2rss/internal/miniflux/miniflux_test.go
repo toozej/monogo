@@ -1,6 +1,7 @@
 package miniflux
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -45,10 +46,18 @@ func TestGetCategoryID(t *testing.T) {
 
 // Test SubscribeToFeed for success and failure cases
 func TestSubscribeToFeed(t *testing.T) {
+	called := false
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == "POST" && r.URL.Path == "/feeds" {
+		if r.Method == "POST" && r.URL.Path == "/v1/feeds" {
+			called = true
+			var body map[string]any
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Errorf("decode request: %v", err)
+			}
 			w.WriteHeader(http.StatusCreated) // Simulate successful feed creation
+			return
 		}
+		w.WriteHeader(http.StatusNotFound)
 	}))
 	defer mockServer.Close()
 
@@ -59,5 +68,26 @@ func TestSubscribeToFeed(t *testing.T) {
 	err := SubscribeToFeed(apiURL, apiKey, 0, feedURL)
 	if err != nil {
 		t.Errorf("SubscribeToRSS() error = %v", err)
+	}
+	if !called {
+		t.Fatal("expected /v1/feeds request")
+	}
+}
+
+func TestRejectsInvalidEndpointAndRedirectStatus(t *testing.T) {
+	if _, err := GetCategoryID("not-a-url", "key", "Tech"); err == nil {
+		t.Fatal("expected invalid endpoint error")
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusTemporaryRedirect)
+	}))
+	defer server.Close()
+	client := *httpClient
+	client.CheckRedirect = func(req *http.Request, via []*http.Request) error { return http.ErrUseLastResponse }
+	original := httpClient
+	httpClient = &client
+	defer func() { httpClient = original }()
+	if err := SubscribeToFeed(server.URL, "key", 0, "https://github.com/a/b/releases.atom"); err == nil {
+		t.Fatal("expected redirect status to fail")
 	}
 }
