@@ -1,9 +1,36 @@
 package RSSFFS
 
 import (
+	"context"
+	"io"
+	"net"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
+
+	"github.com/toozej/monogo/apps/RSSFFS/internal/config"
+	"golang.org/x/time/rate"
 )
+
+type roundTripperFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
+
+type closeTrackingBody struct {
+	io.Reader
+	closed bool
+}
+
+func (b *closeTrackingBody) Close() error {
+	b.closed = true
+	return nil
+}
 
 // TestExtractDomainFromURL tests the extractDomainFromURL function with various URL formats
 func TestExtractDomainFromURL(t *testing.T) {
@@ -104,6 +131,197 @@ func TestExtractDomainFromURL(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestPrivateIPDetectionHandlesMappedIPv4(t *testing.T) {
+	for _, raw := range []string{"10.0.0.1", "169.254.169.254", "127.0.0.1", "192.168.1.1", "::1", "fe80::1", "fc00::1"} {
+		t.Run(raw, func(t *testing.T) {
+			if !isPrivateIP(net.ParseIP(raw)) {
+				t.Fatalf("expected %s to be private/internal", raw)
+			}
+		})
+	}
+	if isPrivateIP(net.ParseIP("8.8.8.8")) {
+		t.Fatal("expected public address to be allowed")
+	}
+}
+
+func TestSafeDialRevalidatesDNS(t *testing.T) {
+	originalLookup := lookupIPAddr
+	originalDial := networkDialer
+	t.Cleanup(func() {
+		lookupIPAddr = originalLookup
+		networkDialer = originalDial
+	})
+
+	lookupIPAddr = func(context.Context, string) ([]net.IPAddr, error) {
+		return []net.IPAddr{{IP: net.ParseIP("203.0.113.10")}}, nil
+	}
+	if err := validateURL("https://public.test/feed"); err != nil {
+		t.Fatalf("initial validation failed: %v", err)
+	}
+
+	lookupIPAddr = func(context.Context, string) ([]net.IPAddr, error) {
+		return []net.IPAddr{{IP: net.ParseIP("169.254.169.254")}}, nil
+	}
+	networkDialer = func(context.Context, string, string) (net.Conn, error) {
+		t.Fatal("private address reached the network dialer")
+		return nil, nil
+	}
+	if _, err := safeDialContext(context.Background(), "tcp", "public.test:443"); err == nil {
+		t.Fatal("expected rebound private address to be rejected")
+	}
+
+	client := newSafeHTTPClient(time.Second)
+	redirect := &http.Request{URL: mustParseURL(t, "http://private.test/")}
+	if err := client.CheckRedirect(redirect, []*http.Request{{URL: mustParseURL(t, "https://public.test/")}}); err == nil {
+		t.Fatal("expected private redirect to be rejected")
+	}
+}
+
+func mustParseURL(t *testing.T, raw string) *url.URL {
+	t.Helper()
+	u, err := url.Parse(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return u
+}
+
+func TestCheckRSSFeedClosesBodiesAndValidatesRoot(t *testing.T) {
+	originalLookup := lookupIPAddr
+	lookupIPAddr = func(context.Context, string) ([]net.IPAddr, error) {
+		return []net.IPAddr{{IP: net.ParseIP("8.8.8.8")}}, nil
+	}
+	t.Cleanup(func() { lookupIPAddr = originalLookup })
+
+	body := &closeTrackingBody{Reader: strings.NewReader("not found")}
+	client := &http.Client{Transport: roundTripperFunc(func(*http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: http.StatusNotFound, Body: body, Header: make(http.Header)}, nil
+	})}
+	if checkRSSFeed(context.Background(), client, "https://public.test/feed") {
+		t.Fatal("404 response should not be a feed")
+	}
+	if !body.closed {
+		t.Fatal("404 response body was not closed")
+	}
+
+	for _, tc := range []struct {
+		name    string
+		content string
+		valid   bool
+	}{
+		{name: "rss", content: `<rss version="2.0"><channel/></rss>`, valid: true},
+		{name: "atom", content: `<feed xmlns="http://www.w3.org/2005/Atom"/>`, valid: true},
+		{name: "sitemap", content: `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"/>`, valid: false},
+		{name: "generic xml", content: `<document/>`, valid: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			client := &http.Client{Transport: roundTripperFunc(func(*http.Request) (*http.Response, error) {
+				return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(tc.content)), Header: make(http.Header)}, nil
+			})}
+			if got := checkRSSFeed(context.Background(), client, "https://public.test/feed"); got != tc.valid {
+				t.Fatalf("got %t, want %t", got, tc.valid)
+			}
+		})
+	}
+}
+
+func TestTraversalSeedsOriginAndResolvesRelativeLinks(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = io.WriteString(w, `<a href="/relative">relative</a><a href="https://other.test/page">other</a>`)
+	}))
+	defer server.Close()
+	serverURL, _ := url.Parse(server.URL)
+	_, port, _ := net.SplitHostPort(serverURL.Host)
+
+	originalLookup := lookupIPAddr
+	originalDial := networkDialer
+	lookupIPAddr = func(context.Context, string) ([]net.IPAddr, error) {
+		return []net.IPAddr{{IP: net.ParseIP("8.8.8.8")}}, nil
+	}
+	networkDialer = func(ctx context.Context, network, _ string) (net.Conn, error) {
+		return (&net.Dialer{}).DialContext(ctx, network, serverURL.Host)
+	}
+	t.Cleanup(func() {
+		lookupIPAddr = originalLookup
+		networkDialer = originalDial
+	})
+
+	origin := "http://public.test:" + port
+	domains, err := getAllDomainsFromPage(context.Background(), origin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !domains[origin] {
+		t.Fatalf("submitted origin missing from %#v", domains)
+	}
+	if !domains["https://other.test"] {
+		t.Fatalf("absolute linked origin missing from %#v", domains)
+	}
+}
+
+func TestDebugResetDiscoversBeforeMutatingAndStillSubscribes(t *testing.T) {
+	var deletes atomic.Int32
+	var posts atomic.Int32
+	feedAvailable := true
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/v1/categories":
+			_, _ = io.WriteString(w, `[{"id":1,"title":"News"}]`)
+		case r.Method == http.MethodGet && r.URL.Path == "/v1/categories/1/feeds":
+			_, _ = io.WriteString(w, `[{"id":7}]`)
+		case r.Method == http.MethodDelete && r.URL.Path == "/v1/feeds/7":
+			deletes.Add(1)
+			w.WriteHeader(http.StatusNoContent)
+		case r.Method == http.MethodPost && r.URL.Path == "/v1/feeds":
+			posts.Add(1)
+			w.WriteHeader(http.StatusCreated)
+		case r.Method == http.MethodGet && r.URL.Path == "/feed" && feedAvailable:
+			_, _ = io.WriteString(w, `<rss version="2.0"><channel/></rss>`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	serverURL, _ := url.Parse(server.URL)
+	_, port, _ := net.SplitHostPort(serverURL.Host)
+
+	originalLookup := lookupIPAddr
+	originalDial := networkDialer
+	originalLimiter := limiter
+	lookupIPAddr = func(context.Context, string) ([]net.IPAddr, error) {
+		return []net.IPAddr{{IP: net.ParseIP("8.8.8.8")}}, nil
+	}
+	networkDialer = func(ctx context.Context, network, _ string) (net.Conn, error) {
+		return (&net.Dialer{}).DialContext(ctx, network, serverURL.Host)
+	}
+	limiter = rate.NewLimiter(rate.Inf, 10)
+	t.Cleanup(func() {
+		lookupIPAddr = originalLookup
+		networkDialer = originalDial
+		limiter = originalLimiter
+	})
+
+	conf := config.Config{RSSReaderEndpoint: server.URL, RSSReaderAPIKey: "token"}
+	pageURL := "http://public.test:" + port
+	count, err := RunContext(context.Background(), pageURL, "News", true, true, true, conf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 || deletes.Load() != 1 || posts.Load() != 1 {
+		t.Fatalf("count=%d deletes=%d posts=%d", count, deletes.Load(), posts.Load())
+	}
+
+	feedAvailable = false
+	deletes.Store(0)
+	posts.Store(0)
+	if _, err := RunContext(context.Background(), pageURL, "News", true, true, true, conf); err == nil {
+		t.Fatal("expected reset without replacements to fail")
+	}
+	if deletes.Load() != 0 || posts.Load() != 0 {
+		t.Fatalf("mutated before discovery: deletes=%d posts=%d", deletes.Load(), posts.Load())
 	}
 }
 

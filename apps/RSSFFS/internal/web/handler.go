@@ -1,9 +1,10 @@
 package web
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"html"
+	"net"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -111,7 +112,7 @@ func (s *Server) handleSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Process the submission
-	response := s.processSubmission(req)
+	response := s.processSubmissionContext(r.Context(), req)
 
 	// Send JSON response
 	w.WriteHeader(s.getStatusCode(response))
@@ -120,18 +121,10 @@ func (s *Server) handleSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// sanitizeInput sanitizes user input to prevent XSS attacks
+// sanitizeInput removes transport-hostile bytes without HTML-escaping semantic
+// values. Rendering layers are responsible for context-appropriate escaping.
 func (s *Server) sanitizeInput(input string) string {
-	// HTML escape the input
-	sanitized := html.EscapeString(input)
-
-	// Remove any null bytes
-	sanitized = strings.ReplaceAll(sanitized, "\x00", "")
-
-	// Normalize whitespace
-	sanitized = regexp.MustCompile(`\s+`).ReplaceAllString(sanitized, " ")
-
-	return strings.TrimSpace(sanitized)
+	return strings.TrimSpace(strings.ReplaceAll(input, "\x00", ""))
 }
 
 // validateSubmission validates form input data comprehensively
@@ -215,10 +208,11 @@ func (s *Server) validateURL(urlStr string) error {
 		}
 	}
 
-	// Validate that it's not a local/private IP (basic check)
-	if strings.Contains(parsedURL.Host, "localhost") ||
-		strings.Contains(parsedURL.Host, "127.0.0.1") ||
-		strings.Contains(parsedURL.Host, "::1") {
+	hostname := strings.TrimSuffix(strings.ToLower(parsedURL.Hostname()), ".")
+	if hostname == "localhost" || strings.HasSuffix(hostname, ".localhost") {
+		return fmt.Errorf("local URLs are not allowed")
+	}
+	if ip := net.ParseIP(hostname); ip != nil && (!ip.IsGlobalUnicast() || ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast()) {
 		return fmt.Errorf("local URLs are not allowed")
 	}
 
@@ -264,6 +258,10 @@ func (s *Server) validateCategory(category string) error {
 
 // processSubmission processes the validated form submission using RSSFFS core
 func (s *Server) processSubmission(req SubmitRequest) SubmitResponse {
+	return s.processSubmissionContext(context.Background(), req)
+}
+
+func (s *Server) processSubmissionContext(ctx context.Context, req SubmitRequest) SubmitResponse {
 	if s.debug {
 		log.Debugf("Processing submission: URL=%s, Category=%s, SingleURLMode=%t", req.URL, req.Category, req.SingleURLMode)
 	}
@@ -274,7 +272,7 @@ func (s *Server) processSubmission(req SubmitRequest) SubmitResponse {
 	}
 
 	// Call the RSSFFS core function
-	count, err := RSSFFS.Run(req.URL, req.Category, s.debug, false, req.SingleURLMode, s.config)
+	count, err := RSSFFS.RunContext(ctx, req.URL, req.Category, s.debug, false, req.SingleURLMode, s.config)
 	if err != nil {
 		log.Errorf("Error processing RSSFFS request: %v", err)
 		return SubmitResponse{

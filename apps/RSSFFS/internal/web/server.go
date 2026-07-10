@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"crypto/subtle"
 	"fmt"
 	"net/http"
 	"os"
@@ -63,6 +64,11 @@ func (s *Server) SetupRoutes() *http.ServeMux {
 // withMiddleware applies logging, security headers, rate limiting, and CORS middleware
 func (s *Server) withMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !s.isAuthorized(r) {
+			w.Header().Set("WWW-Authenticate", `Basic realm="RSSFFS", charset="UTF-8"`)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
 		// Log request
 		start := time.Now()
 		if s.debug {
@@ -82,17 +88,6 @@ func (s *Server) withMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		// Comprehensive security headers
 		s.setSecurityHeaders(w)
 
-		// CORS headers for local development (restrict in production)
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-CSRF-Token")
-
-		// Handle preflight requests
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
 		// Call the actual handler
 		next(w, r)
 
@@ -101,6 +96,19 @@ func (s *Server) withMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			log.Debugf("Response: %s %s completed in %v", r.Method, r.URL.Path, time.Since(start))
 		}
 	}
+}
+
+func (s *Server) isAuthorized(r *http.Request) bool {
+	if s.config.WebUsername == "" && s.config.WebPassword == "" {
+		return true
+	}
+	username, password, ok := r.BasicAuth()
+	if !ok {
+		return false
+	}
+	usernameOK := subtle.ConstantTimeCompare([]byte(username), []byte(s.config.WebUsername)) == 1
+	passwordOK := subtle.ConstantTimeCompare([]byte(password), []byte(s.config.WebPassword)) == 1
+	return usernameOK && passwordOK
 }
 
 // setSecurityHeaders sets comprehensive security headers
@@ -245,7 +253,7 @@ func (s *Server) Start(host string, port int) error {
 		Addr:         addr,
 		Handler:      s.SetupRoutes(),
 		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
+		WriteTimeout: 3 * time.Minute,
 		IdleTimeout:  60 * time.Second,
 	}
 

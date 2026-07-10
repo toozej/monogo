@@ -94,6 +94,10 @@ Examples:
 ./RSSFFS serve --host 0.0.0.0 --port 3000 --debug
 ```
 
+Binding the web UI to a non-loopback address requires `WEB_USERNAME` and
+`WEB_PASSWORD`. All UI, API, category, and log routes are protected with HTTP
+Basic authentication when these values are configured.
+
 ## Configuration
 
 RSSFFS requires configuration for your RSS reader API. Create a `config.yaml` file or set environment variables:

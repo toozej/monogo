@@ -10,7 +10,7 @@ services:
     security_opt:
       - no-new-privileges:true
     read_only: true
-    command: ["serve"]
+    command: ["serve", "--host", "0.0.0.0"]
     env_file: .env
     ports:
       - 8080:8080

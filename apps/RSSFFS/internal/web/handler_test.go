@@ -257,12 +257,12 @@ func TestSanitizeInput(t *testing.T) {
 		expected string
 	}{
 		{"normal text", "normal text"},
-		{"<script>alert('xss')</script>", "&lt;script&gt;alert(&#39;xss&#39;)&lt;/script&gt;"},
+		{"<script>alert('xss')</script>", "<script>alert('xss')</script>"},
 		{"text\x00with\x00nulls", "textwithnulls"},
-		{"  multiple   spaces  ", "multiple spaces"},
+		{"  multiple   spaces  ", "multiple   spaces"},
 		{"", ""},
-		{"text\nwith\nnewlines", "text with newlines"},
-		{"text\twith\ttabs", "text with tabs"},
+		{"text\nwith\nnewlines", "text\nwith\nnewlines"},
+		{"text\twith\ttabs", "text\twith\ttabs"},
 	}
 
 	for _, tc := range testCases {

@@ -29,6 +29,11 @@ rss_reader_api_key: "your-api-token"
 # Default port for web server
 # web_port: 8080
 
+# HTTP Basic authentication. Both values are required when web_host is not a
+# loopback address.
+# web_username: "rssffs"
+# web_password: "change-me"
+
 # Single URL Mode Configuration
 # When enabled, only checks for RSS feeds on the provided URL's domain
 # without traversing to other domains found on the webpage

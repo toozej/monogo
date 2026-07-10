@@ -1,11 +1,13 @@
 package RSSFFS
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"golang.org/x/time/rate"
 
@@ -18,17 +20,17 @@ type Feed struct {
 }
 
 var limiter = rate.NewLimiter(1, 5) // Allow 1 request per second with a burst size of 1
+var readerHTTPClient = &http.Client{Timeout: 15 * time.Second}
 
-func getCategoryId(apiEndpoint, apiKey, category string) (int, error) {
-	req, err := http.NewRequest("GET", fmt.Sprintf(`%s/v1/categories`, apiEndpoint), nil)
+func getCategoryId(ctx context.Context, apiEndpoint, apiKey, category string) (int, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf(`%s/v1/categories`, apiEndpoint), nil)
 	if err != nil {
 		return 0, err
 	}
 	req.Header.Set("X-Auth-Token", apiKey)
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{}
-	resp, err := client.Do(req) // #nosec G704 -- apiEndpoint is from config, not user input
+	resp, err := readerHTTPClient.Do(req) // #nosec G704 -- apiEndpoint is from config, not user input
 	if err != nil {
 		return 0, err
 	}
@@ -61,22 +63,25 @@ func getCategoryId(apiEndpoint, apiKey, category string) (int, error) {
 	return 0, nil
 }
 
-func subscribeToFeed(apiEndpoint string, apiKey string, categoryId int, rssFeed string) error {
+func subscribeToFeed(ctx context.Context, apiEndpoint string, apiKey string, categoryId int, rssFeed string) error {
 	// Wait for permission to proceed from the rate limiter
-	err := limiter.Wait(context.Background())
+	err := limiter.Wait(ctx)
 	if err != nil {
 		return err
 	}
 
-	req, err := http.NewRequest("POST", fmt.Sprintf(`%s/v1/feeds`, apiEndpoint), strings.NewReader(fmt.Sprintf(`{"feed_url": "%s", "category_id": %d}`, rssFeed, categoryId)))
+	body, err := json.Marshal(map[string]any{"feed_url": rssFeed, "category_id": categoryId})
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf(`%s/v1/feeds`, apiEndpoint), bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
 	req.Header.Set("X-Auth-Token", apiKey)
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{}
-	resp, err := client.Do(req) // #nosec G704 -- apiEndpoint/rssFeed are from config
+	resp, err := readerHTTPClient.Do(req) // #nosec G704 -- apiEndpoint/rssFeed are from config
 	if err != nil {
 		return err
 	}
@@ -95,18 +100,17 @@ func subscribeToFeed(apiEndpoint string, apiKey string, categoryId int, rssFeed 
 	return nil
 }
 
-func getCategoryFeeds(apiEndpoint string, apiKey string, categoryId int) ([]int, error) {
+func getCategoryFeeds(ctx context.Context, apiEndpoint string, apiKey string, categoryId int) ([]int, error) {
 	url := fmt.Sprintf("%s/v1/categories/%d/feeds", apiEndpoint, categoryId)
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("X-Auth-Token", apiKey)
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{}
-	resp, err := client.Do(req) // #nosec G704 -- apiEndpoint is from config
+	resp, err := readerHTTPClient.Do(req) // #nosec G704 -- apiEndpoint is from config
 	if err != nil {
 		return nil, err
 	}
@@ -136,9 +140,9 @@ func getCategoryFeeds(apiEndpoint string, apiKey string, categoryId int) ([]int,
 	return feedIDs, nil
 }
 
-func deleteFeed(apiEndpoint string, apiKey string, feedId int) error {
+func deleteFeed(ctx context.Context, apiEndpoint string, apiKey string, feedId int) error {
 	// Wait for permission to proceed from the rate limiter
-	err := limiter.Wait(context.Background())
+	err := limiter.Wait(ctx)
 	if err != nil {
 		return err
 	}
@@ -147,15 +151,14 @@ func deleteFeed(apiEndpoint string, apiKey string, feedId int) error {
 	url := fmt.Sprintf("%s/v1/feeds/%d", apiEndpoint, feedId)
 
 	// Create a new DELETE request
-	req, err := http.NewRequest("DELETE", url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, nil)
 	if err != nil {
 		return err
 	}
 	req.Header.Set("X-Auth-Token", apiKey)
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{}
-	resp, err := client.Do(req) // #nosec G704 -- apiEndpoint is from config
+	resp, err := readerHTTPClient.Do(req) // #nosec G704 -- apiEndpoint is from config
 	if err != nil {
 		return err
 	}

@@ -60,6 +60,9 @@ func (s *ServeCommand) runServer(cmd *cobra.Command, args []string) error {
 	if s.Port < 1 || s.Port > 65535 {
 		return fmt.Errorf("invalid port number: %d (must be between 1 and 65535)", s.Port)
 	}
+	if !isLoopbackHost(s.Host) && (conf.WebUsername == "" || conf.WebPassword == "") {
+		return fmt.Errorf("WEB_USERNAME and WEB_PASSWORD are required when binding the web server to non-loopback host %q", s.Host)
+	}
 
 	// Check if port is available
 	if err := s.checkPortAvailability(); err != nil {
@@ -84,6 +87,14 @@ func (s *ServeCommand) runServer(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+func isLoopbackHost(host string) bool {
+	if host == "localhost" {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
 
 // checkPortAvailability verifies that the specified port is available for binding
