@@ -100,7 +100,11 @@ func processArchived(rc *checkrunner.RunContext, workflowFiles []*workflow.Workf
 		return false
 	}
 
-	result, _ := checkrunner.DetectArchived(rc, workflowFiles, allActionRefs)
+	result, err := checkrunner.DetectArchived(rc, workflowFiles, allActionRefs)
+	if err != nil {
+		log.Errorf("Archived-action scan did not complete: %v", err)
+		return true
+	}
 	staleActions := checkrunner.DetectStale(rc, workflowFiles, allActionRefs, result.Archived, staleDays)
 
 	hasIssues := len(result.ArchivedActions) > 0 || len(staleActions) > 0

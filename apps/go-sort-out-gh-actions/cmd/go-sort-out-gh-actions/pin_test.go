@@ -476,6 +476,8 @@ jobs:
 	noCache = true
 	refreshCache = false
 	cacheTTL = 0
+	ghAPIBaseURL = server.URL
+	ghAPIClient = server.Client()
 	verbose = false
 	debug = false
 	exitCode = 0
@@ -517,6 +519,8 @@ jobs:
 	noCache = true
 	refreshCache = false
 	cacheTTL = 0
+	ghAPIBaseURL = server.URL
+	ghAPIClient = server.Client()
 	verbose = false
 	debug = false
 	exitCode = 0

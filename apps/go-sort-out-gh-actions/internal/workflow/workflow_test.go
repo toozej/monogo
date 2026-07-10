@@ -465,6 +465,30 @@ func TestWorkflowParser_ParseWorkflowFiles(t *testing.T) {
 	}
 }
 
+func TestWorkflowParser_ParseWorkflowFilesReturnsPartialResultsAndError(t *testing.T) {
+	parser := NewParser()
+	tmpDir := t.TempDir()
+	valid := filepath.Join(tmpDir, "valid.yml")
+	invalid := filepath.Join(tmpDir, "invalid.yml")
+	if err := os.WriteFile(valid, []byte("jobs:\n  test:\n    steps:\n      - uses: actions/checkout@v4\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(invalid, []byte("jobs: ["), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	results, err := parser.ParseWorkflowFiles([]string{valid, invalid})
+	if err == nil {
+		t.Fatal("expected malformed workflow to be returned as an error")
+	}
+	if len(results) != 2 {
+		t.Fatalf("got %d workflow results, want 2", len(results))
+	}
+	if results[0].Error != nil || results[1].Error == nil {
+		t.Fatalf("unexpected partial results: %+v", results)
+	}
+}
+
 func TestWorkflowParser_GetAllUsesFromRepo(t *testing.T) {
 	parser := NewParser()
 
@@ -500,7 +524,10 @@ func TestWorkflowParser_GetAllUsesFromRepo(t *testing.T) {
 	}
 
 	// Test error scenarios
-	workflows, _ := parser.ParseWorkflowFiles([]string{"nonexistent.yml"})
+	workflows, parseErr := parser.ParseWorkflowFiles([]string{"nonexistent.yml"})
+	if parseErr == nil {
+		t.Error("Expected ParseWorkflowFiles to return the file error")
+	}
 	if len(workflows) != 1 || workflows[0].Error == nil {
 		t.Error("Expected error inside WorkflowFile for nonexistent file")
 	}

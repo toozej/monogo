@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -122,16 +123,17 @@ func (p *WorkflowParser) ParseWorkflowFile(filePath string) (*WorkflowFile, erro
 
 func (p *WorkflowParser) ParseWorkflowFiles(filePaths []string) ([]*WorkflowFile, error) {
 	var results []*WorkflowFile
+	var parseErrors []error
 
 	for _, path := range filePaths {
 		workflow, err := p.ParseWorkflowFile(path)
 		results = append(results, workflow)
 		if err != nil {
-			continue
+			parseErrors = append(parseErrors, fmt.Errorf("%s: %w", path, err))
 		}
 	}
 
-	return results, nil
+	return results, errors.Join(parseErrors...)
 }
 
 func (p *WorkflowParser) extractUsesFromYAML(content []byte) ([]string, error) {
@@ -288,14 +290,17 @@ func (p *WorkflowParser) GetRemoteUsesFromRepo(ctx context.Context, fetcher Remo
 	}
 
 	var allWorkflows []*WorkflowFile
+	var parseErrors []error
 
 	for path, content := range contents {
 		workflow, parseErr := p.ParseWorkflowContent(path, content)
-		if parseErr != nil {
-			allWorkflows = append(allWorkflows, workflow)
-			continue
-		}
 		allWorkflows = append(allWorkflows, workflow)
+		if parseErr != nil {
+			parseErrors = append(parseErrors, fmt.Errorf("%s: %w", path, parseErr))
+		}
+	}
+	if err := errors.Join(parseErrors...); err != nil {
+		return nil, allWorkflows, fmt.Errorf("failed to parse remote workflow files: %w", err)
 	}
 
 	var allActionRefs []ActionRef

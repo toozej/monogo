@@ -823,8 +823,8 @@ func TestDetectArchived_APIError(t *testing.T) {
 	}
 
 	result, err := DetectArchived(rc, workflowFiles, allActionRefs)
-	if err != nil {
-		t.Fatalf("DetectArchived() should not return error even on API errors, got %v", err)
+	if err == nil {
+		t.Fatal("DetectArchived() should return an error when the API check fails")
 	}
 	if len(result.ArchivedActions) != 0 {
 		t.Errorf("Expected 0 archived actions on API error, got %d", len(result.ArchivedActions))

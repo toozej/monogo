@@ -32,9 +32,6 @@ inputs:
     description: 'Create GitHub issue when archived actions are found'
     required: false
     default: 'false'
-  notification-endpoints:
-    description: 'Comma-separated list of notification endpoints (required if notify=true)'
-    required: false
   stale-days:
     description: 'Number of days after which an action is considered stale (default 365)'
     required: false
@@ -42,34 +39,26 @@ inputs:
 outputs:
   archived-count:
     description: 'Number of archived actions found'
-    value: ${{ steps.check.outputs.archived-count }}
   has-archived:
     description: 'Whether any archived actions were found (true/false)'
-    value: ${{ steps.check.outputs.has-archived }}
   stale-count:
     description: 'Number of stale/deprecated actions found'
-    value: ${{ steps.check.outputs.stale-count }}
   has-stale:
     description: 'Whether any stale/deprecated actions were found (true/false)'
-    value: ${{ steps.check.outputs.has-stale }}
 runs:
   using: 'docker'
   image: 'docker://ghcr.io/toozej/go-sort-out-gh-actions:latest'
   args:
     - archived
-    - ${{ inputs.verbose == 'true' && '--verbose' || '' }}
-    - ${{ inputs.debug == 'true' && '--debug' || '' }}
-    - ${{ inputs.workflow && format('--workflow={0}', inputs.workflow) || '' }}
-    - ${{ inputs.workflows-dir && format('--workflows-dir={0}', inputs.workflows-dir) || ''
-      }}
-    - ${{ inputs.repos-dir && format('--repos-dir={0}', inputs.repos-dir) || '' }}
-    - ${{ inputs.notify == 'true' && '--notify' || '' }}
-    - ${{ inputs.create-issue == 'true' && '--create-issue' || '' }}
-    - ${{ inputs.stale-days && format('--stale-days={0}', inputs.stale-days) || '' }}
-  env:
-    GH_TOKEN: ${{ inputs.token }}
-    NOTIFICATION_ENDPOINTS: ${{ inputs.notification-endpoints }}
-    CREATE_ISSUES: ${{ inputs.create-issue }}
+    - --token=${{ inputs.token }}
+    - --verbose=${{ inputs.verbose }}
+    - --debug=${{ inputs.debug }}
+    - --workflow=${{ inputs.workflow }}
+    - --workflows-dir=${{ inputs.workflows-dir }}
+    - --repos-dir=${{ inputs.repos-dir }}
+    - --notify=${{ inputs.notify }}
+    - --create-issue=${{ inputs.create-issue }}
+    - --stale-days=${{ inputs.stale-days }}
 
 # Example usage in a workflow:
 #
@@ -88,7 +77,7 @@ runs:
 #
 #     - name: Check for archived GitHub Actions
 #       id: check
-#       uses: toozej/go-sort-out-gh-actions/check-archived@main
+#       uses: toozej/monogo/apps/go-sort-out-gh-actions/check-archived@main
 #       with:
 #         token: ${{ secrets.GITHUB_TOKEN }}
 #         verbose: true

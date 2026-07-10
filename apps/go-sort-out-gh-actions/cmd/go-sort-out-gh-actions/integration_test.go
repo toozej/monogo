@@ -169,6 +169,19 @@ func makeConfigurableGHServer(cfg *mockServerConfig) *httptest.Server {
 					_, _ = w.Write(body)
 					return
 				}
+				// Most command tests care about one configured repository while their
+				// shared workflow fixture contains several. Treat unspecified repos as
+				// ordinary active repositories; API-failure tests use dedicated servers.
+				resp := map[string]interface{}{
+					"full_name":  ownerRepo,
+					"archived":   false,
+					"name":       filepath.Base(ownerRepo),
+					"updated_at": time.Now().Format(time.RFC3339),
+				}
+				w.WriteHeader(200)
+				body, _ := json.Marshal(resp)
+				_, _ = w.Write(body)
+				return
 			}
 			w.WriteHeader(404)
 			return
