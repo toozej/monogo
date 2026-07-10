@@ -12,7 +12,10 @@ func TestExtractGPSData(t *testing.T) {
 	testDir := filepath.Join("..", "testdata")
 
 	// Call the function
-	gpsData := ExtractGPSData(testDir)
+	gpsData, err := ExtractGPSData(testDir)
+	if err != nil {
+		t.Fatalf("ExtractGPSData() error = %v", err)
+	}
 
 	// Assert GPS data is non-empty for valid test images
 	if len(gpsData) == 0 {
@@ -23,6 +26,12 @@ func TestExtractGPSData(t *testing.T) {
 	coords, ok := asFloatSlice(gpsData[0].Value)
 	if gpsData[0].Name == "" || !ok || len(coords) != 2 {
 		t.Errorf("Invalid GPS data for first image: %+v", gpsData[0])
+	}
+}
+
+func TestExtractGPSDataMissingDirectory(t *testing.T) {
+	if _, err := ExtractGPSData(filepath.Join(t.TempDir(), "missing")); err == nil {
+		t.Fatal("ExtractGPSData() error = nil, want missing-directory error")
 	}
 }
 

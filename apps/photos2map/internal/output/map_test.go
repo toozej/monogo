@@ -14,7 +14,9 @@ func TestGenerateMap(t *testing.T) {
 		{Name: "Image2", Value: []float64{2.3522, 48.8566}},
 	}
 
-	GenerateMap(gpsData)
+	if err := GenerateMap(gpsData); err != nil {
+		t.Fatalf("GenerateMap() error = %v", err)
+	}
 
 	// Check if the map file is created
 	if _, err := os.Stat("out/map.html"); os.IsNotExist(err) {

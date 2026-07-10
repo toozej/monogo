@@ -2,11 +2,10 @@
 package extract
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
-
-	log "github.com/sirupsen/logrus"
 
 	"github.com/go-echarts/go-echarts/v2/opts"
 	"github.com/toozej/monogo/apps/photos2map/internal/exif"
@@ -14,7 +13,7 @@ import (
 
 // ExtractGPSData reads all the images in a given directory and returns a slice of GeoData containing GPS coordinates.
 // Supported formats include JPG, PNG, RAW, DNG, and HEIF.
-func ExtractGPSData(dir string) []opts.GeoData {
+func ExtractGPSData(dir string) ([]opts.GeoData, error) {
 	var gpsData []opts.GeoData
 
 	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
@@ -48,8 +47,8 @@ func ExtractGPSData(dir string) []opts.GeoData {
 	})
 
 	if err != nil {
-		log.Fatalf("Error walking the directory: %v", err)
+		return nil, fmt.Errorf("walk image directory %q: %w", dir, err)
 	}
 
-	return gpsData
+	return gpsData, nil
 }

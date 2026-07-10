@@ -14,7 +14,9 @@ func TestGenerateGPX(t *testing.T) {
 		{Name: "Image2", Value: []float64{2.3522, 48.8566}},
 	}
 
-	GenerateGPX(gpsData)
+	if err := GenerateGPX(gpsData); err != nil {
+		t.Fatalf("GenerateGPX() error = %v", err)
+	}
 
 	// Check if the GPX file is created
 	if _, err := os.Stat("out/output.gpx"); os.IsNotExist(err) {
@@ -23,4 +25,11 @@ func TestGenerateGPX(t *testing.T) {
 
 	// Clean up after test
 	_ = os.Remove("out/output.gpx")
+}
+
+func TestGenerateGPXRejectsInvalidCoordinates(t *testing.T) {
+	gpsData := []opts.GeoData{{Name: "Invalid", Value: []float64{181, 0}}}
+	if err := GenerateGPX(gpsData); err == nil {
+		t.Fatal("GenerateGPX() error = nil, want invalid-coordinate error")
+	}
 }
