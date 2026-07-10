@@ -1,6 +1,8 @@
 [[- $app := ds "app" -]]
 [[- $cgo := "0" -]]
 [[- if conv.ToBool (index $app "cgoEnabled") -]][[- $cgo = "1" -]][[- end -]]
+[[- $distrolessOnly := false -]]
+[[- if index $app "distrolessOnly" -]][[- $distrolessOnly = conv.ToBool (index $app "distrolessOnly") -]][[- end -]]
 [[- /* Docker repository names must be lower-case (e.g. RSSFFS -> rssffs) */ -]]
 [[- $image := strings.ToLower $app.name -]]
 ---
@@ -119,6 +121,7 @@ changelog:
       order: 9999
 
 dockers_v2:
+[[- if not $distrolessOnly ]]
   - id: [[$app.name]]
 [[- if eq $cgo "1" ]]
     # CGO builds only produce a linux/amd64 binary, so pin the image platform.
@@ -164,6 +167,7 @@ dockers_v2:
       "index,manifest:org.opencontainers.image.version": '{{ envOrDefault "MONOGO_APP_VERSION" .Version }}'
     extra_files:
       - scripts/goreleaser_entrypoint.sh
+[[- end ]]
   - id: [[$app.name]]-distroless
 [[- if eq $cgo "1" ]]
     # CGO builds only produce a linux/amd64 binary, so pin the image platform.
@@ -175,6 +179,11 @@ dockers_v2:
       - 'ghcr.io/toozej/[[$image]]'
       - 'quay.io/toozej/[[$image]]'
     tags:
+[[- if $distrolessOnly ]]
+      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}v{{ envOrDefault "MONOGO_APP_VERSION" .Version }}{{ end }}'
+      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ envOrDefault "MONOGO_APP_VERSION" .Version }}{{ end }}'
+      - "latest"
+[[- end ]]
       - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}v{{ envOrDefault "MONOGO_APP_VERSION" .Version }}-distroless{{ end }}'
       - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ envOrDefault "MONOGO_APP_VERSION" .Version }}-distroless{{ end }}'
       - "distroless"

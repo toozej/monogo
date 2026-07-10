@@ -36,7 +36,7 @@ RUN LDFLAGS="-s -w -X github.com/toozej/monogo/pkg/version.Version=${VERSION} -X
     CGO_ENABLED=0 go build -o /out/RSSFFS -ldflags="${LDFLAGS}" ./apps/RSSFFS
 
 # runtime image
-FROM scratch
+FROM gcr.io/distroless/static-debian13:nonroot
 # Copy our executable.
 COPY --from=build /out/RSSFFS /go/bin/RSSFFS
 # Expose port for publishing as web service

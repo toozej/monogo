@@ -36,7 +36,7 @@ RUN LDFLAGS="-s -w -X github.com/toozej/monogo/pkg/version.Version=${VERSION} -X
     CGO_ENABLED=0 go build -o /out/ghreleases2rss -ldflags="${LDFLAGS}" ./apps/ghreleases2rss
 
 # runtime image
-FROM scratch
+FROM gcr.io/distroless/static-debian13:nonroot
 # Copy our executable.
 COPY --from=build /out/ghreleases2rss /go/bin/ghreleases2rss
 # Expose port for publishing as web service

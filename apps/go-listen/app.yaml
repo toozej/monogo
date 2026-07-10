@@ -8,6 +8,7 @@ description: "go-listen is a web application that allows users to search for art
 shortDescription: "go-listen"
 goImage: golang:1.26-trixie
 distrolessImage: gcr.io/distroless/static-debian13:nonroot
+distrolessOnly: true
 # cgoEnabled defaults to false. When true, builds use CGO_ENABLED=1, the runtime
 # image becomes glibc-capable (debian:trixie-slim / distroless base-debian), and
 # GoReleaser is trimmed to the native linux/amd64 platform.

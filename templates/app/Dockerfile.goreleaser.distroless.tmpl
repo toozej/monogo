@@ -1,6 +1,8 @@
 [[- $app := ds "app" -]]
+[[- $distroless := $app.distrolessImage -]]
+[[- if conv.ToBool (index $app "cgoEnabled") -]][[- $distroless = strings.ReplaceAll "static-" "base-" $distroless -]][[- end -]]
 # runtime image including CA certs and tzdata
-FROM [[$app.distrolessImage]]
+FROM [[$distroless]]
 # Copy our static executable.
 ARG TARGETPLATFORM
 COPY $TARGETPLATFORM/[[$app.binary]] /go/bin/[[$app.binary]]

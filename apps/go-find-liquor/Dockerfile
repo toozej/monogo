@@ -36,7 +36,7 @@ RUN LDFLAGS="-s -w -X github.com/toozej/monogo/pkg/version.Version=${VERSION} -X
     CGO_ENABLED=0 go build -o /out/go-find-liquor -ldflags="${LDFLAGS}" ./apps/go-find-liquor
 
 # runtime image
-FROM scratch
+FROM gcr.io/distroless/static-debian13:nonroot
 # Copy our executable.
 COPY --from=build /out/go-find-liquor /go/bin/go-find-liquor
 # Expose port for publishing as web service
