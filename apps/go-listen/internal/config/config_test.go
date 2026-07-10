@@ -219,6 +219,27 @@ func TestServerConfigAddress(t *testing.T) {
 	}
 }
 
+func TestValidateServerRequiresAuthWhenExposed(t *testing.T) {
+	base := Config{
+		Server:  ServerConfig{Host: "127.0.0.1", Port: 8080},
+		Spotify: SpotifyConfig{ClientID: "id", ClientSecret: "secret"},
+	}
+	if err := base.ValidateServer(); err != nil {
+		t.Fatalf("loopback config error = %v", err)
+	}
+
+	exposed := base
+	exposed.Server.Host = "0.0.0.0"
+	if err := exposed.ValidateServer(); err == nil {
+		t.Fatal("exposed server without Basic Auth should be rejected")
+	}
+	exposed.Security.Username = "user"
+	exposed.Security.Password = "password"
+	if err := exposed.ValidateServer(); err != nil {
+		t.Fatalf("authenticated exposed config error = %v", err)
+	}
+}
+
 func TestGetEnvVars(t *testing.T) {
 	tests := []struct {
 		name        string

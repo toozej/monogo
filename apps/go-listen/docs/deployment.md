@@ -86,6 +86,7 @@ services:
       - SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID}
       - SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET}
       - SPOTIFY_REDIRECT_URL=http://localhost:8080/callback
+      - SPOTIFY_TOKEN_FILE=/config/spotify-token.json
       
       # Server configuration
       - SERVER_HOST=0.0.0.0
@@ -101,6 +102,8 @@ services:
       # Security configuration
       - SECURITY_RATE_LIMIT_REQUESTS_PER_SECOND=10
       - SECURITY_RATE_LIMIT_BURST=20
+      - SECURITY_USERNAME=${SECURITY_USERNAME}
+      - SECURITY_PASSWORD=${SECURITY_PASSWORD}
       
       # Logging configuration
       - LOGGING_LEVEL=info
@@ -109,17 +112,11 @@ services:
     
     restart: unless-stopped
     
-    # Optional: Mount logs directory
     volumes:
-      - ./logs:/app/logs
-    
-    # Optional: Health check
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+      - go-listen-config:/config
+
+volumes:
+  go-listen-config:
 
 # Optional: Add reverse proxy
   nginx:

@@ -21,6 +21,7 @@ out/
 
 # Dependency directories (remove the comment below to include it)
 vendor/
+node_modules/
 
 # Generated directories
 completions/
@@ -30,6 +31,7 @@ docs/diagrams/go-diagrams/
 profiles/
 
 # Temporary files
+*.bak
 prompt.txt
 prompt.md
 TASKS.md

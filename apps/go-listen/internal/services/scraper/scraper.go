@@ -6,9 +6,11 @@
 package scraper
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -82,15 +84,7 @@ func NewWebScraper(
 	playlist types.PlaylistManager,
 	logger *logrus.Logger,
 ) *WebScraper {
-	httpClient := &http.Client{
-		Timeout: config.Timeout,
-		Transport: &http.Transport{
-			MaxIdleConns:       10,
-			IdleConnTimeout:    30 * time.Second,
-			DisableCompression: false,
-			DisableKeepAlives:  false,
-		},
-	}
+	httpClient := newHTTPClient(config)
 
 	ws := &WebScraper{
 		httpClient: httpClient,
@@ -107,6 +101,60 @@ func NewWebScraper(
 	ws.trackAdder = ws.addTracksToPlaylistDefault
 
 	return ws
+}
+
+var (
+	lookupIPAddr = net.DefaultResolver.LookupIPAddr
+	networkDial  = (&net.Dialer{Timeout: 30 * time.Second}).DialContext
+)
+
+func isInternalAddress(ip net.IP) bool {
+	return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() ||
+		ip.IsLinkLocalMulticast() || ip.IsUnspecified()
+}
+
+func safeDialContext(allowPrivate bool) func(context.Context, string, string) (net.Conn, error) {
+	return func(ctx context.Context, network, address string) (net.Conn, error) {
+		if allowPrivate {
+			return networkDial(ctx, network, address)
+		}
+		host, port, err := net.SplitHostPort(address)
+		if err != nil {
+			return nil, fmt.Errorf("invalid dial address %q: %w", address, err)
+		}
+		ips, err := lookupIPAddr(ctx, host)
+		if err != nil {
+			return nil, fmt.Errorf("resolving %s: %w", host, err)
+		}
+		if len(ips) == 0 {
+			return nil, fmt.Errorf("hostname %s resolved to no addresses", host)
+		}
+		for _, resolved := range ips {
+			if isInternalAddress(resolved.IP) {
+				return nil, fmt.Errorf("refusing to dial private/internal address %s for %s", resolved.IP, host)
+			}
+		}
+		return networkDial(ctx, network, net.JoinHostPort(ips[0].IP.String(), port))
+	}
+}
+
+func newHTTPClient(config ScraperConfig) *http.Client {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.Proxy = nil
+	transport.MaxIdleConns = 10
+	transport.IdleConnTimeout = 30 * time.Second
+	transport.DialContext = safeDialContext(config.AllowPrivateNetwork)
+
+	return &http.Client{
+		Timeout:   config.Timeout,
+		Transport: transport,
+		CheckRedirect: func(req *http.Request, _ []*http.Request) error {
+			if err := urlsafe.Validate(req.URL.String(), config.AllowPrivateNetwork); err != nil {
+				return fmt.Errorf("refusing redirect target: %w", err)
+			}
+			return nil
+		},
+	}
 }
 
 // MinConfidenceThreshold is the minimum confidence score required for a fuzzy match.

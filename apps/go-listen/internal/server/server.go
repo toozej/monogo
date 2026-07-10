@@ -90,7 +90,7 @@ func NewServer(cfg *config.Config) *Server {
 	rateLimiter := middleware.NewRateLimiter(requestsPerSecond, burst)
 
 	// Initialize security middleware (depends on rate limiter)
-	securityMiddleware := middleware.NewSecurityMiddleware(logger.Logger, rateLimiter)
+	securityMiddleware := middleware.NewSecurityMiddleware(logger.Logger, rateLimiter, cfg.Security.TrustProxyHeaders)
 
 	// Initialize logging middleware (depends on logger)
 	loggingMiddleware := middleware.NewLoggingMiddleware(logger)
@@ -169,9 +169,10 @@ func (s *Server) setupRoutes() {
 	protectedMux.HandleFunc("/", s.handleIndex)
 	protectedMux.HandleFunc("/api/csrf-token", s.handleCSRFToken)
 
-	// Authentication routes (no CSRF protection needed for these)
-	s.router.HandleFunc("/auth", s.handleAuth)
-	s.router.HandleFunc("/callback", s.handleCallback)
+	// Authentication routes use GET, so CSRF middleware does not block the
+	// OAuth redirect flow; Basic Auth still protects exposed deployments.
+	protectedMux.HandleFunc("/auth", s.handleAuth)
+	protectedMux.HandleFunc("/callback", s.handleCallback)
 
 	// API routes
 	protectedMux.HandleFunc("/api/add-artist", s.handleAddArtist)
@@ -190,6 +191,7 @@ func (s *Server) setupRoutes() {
 			),
 		),
 	)
+	handler = s.securityMiddleware.BasicAuth(handler, s.config.Security.Username, s.config.Security.Password)
 
 	// Apply logging middleware (outermost layer)
 	if s.config.Logging.EnableHTTP {
@@ -544,7 +546,6 @@ func (s *Server) handleAuth(w http.ResponseWriter, r *http.Request) {
 	s.logger.WithContext(r.Context()).WithFields(logrus.Fields{
 		"component": "server",
 		"operation": "auth_redirect",
-		"auth_url":  authURL,
 	}).Info("Redirecting to Spotify authentication")
 
 	http.Redirect(w, r, authURL, http.StatusTemporaryRedirect)
@@ -586,7 +587,7 @@ func (s *Server) handleCallback(w http.ResponseWriter, r *http.Request) {
 	err := s.spotify.CompleteAuth(code, state)
 	if err != nil {
 		s.logger.WithContext(r.Context()).WithField("component", "server").WithError(err).Error("Failed to complete authentication")
-		http.Error(w, "Authentication failed: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Authentication failed", http.StatusInternalServerError)
 		return
 	}
 

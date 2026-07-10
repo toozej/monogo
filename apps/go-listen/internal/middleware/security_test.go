@@ -250,16 +250,16 @@ func TestGetClientIP(t *testing.T) {
 			expected:   "192.168.1.1",
 		},
 		{
-			name:       "X-Forwarded-For header",
+			name:       "untrusted X-Forwarded-For header",
 			remoteAddr: "10.0.0.1:12345",
 			headers:    map[string]string{"X-Forwarded-For": "203.0.113.1, 10.0.0.1"},
-			expected:   "203.0.113.1",
+			expected:   "10.0.0.1",
 		},
 		{
-			name:       "X-Real-IP header",
+			name:       "untrusted X-Real-IP header",
 			remoteAddr: "10.0.0.1:12345",
 			headers:    map[string]string{"X-Real-IP": "203.0.113.2"},
-			expected:   "203.0.113.2",
+			expected:   "10.0.0.1",
 		},
 		{
 			name:       "X-Forwarded-For takes precedence",
@@ -268,7 +268,7 @@ func TestGetClientIP(t *testing.T) {
 				"X-Forwarded-For": "203.0.113.1",
 				"X-Real-IP":       "203.0.113.2",
 			},
-			expected: "203.0.113.1",
+			expected: "10.0.0.1",
 		},
 	}
 
@@ -286,6 +286,37 @@ func TestGetClientIP(t *testing.T) {
 				t.Errorf("Expected IP %s, got %s", tt.expected, ip)
 			}
 		})
+	}
+}
+
+func TestTrustedProxyClientIP(t *testing.T) {
+	sm := NewSecurityMiddleware(log.New(), NewRateLimiter(1, 1), true)
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req.RemoteAddr = "10.0.0.1:12345"
+	req.Header.Set("X-Forwarded-For", "203.0.113.1, 10.0.0.1")
+	if got := sm.clientIP(req); got != "203.0.113.1" {
+		t.Fatalf("clientIP() = %q, want trusted forwarded address", got)
+	}
+}
+
+func TestBasicAuth(t *testing.T) {
+	sm := NewSecurityMiddleware(log.New(), NewRateLimiter(10, 10))
+	handler := sm.BasicAuth(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}), "user", "secret")
+
+	unauthorized := httptest.NewRecorder()
+	handler.ServeHTTP(unauthorized, httptest.NewRequest(http.MethodGet, "/", http.NoBody))
+	if unauthorized.Code != http.StatusUnauthorized {
+		t.Fatalf("unauthorized status = %d", unauthorized.Code)
+	}
+
+	authorized := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req.SetBasicAuth("user", "secret")
+	handler.ServeHTTP(authorized, req)
+	if authorized.Code != http.StatusNoContent {
+		t.Fatalf("authorized status = %d", authorized.Code)
 	}
 }
 

@@ -4,13 +4,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/toozej/monogo/apps/go-listen/internal/config"
 	"github.com/toozej/monogo/apps/go-listen/internal/types"
+	spotifyapi "github.com/zmb3/spotify/v2"
 	"golang.org/x/oauth2"
 )
 
@@ -64,7 +69,10 @@ func TestIsInvalidGrantError(t *testing.T) {
 // fakeAuth is a test authenticator that simulates the Spotify token endpoint
 // returning an invalid_grant error during refresh.
 type fakeAuth struct {
-	refreshErr error
+	refreshErr    error
+	exchangeErr   error
+	exchangeToken *oauth2.Token
+	httpClient    *http.Client
 }
 
 func (f *fakeAuth) AuthURL(state string, opts ...oauth2.AuthCodeOption) string {
@@ -72,6 +80,12 @@ func (f *fakeAuth) AuthURL(state string, opts ...oauth2.AuthCodeOption) string {
 }
 
 func (f *fakeAuth) Exchange(ctx context.Context, code string, opts ...oauth2.AuthCodeOption) (*oauth2.Token, error) {
+	if f.exchangeErr != nil {
+		return nil, f.exchangeErr
+	}
+	if f.exchangeToken != nil {
+		return f.exchangeToken, nil
+	}
 	return nil, errors.New("not implemented")
 }
 
@@ -80,7 +94,117 @@ func (f *fakeAuth) RefreshToken(ctx context.Context, token *oauth2.Token) (*oaut
 }
 
 func (f *fakeAuth) Client(ctx context.Context, token *oauth2.Token) *http.Client {
+	if f.httpClient != nil {
+		return f.httpClient
+	}
 	return &http.Client{}
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
+
+func TestOAuthStateIsRandomAndSingleUse(t *testing.T) {
+	client := &Client{
+		logger: logrus.New(),
+		auth:   &fakeAuth{},
+		states: make(map[string]time.Time),
+	}
+	firstURL := client.GetAuthURL()
+	secondURL := client.GetAuthURL()
+	if firstURL == secondURL || firstURL == "" || secondURL == "" {
+		t.Fatalf("OAuth URLs must contain distinct state values: %q %q", firstURL, secondURL)
+	}
+
+	state := strings.TrimPrefix(firstURL, "http://localhost/auth?state=")
+	if err := client.CompleteAuth("code", state); err == nil {
+		t.Fatal("first callback should reach the fake exchange and fail")
+	}
+	if err := client.CompleteAuth("code", state); err == nil || !strings.Contains(err.Error(), "invalid state") {
+		t.Fatalf("replayed state error = %v", err)
+	}
+}
+
+func TestCompleteAuthPersistsOnlyVerifiedToken(t *testing.T) {
+	tokenFile := filepath.Join(t.TempDir(), "spotify-token.json")
+	token := &oauth2.Token{AccessToken: "access", RefreshToken: "refresh", Expiry: time.Now().Add(time.Hour)}
+	httpClient := &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     make(http.Header),
+			Body:       io.NopCloser(strings.NewReader(`{"id":"user","display_name":"Test User"}`)),
+		}, nil
+	})}
+	client := &Client{
+		logger:    logrus.New(),
+		ctx:       context.Background(),
+		auth:      &fakeAuth{exchangeToken: token, httpClient: httpClient},
+		states:    make(map[string]time.Time),
+		tokenFile: tokenFile,
+	}
+	authURL := client.GetAuthURL()
+	state := strings.TrimPrefix(authURL, "http://localhost/auth?state=")
+	if err := client.CompleteAuth("code", state); err != nil {
+		t.Fatalf("CompleteAuth() error = %v", err)
+	}
+	if !client.IsAuthenticated() {
+		t.Fatal("client should be authenticated after verification")
+	}
+	info, err := os.Stat(tokenFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0o600 {
+		t.Fatalf("token permissions = %o, want 600", info.Mode().Perm())
+	}
+}
+
+func TestNewClientLoadsPersistedTokenForCLIReuse(t *testing.T) {
+	tokenFile := filepath.Join(t.TempDir(), "spotify-token.json")
+	if err := os.WriteFile(tokenFile, []byte(`{"access_token":"persisted","token_type":"Bearer","refresh_token":"refresh"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	client, err := NewClient(config.SpotifyConfig{
+		ClientID:     "id",
+		ClientSecret: "secret",
+		RedirectURL:  "http://localhost/callback",
+		TokenFile:    tokenFile,
+	}, logrus.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !client.IsAuthenticated() {
+		t.Fatal("persisted token should authenticate a new CLI client")
+	}
+}
+
+func TestCheckTracksInPlaylistReadsEveryPage(t *testing.T) {
+	requestCount := 0
+	httpClient := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requestCount++
+		body := `{"items":[{"track":{"type":"track","id":"first","name":"First"}}],"next":"https://api.spotify.com/v1/next"}`
+		if strings.HasSuffix(req.URL.Path, "/next") {
+			body = `{"items":[{"track":{"type":"track","id":"second","name":"Second"}}],"next":null}`
+		}
+		return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(body))}, nil
+	})}
+	client := &Client{
+		client:     spotifyapi.New(httpClient),
+		logger:     logrus.New(),
+		token:      &oauth2.Token{AccessToken: "access", Expiry: time.Now().Add(time.Hour)},
+		ctx:        context.Background(),
+		isUserAuth: true,
+	}
+
+	results, err := client.CheckTracksInPlaylist("playlist", []string{"first", "second"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if requestCount != 2 || len(results) != 2 || !results[0] || !results[1] {
+		t.Fatalf("requests=%d results=%v", requestCount, results)
+	}
 }
 
 // TestRefreshToken_InvalidGrantDiscardsToken verifies that when the Spotify

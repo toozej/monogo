@@ -3,6 +3,8 @@ package server
 import (
 	"context"
 	"net/http"
+	"net/http/httptest"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -171,5 +173,34 @@ func TestServer_Routes(t *testing.T) {
 	// but we can verify the router is configured
 	if server.router == nil {
 		t.Error("Expected router to be configured")
+	}
+}
+
+func TestServer_RoutesRequireConfiguredBasicAuth(t *testing.T) {
+	cfg := &config.Config{
+		Server: config.ServerConfig{Host: "0.0.0.0", Port: 8080},
+		Spotify: config.SpotifyConfig{
+			ClientID:     "test_client_id",
+			ClientSecret: "test_client_secret",
+			RedirectURL:  "http://localhost/callback",
+			TokenFile:    filepath.Join(t.TempDir(), "token.json"),
+		},
+		Security: config.SecurityConfig{Username: "user", Password: "secret"},
+	}
+	server := NewServer(cfg)
+	server.setupRoutes()
+
+	unauthorized := httptest.NewRecorder()
+	server.router.ServeHTTP(unauthorized, httptest.NewRequest(http.MethodGet, "/", http.NoBody))
+	if unauthorized.Code != http.StatusUnauthorized {
+		t.Fatalf("unauthenticated status = %d", unauthorized.Code)
+	}
+
+	authorized := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req.SetBasicAuth("user", "secret")
+	server.router.ServeHTTP(authorized, req)
+	if authorized.Code != http.StatusOK {
+		t.Fatalf("authenticated status = %d", authorized.Code)
 	}
 }

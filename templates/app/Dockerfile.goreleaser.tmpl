@@ -2,11 +2,19 @@
 [[- $runtime := "scratch" -]]
 [[- if conv.ToBool (index $app "distrolessOnly") -]][[- $runtime = $app.distrolessImage -]][[- end -]]
 [[- if and (conv.ToBool (index $app "distrolessOnly")) (conv.ToBool (index $app "cgoEnabled")) -]][[- $runtime = strings.ReplaceAll "static-" "base-" $runtime -]][[- end -]]
+[[ if index $app "writableDirs" -]]
+FROM [[$app.goImage]] AS filesystem
+RUN mkdir -p[[ range index $app "writableDirs" ]] /container-root[[.]][[ end ]] && \
+    chown -R 65532:65532 /container-root
+[[ end -]]
 # runtime image
 FROM [[$runtime]]
 # Copy our static executable.
 ARG TARGETPLATFORM
 COPY $TARGETPLATFORM/[[$app.binary]] /go/bin/[[$app.binary]]
+[[ range index $app "writableDirs" -]]
+COPY --from=filesystem --chown=65532:65532 /container-root[[.]] [[.]]
+[[ end -]]
 # Expose port for publishing as web service
 [[- if index $app "port" ]]
 EXPOSE [[$app.port]]

@@ -1,6 +1,9 @@
 package scraper
 
 import (
+	"context"
+	"errors"
+	"net"
 	"net/http"
 	"strings"
 	"testing"
@@ -29,6 +32,37 @@ func TestFetchURLRejectsSSRF(t *testing.T) {
 		} else if !strings.Contains(err.Error(), "refusing to scrape URL") {
 			t.Errorf("fetchURL(%q) error = %q, want it to wrap the urlsafe rejection", url, err)
 		}
+	}
+}
+
+func TestHTTPClientRejectsUnsafeRedirect(t *testing.T) {
+	cfg := DefaultScraperConfig()
+	req, err := http.NewRequest(http.MethodGet, "http://169.254.169.254/latest/meta-data/", http.NoBody)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := newHTTPClient(cfg).CheckRedirect(req, nil); err == nil || !strings.Contains(err.Error(), "refusing redirect target") {
+		t.Fatalf("unsafe redirect error = %v", err)
+	}
+}
+
+func TestSafeDialRejectsReboundInternalAddress(t *testing.T) {
+	originalLookup := lookupIPAddr
+	originalDial := networkDial
+	t.Cleanup(func() {
+		lookupIPAddr = originalLookup
+		networkDial = originalDial
+	})
+	lookupIPAddr = func(context.Context, string) ([]net.IPAddr, error) {
+		return []net.IPAddr{{IP: net.ParseIP("127.0.0.1")}}, nil
+	}
+	networkDial = func(context.Context, string, string) (net.Conn, error) {
+		return nil, errors.New("dial should not be reached")
+	}
+
+	_, err := safeDialContext(false)(context.Background(), "tcp", "example.test:80")
+	if err == nil || !strings.Contains(err.Error(), "private/internal") {
+		t.Fatalf("safeDialContext error = %v", err)
 	}
 }
 

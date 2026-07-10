@@ -2,7 +2,9 @@ package middleware
 
 import (
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/base64"
+	"net"
 	"net/http"
 	"strings"
 	"sync"
@@ -15,24 +17,45 @@ const maxFormSize = 1 << 20 // 1 MB
 
 // SecurityMiddleware provides various security protections
 type SecurityMiddleware struct {
-	logger      *log.Logger
-	rateLimiter *RateLimiter
-	csrfTokens  map[string]time.Time
-	csrfMutex   sync.RWMutex
+	logger            *log.Logger
+	rateLimiter       *RateLimiter
+	csrfTokens        map[string]time.Time
+	csrfMutex         sync.RWMutex
+	trustProxyHeaders bool
 }
 
 // NewSecurityMiddleware creates a new security middleware instance
-func NewSecurityMiddleware(logger *log.Logger, rateLimiter *RateLimiter) *SecurityMiddleware {
+func NewSecurityMiddleware(logger *log.Logger, rateLimiter *RateLimiter, trustProxyHeaders ...bool) *SecurityMiddleware {
+	trustProxy := len(trustProxyHeaders) > 0 && trustProxyHeaders[0]
 	sm := &SecurityMiddleware{
-		logger:      logger,
-		rateLimiter: rateLimiter,
-		csrfTokens:  make(map[string]time.Time),
+		logger:            logger,
+		rateLimiter:       rateLimiter,
+		csrfTokens:        make(map[string]time.Time),
+		trustProxyHeaders: trustProxy,
 	}
 
 	// Start cleanup goroutine for expired CSRF tokens
 	go sm.cleanupExpiredTokens()
 
 	return sm
+}
+
+// BasicAuth protects the application when it is exposed beyond loopback.
+func (sm *SecurityMiddleware) BasicAuth(next http.Handler, expectedUser, expectedPassword string) http.Handler {
+	if expectedUser == "" || expectedPassword == "" {
+		return next
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user, password, ok := r.BasicAuth()
+		validUser := subtle.ConstantTimeCompare([]byte(user), []byte(expectedUser)) == 1
+		validPassword := subtle.ConstantTimeCompare([]byte(password), []byte(expectedPassword)) == 1
+		if !ok || !validUser || !validPassword {
+			w.Header().Set("WWW-Authenticate", `Basic realm="go-listen", charset="UTF-8"`)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 // SecurityHeaders adds security headers to all responses
@@ -57,7 +80,7 @@ func (sm *SecurityMiddleware) SecurityHeaders(next http.Handler) http.Handler {
 // RateLimit implements rate limiting per IP address
 func (sm *SecurityMiddleware) RateLimit(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		clientIP := getClientIP(r)
+		clientIP := sm.clientIP(r)
 
 		if !sm.rateLimiter.Allow(clientIP) {
 			sm.logger.WithFields(log.Fields{
@@ -88,7 +111,7 @@ func (sm *SecurityMiddleware) InputValidation(next http.Handler) http.Handler {
 				"component":  "security",
 				"operation":  "input_validation",
 				"event_type": "suspicious_path",
-				"client_ip":  getClientIP(r),
+				"client_ip":  sm.clientIP(r),
 				"path":       r.URL.Path,
 				"user_agent": r.UserAgent(),
 				"method":     r.Method,
@@ -106,7 +129,7 @@ func (sm *SecurityMiddleware) InputValidation(next http.Handler) http.Handler {
 						"component":  "security",
 						"operation":  "input_validation",
 						"event_type": "suspicious_parameter",
-						"client_ip":  getClientIP(r),
+						"client_ip":  sm.clientIP(r),
 						"param":      key,
 						"value":      value,
 						"user_agent": r.UserAgent(),
@@ -151,7 +174,7 @@ func (sm *SecurityMiddleware) CSRFProtection(next http.Handler) http.Handler {
 					"component":  "security",
 					"operation":  "csrf_protection",
 					"event_type": "invalid_csrf_token",
-					"client_ip":  getClientIP(r),
+					"client_ip":  sm.clientIP(r),
 					"method":     r.Method,
 					"path":       r.URL.Path,
 					"user_agent": r.UserAgent(),
@@ -231,6 +254,13 @@ func (sm *SecurityMiddleware) cleanupExpiredTokens() {
 
 // getClientIP extracts the client IP address from the request
 func getClientIP(r *http.Request) string {
+	return remoteIP(r)
+}
+
+func (sm *SecurityMiddleware) clientIP(r *http.Request) string {
+	if !sm.trustProxyHeaders {
+		return remoteIP(r)
+	}
 	// Check X-Forwarded-For header first (for proxies)
 	xff := r.Header.Get("X-Forwarded-For")
 	if xff != "" {
@@ -247,10 +277,13 @@ func getClientIP(r *http.Request) string {
 		return xri
 	}
 
-	// Fall back to RemoteAddr
+	return remoteIP(r)
+}
+
+func remoteIP(r *http.Request) string {
 	ip := r.RemoteAddr
-	if colon := strings.LastIndex(ip, ":"); colon != -1 {
-		ip = ip[:colon]
+	if host, _, err := net.SplitHostPort(ip); err == nil {
+		return host
 	}
 	return ip
 }
