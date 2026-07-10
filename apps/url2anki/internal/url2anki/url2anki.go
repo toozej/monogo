@@ -1,14 +1,18 @@
 package url2anki
 
 import (
+	"bytes"
+	"context"
 	"encoding/csv"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/spf13/cobra"
@@ -27,20 +31,44 @@ type AnkiSyncRequest struct {
 }
 
 // run is the main function that orchestrates the workflow of url2anki
-func Run(cmd *cobra.Command, args []string) {
-	inputURL, _ := cmd.Flags().GetString("url")
-	pageURL, _ := url.ParseRequestURI(inputURL)
-	url := pageURL.String()
-	questionSelector, _ := cmd.Flags().GetString("question-selector")
-	answerSelector, _ := cmd.Flags().GetString("answer-selector")
-	outputFile, _ := cmd.Flags().GetString("output-file")
-	preview, _ := cmd.Flags().GetBool("preview")
+func Run(cmd *cobra.Command, args []string) error {
+	inputURL, err := cmd.Flags().GetString("url")
+	if err != nil {
+		return err
+	}
+	questionSelector, err := cmd.Flags().GetString("question-selector")
+	if err != nil {
+		return err
+	}
+	answerSelector, err := cmd.Flags().GetString("answer-selector")
+	if err != nil {
+		return err
+	}
+	outputFile, err := cmd.Flags().GetString("output-file")
+	if err != nil {
+		return err
+	}
+	preview, err := cmd.Flags().GetBool("preview")
+	if err != nil {
+		return err
+	}
+	timeout, err := cmd.Flags().GetDuration("http-timeout")
+	if err != nil {
+		return err
+	}
+	maxResponseBytes, err := cmd.Flags().GetInt64("max-response-bytes")
+	if err != nil {
+		return err
+	}
+	ctx := cmd.Context()
+	if ctx == nil {
+		ctx = context.Background()
+	}
 
 	// Scrape the flashcards from the provided URL using the specified selectors
-	flashcards, err := scrapeFlashcards(url, questionSelector, answerSelector)
+	flashcards, err := scrapeFlashcards(ctx, inputURL, questionSelector, answerSelector, &http.Client{Timeout: timeout}, maxResponseBytes)
 	if err != nil {
-		fmt.Println("Error scraping flashcards: ", err)
-		return
+		return fmt.Errorf("scrape flashcards: %w", err)
 	}
 
 	// If preview is enabled, display flashcards as a table and ask for confirmation
@@ -51,49 +79,70 @@ func Run(cmd *cobra.Command, args []string) {
 		var response string
 		_, err := fmt.Scanln(&response)
 		if err != nil {
-			fmt.Println("Error getting response from user: ", err)
-			return
+			return fmt.Errorf("read preview response: %w", err)
 		}
 		if strings.ToLower(response) != "y" {
 			fmt.Println("Aborting.")
-			return
+			return nil
 		}
 	}
 
-	// Export to JSON file
-	if outputFile != "" && strings.HasSuffix(outputFile, ".json") {
+	switch strings.ToLower(filepath.Ext(outputFile)) {
+	case ".json":
 		if err := exportFlashcardsToJSONFile(flashcards, outputFile); err != nil {
-			fmt.Println("Error exporting flashcards to JSON file: ", err)
-			return
+			return fmt.Errorf("export flashcards to JSON: %w", err)
 		}
 		fmt.Printf("Flashcards exported to %s\n", outputFile)
-	}
-
-	// Export to CSV file
-	if outputFile != "" && strings.HasSuffix(outputFile, ".csv") {
+	case ".csv":
 		if err := exportFlashcardsToCSVFile(flashcards, outputFile); err != nil {
-			fmt.Println("Error exporting flashcards to CSV file: ", err)
-			return
+			return fmt.Errorf("export flashcards to CSV: %w", err)
 		}
 		fmt.Printf("Flashcards exported to %s\n", outputFile)
+	default:
+		return fmt.Errorf("unsupported output format %q: use .json or .csv", filepath.Ext(outputFile))
 	}
+	return nil
 }
 
 // scrapeFlashcards scrapes the flashcards from the provided URL using the provided HTML selectors
-func scrapeFlashcards(url, questionSelector, answerSelector string) ([]Flashcard, error) {
+func scrapeFlashcards(ctx context.Context, rawURL, questionSelector, answerSelector string, client *http.Client, maxResponseBytes int64) ([]Flashcard, error) {
+	pageURL, err := url.ParseRequestURI(rawURL)
+	if err != nil {
+		return nil, fmt.Errorf("parse URL %q: %w", rawURL, err)
+	}
+	if (pageURL.Scheme != "http" && pageURL.Scheme != "https") || pageURL.Host == "" {
+		return nil, fmt.Errorf("URL must use http or https and include a host")
+	}
+	if client == nil {
+		client = &http.Client{Timeout: 30 * time.Second}
+	}
+	if maxResponseBytes <= 0 || maxResponseBytes == 1<<63-1 {
+		return nil, fmt.Errorf("maximum response size must be greater than zero")
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, pageURL.String(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
 	// Request the webpage
-	res, err := http.Get(url) //#nosec G107
+	res, err := client.Do(req) // #nosec G704 -- URL is the explicit CLI input and validated above
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = res.Body.Close() }()
 
-	if res.StatusCode != 200 {
-		return nil, errors.New("failed to fetch the URL")
+	if res.StatusCode < http.StatusOK || res.StatusCode >= http.StatusMultipleChoices {
+		return nil, fmt.Errorf("fetch URL: unexpected HTTP status %s", res.Status)
+	}
+	body, err := io.ReadAll(io.LimitReader(res.Body, maxResponseBytes+1))
+	if err != nil {
+		return nil, fmt.Errorf("read response: %w", err)
+	}
+	if int64(len(body)) > maxResponseBytes {
+		return nil, fmt.Errorf("response exceeds %d-byte limit", maxResponseBytes)
 	}
 
 	// Parse the HTML document
-	doc, err := goquery.NewDocumentFromReader(res.Body)
+	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
@@ -103,22 +152,20 @@ func scrapeFlashcards(url, questionSelector, answerSelector string) ([]Flashcard
 	answers := doc.Find(answerSelector)
 
 	if questions.Length() != answers.Length() {
-		return nil, errors.New("the number of questions and answers do not match")
+		return nil, fmt.Errorf("the number of questions and answers do not match")
+	}
+	if questions.Length() == 0 {
+		return nil, fmt.Errorf("selectors matched no flashcards")
 	}
 
 	// Create flashcards by pairing questions and answers
 	var flashcards []Flashcard
 	questions.Each(func(i int, s *goquery.Selection) {
 		// Clean up the question by removing newlines and trimming whitespace
-		question := strings.ReplaceAll(s.Text(), "\n", "")
-		question = strings.ReplaceAll(question, "\r\n", "")
-		question = strings.TrimSpace(question)
+		question := normalizeText(s.Text())
 
 		// Clean up the answer by removing newlines and trimming whitespace
-		answer := answers.Eq(i).Text()
-		answer = strings.ReplaceAll(answer, "\n", "")
-		answer = strings.ReplaceAll(answer, "\r\n", "")
-		answer = strings.TrimSpace(answer)
+		answer := normalizeText(answers.Eq(i).Text())
 
 		flashcards = append(flashcards, Flashcard{
 			Question: question,
@@ -127,6 +174,10 @@ func scrapeFlashcards(url, questionSelector, answerSelector string) ([]Flashcard
 	})
 
 	return flashcards, nil
+}
+
+func normalizeText(value string) string {
+	return strings.Join(strings.Fields(value), " ")
 }
 
 // printFlashcards displays the flashcards as a table on the CLI
@@ -146,33 +197,58 @@ func exportFlashcardsToJSONFile(flashcards []Flashcard, filename string) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filename, data, 0600) // #nosec G304 G703 -- filename from user CLI arg, expected
+	return writeAtomically(filename, func(file *os.File) error {
+		_, err := file.Write(data)
+		return err
+	})
 }
 
 // exportFlashcardsToCSVFile exports the flashcards to a JSON file
 func exportFlashcardsToCSVFile(flashcards []Flashcard, filename string) error {
-	file, err := os.Create(filename) //#nosec G304
-	if err != nil {
-		return err
-	}
-	defer func() { _ = file.Close() }()
+	return writeAtomically(filename, func(file *os.File) error {
+		writer := csv.NewWriter(file)
 
-	writer := csv.NewWriter(file)
-	defer writer.Flush()
-
-	// Write header
-	err = writer.Write([]string{"Question", "Answer"})
-	if err != nil {
-		return err
-	}
-
-	// Write flashcard data
-	for _, flashcard := range flashcards {
-		err := writer.Write([]string{flashcard.Question, flashcard.Answer})
-		if err != nil {
+		// Write header
+		if err := writer.Write([]string{"Question", "Answer"}); err != nil {
 			return err
 		}
-	}
 
+		// Write flashcard data
+		for _, flashcard := range flashcards {
+			if err := writer.Write([]string{flashcard.Question, flashcard.Answer}); err != nil {
+				return err
+			}
+		}
+		writer.Flush()
+		return writer.Error()
+	})
+}
+
+func writeAtomically(filename string, write func(*os.File) error) error {
+	absPath, err := filepath.Abs(filename)
+	if err != nil {
+		return err
+	}
+	temp, err := os.CreateTemp(filepath.Dir(absPath), "."+filepath.Base(absPath)+".tmp-*") // #nosec G304 -- directory is user-selected output location
+	if err != nil {
+		return err
+	}
+	tempPath := temp.Name()
+	defer func() {
+		_ = temp.Close()
+		_ = os.Remove(tempPath)
+	}()
+	if err := write(temp); err != nil {
+		return err
+	}
+	if err := temp.Sync(); err != nil {
+		return err
+	}
+	if err := temp.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(tempPath, absPath); err != nil {
+		return err
+	}
 	return nil
 }

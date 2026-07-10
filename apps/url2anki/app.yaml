@@ -12,6 +12,14 @@ distrolessOnly: true
 # image becomes glibc-capable (debian:trixie-slim / distroless base-debian), and
 # GoReleaser is trimmed to the native linux/amd64 platform.
 cgoEnabled: false
+composeRestart: "no"
+composeEnvironment:
+  - "URL2ANKI_URL=${URL2ANKI_URL:?URL2ANKI_URL is required}"
+  - "URL2ANKI_QUESTION_SELECTOR=${URL2ANKI_QUESTION_SELECTOR:?URL2ANKI_QUESTION_SELECTOR is required}"
+  - "URL2ANKI_ANSWER_SELECTOR=${URL2ANKI_ANSWER_SELECTOR:?URL2ANKI_ANSWER_SELECTOR is required}"
+  - "URL2ANKI_OUTPUT_FILE=/output/anki_cards.csv"
+composeVolumes:
+  - "./output:/output"
 # runtimeImage (optional) overrides the runtime base for the non-distroless
 # Dockerfile. Defaults to "scratch", or "debian:trixie-slim" when cgoEnabled is true.
 # runtimeImage: debian:trixie-slim

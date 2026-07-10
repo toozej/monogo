@@ -1,13 +1,18 @@
 package url2anki
 
 import (
+	"context"
 	"encoding/csv"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/spf13/cobra"
 )
 
 // TestScrapeFlashcards tests the scrapeFlashcards function
@@ -27,7 +32,7 @@ func TestScrapeFlashcards(t *testing.T) {
 	defer server.Close()
 
 	// Call the scrapeFlashcards function
-	flashcards, err := scrapeFlashcards(server.URL, "div.term-name", "div.term-definition")
+	flashcards, err := scrapeFlashcards(context.Background(), server.URL, "div.term-name", "div.term-definition", server.Client(), 1<<20)
 	if err != nil {
 		t.Fatalf("scrapeFlashcards returned an error: %v", err)
 	}
@@ -46,6 +51,104 @@ func TestScrapeFlashcards(t *testing.T) {
 		if card.Question != expectedFlashcards[i].Question || card.Answer != expectedFlashcards[i].Answer {
 			t.Errorf("Expected flashcard %+v, got %+v", expectedFlashcards[i], card)
 		}
+	}
+}
+
+func TestRunPropagatesErrorsAndNormalizesExtension(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`<div class="q">Question</div><div class="a">Answer</div>`))
+	}))
+	defer server.Close()
+
+	newCommand := func(output string) *cobra.Command {
+		cmd := &cobra.Command{}
+		cmd.Flags().String("url", server.URL, "")
+		cmd.Flags().String("question-selector", ".q", "")
+		cmd.Flags().String("answer-selector", ".a", "")
+		cmd.Flags().String("output-file", output, "")
+		cmd.Flags().Bool("preview", false, "")
+		cmd.Flags().Duration("http-timeout", time.Second, "")
+		cmd.Flags().Int64("max-response-bytes", 1<<20, "")
+		return cmd
+	}
+
+	output := filepath.Join(t.TempDir(), "cards.CSV")
+	if err := Run(newCommand(output), nil); err != nil {
+		t.Fatalf("uppercase CSV extension was rejected: %v", err)
+	}
+	if _, err := os.Stat(output); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := Run(newCommand(filepath.Join(t.TempDir(), "cards.txt")), nil); err == nil {
+		t.Fatal("expected unsupported extension error")
+	}
+}
+
+func TestScrapeFlashcardsRejectsInvalidAndEmptyResults(t *testing.T) {
+	tests := []struct {
+		name string
+		url  string
+		html string
+	}{
+		{name: "malformed URL", url: "://bad"},
+		{name: "unsupported scheme", url: "file:///tmp/cards.html"},
+		{name: "zero matches", html: "<html><body>no cards</body></html>"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rawURL := tt.url
+			var server *httptest.Server
+			client := &http.Client{Timeout: time.Second}
+			if rawURL == "" {
+				server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					_, _ = w.Write([]byte(tt.html))
+				}))
+				defer server.Close()
+				rawURL = server.URL
+				client = server.Client()
+			}
+			if _, err := scrapeFlashcards(context.Background(), rawURL, ".q", ".a", client, 1<<20); err == nil {
+				t.Fatal("expected scrape to fail")
+			}
+		})
+	}
+}
+
+func TestScrapeFlashcardsBoundsResponseAndTimeout(t *testing.T) {
+	t.Run("oversized", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			_, _ = w.Write([]byte(strings.Repeat("x", 1025)))
+		}))
+		defer server.Close()
+		if _, err := scrapeFlashcards(context.Background(), server.URL, ".q", ".a", server.Client(), 1024); err == nil {
+			t.Fatal("expected oversized response error")
+		}
+	})
+
+	t.Run("timeout", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			<-r.Context().Done()
+		}))
+		defer server.Close()
+		client := &http.Client{Timeout: 10 * time.Millisecond}
+		if _, err := scrapeFlashcards(context.Background(), server.URL, ".q", ".a", client, 1024); err == nil {
+			t.Fatal("expected timeout error")
+		}
+	})
+}
+
+func TestScrapeFlashcardsNormalizesCRLF(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("<div class=\"q\">first\r\nsecond</div><div class=\"a\">one\rtwo</div>"))
+	}))
+	defer server.Close()
+	cards, err := scrapeFlashcards(context.Background(), server.URL, ".q", ".a", server.Client(), 1<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cards[0].Question != "first second" || cards[0].Answer != "one two" {
+		t.Fatalf("unexpected normalized card: %+v", cards[0])
 	}
 }
 

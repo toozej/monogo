@@ -5,10 +5,26 @@ services:
   [[$app.name]]:
     container_name: [[$app.name]]
     image: toozej/[[ strings.ToLower $app.name ]]:latest
+[[- if index $app "composeRestart" ]]
+    restart: "[[$app.composeRestart]]"
+[[- else ]]
     restart: unless-stopped
+[[- end ]]
     security_opt:
       - no-new-privileges:true
     read_only: true
+[[- if index $app "composeEnvironment" ]]
+    environment:
+[[- range $app.composeEnvironment ]]
+      - "[[.]]"
+[[- end ]]
+[[- end ]]
+[[- if index $app "composeVolumes" ]]
+    volumes:
+[[- range $app.composeVolumes ]]
+      - "[[.]]"
+[[- end ]]
+[[- end ]]
     labels:
       - "traefik.enable=false"
       # labels below for publishing as web service
