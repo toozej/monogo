@@ -80,7 +80,7 @@ users:
 #   condense: false  # or true for condensed notifications
 #   credential:
 #     token: "YOUR_PUSHOVER_TOKEN"
-#     receipient_id: "XXXXXXXXXXXXX"
+#     recipient_id: "XXXXXXXXXXXXX"
 #
 # Pushbullet example:
 # - type: pushbullet

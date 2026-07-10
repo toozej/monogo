@@ -4,17 +4,20 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/nikoksr/notify"
 	"github.com/nikoksr/notify/service/discord"
 	"github.com/nikoksr/notify/service/pushbullet"
 	"github.com/nikoksr/notify/service/pushover"
 	"github.com/nikoksr/notify/service/slack"
-	"github.com/nikoksr/notify/service/telegram"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/toozej/monogo/apps/go-find-liquor/internal/config"
@@ -44,7 +47,14 @@ func NewGotifyNotifier(endpoint, token string) *GotifyNotifier {
 
 // Notify sends a notification to Gotify
 func (g *GotifyNotifier) Notify(ctx context.Context, subject, message string) error {
-	url := fmt.Sprintf("%s/message?token=%s", g.endpoint, g.token)
+	endpoint, err := url.Parse(g.endpoint)
+	if err != nil || endpoint.Host == "" || (endpoint.Scheme != "http" && endpoint.Scheme != "https") {
+		return fmt.Errorf("gotify endpoint must be an absolute HTTP(S) URL")
+	}
+	endpoint.Path = strings.TrimRight(endpoint.Path, "/") + "/message"
+	query := endpoint.Query()
+	query.Set("token", g.token)
+	endpoint.RawQuery = query.Encode()
 
 	payload := map[string]interface{}{
 		"title":    subject,
@@ -57,7 +67,7 @@ func (g *GotifyNotifier) Notify(ctx context.Context, subject, message string) er
 		return fmt.Errorf("failed to marshal JSON: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint.String(), bytes.NewReader(jsonData))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
@@ -96,19 +106,15 @@ func (n *NikoksrNotifier) AddSlack(token string, channelID string) {
 	n.notifier.UseServices(service)
 }
 
-// AddTelegram adds Telegram notification service
-func (n *NikoksrNotifier) AddTelegram(token string, chatID int64) {
-	service, _ := telegram.New(token)
-	service.AddReceivers(chatID)
-	n.notifier.UseServices(service)
-}
-
 // AddDiscord adds Discord notification service
-func (n *NikoksrNotifier) AddDiscord(token string, channelID string) {
+func (n *NikoksrNotifier) AddDiscord(token string, channelID string) error {
 	service := discord.New()
-	_ = service.AuthenticateWithBotToken(token)
+	if err := service.AuthenticateWithBotToken(token); err != nil {
+		return err
+	}
 	service.AddReceivers(channelID)
 	n.notifier.UseServices(service)
+	return nil
 }
 
 // AddPushover adds Pushover notification service
@@ -130,10 +136,47 @@ func (n *NikoksrNotifier) Notify(ctx context.Context, subject, message string) e
 	return n.notifier.Send(ctx, subject, message)
 }
 
+type TelegramNotifier struct {
+	bot    *tgbotapi.BotAPI
+	chatID int64
+}
+
+func NewTelegramNotifier(token string, chatID int64) (*TelegramNotifier, error) {
+	botID, secret, ok := strings.Cut(token, ":")
+	if !ok || secret == "" {
+		return nil, fmt.Errorf("telegram token has invalid format")
+	}
+	if _, err := strconv.ParseInt(botID, 10, 64); err != nil {
+		return nil, fmt.Errorf("telegram token has invalid bot ID: %w", err)
+	}
+	client := &http.Client{Timeout: 10 * time.Second}
+	bot, err := tgbotapi.NewBotAPIWithClient(token, client)
+	if err != nil {
+		return nil, fmt.Errorf("authenticate Telegram bot: %w", err)
+	}
+	return &TelegramNotifier{bot: bot, chatID: chatID}, nil
+}
+
+func (t *TelegramNotifier) Notify(ctx context.Context, subject, message string) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+	_, err := t.bot.Send(tgbotapi.NewMessage(t.chatID, subject+"\n"+message))
+	return err
+}
+
 // NotificationManager manages multiple notification providers
 type NotificationManager struct {
 	notifiers []Notifier
 	condense  bool
+	targets   []notificationTarget
+}
+
+type notificationTarget struct {
+	notifier Notifier
+	condense bool
 }
 
 // NewNotificationManager creates a notification manager from config
@@ -145,24 +188,23 @@ func NewNotificationManager(notificationConfigs []config.NotificationConfig) (*N
 		manager.condense = notificationConfigs[0].Condense
 	}
 
-	// Add nicoksr notify for handling multiple services
-	nikoksrNotifier := NewNikoksrNotifier()
-	nikoksrAdded := false
-
 	for _, nc := range notificationConfigs {
+		var notifier Notifier
 		switch strings.ToLower(nc.Type) {
 		case "gotify":
 			token, ok := nc.Credential["token"]
-			if !ok {
+			if !ok || token == "" {
 				return nil, fmt.Errorf("gotify requires token in credentials")
 			}
+			if err := validateEndpoint("gotify", nc.Endpoint); err != nil {
+				return nil, err
+			}
 
-			gotify := NewGotifyNotifier(nc.Endpoint, token)
-			manager.notifiers = append(manager.notifiers, gotify)
+			notifier = NewGotifyNotifier(nc.Endpoint, token)
 
 		case "slack":
 			token, ok := nc.Credential["token"]
-			if !ok {
+			if !ok || token == "" {
 				return nil, fmt.Errorf("slack requires token in credentials")
 			}
 
@@ -177,12 +219,13 @@ func NewNotificationManager(notificationConfigs []config.NotificationConfig) (*N
 				return nil, fmt.Errorf("invalid Slack channel_id: %w", err)
 			}
 
-			nikoksrNotifier.AddSlack(token, channelID)
-			nikoksrAdded = true
+			service := NewNikoksrNotifier()
+			service.AddSlack(token, channelID)
+			notifier = service
 
 		case "telegram":
 			token, ok := nc.Credential["token"]
-			if !ok {
+			if !ok || token == "" {
 				return nil, fmt.Errorf("telegram requires token in credentials")
 			}
 
@@ -197,12 +240,15 @@ func NewNotificationManager(notificationConfigs []config.NotificationConfig) (*N
 				return nil, fmt.Errorf("invalid telegram chat_id: %w", err)
 			}
 
-			nikoksrNotifier.AddTelegram(token, chatID)
-			nikoksrAdded = true
+			service, err := NewTelegramNotifier(token, chatID)
+			if err != nil {
+				return nil, err
+			}
+			notifier = service
 
 		case "discord":
 			token, ok := nc.Credential["token"]
-			if !ok {
+			if !ok || token == "" {
 				return nil, fmt.Errorf("discord requires bot token in credentials")
 			}
 
@@ -217,12 +263,15 @@ func NewNotificationManager(notificationConfigs []config.NotificationConfig) (*N
 				return nil, fmt.Errorf("invalid Slack channel_id: %w", err)
 			}
 
-			nikoksrNotifier.AddDiscord(token, channelID)
-			nikoksrAdded = true
+			service := NewNikoksrNotifier()
+			if err := service.AddDiscord(token, channelID); err != nil {
+				return nil, fmt.Errorf("authenticate Discord bot: %w", err)
+			}
+			notifier = service
 
 		case "pushover":
 			token, ok := nc.Credential["token"]
-			if !ok {
+			if !ok || token == "" {
 				return nil, fmt.Errorf("pushover requires token in credentials")
 			}
 
@@ -231,12 +280,13 @@ func NewNotificationManager(notificationConfigs []config.NotificationConfig) (*N
 				return nil, fmt.Errorf("pushover requires recipient_id in credentials")
 			}
 
-			nikoksrNotifier.AddPushover(token, recipientID)
-			nikoksrAdded = true
+			service := NewNikoksrNotifier()
+			service.AddPushover(token, recipientID)
+			notifier = service
 
 		case "pushbullet":
 			token, ok := nc.Credential["token"]
-			if !ok {
+			if !ok || token == "" {
 				return nil, fmt.Errorf("pushbullet requires token in credentials")
 			}
 
@@ -245,24 +295,34 @@ func NewNotificationManager(notificationConfigs []config.NotificationConfig) (*N
 				return nil, fmt.Errorf("pushbullet requires device_nickname in credentials")
 			}
 
-			nikoksrNotifier.AddPushbullet(token, deviceNickname)
-			nikoksrAdded = true
+			service := NewNikoksrNotifier()
+			service.AddPushbullet(token, deviceNickname)
+			notifier = service
 
 		default:
 			return nil, fmt.Errorf("unsupported notification type: %s", nc.Type)
 		}
-	}
-
-	// Add nikoksr notifier if any services were added to it
-	if nikoksrAdded {
-		manager.notifiers = append(manager.notifiers, nikoksrNotifier)
+		manager.notifiers = append(manager.notifiers, notifier)
+		manager.targets = append(manager.targets, notificationTarget{notifier: notifier, condense: nc.Condense})
 	}
 
 	return manager, nil
 }
 
+func validateEndpoint(service, value string) error {
+	endpoint, err := url.Parse(value)
+	if err != nil || endpoint.Host == "" || (endpoint.Scheme != "http" && endpoint.Scheme != "https") {
+		return fmt.Errorf("%s endpoint must be an absolute HTTP(S) URL", service)
+	}
+	return nil
+}
+
 // NotifyFound sends notifications for found liquor items
 func (m *NotificationManager) NotifyFound(ctx context.Context, item search.LiquorItem) error {
+	return notifyFound(ctx, item, m.notifiers)
+}
+
+func notifyFound(ctx context.Context, item search.LiquorItem, notifiers []Notifier) error {
 	subject := fmt.Sprintf("GFL - Found %s!", item.Name)
 	message := fmt.Sprintf("Found %s at %s on %s at %s for %s",
 		item.Name,
@@ -274,15 +334,15 @@ func (m *NotificationManager) NotifyFound(ctx context.Context, item search.Liquo
 
 	log.Info(message)
 
-	var lastErr error
-	for _, notifier := range m.notifiers {
+	var notifyErr error
+	for _, notifier := range notifiers {
 		if err := notifier.Notify(ctx, subject, message); err != nil {
 			log.Errorf("Failed to send notification: %v", err)
-			lastErr = err
+			notifyErr = errors.Join(notifyErr, err)
 		}
 	}
 
-	return lastErr
+	return notifyErr
 }
 
 // NotifyFoundItems sends notifications for multiple found liquor items
@@ -293,22 +353,28 @@ func (m *NotificationManager) NotifyFoundItems(ctx context.Context, items []sear
 		return nil // No items to notify about
 	}
 
-	if m.condense {
-		return m.sendCondensedNotification(ctx, items)
-	}
-
-	// Send individual notifications
-	var lastErr error
-	for _, item := range items {
-		if err := m.NotifyFound(ctx, item); err != nil {
-			lastErr = err
+	targets := m.targets
+	if len(targets) == 0 {
+		for _, notifier := range m.notifiers {
+			targets = append(targets, notificationTarget{notifier: notifier, condense: m.condense})
 		}
 	}
-	return lastErr
+
+	var notifyErr error
+	for _, target := range targets {
+		if target.condense {
+			notifyErr = errors.Join(notifyErr, sendCondensedNotification(ctx, items, []Notifier{target.notifier}))
+			continue
+		}
+		for _, item := range items {
+			notifyErr = errors.Join(notifyErr, notifyFound(ctx, item, []Notifier{target.notifier}))
+		}
+	}
+	return notifyErr
 }
 
-// sendCondensedNotification creates and sends a single notification for multiple items
-func (m *NotificationManager) sendCondensedNotification(ctx context.Context, items []search.LiquorItem) error {
+// sendCondensedNotification creates and sends a single notification for multiple items.
+func sendCondensedNotification(ctx context.Context, items []search.LiquorItem, notifiers []Notifier) error {
 	if len(items) == 0 {
 		return nil
 	}
@@ -351,15 +417,15 @@ func (m *NotificationManager) sendCondensedNotification(ctx context.Context, ite
 	messageStr := message.String()
 	log.Info(messageStr)
 
-	var lastErr error
-	for _, notifier := range m.notifiers {
+	var notifyErr error
+	for _, notifier := range notifiers {
 		if err := notifier.Notify(ctx, subject, messageStr); err != nil {
 			log.Errorf("Failed to send notification: %v", err)
-			lastErr = err
+			notifyErr = errors.Join(notifyErr, err)
 		}
 	}
 
-	return lastErr
+	return notifyErr
 }
 
 // NotifyHeartbeat sends notifications for nothing found but still trying.
@@ -379,13 +445,13 @@ func (m *NotificationManager) NotifyHeartbeat(ctx context.Context, healthCheckIt
 
 	log.Info(message)
 
-	var lastErr error
+	var notifyErr error
 	for _, notifier := range m.notifiers {
 		if err := notifier.Notify(ctx, subject, message); err != nil {
 			log.Errorf("Failed to send notification: %v", err)
-			lastErr = err
+			notifyErr = errors.Join(notifyErr, err)
 		}
 	}
 
-	return lastErr
+	return notifyErr
 }

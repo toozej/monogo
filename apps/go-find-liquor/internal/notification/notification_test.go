@@ -2,6 +2,8 @@ package notification
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -13,6 +15,55 @@ import (
 // MockNotifier implements the Notifier interface for testing
 type MockNotifier struct {
 	notifications []NotificationCall
+}
+
+func TestNotificationManagerHonorsPerProviderCondense(t *testing.T) {
+	condensed := &MockNotifier{}
+	individual := &MockNotifier{}
+	manager := &NotificationManager{
+		notifiers: []Notifier{condensed, individual},
+		targets: []notificationTarget{
+			{notifier: condensed, condense: true},
+			{notifier: individual, condense: false},
+		},
+	}
+	items := []search.LiquorItem{
+		{Name: "One", Store: "A", Date: time.Now(), Price: "$1"},
+		{Name: "Two", Store: "B", Date: time.Now(), Price: "$2"},
+	}
+	if err := manager.NotifyFoundItems(context.Background(), items); err != nil {
+		t.Fatal(err)
+	}
+	if len(condensed.GetNotifications()) != 1 {
+		t.Fatalf("condensed notifications = %d, want 1", len(condensed.GetNotifications()))
+	}
+	if len(individual.GetNotifications()) != 2 {
+		t.Fatalf("individual notifications = %d, want 2", len(individual.GetNotifications()))
+	}
+}
+
+func TestGotifyNotifierEscapesToken(t *testing.T) {
+	const token = "a+b&c#d"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.URL.Query().Get("token"); got != token {
+			t.Errorf("token = %q, want %q", got, token)
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	if err := NewGotifyNotifier(server.URL, token).Notify(context.Background(), "subject", "message"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestNewNotificationManagerRejectsInvalidTelegramTokenWithoutPanic(t *testing.T) {
+	_, err := NewNotificationManager([]config.NotificationConfig{{
+		Type: "telegram", Credential: map[string]string{"token": "invalid", "chat_id": "123"},
+	}})
+	if err == nil {
+		t.Fatal("NewNotificationManager() error = nil")
+	}
 }
 
 type NotificationCall struct {

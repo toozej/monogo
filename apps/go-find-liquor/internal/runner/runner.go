@@ -3,6 +3,7 @@ package runner
 import (
 	"context"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"math/big"
 	"sync"
@@ -29,12 +30,23 @@ type Runner interface {
 // userRunner executes periodic searches for a single user (internal implementation)
 type userRunner struct {
 	userConfig  config.UserConfig
-	searcher    *search.Searcher
-	notifier    *notification.NotificationManager
+	searcher    itemSearcher
+	notifier    itemNotifier
 	stopChan    chan struct{}
+	stopOnce    sync.Once
 	runningCh   chan struct{}
+	searchWG    sync.WaitGroup
 	interval    time.Duration
 	commonItems []string
+}
+
+type itemSearcher interface {
+	SearchItem(ctx context.Context, item, zipcode string, distance int) ([]search.LiquorItem, error)
+}
+
+type itemNotifier interface {
+	NotifyFoundItems(ctx context.Context, items []search.LiquorItem) error
+	NotifyHeartbeat(ctx context.Context, healthCheckItem string, healthCheckFound bool) error
 }
 
 // newUserRunner creates a new user runner with the given user configuration (internal function)
@@ -62,18 +74,30 @@ func newUserRunner(userConfig config.UserConfig, interval time.Duration, userAge
 // start begins periodic searches for this user (internal method)
 func (ur *userRunner) start(ctx context.Context) error {
 	log.Infof("Starting search runner for user '%s'", ur.userConfig.Name)
+	runCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
-	// Initial search
-	go func() {
-		ur.runningCh <- struct{}{}
-		defer func() {
-			<-ur.runningCh
-		}()
-
-		if err := ur.runSearch(ctx, true); err != nil {
-			log.Errorf("Search failed for user '%s': %v", ur.userConfig.Name, err)
+	launchSearch := func() bool {
+		select {
+		case ur.runningCh <- struct{}{}:
+		default:
+			return false
 		}
-	}()
+		ur.searchWG.Add(1)
+		go func() {
+			defer ur.searchWG.Done()
+			defer func() {
+				<-ur.runningCh
+			}()
+
+			if err := ur.runSearch(runCtx, true); err != nil && !errors.Is(err, context.Canceled) {
+				log.Errorf("Search failed for user '%s': %v", ur.userConfig.Name, err)
+			}
+		}()
+		return true
+	}
+
+	launchSearch()
 
 	// Setup ticker for recurring searches
 	ticker := time.NewTicker(ur.interval)
@@ -82,29 +106,19 @@ func (ur *userRunner) start(ctx context.Context) error {
 	for {
 		select {
 		case <-ticker.C:
-			// Check if we're already running
-			select {
-			case ur.runningCh <- struct{}{}:
-				// We got the semaphore, run the search
-				go func() {
-					defer func() {
-						<-ur.runningCh
-					}()
-
-					if err := ur.runSearch(ctx, true); err != nil {
-						log.Errorf("Search failed for user '%s': %v", ur.userConfig.Name, err)
-					}
-				}()
-			default:
-				// A search is already running, skip this tick
+			if !launchSearch() {
 				log.Warnf("Previous search still running for user '%s', skipping", ur.userConfig.Name)
 			}
 		case <-ur.stopChan:
 			log.Infof("Stopping search runner for user '%s'", ur.userConfig.Name)
+			cancel()
+			ur.searchWG.Wait()
 			return nil
 		case <-ctx.Done():
 			log.Infof("Context cancelled for user '%s'", ur.userConfig.Name)
-			return ctx.Err()
+			cancel()
+			ur.searchWG.Wait()
+			return nil
 		}
 	}
 }
@@ -125,18 +139,20 @@ func (ur *userRunner) runSearch(ctx context.Context, withHealthCheck bool) error
 		ur.userConfig.Name, len(ur.userConfig.Items), ur.userConfig.Distance, ur.userConfig.Zipcode)
 
 	var allFoundItems []search.LiquorItem
+	var runErr error
 
-	for _, item := range ur.userConfig.Items {
+	for itemIndex, item := range ur.userConfig.Items {
 		// Create a context with timeout for this item
 		itemCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
-		defer cancel()
 
 		log.Infof("User '%s' searching for item: %s", ur.userConfig.Name, item)
 
 		// Search for the item
 		results, err := ur.searcher.SearchItem(itemCtx, item, ur.userConfig.Zipcode, ur.userConfig.Distance)
+		cancel()
 		if err != nil {
 			log.Errorf("Failed to search for %s for user '%s': %v", item, ur.userConfig.Name, err)
+			runErr = errors.Join(runErr, fmt.Errorf("search item %q for user %q: %w", item, ur.userConfig.Name, err))
 			continue
 		}
 
@@ -146,18 +162,23 @@ func (ur *userRunner) runSearch(ctx context.Context, withHealthCheck bool) error
 		allFoundItems = append(allFoundItems, results...)
 
 		// Random wait between searches to avoid overwhelming the service
-		if len(ur.userConfig.Items) > 1 && item != ur.userConfig.Items[len(ur.userConfig.Items)-1] {
+		if itemIndex < len(ur.userConfig.Items)-1 {
 			randTimeBig := new(big.Int)
 			randTimeBig.SetInt64(int64(30))
-			randTime, _ := rand.Int(rand.Reader, randTimeBig)
-			waitTime := time.Duration(randTime.Int64()) * time.Second
+			randTime, err := rand.Int(rand.Reader, randTimeBig)
+			waitTime := time.Duration(0)
+			if err == nil {
+				waitTime = time.Duration(randTime.Int64()) * time.Second
+			}
 			log.Debugf("User '%s' waiting %s before next search", ur.userConfig.Name, waitTime)
 
+			timer := time.NewTimer(waitTime)
 			select {
-			case <-time.After(waitTime):
+			case <-timer.C:
 				// Continue to next item
 			case <-ctx.Done():
-				return ctx.Err()
+				timer.Stop()
+				return errors.Join(runErr, ctx.Err())
 			}
 		}
 	}
@@ -166,6 +187,7 @@ func (ur *userRunner) runSearch(ctx context.Context, withHealthCheck bool) error
 	if len(allFoundItems) > 0 {
 		if err := ur.notifier.NotifyFoundItems(ctx, allFoundItems); err != nil {
 			log.Warnf("Failed to send notifications for user '%s': %v", ur.userConfig.Name, err)
+			runErr = errors.Join(runErr, fmt.Errorf("notify findings for user %q: %w", ur.userConfig.Name, err))
 		}
 	}
 
@@ -175,12 +197,14 @@ func (ur *userRunner) runSearch(ctx context.Context, withHealthCheck bool) error
 	if withHealthCheck {
 		healthCheckItem = search.RandomCommonItem(ur.commonItems)
 		healthCtx, healthCancel := context.WithTimeout(ctx, 2*time.Minute)
-		defer healthCancel()
 
 		log.Infof("User '%s' running health check search for common item: %s", ur.userConfig.Name, healthCheckItem)
 		healthResults, err := ur.searcher.SearchItem(healthCtx, healthCheckItem, ur.userConfig.Zipcode, ur.userConfig.Distance)
+		healthCancel()
 		if err != nil {
 			log.Warnf("Health check search failed for user '%s': %v", ur.userConfig.Name, err)
+			runErr = errors.Join(runErr, fmt.Errorf("health check for user %q: %w", ur.userConfig.Name, err))
+			healthCheckItem = ""
 		} else {
 			healthCheckFound = len(healthResults) > 0
 			if healthCheckFound {
@@ -192,15 +216,16 @@ func (ur *userRunner) runSearch(ctx context.Context, withHealthCheck bool) error
 
 	if err := ur.notifier.NotifyHeartbeat(ctx, healthCheckItem, healthCheckFound); err != nil {
 		log.Warnf("Failed to send heartbeat notification for user '%s': %v", ur.userConfig.Name, err)
+		runErr = errors.Join(runErr, fmt.Errorf("notify heartbeat for user %q: %w", ur.userConfig.Name, err))
 	}
 
 	log.Infof("Search completed for user '%s', next search in %s", ur.userConfig.Name, ur.interval)
-	return nil
+	return runErr
 }
 
 // stop halts the user runner (internal method)
 func (ur *userRunner) stop() {
-	close(ur.stopChan)
+	ur.stopOnce.Do(func() { close(ur.stopChan) })
 }
 
 // runOnce performs a single search and returns for this user (internal method)
@@ -213,6 +238,7 @@ type SearchRunner struct {
 	config      config.Config
 	userRunners map[string]*userRunner
 	stopChan    chan struct{}
+	stopOnce    sync.Once
 	mu          sync.RWMutex
 }
 
@@ -221,6 +247,9 @@ type SearchRunner struct {
 func NewRunner(cfg config.Config) (Runner, error) {
 	if len(cfg.Users) == 0 {
 		return nil, fmt.Errorf("no users configured")
+	}
+	if cfg.Interval <= 0 {
+		return nil, fmt.Errorf("interval must be positive")
 	}
 
 	userRunners := make(map[string]*userRunner)
@@ -236,7 +265,12 @@ func NewRunner(cfg config.Config) (Runner, error) {
 	}
 
 	// Create userRunner for each user
+	seenUsers := make(map[string]struct{}, len(cfg.Users))
 	for _, userConfig := range cfg.Users {
+		if _, exists := seenUsers[userConfig.Name]; exists {
+			return nil, fmt.Errorf("duplicate user name %q", userConfig.Name)
+		}
+		seenUsers[userConfig.Name] = struct{}{}
 		userRunner, err := newUserRunner(userConfig, cfg.Interval, cfg.UserAgent, commonItemSearches)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create user runner for '%s': %w", userConfig.Name, err)
@@ -299,28 +333,25 @@ func (sr *SearchRunner) Start(ctx context.Context) error {
 	}
 	sr.mu.RUnlock()
 
-	// Wait for all user runners to complete (with timeout)
+	// Wait for all user runners to complete.
+	var startErr error
 	completedUsers := 0
 	for completedUsers < userCount {
-		select {
-		case err := <-errChan:
-			if err != nil {
-				log.Errorf("User runner error: %v", err)
-			}
-			completedUsers++
-		case <-time.After(30 * time.Second):
-			log.Warn("Timeout waiting for user runners to complete")
-			return fmt.Errorf("timeout waiting for user runners to complete")
+		err := <-errChan
+		if err != nil {
+			log.Errorf("User runner error: %v", err)
+			startErr = errors.Join(startErr, err)
 		}
+		completedUsers++
 	}
 
 	log.Info("All user runners stopped")
-	return nil
+	return startErr
 }
 
 // Stop halts all user runners
 func (sr *SearchRunner) Stop() {
-	close(sr.stopChan)
+	sr.stopOnce.Do(func() { close(sr.stopChan) })
 }
 
 // RunOnce performs a single search for all users and returns
@@ -351,23 +382,22 @@ func (sr *SearchRunner) RunOnce(ctx context.Context) error {
 	sr.mu.RUnlock()
 
 	// Wait for all searches to complete
-	var lastErr error
+	var runErr error
 	completedUsers := 0
 	for completedUsers < userCount {
-		select {
-		case err := <-errChan:
-			if err != nil {
-				log.Errorf("User search error: %v", err)
-				lastErr = err
-			}
-			completedUsers++
-		case <-ctx.Done():
-			return ctx.Err()
+		err := <-errChan
+		if err != nil {
+			log.Errorf("User search error: %v", err)
+			runErr = errors.Join(runErr, err)
 		}
+		completedUsers++
+	}
+	if ctx.Err() != nil {
+		runErr = errors.Join(runErr, ctx.Err())
 	}
 
 	log.Info("All user searches completed")
-	return lastErr
+	return runErr
 }
 
 // GetUserCount returns the number of configured users (for testing)

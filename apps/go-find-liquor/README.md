@@ -7,11 +7,11 @@
 
 <img src="img/avatar.png" alt="go-find-liquor avatar" style="background-color: #FFFFFF;" />
 
-Oregon Liquor Search Notification Service using [the OLCC Liquor Search website](http://www.oregonliquorsearch.com/), Go, and the [nikoksr/notify library](https://github.com/nikoksr/notify).
+Oregon Liquor Search Notification Service using [the OLCC Liquor Search website](https://www.oregonliquorsearch.com/), Go, and the [nikoksr/notify library](https://github.com/nikoksr/notify).
 
 ## Features
 
-- Search [Oregon Liquor Search](http://www.oregonliquorsearch.com/) for specific liquor items
+- Search [Oregon Liquor Search](https://www.oregonliquorsearch.com/) for specific liquor items
 - Search by product name or item code
 - **Multi-user support**: Configure multiple users with individual preferences
 - **Notification condensing**: Combine multiple findings into single notifications
@@ -37,7 +37,7 @@ Dockerized GFL uses a final image based on [Distroless Debian static](https://gi
 ```bash
 cp config.example.yaml config.yaml
 # edit config.yaml
-make build run
+make build run APP=go-find-liquor
 ```
 
 ### Docker Compose
@@ -45,18 +45,18 @@ make build run
 ```bash
 cp config.example.yaml config.yaml
 # edit config.yaml
-make up
+make up APP=go-find-liquor
 ```
 
 ## Installation
 
 ```bash
 # Clone the repository
-git clone https://github.com/toozej/go-find-liquor.git
-cd go-find-liquor
+git clone https://github.com/toozej/monogo.git
+cd monogo
 
 # Build the application
-make local-build
+make local-build APP=go-find-liquor
 ```
 
 ## Multi-User Setup
@@ -238,7 +238,7 @@ You can then manually edit your config to add additional users or rename the def
 ### Run a single search and exit
 
 ```bash
-make local-run
+make local-run APP=go-find-liquor
 
 # or alternatively without using the provided Makefile
 ./out/go-find-liquor --once

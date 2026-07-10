@@ -2,11 +2,52 @@ package runner
 
 import (
 	"context"
+	"errors"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/toozej/monogo/apps/go-find-liquor/internal/config"
+	"github.com/toozej/monogo/apps/go-find-liquor/internal/search"
 )
+
+type fakeSearcher struct {
+	search func(context.Context, string, string, int) ([]search.LiquorItem, error)
+}
+
+func (f fakeSearcher) SearchItem(ctx context.Context, item, zipcode string, distance int) ([]search.LiquorItem, error) {
+	if f.search != nil {
+		return f.search(ctx, item, zipcode, distance)
+	}
+	return nil, nil
+}
+
+type fakeNotifier struct {
+	foundErr     error
+	heartbeatErr error
+}
+
+func (f fakeNotifier) NotifyFoundItems(context.Context, []search.LiquorItem) error {
+	return f.foundErr
+}
+
+func (f fakeNotifier) NotifyHeartbeat(context.Context, string, bool) error {
+	return f.heartbeatErr
+}
+
+func injectFakes(t *testing.T, runner Runner, searcher itemSearcher, notifier itemNotifier) *SearchRunner {
+	t.Helper()
+	sr, ok := runner.(*SearchRunner)
+	if !ok {
+		t.Fatalf("runner type = %T", runner)
+	}
+	for _, user := range sr.userRunners {
+		user.searcher = searcher
+		user.notifier = notifier
+	}
+	return sr
+}
 
 // TestRunner_NewRunner tests the creation of Runner
 func TestRunner_NewRunner(t *testing.T) {
@@ -90,6 +131,21 @@ func TestRunner_NewRunner(t *testing.T) {
 				UserAgent: "test-agent",
 				Users:     []config.UserConfig{},
 			},
+			wantErr: true,
+		},
+		{
+			name: "negative interval",
+			config: config.Config{Interval: -time.Second, Users: []config.UserConfig{{
+				Name: "user1", Items: []string{"item"}, Zipcode: "97201", Distance: 10,
+			}}},
+			wantErr: true,
+		},
+		{
+			name: "duplicate user names",
+			config: config.Config{Interval: time.Hour, Users: []config.UserConfig{
+				{Name: "same", Items: []string{"one"}, Zipcode: "97201", Distance: 10},
+				{Name: "same", Items: []string{"two"}, Zipcode: "97202", Distance: 10},
+			}},
 			wantErr: true,
 		},
 		{
@@ -192,17 +248,15 @@ func TestRunner_RunOnce(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create Runner: %v", err)
 	}
+	injectFakes(t, runner, fakeSearcher{}, fakeNotifier{})
 
 	// Create a context with timeout for the test
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	// Run once - this will likely fail due to network calls, but we're testing the structure
 	err = runner.RunOnce(ctx)
-	// We expect this to fail since we're making real network calls to a test endpoint
-	// The important thing is that it doesn't panic and handles multiple users
 	if err != nil {
-		t.Logf("RunOnce failed as expected (network calls): %v", err)
+		t.Fatalf("RunOnce() error = %v", err)
 	}
 }
 
@@ -252,6 +306,7 @@ func TestRunner_ConcurrentExecution(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create Runner: %v", err)
 	}
+	injectFakes(t, runner, fakeSearcher{}, fakeNotifier{})
 
 	// Create a context with timeout for the test
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -325,6 +380,7 @@ func TestRunner_UserIsolation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create Runner: %v", err)
 	}
+	injectFakes(t, runner, fakeSearcher{}, fakeNotifier{})
 
 	// Verify user isolation by checking that both users are configured
 	if runner.GetUserCount() != 2 {
@@ -371,6 +427,7 @@ func TestRunner_ProperCleanup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create Runner: %v", err)
 	}
+	injectFakes(t, runner, fakeSearcher{}, fakeNotifier{})
 
 	// Create a context
 	ctx, cancel := context.WithCancel(context.Background())
@@ -396,6 +453,84 @@ func TestRunner_ProperCleanup(t *testing.T) {
 		}
 	case <-time.After(3 * time.Second):
 		t.Error("Runner did not stop within timeout - cleanup may not be working properly")
+	}
+}
+
+func TestRunOnceAggregatesUserSearchFailures(t *testing.T) {
+	cfg := config.Config{Interval: time.Hour, Users: []config.UserConfig{
+		{Name: "alice", Items: []string{"one"}, Zipcode: "97201", Distance: 10},
+		{Name: "bob", Items: []string{"two"}, Zipcode: "97202", Distance: 10},
+	}}
+	runner, err := NewRunner(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	injectFakes(t, runner, fakeSearcher{search: func(context.Context, string, string, int) ([]search.LiquorItem, error) {
+		return nil, errors.New("search unavailable")
+	}}, fakeNotifier{})
+
+	err = runner.RunOnce(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "alice") || !strings.Contains(err.Error(), "bob") {
+		t.Fatalf("RunOnce() error = %v, want both user contexts", err)
+	}
+}
+
+func TestRunOnceReturnsNotificationFailures(t *testing.T) {
+	cfg := config.Config{Interval: time.Hour, Users: []config.UserConfig{
+		{Name: "alice", Items: []string{"one"}, Zipcode: "97201", Distance: 10},
+	}}
+	runner, err := NewRunner(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	injectFakes(t, runner, fakeSearcher{search: func(context.Context, string, string, int) ([]search.LiquorItem, error) {
+		return []search.LiquorItem{{Name: "Found", Store: "Store", Date: time.Now()}}, nil
+	}}, fakeNotifier{foundErr: errors.New("found notification failed"), heartbeatErr: errors.New("heartbeat failed")})
+
+	err = runner.RunOnce(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "notify findings") || !strings.Contains(err.Error(), "notify heartbeat") {
+		t.Fatalf("RunOnce() error = %v, want both notification failures", err)
+	}
+}
+
+func TestStopIsConcurrentSafeAndWaitsForSearch(t *testing.T) {
+	cfg := config.Config{Interval: time.Hour, Users: []config.UserConfig{
+		{Name: "alice", Items: []string{"one"}, Zipcode: "97201", Distance: 10},
+	}}
+	runner, err := NewRunner(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	started := make(chan struct{})
+	finished := make(chan struct{})
+	var startedOnce sync.Once
+	var finishedOnce sync.Once
+	injectFakes(t, runner, fakeSearcher{search: func(ctx context.Context, item, zipcode string, distance int) ([]search.LiquorItem, error) {
+		startedOnce.Do(func() { close(started) })
+		<-ctx.Done()
+		finishedOnce.Do(func() { close(finished) })
+		return nil, ctx.Err()
+	}}, fakeNotifier{})
+
+	done := make(chan error, 1)
+	go func() { done <- runner.Start(context.Background()) }()
+	<-started
+	var stops sync.WaitGroup
+	for i := 0; i < 10; i++ {
+		stops.Add(1)
+		go func() {
+			defer stops.Done()
+			runner.Stop()
+		}()
+	}
+	stops.Wait()
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-finished:
+	default:
+		t.Fatal("Start returned before the in-flight search exited")
 	}
 }
 
@@ -428,6 +563,7 @@ func TestRunner_SingleUser(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create Runner: %v", err)
 	}
+	injectFakes(t, runner, fakeSearcher{}, fakeNotifier{})
 
 	// Verify single user setup
 	if runner.GetUserCount() != 1 {
@@ -443,8 +579,7 @@ func TestRunner_SingleUser(t *testing.T) {
 	defer cancel()
 
 	err = runner.RunOnce(ctx)
-	// We expect this to fail since we're making real network calls to a test endpoint
 	if err != nil {
-		t.Logf("RunOnce failed as expected (network calls): %v", err)
+		t.Fatalf("RunOnce() error = %v", err)
 	}
 }
