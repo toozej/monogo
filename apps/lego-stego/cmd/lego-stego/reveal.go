@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"os"
-
 	"github.com/spf13/cobra"
 	"github.com/toozej/monogo/apps/lego-stego/internal/api"
 )
@@ -12,6 +10,7 @@ var revealInput, revealOutput, revealPassword string
 var revealCmd = &cobra.Command{
 	Use:   "reveal",
 	Short: "Reveal hidden file",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		pw, err := readPassword(revealPassword)
 		if err != nil {
@@ -23,7 +22,7 @@ var revealCmd = &cobra.Command{
 			return err
 		}
 
-		return os.WriteFile(revealOutput, data, 0600)
+		return api.WriteFileAtomic(revealOutput, data, 0600)
 	},
 }
 

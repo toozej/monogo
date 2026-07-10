@@ -7,7 +7,7 @@ import (
 
 type extractState struct {
 	bits     []uint8
-	needed   int
+	needed   int64
 	nch      int
 	complete bool
 	lastErr  error
@@ -64,7 +64,13 @@ func Extract(img image.Image, password string) ([]byte, error) {
 				if err != nil {
 					continue
 				}
-				s.needed = 12 + int(h.Length)
+				s.needed = 12 + int64(h.Length)
+				maxBytes := int64(len(coords)) * int64(s.nch) / 8
+				if s.needed > maxBytes {
+					s.complete = true
+					s.lastErr = fmt.Errorf("declared payload length %d exceeds image capacity", h.Length)
+					continue
+				}
 				if h.Channels > 0 && int(h.Channels) != s.nch {
 					s.nch = int(h.Channels)
 					s.bits = nil
@@ -73,7 +79,7 @@ func Extract(img image.Image, password string) ([]byte, error) {
 				}
 			}
 
-			if byteCount < s.needed {
+			if int64(byteCount) < s.needed {
 				continue
 			}
 

@@ -106,9 +106,8 @@ func DecodeWithMissing(data []byte, missing []int) ([]byte, error) {
 	}
 
 	result := buf.Bytes()
-	if len(result) >= int(origLen) { // #nosec G115
-		result = result[:origLen]
+	if uint64(origLen) > uint64(len(result)) {
+		return nil, ErrInvalidData
 	}
-
-	return result, nil
+	return result[:origLen], nil
 }

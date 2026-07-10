@@ -50,3 +50,24 @@ func TestWrongPasswordPipeline(t *testing.T) {
 		t.Fatalf("expected failure with wrong password")
 	}
 }
+
+func TestEmbedExtractWithNonZeroImageBounds(t *testing.T) {
+	img := image.NewRGBA(image.Rect(10, 20, 210, 220))
+	for y := img.Bounds().Min.Y; y < img.Bounds().Max.Y; y++ {
+		for x := img.Bounds().Min.X; x < img.Bounds().Max.X; x++ {
+			img.Set(x, y, color.RGBA{uint8(x), uint8(y), uint8(x + y), 255})
+		}
+	}
+	data := []byte("bounded image payload")
+	encoded, err := Embed(img, data, "password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	decoded, err := Extract(encoded, "password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(decoded, data) {
+		t.Fatalf("decoded %q, want %q", decoded, data)
+	}
+}

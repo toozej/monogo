@@ -5,6 +5,7 @@ import (
 	"image"
 	"image/png"
 	"os"
+	"path/filepath"
 
 	"github.com/makiuchi-d/gozxing"
 	"github.com/makiuchi-d/gozxing/qrcode"
@@ -38,13 +39,7 @@ func EmbedQRCode(url, inputPath, outputPath string) error {
 		return err
 	}
 
-	outF, err := os.Create(outputPath) // #nosec G304 -- path provided by user via CLI flag
-	if err != nil {
-		return err
-	}
-	defer func() { _ = outF.Close() }()
-
-	return png.Encode(outF, stego)
+	return writePNGAtomic(outputPath, stego)
 }
 
 func ExtractAndDecode(inputPath, outputPath string) (string, error) {
@@ -75,18 +70,42 @@ func ExtractAndDecode(inputPath, outputPath string) (string, error) {
 			return "", err
 		}
 
-		outF, err := os.Create(outputPath) // #nosec G304 -- path provided by user via CLI flag
-		if err != nil {
-			return "", err
-		}
-		defer func() { _ = outF.Close() }()
-
-		if err := png.Encode(outF, qrImg); err != nil {
+		if err := writePNGAtomic(outputPath, qrImg); err != nil {
 			return "", err
 		}
 	}
 
 	return decoded, nil
+}
+
+func writePNGAtomic(outputPath string, img image.Image) error {
+	var encoded bytes.Buffer
+	if err := png.Encode(&encoded, img); err != nil {
+		return err
+	}
+	absPath, err := filepath.Abs(outputPath)
+	if err != nil {
+		return err
+	}
+	temp, err := os.CreateTemp(filepath.Dir(absPath), "."+filepath.Base(absPath)+".tmp-*")
+	if err != nil {
+		return err
+	}
+	tempPath := temp.Name()
+	defer func() {
+		_ = temp.Close()
+		_ = os.Remove(tempPath)
+	}()
+	if _, err := temp.Write(encoded.Bytes()); err != nil {
+		return err
+	}
+	if err := temp.Sync(); err != nil {
+		return err
+	}
+	if err := temp.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tempPath, absPath)
 }
 
 func GenerateQRCode(data string) (image.Image, error) {

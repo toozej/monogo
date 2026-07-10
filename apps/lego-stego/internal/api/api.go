@@ -41,14 +41,11 @@ func ExtractQR(in, out string, password string) (string, error) {
 			return "", err
 		}
 
-		// #nosec G304 -- path provided by caller
-		outFile, err := os.Create(out)
-		if err != nil {
+		var output bytes.Buffer
+		if err := png.Encode(&output, qrImg); err != nil {
 			return "", err
 		}
-		defer func() { _ = outFile.Close() }()
-
-		if err := png.Encode(outFile, qrImg); err != nil {
+		if err := WriteFileAtomic(out, output.Bytes(), 0600); err != nil {
 			return "", err
 		}
 	}
@@ -74,14 +71,11 @@ func EmbedFile(in, out string, data []byte, password string) error {
 		return err
 	}
 
-	// #nosec G304 -- path provided by caller
-	outF, err := os.Create(out)
-	if err != nil {
+	var output bytes.Buffer
+	if err := png.Encode(&output, stego); err != nil {
 		return err
 	}
-	defer func() { _ = outF.Close() }()
-
-	return png.Encode(outF, stego)
+	return WriteFileAtomic(out, output.Bytes(), 0600)
 }
 
 func ExtractFile(in string, password string) ([]byte, error) {
