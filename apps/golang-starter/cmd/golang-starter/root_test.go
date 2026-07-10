@@ -2,12 +2,28 @@ package cmd
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
 )
+
+func useFreshRootCommand(t *testing.T) {
+	t.Helper()
+	originalCmd := rootCmd
+	originalConf := conf
+	originalDebug := debug
+	originalConfigErr := configLoadErr
+	rootCmd = newRootCommand()
+	t.Cleanup(func() {
+		rootCmd = originalCmd
+		conf = originalConf
+		debug = originalDebug
+		configLoadErr = originalConfigErr
+	})
+}
 
 func TestRootCmdStructure(t *testing.T) {
 	if rootCmd.Use != "golang-starter" {
@@ -22,8 +38,33 @@ func TestRootCmdStructure(t *testing.T) {
 	if rootCmd.PersistentPreRun == nil {
 		t.Error("expected PersistentPreRun to be set, got nil")
 	}
-	if rootCmd.Run == nil {
-		t.Error("expected Run to be set, got nil")
+	if rootCmd.RunE == nil {
+		t.Error("expected RunE to be set, got nil")
+	}
+}
+
+func TestRootCmdRunReturnsConfigurationError(t *testing.T) {
+	originalErr := configLoadErr
+	configLoadErr = errors.New("invalid dotenv")
+	t.Cleanup(func() { configLoadErr = originalErr })
+
+	if err := rootCmdRun(rootCmd, nil); err == nil {
+		t.Fatal("rootCmdRun() error = nil")
+	}
+}
+
+func TestVersionDoesNotRequireApplicationConfiguration(t *testing.T) {
+	useFreshRootCommand(t)
+	originalErr := configLoadErr
+	configLoadErr = errors.New("invalid dotenv")
+	t.Cleanup(func() {
+		configLoadErr = originalErr
+		rootCmd.SetArgs(nil)
+	})
+
+	rootCmd.SetArgs([]string{"version"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("version command error = %v", err)
 	}
 }
 
@@ -137,6 +178,7 @@ func TestRootCmdRun_EmptyUsername(t *testing.T) {
 }
 
 func TestExecute(t *testing.T) {
+	useFreshRootCommand(t)
 	origConf := conf
 	defer func() { conf = origConf }()
 
@@ -161,6 +203,7 @@ func TestExecute(t *testing.T) {
 }
 
 func TestVersionSubcommand(t *testing.T) {
+	useFreshRootCommand(t)
 	var stdout bytes.Buffer
 	rootCmd.SetOut(&stdout)
 	rootCmd.SetArgs([]string{"version"})
@@ -176,6 +219,7 @@ func TestVersionSubcommand(t *testing.T) {
 }
 
 func TestManSubcommand(t *testing.T) {
+	useFreshRootCommand(t)
 	oldStdout := os.Stdout
 	defer func() { os.Stdout = oldStdout }()
 
@@ -196,6 +240,7 @@ func TestManSubcommand(t *testing.T) {
 }
 
 func TestRootCmdRejectsArgs(t *testing.T) {
+	useFreshRootCommand(t)
 	rootCmd.SetArgs([]string{"invalid-arg"})
 	err := rootCmd.Execute()
 	if err == nil {
@@ -205,6 +250,7 @@ func TestRootCmdRejectsArgs(t *testing.T) {
 }
 
 func TestDebugFlagParsing(t *testing.T) {
+	useFreshRootCommand(t)
 	origDebug := debug
 	defer func() { debug = origDebug }()
 
@@ -217,6 +263,7 @@ func TestDebugFlagParsing(t *testing.T) {
 }
 
 func TestUsernameFlagParsing(t *testing.T) {
+	useFreshRootCommand(t)
 	origConf := conf
 	defer func() { conf = origConf }()
 

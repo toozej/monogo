@@ -36,7 +36,8 @@ import (
 // conf holds the application configuration loaded from environment variables.
 // It is populated during package initialization and can be modified by command-line flags.
 var (
-	conf config.Config
+	conf          config.Config
+	configLoadErr error
 	// debug controls the logging level for the application.
 	// When true, debug-level logging is enabled through logrus.
 	debug bool
@@ -49,13 +50,25 @@ var (
 // The command accepts no positional arguments and delegates its main functionality
 // to the starter package. It supports persistent flags that are inherited by
 // all subcommands.
-var rootCmd = &cobra.Command{
-	Use:              "golang-starter",
-	Short:            "golang-starter starter template",
-	Long:             `Golang starter template using cobra, logrus, dotenv and env modules`,
-	Args:             cobra.ExactArgs(0),
-	PersistentPreRun: rootCmdPreRun,
-	Run:              rootCmdRun,
+var rootCmd *cobra.Command
+
+func newRootCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:              "golang-starter",
+		Short:            "golang-starter starter template",
+		Long:             `Golang starter template using cobra, logrus, dotenv and env modules`,
+		Args:             cobra.ExactArgs(0),
+		PersistentPreRun: rootCmdPreRun,
+		RunE:             rootCmdRun,
+	}
+	cmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "Enable debug-level logging")
+	cmd.Flags().StringVarP(&conf.Username, "username", "u", conf.Username, "Username")
+	cmd.AddCommand(
+		avatar.NewCommand("golang-starter"),
+		man.NewManCmd(),
+		version.Command(),
+	)
+	return cmd
 }
 
 // rootCmdRun is the main execution function for the root command.
@@ -64,8 +77,12 @@ var rootCmd = &cobra.Command{
 // Parameters:
 //   - cmd: The cobra command being executed
 //   - args: Command-line arguments (unused, as root command takes no args)
-func rootCmdRun(cmd *cobra.Command, args []string) {
+func rootCmdRun(cmd *cobra.Command, args []string) error {
+	if configLoadErr != nil {
+		return fmt.Errorf("load configuration: %w", configLoadErr)
+	}
 	starter.Run(conf.Username)
+	return nil
 }
 
 // rootCmdPreRun performs setup operations before executing the root command.
@@ -97,7 +114,7 @@ func rootCmdPreRun(cmd *cobra.Command, args []string) {
 //	}
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err.Error())
+		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
 	}
 }
@@ -115,18 +132,7 @@ func Execute() {
 // allows overriding the username from environment variables.
 func init() {
 	// get configuration from environment variables
-	conf = config.GetEnvVars()
+	conf, configLoadErr = config.Load()
 
-	// create rootCmd-level flags
-	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "Enable debug-level logging")
-
-	// optional flag for username, overrides env var
-	rootCmd.Flags().StringVarP(&conf.Username, "username", "u", conf.Username, "Username")
-
-	// add sub-commands
-	rootCmd.AddCommand(
-		avatar.NewCommand("golang-starter"),
-		man.NewManCmd(),
-		version.Command(),
-	)
+	rootCmd = newRootCommand()
 }
