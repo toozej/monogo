@@ -44,6 +44,9 @@ func RunTrailsCompletionist(config config.Config, debug bool) error {
 	// Process track files if provided
 	var foundGPXTrails []types.Trail
 	if config.TrackFiles != "" {
+		if osmData == nil {
+			return fmt.Errorf("OSM region data is required when track files are configured")
+		}
 		if debug {
 			fmt.Printf("Parsing track files: %s\n", config.TrackFiles)
 		}
@@ -92,7 +95,7 @@ func RunTrailsCompletionist(config config.Config, debug bool) error {
 	// (a.k.a. completed trails over not completed)
 	combinedTrails, err := matcher.MatchTrails(foundGPXTrails, rawTrails)
 	if err != nil {
-		fmt.Println(fmt.Errorf("error matching trails: %w", err))
+		return fmt.Errorf("error matching trails: %w", err)
 	}
 	if debug {
 		fmt.Printf("Combined and de-duplicated list of trails:\n %v\n", combinedTrails)
@@ -122,18 +125,41 @@ func RunTrailsCompletionist(config config.Config, debug bool) error {
 	return nil
 }
 
-// serveHTMLFile serves the generated HTML file on port 3000
-func ServeHTMLFile(htmlFile string) error {
+// HTMLHandler serves only the generated page and its two known assets.
+func HTMLHandler(htmlFile string) http.Handler {
+	htmlFile = filepath.Clean(htmlFile)
 	htmlDir := filepath.Dir(htmlFile)
-	http.Handle("/", http.FileServer(http.Dir(htmlDir)))
+	assets := map[string]string{
+		"/":           htmlFile,
+		"/index.html": htmlFile,
+		"/app.js":     filepath.Join(htmlDir, "app.js"),
+		"/styles.css": filepath.Join(htmlDir, "styles.css"),
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		asset, ok := assets[r.URL.Path]
+		if !ok {
+			http.NotFound(w, r)
+			return
+		}
+		http.ServeFile(w, r, asset)
+	})
+}
+
+// ServeHTMLFile serves the generated HTML file on loopback port 3000.
+func ServeHTMLFile(htmlFile string) error {
 	server := &http.Server{
-		Addr:         ":3000",
+		Addr:         "127.0.0.1:3000",
+		Handler:      HTMLHandler(htmlFile),
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 	}
 
 	log.Printf("Serving HTML file at http://localhost:3000/")
-	if err := server.ListenAndServe(); err != nil {
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		return fmt.Errorf("error serving generated HTML file: %w", err)
 	}
 

@@ -15,7 +15,7 @@ import (
 func fetchFile(filename string) (*os.File, error) {
 	f, err := os.Open(filename) // #nosec G304
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	if log.GetLevel() == log.DebugLevel {
 		fileContents, _ := os.ReadFile(filename) // #nosec G304
@@ -70,6 +70,9 @@ func extractTrailInfo(file *os.File) ([]types.Trail, error) {
 				lines = nil
 			}
 		}
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
 	}
 
 	return trails, nil
@@ -140,6 +143,7 @@ func ParseTrailsFromRawInputFile(filename string) ([]types.Trail, error) {
 	if err != nil {
 		return []types.Trail{}, err
 	}
+	defer f.Close()
 
 	trails, err := extractTrailInfo(f)
 	if err != nil {

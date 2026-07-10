@@ -195,7 +195,8 @@ archives:
       - goos: windows
         formats: ['zip']
     files:
-      - README.md
+      - src: apps/trails-completionist/README.md
+        dst: README.md
       - LICENSE
       - completions/trails-completionist.bash
       - completions/trails-completionist.fish

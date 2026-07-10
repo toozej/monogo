@@ -158,7 +158,8 @@ archives:
       - goos: windows
         formats: ['zip']
     files:
-      - README.md
+      - src: apps/podgrab/README.md
+        dst: README.md
       - LICENSE
       - completions/podgrab.bash
       - completions/podgrab.fish

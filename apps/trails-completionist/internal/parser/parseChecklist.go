@@ -51,6 +51,12 @@ func extractTrailInfoFromChecklist(file *os.File) ([]types.Trail, error) {
 			}
 		}
 	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	if currentTrail.Name != "" {
+		trails = append(trails, currentTrail)
+	}
 
 	return trails, nil
 }
@@ -195,6 +201,7 @@ func ParseTrailsFromChecklist(filename string) ([]types.Trail, error) {
 	if err != nil {
 		return []types.Trail{}, err
 	}
+	defer f.Close()
 
 	trails, err := extractTrailInfoFromChecklist(f)
 	if err != nil {

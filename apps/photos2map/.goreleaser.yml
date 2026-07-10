@@ -195,7 +195,8 @@ archives:
       - goos: windows
         formats: ['zip']
     files:
-      - README.md
+      - src: apps/photos2map/README.md
+        dst: README.md
       - LICENSE
       - completions/photos2map.bash
       - completions/photos2map.fish

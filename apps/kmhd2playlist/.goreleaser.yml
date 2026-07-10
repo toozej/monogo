@@ -158,7 +158,8 @@ archives:
       - goos: windows
         formats: ['zip']
     files:
-      - README.md
+      - src: apps/kmhd2playlist/README.md
+        dst: README.md
       - LICENSE
       - completions/kmhd2playlist.bash
       - completions/kmhd2playlist.fish

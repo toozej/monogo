@@ -1,7 +1,10 @@
 package tcx2gpx
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -140,6 +143,7 @@ func ConvertAllTCXToGPX(inputDir string) error {
 	}
 	defer func() { _ = root.Close() }()
 
+	var conversionErrors []error
 	err = fs.WalkDir(root.FS(), ".", func(rel string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -154,41 +158,57 @@ func ConvertAllTCXToGPX(inputDir string) error {
 		}
 
 		fmt.Printf("Converting: %s\n", rel)
-
-		// SAFE OPEN — cannot escape root even if rel becomes malicious
 		src, err := root.Open(rel)
 		if err != nil {
-			fmt.Printf("Error opening %s: %v\n", rel, err)
+			conversionErrors = append(conversionErrors, fmt.Errorf("open %s: %w", rel, err))
 			return nil
 		}
-		defer func() { _ = src.Close() }()
+		gpxData, convertErr := convertTCX(src)
+		closeErr := src.Close()
+		if convertErr != nil {
+			conversionErrors = append(conversionErrors, fmt.Errorf("convert %s: %w", rel, convertErr))
+			return nil
+		}
+		if closeErr != nil {
+			conversionErrors = append(conversionErrors, fmt.Errorf("close %s: %w", rel, closeErr))
+			return nil
+		}
 
-		// Create destination filename
 		gpxRel := strings.TrimSuffix(rel, filepath.Ext(rel)) + ".gpx"
-
-		dst, err := root.Create(gpxRel)
+		tempRel, err := temporaryName(gpxRel)
 		if err != nil {
-			fmt.Printf("Error creating %s: %v\n", gpxRel, err)
-			_ = src.Close()
+			conversionErrors = append(conversionErrors, fmt.Errorf("temporary name for %s: %w", rel, err))
 			return nil
 		}
-
-		// Convert content
-		abs := filepath.Join(inputDir, rel)
-
-		if err := convertTCXToGPX(abs); err != nil {
-			fmt.Printf("Error converting %s: %v\n", rel, err)
+		dst, err := root.OpenFile(tempRel, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+		if err != nil {
+			conversionErrors = append(conversionErrors, fmt.Errorf("create temporary GPX for %s: %w", rel, err))
+			return nil
+		}
+		if _, err := dst.Write(gpxData); err != nil {
 			_ = dst.Close()
-			_ = src.Close()
+			_ = root.Remove(tempRel)
+			conversionErrors = append(conversionErrors, fmt.Errorf("write %s: %w", gpxRel, err))
 			return nil
 		}
-
-		_ = dst.Close()
-		_ = src.Close()
-
-		// SAFE REMOVE — cannot delete outside root
+		if err := dst.Sync(); err != nil {
+			_ = dst.Close()
+			_ = root.Remove(tempRel)
+			conversionErrors = append(conversionErrors, fmt.Errorf("sync %s: %w", gpxRel, err))
+			return nil
+		}
+		if err := dst.Close(); err != nil {
+			_ = root.Remove(tempRel)
+			conversionErrors = append(conversionErrors, fmt.Errorf("close %s: %w", gpxRel, err))
+			return nil
+		}
+		if err := root.Rename(tempRel, gpxRel); err != nil {
+			_ = root.Remove(tempRel)
+			conversionErrors = append(conversionErrors, fmt.Errorf("publish %s: %w", gpxRel, err))
+			return nil
+		}
 		if err := root.Remove(rel); err != nil {
-			fmt.Printf("Error removing original file %s: %v\n", rel, err)
+			conversionErrors = append(conversionErrors, fmt.Errorf("remove converted source %s: %w", rel, err))
 		} else {
 			fmt.Printf("Removed original file: %s\n", rel)
 		}
@@ -199,9 +219,32 @@ func ConvertAllTCXToGPX(inputDir string) error {
 	if err != nil {
 		return fmt.Errorf("walk directory: %w", err)
 	}
+	if len(conversionErrors) > 0 {
+		return errors.Join(conversionErrors...)
+	}
 
 	fmt.Println("All TCX files converted to GPX successfully.")
 	return nil
+}
+
+func temporaryName(gpxRel string) (string, error) {
+	random := make([]byte, 8)
+	if _, err := rand.Read(random); err != nil {
+		return "", err
+	}
+	return gpxRel + ".tmp-" + hex.EncodeToString(random), nil
+}
+
+func convertTCX(reader io.Reader) ([]byte, error) {
+	var tcx TrainingCenterDatabase
+	if err := xml.NewDecoder(reader).Decode(&tcx); err != nil {
+		return nil, fmt.Errorf("failed to parse TCX data: %w", err)
+	}
+	gpxOutput, err := xml.MarshalIndent(convertToGPX(&tcx), "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate GPX data: %w", err)
+	}
+	return append([]byte("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"), gpxOutput...), nil
 }
 
 func convertTCXToGPX(tcxFilePath string) error {
@@ -212,38 +255,35 @@ func convertTCXToGPX(tcxFilePath string) error {
 	}
 	defer func() { _ = tcxFile.Close() }()
 
-	tcxData, err := io.ReadAll(tcxFile)
+	gpxData, err := convertTCX(tcxFile)
 	if err != nil {
-		return fmt.Errorf("failed to read TCX file: %v", err)
+		return err
 	}
-
-	// Parse TCX data
-	var tcx TrainingCenterDatabase
-	if err := xml.Unmarshal(tcxData, &tcx); err != nil {
-		return fmt.Errorf("failed to parse TCX data: %v", err)
-	}
-
-	// Create GPX file
 	gpxFilePath := strings.TrimSuffix(tcxFilePath, filepath.Ext(tcxFilePath)) + ".gpx"
-	gpxFile, err := os.Create(gpxFilePath) // #nosec G304
+	gpxFile, err := os.CreateTemp(filepath.Dir(gpxFilePath), ".gpx-*") // #nosec G304 -- destination directory derives from the explicit input path
 	if err != nil {
-		return fmt.Errorf("failed to create GPX file: %v", err)
+		return fmt.Errorf("failed to create temporary GPX file: %w", err)
 	}
-	defer func() { _ = gpxFile.Close() }()
-
-	// Convert TCX to GPX
-	gpx := convertToGPX(&tcx)
-
-	// Write GPX data
-	gpxOutput, err := xml.MarshalIndent(gpx, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to generate GPX data: %v", err)
+	tempName := gpxFile.Name()
+	defer os.Remove(tempName)
+	if err := gpxFile.Chmod(0o600); err != nil {
+		_ = gpxFile.Close()
+		return err
 	}
-
-	// Add XML header
-	xmlHeader := []byte("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
-	_, _ = gpxFile.Write(xmlHeader)
-	_, _ = gpxFile.Write(gpxOutput)
+	if _, err := gpxFile.Write(gpxData); err != nil {
+		_ = gpxFile.Close()
+		return fmt.Errorf("write GPX file: %w", err)
+	}
+	if err := gpxFile.Sync(); err != nil {
+		_ = gpxFile.Close()
+		return fmt.Errorf("sync GPX file: %w", err)
+	}
+	if err := gpxFile.Close(); err != nil {
+		return fmt.Errorf("close GPX file: %w", err)
+	}
+	if err := os.Rename(tempName, gpxFilePath); err != nil {
+		return fmt.Errorf("publish GPX file: %w", err)
+	}
 
 	fmt.Printf("Successfully created: %s\n", gpxFilePath)
 	return nil

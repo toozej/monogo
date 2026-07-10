@@ -112,10 +112,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Apply fuzzy search to remaining free text
             const cellTexts = Array.from(row.querySelectorAll('td'))
-                .map(cell => cell.textContent.trim());
+                .map(cell => {
+                    const checkbox = cell.querySelector('input[type="checkbox"]');
+                    if (checkbox) {
+                        return checkbox.checked ? 'completed yes true' : 'incomplete no false';
+                    }
+                    return cell.textContent.trim();
+                });
+            const searchableRowText = cellTexts.join(' ');
             
             const freeTextMatch = freeText === '' || 
-                cellTexts.some(text => fuzzyMatch(freeText, text));
+                fuzzyMatch(freeText, searchableRowText);
 
             // Show row only if both filter and free text conditions are met
             row.style.display = (matchesFilters && freeTextMatch) ? '' : 'none';
