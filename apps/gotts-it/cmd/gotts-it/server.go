@@ -3,17 +3,16 @@ package cmd
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/toozej/monogo/apps/gotts-it/internal/article"
-	"github.com/toozej/monogo/apps/gotts-it/internal/slug"
 	"github.com/toozej/monogo/apps/gotts-it/internal/tts"
 )
 
@@ -43,21 +42,28 @@ func serverCmdRunE(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("create output directory %s: %w", conf.OutputDir, err)
 	}
 
-	ctx := context.Background()
+	ctx := cmd.Context()
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	scanner := bufio.NewScanner(os.Stdin)
 	lineNum := 0
+	processed := 0
+	var processErrors []error
 
 	for scanner.Scan() {
+		lineNum++
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
-		lineNum++
+		processed++
 
 		log.Infof("processing line %d: %s", lineNum, line)
 
 		if err := processLine(ctx, line); err != nil {
 			log.Errorf("line %d: %v", lineNum, err)
+			processErrors = append(processErrors, fmt.Errorf("line %d: %w", lineNum, err))
 			continue
 		}
 	}
@@ -66,8 +72,8 @@ func serverCmdRunE(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading stdin: %w", err)
 	}
 
-	log.Infof("processed %d inputs", lineNum)
-	return nil
+	log.Infof("processed %d inputs", processed)
+	return errors.Join(processErrors...)
 }
 
 func processLine(ctx context.Context, line string) error {
@@ -122,22 +128,7 @@ func processLine(ctx context.Context, line string) error {
 }
 
 func serverOutputPath(art article.Article, format string) string {
-	var s string
-	switch {
-	case art.Title != "":
-		s = slug.FromTitle(art.Title)
-	case art.URL != "":
-		if _, err := os.Stat(art.URL); err == nil {
-			s = slug.FromFilePath(art.URL)
-		} else {
-			s = slug.FromURL(art.URL)
-		}
-	default:
-		s = "output"
-	}
-
-	base := s + "." + format
-	return filepath.Join(conf.OutputDir, base)
+	return defaultOutputPathInDir(art, format, conf.OutputDir)
 }
 
 func isURL(s string) bool {

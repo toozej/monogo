@@ -216,6 +216,43 @@ func TestServerOutputPath_FromTitle(t *testing.T) {
 	}
 }
 
+func TestServerOutputPathAvoidsExistingFile(t *testing.T) {
+	origConf := conf
+	defer func() { conf = origConf }()
+	dir := t.TempDir()
+	conf = config.Config{OutputDir: dir}
+	if err := os.WriteFile(filepath.Join(dir, "hello-world.mp3"), []byte("existing"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	got := serverOutputPath(article.Article{Title: "Hello World"}, "mp3")
+	want := filepath.Join(dir, "hello-world-2.mp3")
+	if got != want {
+		t.Fatalf("serverOutputPath() = %q, want %q", got, want)
+	}
+}
+
+func TestServerCmdRunEReturnsBatchFailures(t *testing.T) {
+	oldStdin := os.Stdin
+	defer func() { os.Stdin = oldStdin }()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stdin = r
+	_, _ = w.WriteString("# comment\n\n/nonexistent/article.html\n")
+	_ = w.Close()
+
+	origConf := conf
+	defer func() { conf = origConf }()
+	conf = config.Config{OutputDir: t.TempDir(), FetchTimeout: time.Second}
+
+	err = serverCmdRunE(newServerCmd(), nil)
+	if err == nil || !strings.Contains(err.Error(), "line 3") {
+		t.Fatalf("expected line-numbered batch failure, got %v", err)
+	}
+}
+
 func TestServerOutputPath_FromURL(t *testing.T) {
 	origConf := conf
 	defer func() { conf = origConf }()

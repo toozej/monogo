@@ -1,7 +1,9 @@
 package tts
 
 import (
+	"bytes"
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -150,6 +152,31 @@ func TestSynthesize_Non2xx(t *testing.T) {
 	}
 }
 
+func TestSynthesizeFailurePreservesExistingOutput(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer srv.Close()
+
+	outputPath := filepath.Join(t.TempDir(), "output.mp3")
+	if err := os.WriteFile(outputPath, []byte("existing-audio"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	err := Synthesize(context.Background(), "Hello", outputPath, Options{
+		BaseURL: srv.URL + "/v1", Model: "model", Voice: "voice", Format: "mp3", Timeout: time.Second,
+	})
+	if err == nil {
+		t.Fatal("expected synthesis to fail")
+	}
+	data, readErr := os.ReadFile(outputPath)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if string(data) != "existing-audio" {
+		t.Fatalf("failed synthesis replaced existing output with %q", data)
+	}
+}
+
 func TestSynthesize_EmptyText(t *testing.T) {
 	outputPath := filepath.Join(t.TempDir(), "output.mp3")
 	opts := Options{
@@ -194,6 +221,9 @@ func TestSynthesize_FLACMultipleChunks(t *testing.T) {
 	if err == nil {
 		t.Error("expected error for FLAC with multiple chunks")
 	}
+	if _, statErr := os.Stat(outputPath); !os.IsNotExist(statErr) {
+		t.Errorf("failed FLAC synthesis left an output file: %v", statErr)
+	}
 }
 
 func TestSynthesize_ForwardsParams(t *testing.T) {
@@ -221,7 +251,7 @@ func TestSynthesize_ForwardsParams(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/octet-stream")
-		if _, err := w.Write([]byte("audio-data")); err != nil {
+		if _, err := w.Write(createWAVFile(100)); err != nil {
 			t.Logf("warning: write response: %v", err)
 		}
 	}))
@@ -416,7 +446,7 @@ func TestWriteChunk_WAV(t *testing.T) {
 	defer func() { _ = os.Remove(f.Name()) }()
 
 	resp := &http.Response{
-		Body: io.NopCloser(strings.NewReader("wav-data")),
+		Body: io.NopCloser(strings.NewReader(string(createWAVFile(100)))),
 	}
 	if err := writeChunk(f, resp, "wav", true, true); err != nil {
 		t.Fatalf("writeChunk wav: %v", err)
@@ -456,7 +486,9 @@ func TestWriteChunk_FLACNotFirst(t *testing.T) {
 }
 
 func TestSynthesize_WAVMultipleChunks(t *testing.T) {
+	callCount := 0
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		callCount++
 		wavData := createWAVFile(100)
 		w.Header().Set("Content-Type", "application/octet-stream")
 		if _, err := w.Write(wavData); err != nil { // nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter.no-direct-write-to-responsewriter
@@ -492,6 +524,16 @@ func TestSynthesize_WAVMultipleChunks(t *testing.T) {
 	}
 	if string(data[:4]) != "RIFF" {
 		t.Errorf("expected RIFF header, got %q", data[:4])
+	}
+	if got := bytes.Count(data, []byte("RIFF")); got != 1 {
+		t.Errorf("expected one WAV header, got %d", got)
+	}
+	wantSize := 44 + callCount*100
+	if len(data) != wantSize {
+		t.Errorf("WAV size = %d, want %d", len(data), wantSize)
+	}
+	if got := int(binary.LittleEndian.Uint32(data[40:44])); got != callCount*100 {
+		t.Errorf("WAV data size = %d, want %d", got, callCount*100)
 	}
 }
 
@@ -616,6 +658,25 @@ func TestChunk_HardSplit(t *testing.T) {
 	}
 	if total != 5000 {
 		t.Errorf("expected total 5000 chars, got %d", total)
+	}
+}
+
+func TestChunkPreservesUTF8AndCountsCharacters(t *testing.T) {
+	text := strings.Repeat("界", MaxInputChars+1)
+	chunks := chunk(text, MaxInputChars)
+	if len(chunks) != 2 {
+		t.Fatalf("chunk count = %d, want 2", len(chunks))
+	}
+	for i, chunk := range chunks {
+		if strings.ToValidUTF8(chunk, "") != chunk {
+			t.Fatalf("chunk %d contains invalid UTF-8", i)
+		}
+		if len([]rune(chunk)) > MaxInputChars {
+			t.Fatalf("chunk %d exceeds character limit", i)
+		}
+	}
+	if strings.Join(chunks, "") != text {
+		t.Fatal("chunking changed Unicode text")
 	}
 }
 

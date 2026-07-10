@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/spf13/cobra"
 	"github.com/toozej/monogo/apps/gotts-it/internal/article"
 	"github.com/toozej/monogo/apps/gotts-it/internal/config"
 	"github.com/toozej/monogo/apps/gotts-it/internal/tts"
@@ -139,6 +140,48 @@ func TestRootCmdURLAndFileMutuallyExclusive(t *testing.T) {
 	err := rootCmd.Execute()
 	if err == nil {
 		t.Error("expected error when both --url and --file provided")
+	}
+}
+
+func TestRootPreRunAcceptsEnvironmentConfiguredSource(t *testing.T) {
+	origConf := conf
+	defer func() { conf = origConf }()
+	conf = config.Config{
+		URL: "https://example.com/article", TTSBackend: "openai", TTSFormat: "mp3",
+		TTSSpeed: 1, TTSTimeout: time.Second, FetchTimeout: time.Second,
+	}
+
+	cmd := &cobra.Command{Use: "gotts-it"}
+	if err := rootCmdPreRunE(cmd, nil); err != nil {
+		t.Fatalf("effective environment configuration was rejected: %v", err)
+	}
+}
+
+func TestRootPreRunRejectsAmbiguousEnvironmentSources(t *testing.T) {
+	origConf := conf
+	defer func() { conf = origConf }()
+	conf = config.Config{
+		URL: "https://example.com/article", File: "article.html", TTSBackend: "openai", TTSFormat: "mp3",
+		TTSSpeed: 1, TTSTimeout: time.Second, FetchTimeout: time.Second,
+	}
+
+	cmd := &cobra.Command{Use: "gotts-it"}
+	if err := rootCmdPreRunE(cmd, nil); err == nil {
+		t.Fatal("expected ambiguous source configuration to fail")
+	}
+}
+
+func TestRootPreRunRejectsNonMP3GoogleOutput(t *testing.T) {
+	origConf := conf
+	defer func() { conf = origConf }()
+	conf = config.Config{
+		URL: "https://example.com/article", TTSBackend: "google", TTSFormat: "wav",
+		TTSSpeed: 1, TTSTimeout: time.Second, FetchTimeout: time.Second,
+	}
+
+	cmd := &cobra.Command{Use: "gotts-it"}
+	if err := rootCmdPreRunE(cmd, nil); err == nil {
+		t.Fatal("expected Google Translate WAV output to be rejected")
 	}
 }
 
@@ -434,6 +477,19 @@ func TestDefaultOutputPath_FileExists(t *testing.T) {
 	}
 	if !strings.HasSuffix(got, ".mp3") {
 		t.Errorf("expected .mp3 suffix, got %s", got)
+	}
+}
+
+func TestDefaultOutputPathChecksConfiguredDirectory(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "readability.mp3"), []byte("existing"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	got := defaultOutputPathInDir(article.Article{Title: "Readability"}, "mp3", dir)
+	want := filepath.Join(dir, "readability-2.mp3")
+	if got != want {
+		t.Fatalf("defaultOutputPathInDir() = %q, want %q", got, want)
 	}
 }
 
