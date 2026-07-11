@@ -18,6 +18,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/toozej/monogo/apps/rss2socials/internal/config"
 	"github.com/toozej/monogo/apps/rss2socials/internal/db"
 	"github.com/toozej/monogo/apps/rss2socials/internal/rss"
@@ -115,9 +116,9 @@ func TestShouldSkipPost(t *testing.T) {
 
 func setupTestDB(t *testing.T) {
 	t.Helper()
-	db.InitDB()
+	require.NoError(t, db.InitDB())
 	t.Cleanup(func() {
-		db.CloseDB()
+		assert.NoError(t, db.CloseDB())
 		_ = os.Remove("./tooted_posts.db")
 	})
 }
@@ -146,7 +147,7 @@ func TestHandlePost_NewPost(t *testing.T) {
 	}
 
 	post := rss.RSSItem{Link: "https://example.com/new-post", Content: "content", Title: "New Post"}
-	handlePost(post, conf, "2026-01-01T00:00:00Z", false)
+	assert.NoError(t, handlePost(post, conf, "2026-01-01T00:00:00Z", false))
 
 	exists, updated, err := db.HasPostChanged(post.Link, post.Content)
 	assert.NoError(t, err)
@@ -185,10 +186,10 @@ func TestHandlePost_UnchangedPostSkipsPosting(t *testing.T) {
 
 	post := rss.RSSItem{Link: "https://example.com/unchanged-post", Content: "same content", Title: "Same Post"}
 
-	handlePost(post, conf, "2026-01-01T00:00:00Z", false)
+	assert.NoError(t, handlePost(post, conf, "2026-01-01T00:00:00Z", false))
 	assert.Equal(t, 1, postCount, "Should post once for new post")
 
-	handlePost(post, conf, "2026-01-01T00:00:00Z", false)
+	assert.NoError(t, handlePost(post, conf, "2026-01-01T00:00:00Z", false))
 	assert.Equal(t, 1, postCount, "Should NOT post again for unchanged post")
 }
 
@@ -219,20 +220,20 @@ func TestHandlePost_NoDuplicatesOnRestart(t *testing.T) {
 
 	// First run
 	setupTestDB(t)
-	handlePost(post, conf, "2026-01-01T00:00:00Z", false)
+	assert.NoError(t, handlePost(post, conf, "2026-01-01T00:00:00Z", false))
 	assert.Equal(t, 1, postCount, "Should post once for new post")
 
 	// Close DB (simulating application shutdown)
-	db.CloseDB()
+	assert.NoError(t, db.CloseDB())
 
 	// Second run (simulating restart with same DB)
-	db.InitDB()
+	require.NoError(t, db.InitDB())
 	t.Cleanup(func() {
-		db.CloseDB()
+		assert.NoError(t, db.CloseDB())
 		_ = os.Remove("./tooted_posts.db")
 	})
 
-	handlePost(post, conf, "2026-01-01T00:00:00Z", false)
+	assert.NoError(t, handlePost(post, conf, "2026-01-01T00:00:00Z", false))
 	assert.Equal(t, 1, postCount, "Should NOT post again after restart for same post")
 }
 
@@ -268,7 +269,7 @@ func TestHandlePost_PartialFailureRetries(t *testing.T) {
 	post := rss.RSSItem{Link: "https://example.com/partial-fail", Content: "content", Title: "Partial Fail"}
 
 	// First attempt: Mastodon fails
-	handlePost(post, conf, "2026-01-01T00:00:00Z", false)
+	assert.Error(t, handlePost(post, conf, "2026-01-01T00:00:00Z", false))
 	assert.Equal(t, 1, callCount, "Should attempt to post once")
 
 	// Post is stored in DB even though Mastodon failed
@@ -282,7 +283,7 @@ func TestHandlePost_PartialFailureRetries(t *testing.T) {
 	assert.False(t, posted, "Mastodon should NOT be marked posted after failure")
 
 	// Second attempt: Mastodon succeeds (retries because site not marked)
-	handlePost(post, conf, "2026-01-01T00:00:00Z", false)
+	assert.NoError(t, handlePost(post, conf, "2026-01-01T00:00:00Z", false))
 	assert.Equal(t, 2, callCount, "Should retry posting since Mastodon was not marked as posted")
 
 	// Now Mastodon IS marked as posted
@@ -291,7 +292,7 @@ func TestHandlePost_PartialFailureRetries(t *testing.T) {
 	assert.True(t, posted, "Mastodon should be marked posted after success")
 
 	// Third attempt: should not post again
-	handlePost(post, conf, "2026-01-01T00:00:00Z", false)
+	assert.NoError(t, handlePost(post, conf, "2026-01-01T00:00:00Z", false))
 	assert.Equal(t, 2, callCount, "Should NOT retry after successful post")
 }
 
@@ -322,7 +323,7 @@ func TestHandlePost_PerSiteIndependence(t *testing.T) {
 
 	post := rss.RSSItem{Link: "https://example.com/multi-site", Content: "content", Title: "Multi Site"}
 
-	handlePost(post, conf, "2026-01-01T00:00:00Z", false)
+	assert.NoError(t, handlePost(post, conf, "2026-01-01T00:00:00Z", false))
 
 	// Mastodon posted and marked
 	assert.Equal(t, 1, mastodonCallCount)
@@ -368,7 +369,7 @@ func TestHandlePost_UpdatedPostReposts(t *testing.T) {
 
 	post := rss.RSSItem{Link: "https://example.com/updated-post", Content: "original", Title: "Updated Post"}
 
-	handlePost(post, conf, "2026-01-01T00:00:00Z", false)
+	assert.NoError(t, handlePost(post, conf, "2026-01-01T00:00:00Z", false))
 	assert.Equal(t, 1, postCount, "Should post for new post")
 
 	posted, err := db.IsSitePosted(post.Link, "mastodon")
@@ -376,7 +377,7 @@ func TestHandlePost_UpdatedPostReposts(t *testing.T) {
 	assert.True(t, posted, "Mastodon should be marked posted after first post")
 
 	post.Content = "updated content"
-	handlePost(post, conf, "2026-01-01T00:00:00Z", false)
+	assert.NoError(t, handlePost(post, conf, "2026-01-01T00:00:00Z", false))
 	assert.Equal(t, 2, postCount, "Should post again for updated content")
 }
 
@@ -476,7 +477,7 @@ func TestHandlePost_WithCategoryMatch(t *testing.T) {
 
 	post := rss.RSSItem{Link: "https://example.com/new-post-tech", Content: "content", Title: "New Post"}
 
-	handlePost(post, conf, "2026-01-01T00:00:00Z", false)
+	assert.NoError(t, handlePost(post, conf, "2026-01-01T00:00:00Z", false))
 	assert.Equal(t, 1, postCount)
 }
 
@@ -501,7 +502,7 @@ func TestHandlePost_MastodonErrorDoesNotMarkPosted(t *testing.T) {
 
 	post := rss.RSSItem{Link: "https://example.com/error-post", Content: "content", Title: "Error Post"}
 
-	handlePost(post, conf, "2026-01-01T00:00:00Z", false)
+	assert.Error(t, handlePost(post, conf, "2026-01-01T00:00:00Z", false))
 
 	exists, _, err := db.HasPostChanged(post.Link, post.Content)
 	assert.NoError(t, err)
@@ -638,19 +639,19 @@ func TestRunSetup(t *testing.T) {
 			assert.Equal(t, tt.expectedInterval, interval)
 			assert.Equal(t, tt.expectedCategory, category)
 
-			db.InitDB()
+			require.NoError(t, db.InitDB())
 			assert.NotNil(t, db.DB)
-			db.CloseDB()
+			assert.NoError(t, db.CloseDB())
 		})
 	}
 }
 
 func TestBasicIntegration(t *testing.T) {
 	originalDB := db.DB
-	db.CloseDB()
-	db.InitDB()
+	assert.NoError(t, db.CloseDB())
+	require.NoError(t, db.InitDB())
 	t.Cleanup(func() {
-		db.CloseDB()
+		assert.NoError(t, db.CloseDB())
 		_ = os.Remove("./tooted_posts.db")
 		db.DB = originalDB
 	})
@@ -677,7 +678,7 @@ func TestBasicIntegration(t *testing.T) {
 	}
 
 	post := rss.RSSItem{Link: "https://test.com/new-post", Content: "test content", Title: "Test Post"}
-	handlePost(post, conf, "2026-01-01T00:00:00Z", false)
+	assert.NoError(t, handlePost(post, conf, "2026-01-01T00:00:00Z", false))
 
 	exists, updated, err := db.HasPostChanged(post.Link, post.Content)
 	assert.NoError(t, err)
@@ -694,7 +695,7 @@ func TestBasicIntegration(t *testing.T) {
 	assert.True(t, existsBefore)
 	assert.True(t, updatedBefore)
 
-	handlePost(post, conf, "2026-01-01T00:00:00Z", false)
+	assert.NoError(t, handlePost(post, conf, "2026-01-01T00:00:00Z", false))
 
 	exists, updated, err = db.HasPostChanged(post.Link, post.Content)
 	assert.NoError(t, err)
@@ -737,10 +738,10 @@ func TestHandlePost_SkipExistingOnFirstCycle(t *testing.T) {
 		t.Fatalf("Failed to mark existing post as posted: %v", err)
 	}
 
-	handlePost(existingPost, conf, "2026-01-01T00:00:00Z", true)
+	assert.NoError(t, handlePost(existingPost, conf, "2026-01-01T00:00:00Z", true))
 	assert.Equal(t, 0, postCount, "Should NOT post existing entry when skipIfExisting=true")
 
-	handlePost(newPost, conf, "2026-01-01T00:00:00Z", true)
+	assert.NoError(t, handlePost(newPost, conf, "2026-01-01T00:00:00Z", true))
 	assert.Equal(t, 1, postCount, "Should post truly new entry even when skipIfExisting=true")
 }
 
@@ -779,10 +780,10 @@ func TestHandlePost_PostAllWhenSkipDisabled(t *testing.T) {
 		t.Fatalf("Failed to mark existing post as posted: %v", err)
 	}
 
-	handlePost(existingPost, conf, "2026-01-01T00:00:00Z", false)
+	assert.NoError(t, handlePost(existingPost, conf, "2026-01-01T00:00:00Z", false))
 	assert.Equal(t, 0, postCount, "Should not re-post already-fully-posted entry even with skipIfExisting=false")
 
-	handlePost(newPost, conf, "2026-01-01T00:00:00Z", false)
+	assert.NoError(t, handlePost(newPost, conf, "2026-01-01T00:00:00Z", false))
 	assert.Equal(t, 1, postCount, "Should post new entry with skipIfExisting=false")
 }
 
@@ -817,7 +818,7 @@ func TestHandlePost_FirstCycleSkipOnlyExistingUnchanged(t *testing.T) {
 	}
 
 	updatedPost.Content = "updated content"
-	handlePost(updatedPost, conf, "2026-01-01T00:00:00Z", true)
+	assert.NoError(t, handlePost(updatedPost, conf, "2026-01-01T00:00:00Z", true))
 	assert.Equal(t, 1, postCount, "Should post updated entry even when skipIfExisting=true")
 }
 
@@ -902,7 +903,7 @@ func TestRun_ShortRunPostsThreeMostRecent(t *testing.T) {
 
 	done := make(chan struct{})
 	go func() {
-		Run(conf)
+		assert.NoError(t, Run(conf))
 		close(done)
 	}()
 
@@ -936,7 +937,7 @@ func TestRun_ShortRunWithFewerThanThreeItems(t *testing.T) {
 
 	done := make(chan struct{})
 	go func() {
-		Run(conf)
+		assert.NoError(t, Run(conf))
 		close(done)
 	}()
 
@@ -970,7 +971,7 @@ func TestRun_ShortRunWithExactlyThreeItems(t *testing.T) {
 
 	done := make(chan struct{})
 	go func() {
-		Run(conf)
+		assert.NoError(t, Run(conf))
 		close(done)
 	}()
 
@@ -1011,7 +1012,7 @@ func TestRun_ShortRunExitsWithoutSleeping(t *testing.T) {
 	start := time.Now()
 	done := make(chan struct{})
 	go func() {
-		Run(conf)
+		assert.NoError(t, Run(conf))
 		close(done)
 	}()
 
@@ -1034,14 +1035,14 @@ func TestRun_ShortRunSkipsAlreadyPostedItems(t *testing.T) {
 	// Pre-seed the DB with the most recent post (post-0) marked as
 	// already posted to mastodon. SHORT_RUN should skip it and post
 	// only the next two items (post-1, post-2).
-	db.InitDB(dbFile)
+	require.NoError(t, db.InitDB(dbFile))
 	if err := db.StoreTootedPost("https://example.com/post-0", "Content 0", "2025-01-01T00:00:00Z"); err != nil {
 		t.Fatalf("seed StoreTootedPost failed: %v", err)
 	}
 	if err := db.MarkSitePosted("https://example.com/post-0", "mastodon"); err != nil {
 		t.Fatalf("seed MarkSitePosted failed: %v", err)
 	}
-	db.CloseDB()
+	assert.NoError(t, db.CloseDB())
 
 	var mastodonCalls int32
 	rssURL, mastodonURL := shortRunTestServers(t, 10, &mastodonCalls)
@@ -1060,7 +1061,7 @@ func TestRun_ShortRunSkipsAlreadyPostedItems(t *testing.T) {
 
 	done := make(chan struct{})
 	go func() {
-		Run(conf)
+		assert.NoError(t, Run(conf))
 		close(done)
 	}()
 
@@ -1094,7 +1095,7 @@ func TestRun_ShortRunSecondCycleDoesNotRepost(t *testing.T) {
 
 	done := make(chan struct{})
 	go func() {
-		Run(conf)
+		assert.NoError(t, Run(conf))
 		close(done)
 	}()
 	select {
@@ -1105,11 +1106,11 @@ func TestRun_ShortRunSecondCycleDoesNotRepost(t *testing.T) {
 	firstRunCalls := atomic.LoadInt32(&mastodonCalls)
 	assert.Equal(t, int32(0), firstRunCalls, "First snapshot should be seeded without posting")
 
-	db.CloseDB()
+	assert.NoError(t, db.CloseDB())
 
 	done2 := make(chan struct{})
 	go func() {
-		Run(conf)
+		assert.NoError(t, Run(conf))
 		close(done2)
 	}()
 	select {
@@ -1146,7 +1147,7 @@ func TestRun_ShortRunPostsToAllConfiguredSites(t *testing.T) {
 
 	done := make(chan struct{})
 	go func() {
-		Run(conf)
+		assert.NoError(t, Run(conf))
 		close(done)
 	}()
 
@@ -1225,7 +1226,7 @@ func TestRun_PostNewEntriesOnly_SkipsOldPubDates(t *testing.T) {
 
 	done := make(chan struct{})
 	go func() {
-		Run(conf)
+		assert.NoError(t, Run(conf))
 		close(done)
 	}()
 
@@ -1268,7 +1269,7 @@ func TestRun_PostNewEntriesOnly_AllowsNewPubDates(t *testing.T) {
 
 	done := make(chan struct{})
 	go func() {
-		Run(conf)
+		assert.NoError(t, Run(conf))
 		close(done)
 	}()
 
@@ -1308,7 +1309,7 @@ func TestRun_PostNewEntriesOnly_NoPubDatePostsAll(t *testing.T) {
 
 	done := make(chan struct{})
 	go func() {
-		Run(conf)
+		assert.NoError(t, Run(conf))
 		close(done)
 	}()
 
@@ -1351,7 +1352,7 @@ func TestRun_PostNewEntriesOnlyDisabled_PostsAllRegardlessOfPubDate(t *testing.T
 
 	done := make(chan struct{})
 	go func() {
-		Run(conf)
+		assert.NoError(t, Run(conf))
 		close(done)
 	}()
 

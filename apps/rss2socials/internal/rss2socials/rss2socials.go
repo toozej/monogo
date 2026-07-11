@@ -227,7 +227,7 @@ func handlePostContext(ctx context.Context, post rss.RSSItem, conf *config.Confi
 		switch {
 		case err != nil:
 			postErr = errors.Join(postErr, fmt.Errorf("check mastodon status for %q: %w", post.Link, err))
-		case alreadyPosted && !isUpdate:
+		case alreadyPosted:
 			log.Debugf("Skipping Mastodon: already posted %s", post.Link)
 		default:
 			err = mastodon.TootPostContext(ctx, *conf, tootContent, deliveryKey(post, "mastodon"))
@@ -252,7 +252,7 @@ func handlePostContext(ctx context.Context, post rss.RSSItem, conf *config.Confi
 		switch {
 		case err != nil:
 			postErr = errors.Join(postErr, fmt.Errorf("check bluesky status for %q: %w", post.Link, err))
-		case alreadyPosted && !isUpdate:
+		case alreadyPosted:
 			log.Debugf("Skipping Bluesky: already posted %s", post.Link)
 		default:
 			opCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
@@ -275,7 +275,7 @@ func handlePostContext(ctx context.Context, post rss.RSSItem, conf *config.Confi
 		switch {
 		case err != nil:
 			postErr = errors.Join(postErr, fmt.Errorf("check threads status for %q: %w", post.Link, err))
-		case alreadyPosted && !isUpdate:
+		case alreadyPosted:
 			log.Debugf("Skipping Threads: already posted %s", post.Link)
 		default:
 			opCtx, cancel := context.WithTimeout(ctx, 30*time.Second)

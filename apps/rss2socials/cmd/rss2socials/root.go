@@ -107,9 +107,10 @@ func rootCmdPreRun(cmd *cobra.Command, args []string) {
 //	}
 func Execute() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
 	rootCmd.SetContext(ctx)
-	if err := rootCmd.Execute(); err != nil {
+	err := rootCmd.Execute()
+	stop()
+	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
 	}
