@@ -207,6 +207,36 @@ func TestCheckTracksInPlaylistReadsEveryPage(t *testing.T) {
 	}
 }
 
+func TestGetUserPlaylistsReadsEveryPage(t *testing.T) {
+	httpClient := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		var body string
+		switch {
+		case strings.Contains(req.URL.Path, "next-playlists"):
+			body = `{"items":[{"id":"p2","name":"Second","uri":"spotify:playlist:p2","owner":{"id":"user"},"tracks":{"total":1}}],"next":null}`
+		case strings.HasSuffix(req.URL.Path, "/playlists"):
+			body = `{"items":[{"id":"p1","name":"First","uri":"spotify:playlist:p1","owner":{"id":"user"},"tracks":{"total":1}}],"next":"https://api.spotify.com/v1/next-playlists"}`
+		default: // current user lookup
+			body = `{"id":"user","display_name":"Test User"}`
+		}
+		return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(body))}, nil
+	})}
+	client := &Client{
+		client:     spotifyapi.New(httpClient),
+		logger:     logrus.New(),
+		token:      &oauth2.Token{AccessToken: "access", Expiry: time.Now().Add(time.Hour)},
+		ctx:        context.Background(),
+		isUserAuth: true,
+	}
+
+	playlists, err := client.GetUserPlaylists("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(playlists) != 2 {
+		t.Fatalf("expected playlists from every page, got %d: %+v", len(playlists), playlists)
+	}
+}
+
 // TestRefreshToken_InvalidGrantDiscardsToken verifies that when the Spotify
 // token endpoint returns an invalid_grant error during refresh, the client
 // discards the stored token (so a failed refresh is never retried) and returns
