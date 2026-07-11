@@ -92,49 +92,6 @@ type TrackPoint struct {
 	HeartRate *int     `xml:"extensions>gpxtpx:TrackPointExtension>gpxtpx:hr,omitempty"`
 }
 
-// func ConvertAllTCXToGPX(inputDir string) error {
-// 	// Walk through the directory recursively and convert TCX files to GPX
-//
-// 	err := filepath.Walk(inputDir, func(path string, info os.FileInfo, err error) error {
-// 		if err != nil {
-// 			return err
-// 		}
-//
-// 		// Skip directories
-// 		if info.IsDir() {
-// 			return nil
-// 		}
-//
-// 		// Check if file is a TCX file
-// 		if strings.ToLower(filepath.Ext(path)) == ".tcx" {
-// 			fmt.Printf("Converting: %s\n", path)
-//
-// 			err := convertTCXToGPX(path)
-// 			if err != nil {
-// 				fmt.Printf("Error converting %s: %v\n", path, err)
-// 				return nil // Continue with other files
-// 			}
-//
-// 			// Remove original TCX file
-// 			err = os.Remove(path)
-// 			if err != nil {
-// 				fmt.Printf("Error removing original file %s: %v\n", path, err)
-// 			} else {
-// 				fmt.Printf("Successfully removed original file: %s\n", path)
-// 			}
-// 		}
-//
-// 		return nil
-// 	})
-//
-// 	if err != nil {
-// 		fmt.Printf("Error walking directory: %v\n", err)
-// 		return err
-// 	}
-// 	fmt.Println("All TCX files converted to GPX successfully.")
-// 	return nil
-// }
-
 // ConvertAllTCXToGPX walks inputDir safely and converts all .tcx files to .gpx
 func ConvertAllTCXToGPX(inputDir string) error {
 	root, err := os.OpenRoot(inputDir)
@@ -245,48 +202,6 @@ func convertTCX(reader io.Reader) ([]byte, error) {
 		return nil, fmt.Errorf("failed to generate GPX data: %w", err)
 	}
 	return append([]byte("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"), gpxOutput...), nil
-}
-
-func convertTCXToGPX(tcxFilePath string) error {
-	// Read TCX file
-	tcxFile, err := os.Open(tcxFilePath) // #nosec G304
-	if err != nil {
-		return fmt.Errorf("failed to open TCX file: %v", err)
-	}
-	defer func() { _ = tcxFile.Close() }()
-
-	gpxData, err := convertTCX(tcxFile)
-	if err != nil {
-		return err
-	}
-	gpxFilePath := strings.TrimSuffix(tcxFilePath, filepath.Ext(tcxFilePath)) + ".gpx"
-	gpxFile, err := os.CreateTemp(filepath.Dir(gpxFilePath), ".gpx-*") // #nosec G304 -- destination directory derives from the explicit input path
-	if err != nil {
-		return fmt.Errorf("failed to create temporary GPX file: %w", err)
-	}
-	tempName := gpxFile.Name()
-	defer os.Remove(tempName)
-	if err := gpxFile.Chmod(0o600); err != nil {
-		_ = gpxFile.Close()
-		return err
-	}
-	if _, err := gpxFile.Write(gpxData); err != nil {
-		_ = gpxFile.Close()
-		return fmt.Errorf("write GPX file: %w", err)
-	}
-	if err := gpxFile.Sync(); err != nil {
-		_ = gpxFile.Close()
-		return fmt.Errorf("sync GPX file: %w", err)
-	}
-	if err := gpxFile.Close(); err != nil {
-		return fmt.Errorf("close GPX file: %w", err)
-	}
-	if err := os.Rename(tempName, gpxFilePath); err != nil {
-		return fmt.Errorf("publish GPX file: %w", err)
-	}
-
-	fmt.Printf("Successfully created: %s\n", gpxFilePath)
-	return nil
 }
 
 func convertToGPX(tcx *TrainingCenterDatabase) *GPX {
