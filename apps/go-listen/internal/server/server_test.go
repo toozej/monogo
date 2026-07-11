@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -202,5 +203,37 @@ func TestServer_RoutesRequireConfiguredBasicAuth(t *testing.T) {
 	server.router.ServeHTTP(authorized, req)
 	if authorized.Code != http.StatusOK {
 		t.Fatalf("authenticated status = %d", authorized.Code)
+	}
+}
+
+// TestServer_CallbackAllowsOpaqueOAuthState ensures the OAuth callback is not
+// rejected by the input-validation suspicious-pattern filter when the opaque
+// state value happens to contain a sequence such as "--". The request must
+// reach handleCallback (which then rejects the unknown state) rather than being
+// short-circuited with a 400 "Invalid request parameters".
+func TestServer_CallbackAllowsOpaqueOAuthState(t *testing.T) {
+	cfg := &config.Config{
+		Server: config.ServerConfig{Host: "127.0.0.1", Port: 8080},
+		Spotify: config.SpotifyConfig{
+			ClientID:     "test_client_id",
+			ClientSecret: "test_client_secret",
+			RedirectURL:  "http://localhost/callback",
+			TokenFile:    filepath.Join(t.TempDir(), "token.json"),
+		},
+	}
+	server := NewServer(cfg)
+	server.setupRoutes()
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/callback?code=abc&state=aa--bb", http.NoBody)
+	server.router.ServeHTTP(rec, req)
+
+	if rec.Code == http.StatusBadRequest && strings.Contains(rec.Body.String(), "Invalid request parameters") {
+		t.Fatalf("callback rejected by input validation: status=%d body=%q", rec.Code, rec.Body.String())
+	}
+	// The unknown state must be rejected by the auth handler, proving the
+	// request reached it rather than being blocked upstream.
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("callback status = %d, want %d (auth handler reached)", rec.Code, http.StatusInternalServerError)
 	}
 }

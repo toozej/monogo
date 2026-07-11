@@ -159,7 +159,8 @@ func (s *Server) GetPlaylistManager() types.PlaylistManager {
 
 // setupRoutes configures all HTTP routes with security and logging middleware
 func (s *Server) setupRoutes() {
-	// Create a new mux for routes that will have middleware applied
+	// Create a new mux for routes that get the full security middleware chain,
+	// including input validation and CSRF protection.
 	protectedMux := http.NewServeMux()
 
 	// Static file serving (no middleware needed)
@@ -169,29 +170,44 @@ func (s *Server) setupRoutes() {
 	protectedMux.HandleFunc("/", s.handleIndex)
 	protectedMux.HandleFunc("/api/csrf-token", s.handleCSRFToken)
 
-	// Authentication routes use GET, so CSRF middleware does not block the
-	// OAuth redirect flow; Basic Auth still protects exposed deployments.
-	protectedMux.HandleFunc("/auth", s.handleAuth)
-	protectedMux.HandleFunc("/callback", s.handleCallback)
-
 	// API routes
 	protectedMux.HandleFunc("/api/add-artist", s.handleAddArtist)
 	protectedMux.HandleFunc("/api/playlists", s.handleGetPlaylists)
 	protectedMux.HandleFunc("/api/auth-status", s.handleAuthStatus)
 	protectedMux.HandleFunc("/api/scrape-artists", s.handleScrapeArtists)
 
-	// Apply middleware chain: logging -> security
-	var handler http.Handler = protectedMux
+	// OAuth routes use GET and carry opaque, provider-issued code/state values
+	// that can legitimately contain byte sequences (for example "--") which the
+	// input-validation suspicious-pattern filter would reject, breaking the
+	// login flow. They therefore bypass InputValidation and CSRF (which only
+	// guards state-changing methods anyway) but still receive security headers,
+	// rate limiting, and Basic Auth.
+	authMux := http.NewServeMux()
+	authMux.HandleFunc("/auth", s.handleAuth)
+	authMux.HandleFunc("/callback", s.handleCallback)
 
-	// Apply security middleware chain
-	handler = s.securityMiddleware.SecurityHeaders(
+	// Full security middleware chain for the protected routes.
+	protectedHandler := s.securityMiddleware.SecurityHeaders(
 		s.securityMiddleware.RateLimit(
 			s.securityMiddleware.InputValidation(
-				s.securityMiddleware.CSRFProtection(handler),
+				s.securityMiddleware.CSRFProtection(protectedMux),
 			),
 		),
 	)
-	handler = s.securityMiddleware.BasicAuth(handler, s.config.Security.Username, s.config.Security.Password)
+
+	// Lighter middleware chain for the OAuth routes.
+	authHandler := s.securityMiddleware.SecurityHeaders(
+		s.securityMiddleware.RateLimit(authMux),
+	)
+
+	// Dispatch OAuth paths to the lighter chain and everything else to the
+	// protected chain, then require Basic Auth across the whole surface.
+	rootMux := http.NewServeMux()
+	rootMux.Handle("/", protectedHandler)
+	rootMux.Handle("/auth", authHandler)
+	rootMux.Handle("/callback", authHandler)
+
+	handler := s.securityMiddleware.BasicAuth(rootMux, s.config.Security.Username, s.config.Security.Password)
 
 	// Apply logging middleware (outermost layer)
 	if s.config.Logging.EnableHTTP {
