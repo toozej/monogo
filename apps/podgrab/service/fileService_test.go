@@ -677,7 +677,7 @@ func TestGetFileSizeFromURLRejectsUnsafeURL(t *testing.T) {
 
 func TestHTTPClientRejectsUnsafeRedirect(t *testing.T) {
 	t.Setenv("ALLOW_PRIVATE_NETWORK", "false")
-	req, err := http.NewRequest(http.MethodGet, "http://169.254.169.254/latest/meta-data/", http.NoBody)
+	req, err := http.NewRequest(http.MethodGet, "https://169.254.169.254/latest/meta-data/", http.NoBody)
 	require.NoError(t, err)
 
 	err = httpClient().CheckRedirect(req, nil)
