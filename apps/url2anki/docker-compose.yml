@@ -9,8 +9,8 @@ services:
     read_only: true
     environment:
       - "URL2ANKI_URL=${URL2ANKI_URL:?URL2ANKI_URL is required}"
-      - "URL2ANKI_QUESTION_SELECTOR=${URL2ANKI_QUESTION_SELECTOR:?URL2ANKI_QUESTION_SELECTOR is required}"
-      - "URL2ANKI_ANSWER_SELECTOR=${URL2ANKI_ANSWER_SELECTOR:?URL2ANKI_ANSWER_SELECTOR is required}"
+      - "URL2ANKI_QUESTION_SELECTOR=${URL2ANKI_QUESTION_SELECTOR:?required}"
+      - "URL2ANKI_ANSWER_SELECTOR=${URL2ANKI_ANSWER_SELECTOR:?required}"
       - "URL2ANKI_OUTPUT_FILE=/output/anki_cards.csv"
     volumes:
       - "./output:/output"
