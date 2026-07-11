@@ -348,7 +348,7 @@ func TestFixFileProcessesResourcesBottomUp(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	var source strings.Builder
 	for i := 1; i <= 6; i++ {
-		source.WriteString(fmt.Sprintf("resource \"test\" \"r%d\" {}\n", i))
+		fmt.Fprintf(&source, "resource \"test\" \"r%d\" {}\n", i)
 	}
 	if err := afero.WriteFile(fs, "/many.tf", []byte(source.String()), 0o600); err != nil {
 		t.Fatal(err)
