@@ -141,7 +141,9 @@ func TestRootCmdRun(t *testing.T) {
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	rootCmdRun(rootCmd, []string{})
+	if err := rootCmdRun(rootCmd, []string{}); err != nil {
+		t.Fatalf("rootCmdRun() error = %v", err)
+	}
 
 	_ = w.Close()
 	var out bytes.Buffer
@@ -165,7 +167,9 @@ func TestRootCmdRun_EmptyUsername(t *testing.T) {
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	rootCmdRun(rootCmd, []string{})
+	if err := rootCmdRun(rootCmd, []string{}); err != nil {
+		t.Fatalf("rootCmdRun() error = %v", err)
+	}
 
 	_ = w.Close()
 	var out bytes.Buffer
@@ -274,7 +278,9 @@ func TestUsernameFlagParsing(t *testing.T) {
 	os.Stdout = w
 
 	rootCmd.SetArgs([]string{"-u", "flaguser"})
-	_ = rootCmd.Execute()
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("root command error = %v", err)
+	}
 
 	_ = w.Close()
 	var out bytes.Buffer

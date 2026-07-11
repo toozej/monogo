@@ -58,6 +58,8 @@ func newRootCommand() *cobra.Command {
 		Short:            "golang-starter starter template",
 		Long:             `Golang starter template using cobra, logrus, dotenv and env modules`,
 		Args:             cobra.ExactArgs(0),
+		SilenceErrors:    true,
+		SilenceUsage:     true,
 		PersistentPreRun: rootCmdPreRun,
 		RunE:             rootCmdRun,
 	}
@@ -103,7 +105,7 @@ func rootCmdPreRun(cmd *cobra.Command, args []string) {
 // Execute starts the command-line interface execution.
 // This is the main entry point called from main.go to begin command processing.
 //
-// If command execution fails, it prints the error message to stdout and
+// If command execution fails, it prints the error message to stderr and
 // exits the program with status code 1. This follows standard Unix conventions
 // for command-line tool error handling.
 //
