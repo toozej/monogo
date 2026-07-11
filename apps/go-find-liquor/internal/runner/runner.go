@@ -244,7 +244,7 @@ type SearchRunner struct {
 
 // NewRunner creates a new runner with the given configuration
 // Supports both single-user and multi-user configurations
-func NewRunner(cfg config.Config) (Runner, error) {
+func NewRunner(cfg config.Config) (*SearchRunner, error) {
 	if len(cfg.Users) == 0 {
 		return nil, fmt.Errorf("no users configured")
 	}

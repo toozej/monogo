@@ -36,12 +36,8 @@ func (f fakeNotifier) NotifyHeartbeat(context.Context, string, bool) error {
 	return f.heartbeatErr
 }
 
-func injectFakes(t *testing.T, runner Runner, searcher itemSearcher, notifier itemNotifier) *SearchRunner {
+func injectFakes(t *testing.T, sr *SearchRunner, searcher itemSearcher, notifier itemNotifier) *SearchRunner {
 	t.Helper()
-	sr, ok := runner.(*SearchRunner)
-	if !ok {
-		t.Fatalf("runner type = %T", runner)
-	}
 	for _, user := range sr.userRunners {
 		user.searcher = searcher
 		user.notifier = notifier
