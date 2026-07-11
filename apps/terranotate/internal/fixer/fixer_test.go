@@ -457,3 +457,92 @@ func TestGetApplicableRules(t *testing.T) {
 		t.Errorf("Expected 1 required prefix (global), got %d", len(subnetRules.RequiredPrefixes))
 	}
 }
+
+// failingRenameFs wraps an afero.Fs and forces Rename to fail so tests can
+// exercise the atomic-write failure path without a real crash.
+type failingRenameFs struct {
+	afero.Fs
+}
+
+func (failingRenameFs) Rename(_, _ string) error {
+	return fmt.Errorf("simulated rename failure")
+}
+
+func hasTempLeftovers(t *testing.T, fs afero.Fs, dir string) bool {
+	t.Helper()
+	entries, err := afero.ReadDir(fs, dir)
+	if err != nil {
+		t.Fatalf("failed to read dir %s: %v", dir, err)
+	}
+	for _, entry := range entries {
+		if strings.HasPrefix(entry.Name(), ".terranotate-") {
+			return true
+		}
+	}
+	return false
+}
+
+func TestWriteFileAtomicReplacesAndCleansUp(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	if err := fs.MkdirAll("/dir", 0o755); err != nil {
+		t.Fatal(err)
+	}
+	original := []byte("original terraform\n")
+	if err := afero.WriteFile(fs, "/dir/main.tf", original, 0o640); err != nil {
+		t.Fatal(err)
+	}
+
+	updated := []byte("updated terraform annotated\n")
+	if err := WriteFileAtomic(fs, "/dir/main.tf", updated, 0o640); err != nil {
+		t.Fatalf("WriteFileAtomic returned error: %v", err)
+	}
+
+	got, err := afero.ReadFile(fs, "/dir/main.tf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != string(updated) {
+		t.Fatalf("content = %q, want %q", got, updated)
+	}
+	info, err := fs.Stat("/dir/main.tf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0o640 {
+		t.Fatalf("mode = %o, want 0640", info.Mode().Perm())
+	}
+	if hasTempLeftovers(t, fs, "/dir") {
+		t.Fatal("temporary file left behind after successful write")
+	}
+}
+
+// TestWriteFileAtomicPreservesOriginalOnFailure is the core reliability
+// guarantee: a failure while swapping in the new contents must never corrupt
+// or truncate the file being replaced, and must not leak temporary files.
+func TestWriteFileAtomicPreservesOriginalOnFailure(t *testing.T) {
+	base := afero.NewMemMapFs()
+	if err := base.MkdirAll("/dir", 0o755); err != nil {
+		t.Fatal(err)
+	}
+	original := []byte("original terraform that must survive\n")
+	if err := afero.WriteFile(base, "/dir/main.tf", original, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	fs := failingRenameFs{Fs: base}
+	err := WriteFileAtomic(fs, "/dir/main.tf", []byte("clobbered contents\n"), 0o600)
+	if err == nil {
+		t.Fatal("expected WriteFileAtomic to fail when rename fails")
+	}
+
+	got, readErr := afero.ReadFile(base, "/dir/main.tf")
+	if readErr != nil {
+		t.Fatalf("original file no longer readable: %v", readErr)
+	}
+	if string(got) != string(original) {
+		t.Fatalf("original file was modified on failure: %q", got)
+	}
+	if hasTempLeftovers(t, base, "/dir") {
+		t.Fatal("temporary file left behind after failed write")
+	}
+}
