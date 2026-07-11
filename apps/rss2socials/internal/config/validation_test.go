@@ -61,6 +61,40 @@ func TestValidateRequiredSiteSpecificConfiguration(t *testing.T) {
 			}(),
 			wantErr: "configured together",
 		},
+		{
+			name:    "non-positive interval",
+			conf:    func() Config { c := validMastodonConfig(); c.Interval = 0; return c }(),
+			wantErr: "INTERVAL",
+		},
+		{
+			name:    "no social sites configured",
+			conf:    Config{FeedURL: "https://example.com/feed.xml", Interval: 1},
+			wantErr: "at least one social site",
+		},
+		{
+			name:    "invalid mastodon URL scheme",
+			conf:    func() Config { c := validMastodonConfig(); c.MastodonURL = "ftp://social.example.com"; return c }(),
+			wantErr: "MASTODON_URL",
+		},
+		{
+			name: "invalid gotify URL scheme",
+			conf: func() Config {
+				c := validMastodonConfig()
+				c.GotifyURL = "ftp://gotify.example.com"
+				c.GotifyToken = "token"
+				return c
+			}(),
+			wantErr: "GOTIFY_URL",
+		},
+		{
+			name: "valid config with gotify pair",
+			conf: func() Config {
+				c := validMastodonConfig()
+				c.GotifyURL = "https://gotify.example.com"
+				c.GotifyToken = "token"
+				return c
+			}(),
+		},
 	}
 
 	for _, tt := range tests {

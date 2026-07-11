@@ -128,6 +128,14 @@ func TestCheckRSSFeed(t *testing.T) {
 	}
 }
 
+func TestCheckRSSFeedRejectsNonHTTPURL(t *testing.T) {
+	for _, feedURL := range []string{"file:///etc/passwd", "ftp://example.com/feed", "not-a-url", ""} {
+		if _, err := CheckRSSFeed(feedURL); err == nil || !strings.Contains(err.Error(), "absolute HTTP(S) URL") {
+			t.Fatalf("CheckRSSFeed(%q) error = %v, want absolute-URL error", feedURL, err)
+		}
+	}
+}
+
 func TestCheckRSSFeedRejectsOversizedResponse(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(strings.Repeat("x", maxFeedBytes+1)))
