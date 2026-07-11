@@ -265,12 +265,17 @@ func spotifyTokenFile(configured string) string {
 	return filepath.Join(configDir, "go-listen", "spotify-token.json")
 }
 
-func (c *Client) loadPersistedToken() (*oauth2.Token, error) {
+func (c *Client) loadPersistedToken() (loadedToken *oauth2.Token, resultErr error) {
 	file, err := os.Open(c.tokenFile) // #nosec G304 -- path is explicit application configuration
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			loadedToken = nil
+			resultErr = errors.Join(resultErr, fmt.Errorf("close persisted token file: %w", closeErr))
+		}
+	}()
 	if runtime.GOOS != "windows" {
 		info, statErr := file.Stat()
 		if statErr != nil {
@@ -303,18 +308,26 @@ func (c *Client) persistToken(token *oauth2.Token) error {
 		return err
 	}
 	tempName := temp.Name()
-	defer os.Remove(tempName)
-	if err := temp.Chmod(0o600); err != nil {
-		temp.Close()
-		return err
+	defer func() {
+		if removeErr := os.Remove(tempName); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+			c.logger.WithError(removeErr).Warn("Failed to remove temporary Spotify token file")
+		}
+	}()
+	closeTemp := func(writeErr error) error {
+		if closeErr := temp.Close(); closeErr != nil {
+			return errors.Join(writeErr, fmt.Errorf("close temporary token file: %w", closeErr))
+		}
+		return writeErr
 	}
+	if err := temp.Chmod(0o600); err != nil {
+		return closeTemp(err)
+	}
+	// #nosec G117 -- the OAuth token is intentionally persisted to this mode-0600 temporary file.
 	if err := json.NewEncoder(temp).Encode(token); err != nil {
-		temp.Close()
-		return err
+		return closeTemp(err)
 	}
 	if err := temp.Sync(); err != nil {
-		temp.Close()
-		return err
+		return closeTemp(err)
 	}
 	if err := temp.Close(); err != nil {
 		return err
