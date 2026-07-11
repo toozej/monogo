@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"testing"
@@ -495,6 +496,44 @@ func TestHourlySyncTimingAndRandomization(t *testing.T) {
 		}
 	}
 	assert.False(t, allSame, "Randomization should produce different durations")
+}
+
+// TestRunContinuousSyncStopsOnContextCancellation verifies the continuous loop
+// runs its initial sync and then returns cleanly once the context is cancelled,
+// rather than spinning or blocking on the scheduling timer.
+func TestRunContinuousSyncStopsOnContextCancellation(t *testing.T) {
+	mockKMHD := &MockKMHDScraper{
+		songs: []types.Song{{Artist: "Miles Davis", Title: "Kind of Blue"}},
+	}
+	mockSpotify := &MockSpotifyServiceForSync{
+		playlists: []types.Playlist{{ID: "playlist1", Name: "KMHD"}},
+		tracks:    []types.Track{{ID: "track1", Name: "Kind of Blue"}},
+	}
+	logger := log.New()
+	logger.SetLevel(log.ErrorLevel)
+	searcher := search.NewFuzzySongSearcher(mockSpotify, logger)
+	targetPlaylist := types.Playlist{ID: "playlist1", Name: "KMHD"}
+
+	// Cancel before starting so the loop exits at the first scheduling wait,
+	// even with a long base interval that would otherwise block for an hour.
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	done := make(chan error, 1)
+	go func() {
+		done <- runContinuousSync(ctx, mockKMHD, mockSpotify, searcher, targetPlaylist, "KMHD", time.Hour)
+	}()
+
+	select {
+	case err := <-done:
+		assert.NoError(t, err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("runContinuousSync did not return after context cancellation")
+	}
+
+	// Exactly one sync (the initial run) should have executed; the loop must not
+	// have started an additional cycle after cancellation.
+	assert.Equal(t, 1, mockSpotify.addCalls)
 }
 
 // TestAPIErrorHandling tests system behavior during API outages
