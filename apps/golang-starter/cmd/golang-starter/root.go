@@ -52,6 +52,15 @@ var (
 // all subcommands.
 var rootCmd *cobra.Command
 
+// newRootCommand constructs the root cobra command together with its flags and
+// subcommands.
+//
+// SilenceErrors and SilenceUsage are enabled so that command failures are
+// reported exactly once, by Execute, rather than also being printed by cobra.
+//
+// The debug flag (-d, --debug) is persistent and inherited by all subcommands;
+// it enables debug-level logging. The username flag (-u, --username) is local to
+// the root command and overrides the username loaded from configuration.
 func newRootCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:              "golang-starter",
@@ -123,17 +132,14 @@ func Execute() {
 
 // init initializes the command-line interface during package loading.
 //
-// This function performs the following setup operations:
-//   - Loads configuration from environment variables using config.GetEnvVars()
-//   - Defines persistent flags that are available to all commands
-//   - Sets up command-specific flags for the root command
-//   - Registers subcommands (man pages and version information)
-//
-// The debug flag (-d, --debug) enables debug-level logging and is persistent,
-// meaning it's inherited by all subcommands. The username flag (-u, --username)
-// allows overriding the username from environment variables.
+// It loads configuration once via config.Load, capturing any error in
+// configLoadErr instead of exiting the process. This defers configuration
+// problems to command execution (see rootCmdRun) so that subcommands such as
+// "version" and "man", which do not need application configuration, keep
+// working even when configuration fails to load. It then builds the root
+// command, including its flags and subcommands, via newRootCommand.
 func init() {
-	// get configuration from environment variables
+	// Load configuration, deferring any error to command execution.
 	conf, configLoadErr = config.Load()
 
 	rootCmd = newRootCommand()
