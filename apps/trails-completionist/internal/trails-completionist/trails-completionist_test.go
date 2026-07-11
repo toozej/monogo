@@ -30,3 +30,19 @@ func TestHTMLHandlerDoesNotExposeSiblingFiles(t *testing.T) {
 		}
 	}
 }
+
+func TestHTMLHandlerRejectsNonReadMethods(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "trails.html"), []byte("<html>trails</html>"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	handler := HTMLHandler(filepath.Join(dir, "trails.html"))
+
+	for _, method := range []string{http.MethodPost, http.MethodPut, http.MethodDelete} {
+		recorder := httptest.NewRecorder()
+		handler.ServeHTTP(recorder, httptest.NewRequest(method, "/", http.NoBody))
+		if recorder.Code != http.StatusMethodNotAllowed {
+			t.Errorf("%s / status = %d, want %d", method, recorder.Code, http.StatusMethodNotAllowed)
+		}
+	}
+}
