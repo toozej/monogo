@@ -7,6 +7,10 @@ FROM [[$distroless]]
 ARG TARGETPLATFORM
 COPY $TARGETPLATFORM/[[$app.binary]] /go/bin/[[$app.binary]]
 # Expose port for publishing as web service
+[[- if index $app "port" ]]
+EXPOSE [[$app.port]]
+[[- else ]]
 # EXPOSE 8081
+[[- end ]]
 # Run the binary.
 ENTRYPOINT ["/go/bin/[[$app.binary]]"]

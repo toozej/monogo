@@ -3,6 +3,8 @@ FROM gcr.io/distroless/static-debian13:nonroot
 # Copy our static executable.
 ARG TARGETPLATFORM
 COPY $TARGETPLATFORM/go-sort-out-gh-actions /go/bin/go-sort-out-gh-actions
+# Expose port for publishing as web service
+# EXPOSE 8081
 # Run the binary.
 USER 65532:65532
 ENTRYPOINT ["/go/bin/go-sort-out-gh-actions"]
