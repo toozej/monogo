@@ -74,6 +74,32 @@ func TestSubscribeToFeed(t *testing.T) {
 	}
 }
 
+// Test DeleteFeed for success (2xx) and failure (>=400) status handling.
+func TestDeleteFeed(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method != http.MethodDelete || r.URL.Path != "/v1/feeds/10" {
+				t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+			}
+			w.WriteHeader(http.StatusNoContent)
+		}))
+		defer server.Close()
+		if err := DeleteFeed(server.URL, "key", 10); err != nil {
+			t.Fatalf("DeleteFeed() error = %v", err)
+		}
+	})
+
+	t.Run("failure", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+		}))
+		defer server.Close()
+		if err := DeleteFeed(server.URL, "key", 10); err == nil {
+			t.Fatal("expected error on 500 status")
+		}
+	})
+}
+
 func TestRejectsInvalidEndpointAndRedirectStatus(t *testing.T) {
 	if _, err := GetCategoryID("not-a-url", "key", "Tech"); err == nil {
 		t.Fatal("expected invalid endpoint error")

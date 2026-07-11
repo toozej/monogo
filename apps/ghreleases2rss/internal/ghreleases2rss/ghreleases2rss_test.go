@@ -64,3 +64,33 @@ func TestRunDebugDoesNotMutateMiniflux(t *testing.T) {
 		t.Fatalf("debug run performed %d mutations", mutations)
 	}
 }
+
+// TestRunMissingInputFileDoesNotTouchMiniflux verifies the "fail safely"
+// guarantee: when the input file cannot be opened, the run aborts before any
+// remote call so a clear operation can never empty a category on bad input.
+func TestRunMissingInputFileDoesNotTouchMiniflux(t *testing.T) {
+	dir := t.TempDir()
+	originalWD, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.Chdir(originalWD) }()
+
+	contacted := false
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		contacted = true
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	err = Run(testCommand("does-not-exist.txt", "Tech", true, false), nil, config.Config{MinifluxURL: server.URL, MinifluxAPIKey: "key"})
+	if err == nil {
+		t.Fatal("expected error when input file is missing")
+	}
+	if contacted {
+		t.Fatal("miniflux must not be contacted when input file is missing")
+	}
+}
