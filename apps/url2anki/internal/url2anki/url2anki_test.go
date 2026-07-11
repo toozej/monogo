@@ -87,13 +87,16 @@ func TestRunPropagatesErrorsAndNormalizesExtension(t *testing.T) {
 
 func TestScrapeFlashcardsRejectsInvalidAndEmptyResults(t *testing.T) {
 	tests := []struct {
-		name string
-		url  string
-		html string
+		name   string
+		url    string
+		html   string
+		status int
 	}{
 		{name: "malformed URL", url: "://bad"},
 		{name: "unsupported scheme", url: "file:///tmp/cards.html"},
 		{name: "zero matches", html: "<html><body>no cards</body></html>"},
+		{name: "count mismatch", html: `<div class="q">only question</div>`},
+		{name: "non-2xx status", html: `<div class="q">q</div><div class="a">a</div>`, status: http.StatusNotFound},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -102,6 +105,9 @@ func TestScrapeFlashcardsRejectsInvalidAndEmptyResults(t *testing.T) {
 			client := &http.Client{Timeout: time.Second}
 			if rawURL == "" {
 				server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if tt.status != 0 {
+						w.WriteHeader(tt.status)
+					}
 					_, _ = w.Write([]byte(tt.html))
 				}))
 				defer server.Close()
