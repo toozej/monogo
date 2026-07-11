@@ -16,6 +16,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/toozej/monogo/apps/RSSFFS/internal/config"
 	"golang.org/x/net/html"
+	"golang.org/x/net/html/charset"
 )
 
 // Category struct to unmarshal the JSON response
@@ -330,6 +331,10 @@ func checkRSSFeed(ctx context.Context, client *http.Client, feedURL string) bool
 		return false
 	}
 	decoder := xml.NewDecoder(io.LimitReader(resp.Body, maxFeedBytes))
+	// Honor non-UTF-8 encodings (e.g. ISO-8859-1, windows-1252) that real feeds
+	// declare; without a CharsetReader the decoder errors on such declarations
+	// and valid feeds would be silently missed during discovery.
+	decoder.CharsetReader = charset.NewReaderLabel
 	for {
 		token, tokenErr := decoder.Token()
 		if tokenErr != nil {

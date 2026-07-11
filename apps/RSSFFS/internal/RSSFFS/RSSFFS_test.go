@@ -214,6 +214,8 @@ func TestCheckRSSFeedClosesBodiesAndValidatesRoot(t *testing.T) {
 	}{
 		{name: "rss", content: `<rss version="2.0"><channel/></rss>`, valid: true},
 		{name: "atom", content: `<feed xmlns="http://www.w3.org/2005/Atom"/>`, valid: true},
+		{name: "iso-8859-1 rss", content: `<?xml version="1.0" encoding="ISO-8859-1"?><rss version="2.0"><channel/></rss>`, valid: true},
+		{name: "windows-1252 atom", content: `<?xml version="1.0" encoding="windows-1252"?><feed xmlns="http://www.w3.org/2005/Atom"/>`, valid: true},
 		{name: "sitemap", content: `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"/>`, valid: false},
 		{name: "generic xml", content: `<document/>`, valid: false},
 	} {
