@@ -37,7 +37,7 @@ func TestFetchURLRejectsSSRF(t *testing.T) {
 
 func TestHTTPClientRejectsUnsafeRedirect(t *testing.T) {
 	cfg := DefaultScraperConfig()
-	req, err := http.NewRequest(http.MethodGet, "http://169.254.169.254/latest/meta-data/", http.NoBody)
+	req, err := http.NewRequest(http.MethodGet, "https://169.254.169.254/latest/meta-data/", http.NoBody)
 	if err != nil {
 		t.Fatal(err)
 	}
