@@ -582,6 +582,12 @@ func TestHttpClient(t *testing.T) {
 
 	// Verify it handles redirects
 	assert.NotNil(t, client.CheckRedirect, "Should have redirect handler")
+
+	// The client downloads full podcast episodes, which can take longer than any
+	// fixed deadline. An overall Client.Timeout would silently truncate large
+	// downloads, so it must stay unset; the time-to-first-byte is bounded on the
+	// transport's ResponseHeaderTimeout instead.
+	assert.Zero(t, client.Timeout, "Client must not set an overall timeout that truncates large downloads")
 }
 
 // TestGetRequest tests HTTP request creation with user agent.
