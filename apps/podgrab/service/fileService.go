@@ -478,9 +478,13 @@ func httpClient() *http.Client {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.Proxy = nil
 	transport.DialContext = safeDialContext
+	// Bound the connection setup and time-to-first-byte, but deliberately leave
+	// the overall Client.Timeout unset: this client also downloads full podcast
+	// episodes, which can legitimately take far longer than any fixed deadline.
+	// A total timeout here would silently truncate large downloads.
+	transport.ResponseHeaderTimeout = 30 * time.Second
 
 	return &http.Client{
-		Timeout:   30 * time.Second,
 		Transport: transport,
 		CheckRedirect: func(req *http.Request, _ []*http.Request) error {
 			if err := urlsafe.Validate(req.URL.String(), allowPrivateNetwork()); err != nil {
