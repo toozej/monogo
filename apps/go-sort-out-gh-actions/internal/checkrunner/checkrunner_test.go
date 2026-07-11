@@ -1485,6 +1485,40 @@ func TestRunReposMode_WithReposNoIssues(t *testing.T) {
 	}
 }
 
+func TestRunReposMode_ParseErrorFailsClosed(t *testing.T) {
+	tmpDir := t.TempDir()
+	repoDir := filepath.Join(tmpDir, "broken-repo")
+	workflowsDir := filepath.Join(repoDir, ".github", "workflows")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatalf("Failed to create workflows dir: %v", err)
+	}
+	// Malformed YAML so GetAllUsesFromRepoWithVersions (via ParseWorkflowFiles)
+	// returns an error and the per-repo scan cannot complete.
+	if err := os.WriteFile(filepath.Join(workflowsDir, "bad.yml"), []byte("jobs: ["), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	server := makeGHServer(nil, nil, nil)
+	defer server.Close()
+
+	rc := newTestRunContext(server)
+
+	var processCalled bool
+	processFunc := func(rc *RunContext, workflowFiles []*workflow.WorkflowFile, allActionRefs []workflow.ActionRef, workDir string) bool {
+		processCalled = true
+		return false
+	}
+
+	result := RunReposMode(rc, tmpDir, processFunc)
+
+	if !result {
+		t.Error("Expected RunReposMode to fail closed (return true) when a workflow file cannot be parsed")
+	}
+	if processCalled {
+		t.Error("Expected processFunc NOT to be called when the repo scan fails")
+	}
+}
+
 func TestDetectRuntimeEOL_VerboseLogging(t *testing.T) {
 	actionContent := "name: Test Action\nruns:\n using: node12\n main: dist/index.js\n"
 	encoded := base64.StdEncoding.EncodeToString([]byte(actionContent))
