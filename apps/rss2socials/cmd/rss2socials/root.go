@@ -21,6 +21,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -96,9 +97,11 @@ func rootCmdPreRun(cmd *cobra.Command, args []string) {
 // Execute starts the command-line interface execution.
 // This is the main entry point called from main.go to begin command processing.
 //
-// If command execution fails, it prints the error message to stdout and
-// exits the program with status code 1. This follows standard Unix conventions
-// for command-line tool error handling.
+// It installs a signal handler so that SIGINT/SIGTERM cancel the run context
+// and allow an in-flight cycle to unwind gracefully. If command execution fails
+// for any reason other than that graceful cancellation, it prints the error
+// message to stderr and exits the program with status code 1. This follows
+// standard Unix conventions for command-line tool error handling.
 //
 // Example:
 //
@@ -110,7 +113,9 @@ func Execute() {
 	rootCmd.SetContext(ctx)
 	err := rootCmd.Execute()
 	stop()
-	if err != nil {
+	if err != nil && !errors.Is(err, context.Canceled) {
+		// context.Canceled is the expected result of a SIGINT/SIGTERM-driven
+		// graceful shutdown, so treat it as a clean (exit 0) termination.
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
 	}
