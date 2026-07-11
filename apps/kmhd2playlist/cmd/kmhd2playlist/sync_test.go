@@ -59,10 +59,8 @@ func TestSyncSongsToService(t *testing.T) {
 	targetPlaylist := types.Playlist{ID: "playlist1", Name: "Test Playlist"}
 	seenSongs := make(map[string]bool) // Add the missing seenSongs parameter
 
-	// Test that syncSongsToService doesn't panic
-	assert.NotPanics(t, func() {
-		syncSongsToService(songs, mockSpotify, fuzzySongSearcher, targetPlaylist, seenSongs)
-	})
+	err := syncSongsToService(songs, mockSpotify, fuzzySongSearcher, targetPlaylist, seenSongs)
+	assert.ErrorContains(t, err, "confidence")
 }
 
 // MockSpotifyServiceForSync implements types.MusicService for testing sync
@@ -458,9 +456,9 @@ func TestAPIToSpotifyEndToEnd(t *testing.T) {
 
 	// Test the complete sync flow
 	// Note: This test may fail if the API is unavailable, which is expected
-	assert.NotPanics(t, func() {
-		runSingleSync(apiClient, mockSpotify, fuzzySongSearcher, targetPlaylist, seenSongs)
-	})
+	if err := runSingleSync(apiClient, mockSpotify, fuzzySongSearcher, targetPlaylist, seenSongs); err != nil {
+		t.Skipf("live KMHD API unavailable: %v", err)
+	}
 
 	// If the API was available and returned data, verify the integration worked
 	if len(seenSongs) > 0 {
@@ -502,24 +500,20 @@ func TestHourlySyncTimingAndRandomization(t *testing.T) {
 // TestAPIErrorHandling tests system behavior during API outages
 func TestAPIErrorHandling(t *testing.T) {
 	tests := []struct {
-		name        string
-		mockError   error
-		expectPanic bool
+		name      string
+		mockError error
 	}{
 		{
-			name:        "network timeout",
-			mockError:   fmt.Errorf("context deadline exceeded"),
-			expectPanic: false,
+			name:      "network timeout",
+			mockError: fmt.Errorf("context deadline exceeded"),
 		},
 		{
-			name:        "API server error",
-			mockError:   fmt.Errorf("API returned status 500: Internal Server Error"),
-			expectPanic: false,
+			name:      "API server error",
+			mockError: fmt.Errorf("API returned status 500: Internal Server Error"),
 		},
 		{
-			name:        "JSON parsing error",
-			mockError:   fmt.Errorf("failed to decode JSON response: invalid character"),
-			expectPanic: false,
+			name:      "JSON parsing error",
+			mockError: fmt.Errorf("failed to decode JSON response: invalid character"),
 		},
 	}
 
@@ -540,18 +534,11 @@ func TestAPIErrorHandling(t *testing.T) {
 			targetPlaylist := types.Playlist{ID: "test", Name: "Test"}
 			seenSongs := make(map[string]bool)
 
-			if tt.expectPanic {
-				assert.Panics(t, func() {
-					runSingleSync(mockKMHD, mockSpotify, fuzzySongSearcher, targetPlaylist, seenSongs)
-				})
-			} else {
-				assert.NotPanics(t, func() {
-					runSingleSync(mockKMHD, mockSpotify, fuzzySongSearcher, targetPlaylist, seenSongs)
-				})
+			err := runSingleSync(mockKMHD, mockSpotify, fuzzySongSearcher, targetPlaylist, seenSongs)
+			assert.ErrorContains(t, err, tt.mockError.Error())
 
-				// Should not process any songs when API fails
-				assert.Equal(t, 0, len(seenSongs))
-			}
+			// Should not process any songs when API fails
+			assert.Empty(t, seenSongs)
 		})
 	}
 }
