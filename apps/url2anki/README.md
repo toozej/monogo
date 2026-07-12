@@ -32,10 +32,15 @@ mkdir -p output
 URL2ANKI_URL='https://example.com/cards' \
 URL2ANKI_QUESTION_SELECTOR='.question' \
 URL2ANKI_ANSWER_SELECTOR='.answer' \
+URL2ANKI_OUTPUT_DIR="$PWD/output" \
+URL2ANKI_UID="$(id -u)" \
+URL2ANKI_GID="$(id -g)" \
 docker compose -f apps/url2anki/docker-compose.yml up --abort-on-container-exit
 ```
 
-The generated deck is written to `./output/anki_cards.csv`.
+The UID/GID settings keep the container nonroot while allowing it to write to
+the host-owned bind mount. The generated deck is written to
+`./output/anki_cards.csv`.
 
 ## changes required to update golang version
 - `make update-golang-version`

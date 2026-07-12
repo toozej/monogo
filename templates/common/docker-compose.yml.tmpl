@@ -5,6 +5,9 @@ services:
   [[$app.name]]:
     container_name: [[$app.name]]
     image: toozej/[[ strings.ToLower $app.name ]]:latest
+[[- if index $app "composeUser" ]]
+    user: "[[$app.composeUser]]"
+[[- end ]]
 [[- if index $app "composeRestart" ]]
     restart: "[[$app.composeRestart]]"
 [[- else ]]

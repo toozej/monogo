@@ -3,6 +3,7 @@ services:
   url2anki:
     container_name: url2anki
     image: toozej/url2anki:latest
+    user: "${URL2ANKI_UID:?URL2ANKI_UID is required}:${URL2ANKI_GID:?URL2ANKI_GID is required}"
     restart: "no"
     security_opt:
       - no-new-privileges:true
@@ -13,7 +14,7 @@ services:
       - "URL2ANKI_ANSWER_SELECTOR=${URL2ANKI_ANSWER_SELECTOR:?required}"
       - "URL2ANKI_OUTPUT_FILE=/output/anki_cards.csv"
     volumes:
-      - "./output:/output"
+      - "${URL2ANKI_OUTPUT_DIR:?URL2ANKI_OUTPUT_DIR is required}:/output"
     labels:
       - "traefik.enable=false"
       # labels below for publishing as web service

@@ -22,6 +22,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -67,16 +68,16 @@ func rootCmdPreRunE(cmd *cobra.Command, args []string) error {
 	if cmd.Parent() != nil {
 		return nil
 	}
-	if conf.URL == "" {
+	if strings.TrimSpace(conf.URL) == "" {
 		return fmt.Errorf("url is required")
 	}
-	if conf.QuestionSelector == "" {
+	if strings.TrimSpace(conf.QuestionSelector) == "" {
 		return fmt.Errorf("question selector is required")
 	}
-	if conf.AnswerSelector == "" {
+	if strings.TrimSpace(conf.AnswerSelector) == "" {
 		return fmt.Errorf("answer selector is required")
 	}
-	if conf.OutputFile == "" {
+	if strings.TrimSpace(conf.OutputFile) == "" {
 		return fmt.Errorf("output file is required")
 	}
 	if conf.HTTPTimeout <= 0 {

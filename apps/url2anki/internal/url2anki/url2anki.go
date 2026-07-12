@@ -3,6 +3,7 @@ package url2anki
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -60,6 +61,16 @@ func Run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	if timeout <= 0 {
+		return fmt.Errorf("http timeout must be greater than zero")
+	}
+	if maxResponseBytes <= 0 {
+		return fmt.Errorf("maximum response size must be greater than zero")
+	}
+	outputFormat := strings.ToLower(filepath.Ext(outputFile))
+	if outputFormat != ".json" && outputFormat != ".csv" {
+		return fmt.Errorf("unsupported output format %q: use .json or .csv", filepath.Ext(outputFile))
+	}
 	ctx := cmd.Context()
 	if ctx == nil {
 		ctx = context.Background()
@@ -87,7 +98,7 @@ func Run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	switch strings.ToLower(filepath.Ext(outputFile)) {
+	switch outputFormat {
 	case ".json":
 		if err := exportFlashcardsToJSONFile(flashcards, outputFile); err != nil {
 			return fmt.Errorf("export flashcards to JSON: %w", err)
@@ -98,14 +109,21 @@ func Run(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("export flashcards to CSV: %w", err)
 		}
 		fmt.Printf("Flashcards exported to %s\n", outputFile)
-	default:
-		return fmt.Errorf("unsupported output format %q: use .json or .csv", filepath.Ext(outputFile))
 	}
 	return nil
 }
 
 // scrapeFlashcards scrapes the flashcards from the provided URL using the provided HTML selectors
 func scrapeFlashcards(ctx context.Context, rawURL, questionSelector, answerSelector string, client *http.Client, maxResponseBytes int64) ([]Flashcard, error) {
+	rawURL = strings.TrimSpace(rawURL)
+	questionSelector = strings.TrimSpace(questionSelector)
+	answerSelector = strings.TrimSpace(answerSelector)
+	if questionSelector == "" {
+		return nil, fmt.Errorf("question selector is required")
+	}
+	if answerSelector == "" {
+		return nil, fmt.Errorf("answer selector is required")
+	}
 	pageURL, err := url.ParseRequestURI(rawURL)
 	if err != nil {
 		return nil, fmt.Errorf("parse URL %q: %w", rawURL, err)
@@ -116,7 +134,7 @@ func scrapeFlashcards(ctx context.Context, rawURL, questionSelector, answerSelec
 	if client == nil {
 		client = &http.Client{Timeout: 30 * time.Second}
 	}
-	if maxResponseBytes <= 0 || maxResponseBytes == 1<<63-1 {
+	if maxResponseBytes <= 0 {
 		return nil, fmt.Errorf("maximum response size must be greater than zero")
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, pageURL.String(), nil)
@@ -133,12 +151,9 @@ func scrapeFlashcards(ctx context.Context, rawURL, questionSelector, answerSelec
 	if res.StatusCode < http.StatusOK || res.StatusCode >= http.StatusMultipleChoices {
 		return nil, fmt.Errorf("fetch URL: unexpected HTTP status %s", res.Status)
 	}
-	body, err := io.ReadAll(io.LimitReader(res.Body, maxResponseBytes+1))
+	body, err := readResponse(res.Body, maxResponseBytes)
 	if err != nil {
 		return nil, fmt.Errorf("read response: %w", err)
-	}
-	if int64(len(body)) > maxResponseBytes {
-		return nil, fmt.Errorf("response exceeds %d-byte limit", maxResponseBytes)
 	}
 
 	// Parse the HTML document
@@ -176,6 +191,26 @@ func scrapeFlashcards(ctx context.Context, rawURL, questionSelector, answerSelec
 	return flashcards, nil
 }
 
+func readResponse(body io.Reader, maxResponseBytes int64) ([]byte, error) {
+	data, err := io.ReadAll(io.LimitReader(body, maxResponseBytes))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(data)) < maxResponseBytes {
+		return data, nil
+	}
+
+	var extra [1]byte
+	n, err := io.ReadFull(body, extra[:])
+	if n > 0 {
+		return nil, fmt.Errorf("response exceeds %d-byte limit", maxResponseBytes)
+	}
+	if err != nil && err != io.EOF {
+		return nil, err
+	}
+	return data, nil
+}
+
 func normalizeText(value string) string {
 	return strings.Join(strings.Fields(value), " ")
 }
@@ -197,7 +232,7 @@ func exportFlashcardsToJSONFile(flashcards []Flashcard, filename string) error {
 	if err != nil {
 		return err
 	}
-	return writeAtomically(filename, func(file *os.File) error {
+	return writeAtomically(filename, 0o600, func(file *os.File) error {
 		_, err := file.Write(data)
 		return err
 	})
@@ -205,7 +240,7 @@ func exportFlashcardsToJSONFile(flashcards []Flashcard, filename string) error {
 
 // exportFlashcardsToCSVFile exports the flashcards to a JSON file
 func exportFlashcardsToCSVFile(flashcards []Flashcard, filename string) error {
-	return writeAtomically(filename, func(file *os.File) error {
+	return writeAtomically(filename, 0o666, func(file *os.File) error {
 		writer := csv.NewWriter(file)
 
 		// Write header
@@ -224,14 +259,28 @@ func exportFlashcardsToCSVFile(flashcards []Flashcard, filename string) error {
 	})
 }
 
-func writeAtomically(filename string, write func(*os.File) error) error {
+func writeAtomically(filename string, mode os.FileMode, write func(*os.File) error) error {
 	absPath, err := filepath.Abs(filename)
 	if err != nil {
 		return err
 	}
-	temp, err := os.CreateTemp(filepath.Dir(absPath), "."+filepath.Base(absPath)+".tmp-*") // #nosec G304 -- directory is user-selected output location
+	preserveMode := false
+	if info, statErr := os.Stat(absPath); statErr == nil && info.Mode().IsRegular() {
+		mode = info.Mode().Perm()
+		preserveMode = true
+	} else if statErr != nil && !os.IsNotExist(statErr) {
+		return statErr
+	}
+	temp, err := createTemporaryFile(filepath.Dir(absPath), filepath.Base(absPath), mode)
 	if err != nil {
 		return err
+	}
+	if preserveMode {
+		if err := temp.Chmod(mode); err != nil {
+			_ = temp.Close()
+			_ = os.Remove(temp.Name())
+			return err
+		}
 	}
 	tempPath := temp.Name()
 	defer func() {
@@ -247,8 +296,22 @@ func writeAtomically(filename string, write func(*os.File) error) error {
 	if err := temp.Close(); err != nil {
 		return err
 	}
-	if err := os.Rename(tempPath, absPath); err != nil {
+	if err := replaceFile(tempPath, absPath); err != nil {
 		return err
 	}
 	return nil
+}
+
+func createTemporaryFile(dir, base string, mode os.FileMode) (*os.File, error) {
+	for {
+		path := filepath.Join(dir, "."+base+".tmp-"+rand.Text())
+		// #nosec G304 G302 -- dir and base come from the explicit output path,
+		// the random suffix and O_EXCL prevent replacement, and mode preserves
+		// the legacy exporter permissions while still applying the user's umask.
+		file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_EXCL, mode)
+		if os.IsExist(err) {
+			continue
+		}
+		return file, err
+	}
 }

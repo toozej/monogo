@@ -23,6 +23,7 @@ the devcontainer build. Run `make app-generate APP=<app>` after editing
 | `cgoEnabled` | no (default `false`) | Toggles `CGO_ENABLED`. See [CGO apps](#cgo-apps). |
 | `runtimeImage` | no | Overrides the runtime base in the non-distroless `Dockerfile`. Defaults to `scratch`, or `debian:trixie-slim` when `cgoEnabled` is `true`. |
 | `port` | no | When set, `EXPOSE <port>` is emitted in the generated Dockerfiles. |
+| `composeUser` | no | User or UID/GID used to run the Compose service. Useful for nonroot CLI containers that write to bind mounts. |
 | `composeRestart` | no (default `unless-stopped`) | Docker Compose restart policy. Set to `no` for one-shot CLI apps. |
 | `composeEnvironment` | no | Environment entries rendered into the app's Compose service. |
 | `composeVolumes` | no | Volume mounts rendered into the app's Compose service. |
