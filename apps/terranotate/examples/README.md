@@ -29,7 +29,7 @@ example1-aws-module/
 
 **Validation Command:**
 ```bash
-terranotate validate-module ./examples/example1-aws-module/vpc ./examples/example1-aws-module/schema.yaml
+terranotate validate ./examples/example1-aws-module/vpc ./examples/example1-aws-module/schema.yaml
 ```
 
 **What it validates:**
@@ -80,7 +80,7 @@ example2-aws-workspace/
 
 **Validation Command:**
 ```bash
-terranotate validate-workspace ./examples/example2-aws-workspace/infrastructure ./examples/example2-aws-workspace/schema.yaml
+terranotate validate ./examples/example2-aws-workspace/infrastructure ./examples/example2-aws-workspace/schema.yaml
 ```
 
 **What it validates:**
@@ -120,10 +120,10 @@ example3-gcp-monorepo/
 **Validation Commands:**
 ```bash
 # Validate individual project
-terranotate validate-workspace ./examples/example3-gcp-monorepo/project-a/infrastructure ./examples/example3-gcp-monorepo/schema.yaml
+terranotate validate ./examples/example3-gcp-monorepo/project-a/infrastructure ./examples/example3-gcp-monorepo/schema.yaml
 
 # Validate entire monorepo
-terranotate validate-workspace ./examples/example3-gcp-monorepo ./examples/example3-gcp-monorepo/schema.yaml
+terranotate validate ./examples/example3-gcp-monorepo ./examples/example3-gcp-monorepo/schema.yaml
 ```
 
 ## Example Output: Module Validation
@@ -245,7 +245,7 @@ example4-gcp-module/
 
 **Validation Command (Expected to FAIL):**
 ```bash
-terranotate validate-module ./examples/example4-gcp-module/storage ./examples/example4-gcp-module/schema.yaml
+terranotate validate ./examples/example4-gcp-module/storage ./examples/example4-gcp-module/schema.yaml
 ```
 
 **Fix Command (Expected to PASS):**
@@ -254,7 +254,7 @@ terranotate fix ./examples/example4-gcp-module/storage ./examples/example4-gcp-m
 ```
 
 **What it does:**
-- `validate-module` will find a `google_storage_bucket` without any `@metadata` or `@validation` tags.
+- `validate` will find a `google_storage_bucket` without any `@metadata` or `@validation` tags.
 - `fix` will automatically add the missing comment blocks with placeholder values (e.g., `# @metadata owner:CHANGEME`, `# @validation priority:medium`).
 
 

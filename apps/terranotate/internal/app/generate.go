@@ -1,6 +1,7 @@
 package app
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -40,6 +41,7 @@ func Generate(fs afero.Fs, path, schemaFile, outputFile string) error {
 
 	var allResources []parser.TerraformResource
 	var moduleName string
+	var parseErrors []error
 
 	if info.IsDir() {
 		// Find all Terraform files
@@ -62,6 +64,7 @@ func Generate(fs afero.Fs, path, schemaFile, outputFile string) error {
 			resources, err := p.ParseFile(file)
 			if err != nil {
 				fmt.Printf("Warning: Failed to parse %s: %v\n", file, err)
+				parseErrors = append(parseErrors, fmt.Errorf("%s: %w", file, err))
 				continue
 			}
 			allResources = append(allResources, resources...)
@@ -85,6 +88,9 @@ func Generate(fs afero.Fs, path, schemaFile, outputFile string) error {
 	fmt.Printf("Parsed %d resource(s)\n\n", len(allResources))
 
 	if len(allResources) == 0 {
+		if err := errors.Join(parseErrors...); err != nil {
+			return fmt.Errorf("failed to parse Terraform files: %w", err)
+		}
 		return fmt.Errorf("no resources found to document")
 	}
 
@@ -103,6 +109,9 @@ func Generate(fs afero.Fs, path, schemaFile, outputFile string) error {
 		// Write to stdout
 		fmt.Println(strings.Repeat("=", 50))
 		fmt.Println(markdown)
+	}
+	if err := errors.Join(parseErrors...); err != nil {
+		return fmt.Errorf("documentation generated from partial results; failed to parse Terraform files: %w", err)
 	}
 
 	return nil

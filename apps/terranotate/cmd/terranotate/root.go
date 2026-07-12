@@ -128,7 +128,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "Enable debug-level logging")
 
 	// optional flag for username, overrides env var
-	rootCmd.Flags().StringVarP(&conf.TerraformVersion, "terraform-version", "v", conf.TerraformVersion, "Terraform version")
+	rootCmd.PersistentFlags().StringVarP(&conf.TerraformVersion, "terraform-version", "v", conf.TerraformVersion, "Terraform version")
 
 	// add sub-commands
 	rootCmd.AddCommand(
