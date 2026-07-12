@@ -114,6 +114,21 @@ func TestShouldSkipPost(t *testing.T) {
 	}
 }
 
+func TestFilteredPostsDeduplicatesLinksUsingNewestPublication(t *testing.T) {
+	posts := []rss.RSSItem{
+		{Link: "https://example.com/duplicate", Content: "older", PubDate: "Mon, 01 Jan 2024 00:00:00 +0000"},
+		{Link: "https://example.com/unique", Content: "unique"},
+		{Link: "https://example.com/duplicate", Content: "newest", PubDate: "Wed, 03 Jan 2024 00:00:00 +0000"},
+		{Link: "https://example.com/duplicate", Content: "middle", PubDate: "Tue, 02 Jan 2024 00:00:00 +0000"},
+	}
+
+	got := filteredPosts(posts, config.Config{})
+	require.Len(t, got, 2)
+	assert.Equal(t, "https://example.com/duplicate", got[0].Link)
+	assert.Equal(t, "newest", got[0].Content)
+	assert.Equal(t, "https://example.com/unique", got[1].Link)
+}
+
 func setupTestDB(t *testing.T) {
 	t.Helper()
 	require.NoError(t, db.InitDB())
@@ -423,6 +438,62 @@ func TestHandlePost_UpdatedPostFailureRetriesSameDelivery(t *testing.T) {
 	pending, err = db.IsUpdatePending(post.Link)
 	assert.NoError(t, err)
 	assert.False(t, pending)
+}
+
+func TestHandlePost_CompletesRecoveredPendingUpdate(t *testing.T) {
+	setupTestDB(t)
+
+	post := rss.RSSItem{Link: "https://example.com/recovered-update", Content: "updated", Title: "Post"}
+	require.NoError(t, db.StoreUpdatedPost(post.Link, post.Content, "2026-01-01T00:00:00Z"))
+	require.NoError(t, db.MarkSitePosted(post.Link, "mastodon"))
+
+	var calls int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&calls, 1)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"1"}`))
+	}))
+	defer server.Close()
+
+	conf := &config.Config{
+		MastodonURL: server.URL, MastodonClientKey: "key",
+		MastodonClientSecret: "secret", MastodonAccessToken: "token",
+	}
+	require.NoError(t, handlePost(post, conf, "2026-01-01T00:00:00Z", false))
+	assert.Equal(t, int32(0), atomic.LoadInt32(&calls), "a remotely delivered update must not be posted again")
+	pending, err := db.IsUpdatePending(post.Link)
+	require.NoError(t, err)
+	assert.False(t, pending, "recovery must converge the pending-update state")
+}
+
+func TestHandlePost_CancellationPropagatesToGotify(t *testing.T) {
+	setupTestDB(t)
+
+	mastodonServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"1"}`))
+	}))
+	defer mastodonServer.Close()
+
+	var gotifyCalls int32
+	gotifyServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&gotifyCalls, 1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer gotifyServer.Close()
+
+	conf := &config.Config{
+		MastodonURL: mastodonServer.URL, MastodonClientKey: "key",
+		MastodonClientSecret: "secret", MastodonAccessToken: "token",
+		GotifyURL: gotifyServer.URL, GotifyToken: "gotify-token",
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	err := handlePostContext(ctx, rss.RSSItem{
+		Link: "https://example.com/canceled", Content: "content", Title: "Canceled",
+	}, conf, "2026-01-01T00:00:00Z", false)
+	assert.ErrorIs(t, err, context.Canceled)
+	assert.Equal(t, int32(0), atomic.LoadInt32(&gotifyCalls), "canceled work must not start a background notification")
 }
 
 func TestHandlePost_CategoryMismatchSkips(t *testing.T) {
@@ -1399,6 +1470,39 @@ func TestRun_PostNewEntriesOnlyPostsUnseenBackdatedItem(t *testing.T) {
 	})
 	assert.NoError(t, Run(conf))
 	assert.Equal(t, int32(1), atomic.LoadInt32(&calls), "DB absence, not pubDate, identifies a new item")
+}
+
+func TestRun_PostNewEntriesOnlyRemembersEmptySnapshot(t *testing.T) {
+	dbFile := setupRunTestDB(t)
+	items := []rss.RSSItem{}
+
+	rssServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		feed := rss.RSSFeed{}
+		feed.Channel.Items = items
+		_ = xml.NewEncoder(w).Encode(feed)
+	}))
+	defer rssServer.Close()
+	var calls int32
+	mastodonServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&calls, 1)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"1"}`))
+	}))
+	defer mastodonServer.Close()
+
+	conf := config.Config{
+		FeedURL: rssServer.URL, Interval: 1, ShortRun: true, PostNewEntriesOnly: true,
+		DBPath: dbFile, SocialSites: []string{"mastodon"}, MastodonURL: mastodonServer.URL,
+		MastodonClientKey: "key", MastodonClientSecret: "secret", MastodonAccessToken: "token",
+	}
+	require.NoError(t, Run(conf))
+	assert.Equal(t, int32(0), atomic.LoadInt32(&calls))
+
+	items = []rss.RSSItem{{
+		Title: "First item", Link: "https://example.com/first", Content: "new after empty snapshot",
+	}}
+	require.NoError(t, Run(conf))
+	assert.Equal(t, int32(1), atomic.LoadInt32(&calls), "the first later item must not become a new baseline after restart")
 }
 
 func TestRun_ShortRunReturnsFeedFailure(t *testing.T) {

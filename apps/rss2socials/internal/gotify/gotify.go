@@ -19,9 +19,15 @@ import (
 
 // LogFailure logs the error and sends a notification to the Gotify instance.
 func LogFailure(message string, err error, conf *config.Config) {
+	LogFailureContext(context.Background(), message, err, conf)
+}
+
+// LogFailureContext logs an error and sends the optional Gotify notification
+// using ctx so application shutdown does not wait for an unrelated request.
+func LogFailureContext(ctx context.Context, message string, err error, conf *config.Config) {
 	log.Printf("%s: %s", message, err)
 	if conf.GotifyURL != "" && conf.GotifyToken != "" {
-		if err := SendGotifyNotification(conf, message, err.Error()); err != nil {
+		if err := SendGotifyNotificationContext(ctx, conf, message, err.Error()); err != nil {
 			log.Printf("Error sending Gotify notification: %s", err)
 		}
 	}
@@ -30,9 +36,15 @@ func LogFailure(message string, err error, conf *config.Config) {
 // LogSuccess logs a success message and sends a notification to the Gotify instance
 // when GotifyNotifyOnSuccess is enabled.
 func LogSuccess(message string, conf *config.Config) {
+	LogSuccessContext(context.Background(), message, conf)
+}
+
+// LogSuccessContext logs a success and sends the optional Gotify notification
+// using ctx so application shutdown can cancel the request.
+func LogSuccessContext(ctx context.Context, message string, conf *config.Config) {
 	log.Info(message)
 	if conf.GotifyNotifyOnSuccess && conf.GotifyURL != "" && conf.GotifyToken != "" {
-		if err := SendGotifyNotification(conf, "rss2socials success", message); err != nil {
+		if err := SendGotifyNotificationContext(ctx, conf, "rss2socials success", message); err != nil {
 			log.Printf("Error sending Gotify success notification: %s", err)
 		}
 	}

@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/toozej/monogo/apps/rss2socials/internal/rss"
 )
 
 func TestInitDB(t *testing.T) {
@@ -260,6 +261,16 @@ func TestSeedPostMarksSnapshotDelivered(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, posted, "%s should not announce the initial snapshot", site)
 	}
+}
+
+func TestSeedEmptySnapshotMarksInitialization(t *testing.T) {
+	require.NoError(t, InitDB())
+	defer func() { require.NoError(t, CloseDB()) }()
+	defer func() { _ = os.Remove("./tooted_posts.db") }()
+
+	assert.True(t, IsFirstCycle(), "a new database must need an initial snapshot")
+	require.NoError(t, SeedPosts([]rss.RSSItem{}, "2026-01-01T00:00:00Z"))
+	assert.False(t, IsFirstCycle(), "an empty successful snapshot must be remembered across restarts")
 }
 
 func TestIsFirstCycle(t *testing.T) {

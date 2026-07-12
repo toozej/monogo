@@ -61,6 +61,7 @@ var rootCmd = &cobra.Command{
 	Args:             cobra.ExactArgs(0),
 	PersistentPreRun: rootCmdPreRun,
 	RunE:             rootCmdRun,
+	SilenceErrors:    true,
 }
 
 // rootCmdRun is the main execution function for the root command.
@@ -113,12 +114,37 @@ func Execute() {
 	rootCmd.SetContext(ctx)
 	err := rootCmd.Execute()
 	stop()
-	if err != nil && !errors.Is(err, context.Canceled) {
+	if err != nil && !isCancellationOnly(err) {
 		// context.Canceled is the expected result of a SIGINT/SIGTERM-driven
 		// graceful shutdown, so treat it as a clean (exit 0) termination.
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
 	}
+}
+
+// isCancellationOnly distinguishes a normal signal-driven cancellation from
+// a cancellation joined with another failure, such as an error closing the
+// database. The latter must still produce a non-zero exit.
+func isCancellationOnly(err error) bool {
+	if err == nil {
+		return false
+	}
+	if joined, ok := err.(interface{ Unwrap() []error }); ok {
+		children := joined.Unwrap()
+		if len(children) == 0 {
+			return false
+		}
+		for _, child := range children {
+			if !isCancellationOnly(child) {
+				return false
+			}
+		}
+		return true
+	}
+	if wrapped, ok := err.(interface{ Unwrap() error }); ok {
+		return isCancellationOnly(wrapped.Unwrap())
+	}
+	return errors.Is(err, context.Canceled)
 }
 
 // init initializes the command-line interface during package loading.

@@ -125,6 +125,7 @@ func waitForNextCycle(ctx context.Context, interval time.Duration) error {
 
 func filteredPosts(posts []rss.RSSItem, conf config.Config) []rss.RSSItem {
 	filtered := make([]rss.RSSItem, 0, len(posts))
+	linkIndexes := make(map[string]int, len(posts))
 	for _, post := range posts {
 		if shouldSkipPost(post, conf.SkipPrefixCategories) {
 			continue
@@ -132,9 +133,22 @@ func filteredPosts(posts []rss.RSSItem, conf config.Config) []rss.RSSItem {
 		if conf.Category != "" && !strings.Contains(path.Base(post.Link), conf.Category) {
 			continue
 		}
+		if index, exists := linkIndexes[post.Link]; exists {
+			if publishedAfter(post, filtered[index]) {
+				filtered[index] = post
+			}
+			continue
+		}
+		linkIndexes[post.Link] = len(filtered)
 		filtered = append(filtered, post)
 	}
 	return filtered
+}
+
+func publishedAfter(candidate, current rss.RSSItem) bool {
+	candidateTime, candidateErr := candidate.ParsePubDate()
+	currentTime, currentErr := current.ParsePubDate()
+	return candidateErr == nil && (currentErr != nil || candidateTime.After(currentTime))
 }
 
 func newestPosts(posts []rss.RSSItem, limit int) []rss.RSSItem {
@@ -195,6 +209,9 @@ func handlePostContext(ctx context.Context, post rss.RSSItem, conf *config.Confi
 			return err
 		}
 		if complete {
+			if isUpdate {
+				return db.MarkUpdateComplete(post.Link)
+			}
 			return nil
 		}
 		if isUpdate {
@@ -234,12 +251,12 @@ func handlePostContext(ctx context.Context, post rss.RSSItem, conf *config.Confi
 			if err != nil {
 				postErr = errors.Join(postErr, fmt.Errorf("post %q to mastodon: %w", post.Link, err))
 				if isUpdate {
-					gotify.LogFailure("Failed to toot updated post", err, conf)
+					gotify.LogFailureContext(ctx, "Failed to toot updated post", err, conf)
 				} else {
-					gotify.LogFailure("Failed to toot new post", err, conf)
+					gotify.LogFailureContext(ctx, "Failed to toot new post", err, conf)
 				}
 			} else {
-				gotify.LogSuccess(fmt.Sprintf("Successfully posted to Mastodon: %s", post.Title), conf)
+				gotify.LogSuccessContext(ctx, fmt.Sprintf("Successfully posted to Mastodon: %s", post.Title), conf)
 				if markErr := db.MarkSitePosted(post.Link, "mastodon"); markErr != nil {
 					postErr = errors.Join(postErr, fmt.Errorf("mark mastodon posted for %q: %w", post.Link, markErr))
 				}
@@ -260,9 +277,9 @@ func handlePostContext(ctx context.Context, post rss.RSSItem, conf *config.Confi
 			cancel()
 			if err != nil {
 				postErr = errors.Join(postErr, fmt.Errorf("post %q to bluesky: %w", post.Link, err))
-				gotify.LogFailure(fmt.Sprintf("Failed to post to Bluesky: %s", post.Title), err, conf)
+				gotify.LogFailureContext(ctx, fmt.Sprintf("Failed to post to Bluesky: %s", post.Title), err, conf)
 			} else {
-				gotify.LogSuccess(fmt.Sprintf("Successfully posted to Bluesky: %s", post.Title), conf)
+				gotify.LogSuccessContext(ctx, fmt.Sprintf("Successfully posted to Bluesky: %s", post.Title), conf)
 				if markErr := db.MarkSitePosted(post.Link, "bluesky"); markErr != nil {
 					postErr = errors.Join(postErr, fmt.Errorf("mark bluesky posted for %q: %w", post.Link, markErr))
 				}
@@ -283,9 +300,9 @@ func handlePostContext(ctx context.Context, post rss.RSSItem, conf *config.Confi
 			cancel()
 			if err != nil {
 				postErr = errors.Join(postErr, fmt.Errorf("post %q to threads: %w", post.Link, err))
-				gotify.LogFailure(fmt.Sprintf("Failed to post to Threads: %s", post.Title), err, conf)
+				gotify.LogFailureContext(ctx, fmt.Sprintf("Failed to post to Threads: %s", post.Title), err, conf)
 			} else {
-				gotify.LogSuccess(fmt.Sprintf("Successfully posted to Threads: %s", post.Title), conf)
+				gotify.LogSuccessContext(ctx, fmt.Sprintf("Successfully posted to Threads: %s", post.Title), conf)
 				if markErr := db.MarkSitePosted(post.Link, "threads"); markErr != nil {
 					postErr = errors.Join(postErr, fmt.Errorf("mark threads posted for %q: %w", post.Link, markErr))
 				}

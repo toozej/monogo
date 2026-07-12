@@ -24,6 +24,12 @@ type TootedPost struct {
 	PendingUpdate  bool `gorm:"default:false"`
 }
 
+type FeedState struct {
+	Key string `gorm:"primaryKey"`
+}
+
+const initialSnapshotState = "initial_snapshot_seeded"
+
 var DB *gorm.DB
 
 func InitDB(path ...string) error {
@@ -42,7 +48,7 @@ func InitDB(path ...string) error {
 		return fmt.Errorf("open database %q: %w", dbPath, err)
 	}
 
-	if err := database.AutoMigrate(&TootedPost{}); err != nil {
+	if err := database.AutoMigrate(&TootedPost{}, &FeedState{}); err != nil {
 		if sqlDB, dbErr := database.DB(); dbErr == nil {
 			_ = sqlDB.Close()
 		}
@@ -114,7 +120,7 @@ func SeedPosts(posts []rss.RSSItem, startupTime string) error {
 				return err
 			}
 		}
-		return nil
+		return tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&FeedState{Key: initialSnapshotState}).Error
 	})
 }
 
@@ -216,6 +222,18 @@ func MarkUpdateComplete(link string) error {
 }
 
 func IsFirstCycleE() (bool, error) {
+	var state FeedState
+	result := DB.Select("key").Where("key = ?", initialSnapshotState).First(&state)
+	if result.Error == nil {
+		return false, nil
+	}
+	if result.Error != gorm.ErrRecordNotFound {
+		return false, result.Error
+	}
+
+	// Databases created by older versions have no FeedState row. Preserve
+	// their established behavior by treating any stored post as evidence that
+	// the initial snapshot was already processed.
 	var count int64
 	if err := DB.Model(&TootedPost{}).Count(&count).Error; err != nil {
 		return false, err
