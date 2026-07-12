@@ -57,11 +57,12 @@ func Extract(img image.Image, password string) ([]byte, error) {
 				continue
 			}
 
-			data := bitsToBytes(s.bits[:byteCount*8])
-
 			if s.needed == 0 {
-				h, _, err := DecodeHeader(data)
+				header := bitsToBytes(s.bits[:12*8])
+				h, _, err := DecodeHeader(header)
 				if err != nil {
+					s.complete = true
+					s.lastErr = fmt.Errorf("invalid payload header (nch=%d): %w", s.nch, err)
 					continue
 				}
 				s.needed = 12 + int64(h.Length)
@@ -83,7 +84,8 @@ func Extract(img image.Image, password string) ([]byte, error) {
 				continue
 			}
 
-			payload, err := ParsePayload(data[:s.needed], password)
+			data := bitsToBytes(s.bits[:s.needed*8])
+			payload, err := ParsePayload(data, password)
 			if err == nil {
 				return payload, nil
 			}

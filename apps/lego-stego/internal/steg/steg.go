@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"image"
 	"image/png"
+	"io"
 	"os"
-	"path/filepath"
 
 	"github.com/makiuchi-d/gozxing"
 	"github.com/makiuchi-d/gozxing/qrcode"
 	goqrcode "github.com/skip2/go-qrcode"
+	"github.com/toozej/monogo/apps/lego-stego/internal/atomicfile"
 )
 
 func EmbedQRCode(url, inputPath, outputPath string) error {
@@ -17,11 +18,14 @@ func EmbedQRCode(url, inputPath, outputPath string) error {
 	if err != nil {
 		return err
 	}
-	defer func() { _ = f.Close() }()
 
-	img, _, err := image.Decode(f)
-	if err != nil {
-		return err
+	img, _, decodeErr := image.Decode(f)
+	closeErr := f.Close()
+	if decodeErr != nil {
+		return decodeErr
+	}
+	if closeErr != nil {
+		return closeErr
 	}
 
 	qrImg, err := GenerateQRCode(url)
@@ -47,11 +51,14 @@ func ExtractAndDecode(inputPath, outputPath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer func() { _ = f.Close() }()
 
-	img, _, err := image.Decode(f)
-	if err != nil {
-		return "", err
+	img, _, decodeErr := image.Decode(f)
+	closeErr := f.Close()
+	if decodeErr != nil {
+		return "", decodeErr
+	}
+	if closeErr != nil {
+		return "", closeErr
 	}
 
 	data, err := Extract(img, "")
@@ -79,33 +86,9 @@ func ExtractAndDecode(inputPath, outputPath string) (string, error) {
 }
 
 func writePNGAtomic(outputPath string, img image.Image) error {
-	var encoded bytes.Buffer
-	if err := png.Encode(&encoded, img); err != nil {
-		return err
-	}
-	absPath, err := filepath.Abs(outputPath)
-	if err != nil {
-		return err
-	}
-	temp, err := os.CreateTemp(filepath.Dir(absPath), "."+filepath.Base(absPath)+".tmp-*")
-	if err != nil {
-		return err
-	}
-	tempPath := temp.Name()
-	defer func() {
-		_ = temp.Close()
-		_ = os.Remove(tempPath)
-	}()
-	if _, err := temp.Write(encoded.Bytes()); err != nil {
-		return err
-	}
-	if err := temp.Sync(); err != nil {
-		return err
-	}
-	if err := temp.Close(); err != nil {
-		return err
-	}
-	return os.Rename(tempPath, absPath)
+	return atomicfile.Write(outputPath, 0600, func(w io.Writer) error {
+		return png.Encode(w, img)
+	})
 }
 
 func GenerateQRCode(data string) (image.Image, error) {

@@ -36,6 +36,7 @@ func TestParsePayloadRejectsInvalidHeaderFieldsAndLength(t *testing.T) {
 		{name: "version", mutate: func(data []byte) { data[4] = 2 }},
 		{name: "flags", mutate: func(data []byte) { data[5] = 0xff }},
 		{name: "channels", mutate: func(data []byte) { data[6] = 255 }},
+		{name: "reserved", mutate: func(data []byte) { data[7] = 1 }},
 		{name: "oversized length", mutate: func(data []byte) { binary.BigEndian.PutUint32(data[8:12], ^uint32(0)) }},
 	}
 	for _, tt := range tests {

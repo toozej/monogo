@@ -56,6 +56,9 @@ func DecodeHeader(data []byte) (Header, int, error) {
 	if h.Channels != 1 && h.Channels != 3 {
 		return Header{}, 0, errors.New("invalid payload channel count")
 	}
+	if data[7] != 0 {
+		return Header{}, 0, errors.New("invalid reserved header byte")
+	}
 
 	return h, 12, nil
 }

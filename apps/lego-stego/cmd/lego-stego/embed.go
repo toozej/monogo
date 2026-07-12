@@ -15,9 +15,8 @@ var embedCmd = &cobra.Command{
 	Short: "Embed a QR URL into an image",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		parsed, err := url.ParseRequestURI(embedURL)
-		if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
-			return fmt.Errorf("url must use http or https and include a host")
+		if err := validateEmbedURL(embedURL); err != nil {
+			return err
 		}
 		pw, err := readPassword(embedPassword)
 		if err != nil {
@@ -26,6 +25,14 @@ var embedCmd = &cobra.Command{
 
 		return api.EmbedQR(embedInput, embedOutput, embedURL, pw)
 	},
+}
+
+func validateEmbedURL(value string) error {
+	parsed, err := url.ParseRequestURI(value)
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
+		return fmt.Errorf("url must use http or https and include a host")
+	}
+	return nil
 }
 
 func init() {

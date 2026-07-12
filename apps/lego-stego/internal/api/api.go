@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"image"
 	"image/png"
+	"io"
 	"os"
 
+	"github.com/toozej/monogo/apps/lego-stego/internal/atomicfile"
 	"github.com/toozej/monogo/apps/lego-stego/internal/steg"
 )
 
@@ -41,11 +43,7 @@ func ExtractQR(in, out string, password string) (string, error) {
 			return "", err
 		}
 
-		var output bytes.Buffer
-		if err := png.Encode(&output, qrImg); err != nil {
-			return "", err
-		}
-		if err := WriteFileAtomic(out, output.Bytes(), 0600); err != nil {
+		if err := writePNGAtomic(out, qrImg); err != nil {
 			return "", err
 		}
 	}
@@ -59,11 +57,14 @@ func EmbedFile(in, out string, data []byte, password string) error {
 	if err != nil {
 		return err
 	}
-	defer func() { _ = f.Close() }()
 
-	img, _, err := image.Decode(f)
-	if err != nil {
-		return err
+	img, _, decodeErr := image.Decode(f)
+	closeErr := f.Close()
+	if decodeErr != nil {
+		return decodeErr
+	}
+	if closeErr != nil {
+		return closeErr
 	}
 
 	stego, err := steg.Embed(img, data, password)
@@ -71,11 +72,13 @@ func EmbedFile(in, out string, data []byte, password string) error {
 		return err
 	}
 
-	var output bytes.Buffer
-	if err := png.Encode(&output, stego); err != nil {
-		return err
-	}
-	return WriteFileAtomic(out, output.Bytes(), 0600)
+	return writePNGAtomic(out, stego)
+}
+
+func writePNGAtomic(path string, img image.Image) error {
+	return atomicfile.Write(path, 0600, func(w io.Writer) error {
+		return png.Encode(w, img)
+	})
 }
 
 func ExtractFile(in string, password string) ([]byte, error) {
