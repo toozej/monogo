@@ -725,6 +725,15 @@ func TestHTTPClientRejectsUnsafeRedirect(t *testing.T) {
 	require.ErrorContains(t, err, "refusing redirect target")
 }
 
+func TestHTTPClientRejectsTooManyRedirects(t *testing.T) {
+	t.Setenv("ALLOW_PRIVATE_NETWORK", "true")
+	req, err := http.NewRequest(http.MethodGet, "https://example.com/next", http.NoBody)
+	require.NoError(t, err)
+
+	err = httpClient().CheckRedirect(req, make([]*http.Request, 10))
+	require.ErrorContains(t, err, "10 redirects")
+}
+
 func TestSafeDialContextRejectsReboundInternalAddress(t *testing.T) {
 	t.Setenv("ALLOW_PRIVATE_NETWORK", "false")
 	originalLookup := lookupIPAddr
@@ -741,5 +750,24 @@ func TestSafeDialContextRejectsReboundInternalAddress(t *testing.T) {
 	}
 
 	_, err := safeDialContext(context.Background(), "tcp", "example.test:80")
+	require.ErrorContains(t, err, "private/internal")
+}
+
+func TestSafeDialContextRejectsSharedAddressSpace(t *testing.T) {
+	t.Setenv("ALLOW_PRIVATE_NETWORK", "false")
+	originalLookup := lookupIPAddr
+	originalDial := networkDial
+	t.Cleanup(func() {
+		lookupIPAddr = originalLookup
+		networkDial = originalDial
+	})
+	lookupIPAddr = func(context.Context, string) ([]net.IPAddr, error) {
+		return []net.IPAddr{{IP: net.ParseIP("100.100.100.200")}}, nil
+	}
+	networkDial = func(context.Context, string, string) (net.Conn, error) {
+		return nil, errors.New("dial should not be reached")
+	}
+
+	_, err := safeDialContext(context.Background(), "tcp", "metadata.example:80")
 	require.ErrorContains(t, err, "private/internal")
 }

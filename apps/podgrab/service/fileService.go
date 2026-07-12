@@ -125,11 +125,16 @@ func CreateNfoFile(podcast *db.Podcast) error {
 
 // DownloadPodcastCoverImage download podcast cover image.
 func DownloadPodcastCoverImage(link, podcastName string) (string, error) {
+	setting := db.GetOrCreateSetting()
+	return downloadPodcastCoverImage(link, podcastName, setting.UserAgent)
+}
+
+func downloadPodcastCoverImage(link, podcastName, userAgent string) (string, error) {
 	if link == "" {
 		return "", errors.New("Download link empty")
 	}
 	client := httpClient()
-	req, err := getRequest(link)
+	req, err := getRequestWithUserAgent(link, userAgent)
 	if err != nil {
 		logger.Log.Errorw("Error creating request: "+link, err)
 		return "", err
@@ -435,8 +440,7 @@ var (
 )
 
 func isInternalAddress(ip net.IP) bool {
-	return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() ||
-		ip.IsLinkLocalMulticast() || ip.IsUnspecified()
+	return urlsafe.IsInternalIP(ip)
 }
 
 // safeDialContext resolves and validates the address at dial time, then dials
@@ -479,7 +483,10 @@ func httpClient() *http.Client {
 
 	return &http.Client{
 		Transport: transport,
-		CheckRedirect: func(req *http.Request, _ []*http.Request) error {
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 10 {
+				return errors.New("stopped after 10 redirects")
+			}
 			if err := urlsafe.Validate(req.URL.String(), allowPrivateNetwork()); err != nil {
 				return fmt.Errorf("refusing redirect target: %w", err)
 			}
@@ -495,6 +502,11 @@ func metadataHTTPClient() *http.Client {
 }
 
 func getRequest(urlStr string) (*http.Request, error) {
+	setting := db.GetOrCreateSetting()
+	return getRequestWithUserAgent(urlStr, setting.UserAgent)
+}
+
+func getRequestWithUserAgent(urlStr, userAgent string) (*http.Request, error) {
 	// Guard against SSRF: urlStr is a user-supplied podcast feed/enclosure/image
 	// URL, so reject non-HTTP(S) schemes and (unless explicitly allowed)
 	// private/internal targets before building the request. This covers every
@@ -508,9 +520,8 @@ func getRequest(urlStr string) (*http.Request, error) {
 		return nil, err
 	}
 
-	setting := db.GetOrCreateSetting()
-	if setting.UserAgent != "" {
-		req.Header.Add("User-Agent", setting.UserAgent)
+	if userAgent != "" {
+		req.Header.Add("User-Agent", userAgent)
 	} else {
 		req.Header.Add("User-Agent", "AppleCoreMedia/1.0.0.22B82 (iPhone; U; CPU OS 18_1 like Mac OS X; en_us)")
 	}

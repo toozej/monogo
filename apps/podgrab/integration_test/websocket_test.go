@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -19,6 +20,8 @@ import (
 	"github.com/toozej/monogo/apps/podgrab/controllers"
 	"github.com/toozej/monogo/apps/podgrab/db"
 )
+
+var websocketDispatcherOnce sync.Once
 
 // setupWebSocketServer creates a test WebSocket server.
 func setupWebSocketServer(t *testing.T) *httptest.Server {
@@ -41,7 +44,9 @@ func setupWebSocketServer(t *testing.T) *httptest.Server {
 	server := httptest.NewServer(mux)
 
 	// Start message handler in background
-	go controllers.HandleWebsocketMessages()
+	websocketDispatcherOnce.Do(func() {
+		go controllers.HandleWebsocketMessages()
+	})
 
 	return server
 }

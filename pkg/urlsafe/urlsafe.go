@@ -1,8 +1,8 @@
 // Package urlsafe validates outbound-request URLs to mitigate server-side
 // request forgery (SSRF). It rejects non-HTTP(S) schemes and, unless explicitly
-// allowed, hostnames that resolve to loopback, link-local, unspecified, or
-// private/unique-local IP ranges (which include cloud metadata endpoints such
-// as 169.254.169.254).
+// allowed, hostnames that resolve to non-global, private/unique-local, or shared
+// address-space ranges (which include cloud metadata endpoints such as
+// 169.254.169.254 and 100.100.100.200).
 //
 // Validation resolves the hostname and inspects the returned IPs. This is a
 // point-in-time check and does not by itself defend against DNS rebinding
@@ -18,8 +18,8 @@ import (
 
 // Validate reports whether rawURL is safe to request. It requires an http or
 // https scheme and a resolvable hostname. Unless allowPrivate is true, it
-// rejects hostnames resolving to any private, loopback, link-local, or
-// unspecified address, blocking SSRF against internal/metadata services.
+// rejects hostnames resolving to any non-global, private, or shared-space
+// address, blocking SSRF against internal/metadata services.
 func Validate(rawURL string, allowPrivate bool) error {
 	if rawURL == "" {
 		return fmt.Errorf("URL cannot be empty")
@@ -49,7 +49,7 @@ func Validate(rawURL string, allowPrivate bool) error {
 	}
 
 	for _, ip := range ips {
-		if isInternalIP(ip) {
+		if IsInternalIP(ip) {
 			return fmt.Errorf("requests to private/internal IP addresses are not allowed: %s resolves to %s", hostname, ip.String())
 		}
 	}
@@ -57,13 +57,15 @@ func Validate(rawURL string, allowPrivate bool) error {
 	return nil
 }
 
-// isInternalIP reports whether ip is in a range that must not be reachable from
-// user-supplied URLs: private (RFC 1918 / RFC 4193 fc00::/7), loopback,
-// link-local (incl. 169.254.0.0/16 metadata), or the unspecified address.
-func isInternalIP(ip net.IP) bool {
-	return ip.IsLoopback() ||
-		ip.IsPrivate() ||
-		ip.IsLinkLocalUnicast() ||
-		ip.IsLinkLocalMulticast() ||
-		ip.IsUnspecified()
+var sharedAddressSpace = &net.IPNet{
+	IP:   net.IPv4(100, 64, 0, 0),
+	Mask: net.CIDRMask(10, 32),
+}
+
+// IsInternalIP reports whether ip is in a range that must not be reachable
+// from user-supplied URLs. In addition to non-global and private addresses, it
+// rejects RFC 6598 shared address space; cloud providers can expose metadata
+// endpoints there (for example 100.100.100.200).
+func IsInternalIP(ip net.IP) bool {
+	return !ip.IsGlobalUnicast() || ip.IsPrivate() || sharedAddressSpace.Contains(ip)
 }

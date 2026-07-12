@@ -254,11 +254,11 @@ func AddPodcast(url string) (db.Podcast, error) {
 		}
 
 		err = db.CreatePodcast(&podcastItem)
-		go func() {
-			if _, dlErr := DownloadPodcastCoverImage(podcastItem.Image, podcastItem.Title); dlErr != nil {
+		go func(image, title, userAgent string) {
+			if _, dlErr := downloadPodcastCoverImage(image, title, userAgent); dlErr != nil {
 				logger.Log.Errorw("downloading podcast cover image", "error", dlErr)
 			}
-		}()
+		}(podcastItem.Image, podcastItem.Title, setting.UserAgent)
 		if setting.GenerateNFOFile {
 			go func() {
 				if nfoErr := CreateNfoFile(&podcastItem); nfoErr != nil {

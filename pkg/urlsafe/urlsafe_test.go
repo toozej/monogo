@@ -27,10 +27,13 @@ func TestValidate(t *testing.T) {
 		{name: "private 172.16", rawURL: "http://172.16.5.4/", wantErr: true},
 		{name: "private 192.168", rawURL: "https://192.168.1.1/admin", wantErr: true},
 		{name: "link-local metadata", rawURL: "http://169.254.169.254/latest/meta-data/", wantErr: true},
+		{name: "shared address space metadata", rawURL: "http://100.100.100.200/latest/meta-data/", wantErr: true},
+		{name: "multicast v4", rawURL: "http://224.0.0.1/", wantErr: true},
 		{name: "unspecified v4", rawURL: "http://0.0.0.0/", wantErr: true},
 		{name: "loopback v6", rawURL: "http://[::1]/", wantErr: true},
 		{name: "unique-local v6", rawURL: "http://[fc00::1]/", wantErr: true},
 		{name: "link-local v6", rawURL: "http://[fe80::1]/", wantErr: true},
+		{name: "multicast v6", rawURL: "http://[ff02::1]/", wantErr: true},
 
 		// Opt-out allows private targets through (but still enforces scheme).
 		{name: "private allowed", rawURL: "http://192.168.1.1/admin", allowPrivate: true, wantErr: false},
