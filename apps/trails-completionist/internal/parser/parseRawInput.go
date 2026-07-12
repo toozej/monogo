@@ -3,6 +3,7 @@ package parser
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"os"
 	"regexp"
 	"strings"
@@ -15,7 +16,7 @@ import (
 func fetchFile(filename string) (*os.File, error) {
 	f, err := os.Open(filename) // #nosec G304
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	if log.GetLevel() == log.DebugLevel {
 		fileContents, _ := os.ReadFile(filename) // #nosec G304
@@ -70,6 +71,12 @@ func extractTrailInfo(file *os.File) ([]types.Trail, error) {
 				lines = nil
 			}
 		}
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	if len(lines) != 0 {
+		return nil, fmt.Errorf("incomplete trail record: got %d of 3 required lines", len(lines))
 	}
 
 	return trails, nil
@@ -141,9 +148,13 @@ func ParseTrailsFromRawInputFile(filename string) ([]types.Trail, error) {
 		return []types.Trail{}, err
 	}
 
-	trails, err := extractTrailInfo(f)
-	if err != nil {
-		return []types.Trail{}, err
+	trails, parseErr := extractTrailInfo(f)
+	closeErr := f.Close()
+	if parseErr != nil {
+		return []types.Trail{}, parseErr
+	}
+	if closeErr != nil {
+		return []types.Trail{}, fmt.Errorf("closing raw input file: %w", closeErr)
 	}
 
 	return trails, nil

@@ -230,7 +230,8 @@ archives:
       - goos: windows
         formats: ['zip']
     files:
-      - README.md
+      - src: [[$app.path]]/README.md
+        dst: README.md
       - LICENSE
       - completions/[[$app.binary]].bash
       - completions/[[$app.binary]].fish

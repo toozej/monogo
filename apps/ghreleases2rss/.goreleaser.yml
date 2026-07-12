@@ -158,7 +158,8 @@ archives:
       - goos: windows
         formats: ['zip']
     files:
-      - README.md
+      - src: apps/ghreleases2rss/README.md
+        dst: README.md
       - LICENSE
       - completions/ghreleases2rss.bash
       - completions/ghreleases2rss.fish

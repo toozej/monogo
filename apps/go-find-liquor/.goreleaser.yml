@@ -158,7 +158,8 @@ archives:
       - goos: windows
         formats: ['zip']
     files:
-      - README.md
+      - src: apps/go-find-liquor/README.md
+        dst: README.md
       - LICENSE
       - completions/go-find-liquor.bash
       - completions/go-find-liquor.fish

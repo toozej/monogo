@@ -55,6 +55,9 @@ func OutputResults(results []types.TrailResult, format string) {
 
 // ParseTrailsFromTrackFiles processes the provided track files and returns the found trails
 func ParseTrailsFromTrackFiles(trackFiles string, recursive bool, osmData *osm.OSMData) ([]types.Trail, error) {
+	if osmData == nil {
+		return nil, fmt.Errorf("OSM region data is required to match GPX tracks; provide --osmRegionFile or OSM_REGION_FILE")
+	}
 	foundTrailResults, err := processDirectory(trackFiles, recursive, osmData)
 	if err != nil {
 		return nil, fmt.Errorf("error processing track files: %w", err)
