@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/subtle"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -63,20 +62,10 @@ func NewClient(cfg config.SpotifyConfig, logger *logrus.Logger) (*Client, error)
 		spotifyauth.WithClientSecret(cfg.ClientSecret),
 	)
 
-	// Generate an unpredictable, short-lived state for CSRF protection.
-	stateBytes := make([]byte, 32)
-	if _, err := rand.Read(stateBytes); err != nil {
-		return nil, fmt.Errorf("generate OAuth state: %w", err)
-	}
-	state := base64.RawURLEncoding.EncodeToString(stateBytes)
-
-	// Use the library's AuthURL method as shown in examples
-	authURL := auth.AuthURL(state)
-
 	logger.WithFields(logrus.Fields{
 		"client_id":    cfg.ClientID,
 		"redirect_url": cfg.RedirectURL,
-	}).Info("Generated Spotify auth URL using library method")
+	}).Info("Initialized Spotify authenticator")
 
 	// Validate redirect URL is configured
 	if cfg.RedirectURL == "" {
@@ -98,9 +87,6 @@ func NewClient(cfg config.SpotifyConfig, logger *logrus.Logger) (*Client, error)
 		ctx:        ctx,
 		auth:       auth,
 		isUserAuth: false,
-		authURL:    authURL,
-		state:      state,
-		stateTime:  time.Now(),
 		tokenFile:  tokenFile,
 	}
 
@@ -129,6 +115,15 @@ func NewClient(cfg config.SpotifyConfig, logger *logrus.Logger) (*Client, error)
 
 // GetAuthURL returns the URL for user authentication
 func (c *Client) GetAuthURL() string {
+	c.tokenMu.Lock()
+	defer c.tokenMu.Unlock()
+
+	// Generate state when authentication actually begins. Clients can remain
+	// alive with a stored token for far longer than the state lifetime, and each
+	// new attempt must invalidate links from previous attempts.
+	c.state = rand.Text()
+	c.stateTime = time.Now()
+	c.authURL = c.auth.AuthURL(c.state)
 	return c.authURL
 }
 
@@ -141,14 +136,12 @@ func (c *Client) IsAuthenticated() bool {
 
 // CompleteAuth completes the authentication process with the authorization code
 func (c *Client) CompleteAuth(code, state string) error {
+	if err := c.consumeOAuthState(state, time.Now()); err != nil {
+		return err
+	}
+
 	c.tokenMu.Lock()
 	defer c.tokenMu.Unlock()
-
-	if c.state == "" || time.Since(c.stateTime) > 10*time.Minute || subtle.ConstantTimeCompare([]byte(state), []byte(c.state)) != 1 {
-		return fmt.Errorf("invalid state parameter")
-	}
-	// Consume the state before exchanging the code so callbacks cannot be replayed.
-	c.state = ""
 
 	c.logger.Debug("Completing Spotify authentication")
 
@@ -186,6 +179,19 @@ func (c *Client) CompleteAuth(code, state string) error {
 		c.logger.WithField("token_file", c.tokenFile).Info("💾 Authentication token saved successfully - no re-authentication needed next time!")
 	}
 
+	return nil
+}
+
+func (c *Client) consumeOAuthState(state string, now time.Time) error {
+	c.tokenMu.Lock()
+	defer c.tokenMu.Unlock()
+
+	if c.state == "" || now.Before(c.stateTime) || now.Sub(c.stateTime) > 10*time.Minute || subtle.ConstantTimeCompare([]byte(state), []byte(c.state)) != 1 {
+		return fmt.Errorf("invalid state parameter")
+	}
+	// Consume the state before exchanging the code so callbacks cannot be replayed.
+	c.state = ""
+	c.authURL = ""
 	return nil
 }
 

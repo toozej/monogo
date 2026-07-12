@@ -44,10 +44,13 @@ func runSearch(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("initialize KMHD API client: %w", err)
 	}
+	return searchKMHDPlaylist(kmhdAPIClient, query)
+}
 
+func searchKMHDPlaylist(kmhdScraper types.KMHDScraper, query string) error {
 	// Fetch KMHD playlist
 	log.Info("Fetching KMHD playlist from API...")
-	songCollection, err := kmhdAPIClient.ScrapePlaylist()
+	songCollection, err := kmhdScraper.ScrapePlaylist()
 	if err != nil {
 		return fmt.Errorf("fetch KMHD playlist: %w", err)
 	}

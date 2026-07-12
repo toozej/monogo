@@ -83,7 +83,8 @@ func runSync(cmd *cobra.Command, args []string) error {
 	default:
 		playlistPrefix = conf.Spotify.PlaylistNamePrefix
 	}
-	targetPlaylist, err := getOrCreateMonthlyPlaylist(musicService, playlistPrefix)
+	playlistTime := time.Now()
+	targetPlaylist, err := getOrCreateMonthlyPlaylistAt(musicService, playlistPrefix, playlistTime)
 	if err != nil {
 		return fmt.Errorf("failed to get or create monthly playlist: %w", err)
 	}
@@ -94,7 +95,7 @@ func runSync(cmd *cobra.Command, args []string) error {
 	if continuous {
 		ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
-		return runContinuousSync(ctx, kmhdScraper, musicService, fuzzySongSearcher, targetPlaylist, playlistPrefix, interval)
+		return runContinuousSync(ctx, kmhdScraper, musicService, fuzzySongSearcher, targetPlaylist, playlistPrefix, playlistTime, interval)
 	} else {
 		seenSongs := make(map[string]bool)
 		return runSingleSync(kmhdScraper, musicService, fuzzySongSearcher, targetPlaylist, seenSongs)
@@ -102,23 +103,43 @@ func runSync(cmd *cobra.Command, args []string) error {
 }
 
 // runContinuousSync runs the sync operation continuously at the specified interval with randomization
-func runContinuousSync(ctx context.Context, kmhdScraper types.KMHDScraper, musicService types.MusicService, fuzzySongSearcher *search.FuzzySongSearcher, targetPlaylist types.Playlist, playlistPrefix string, interval time.Duration) error {
+func runContinuousSync(ctx context.Context, kmhdScraper types.KMHDScraper, musicService types.MusicService, fuzzySongSearcher *search.FuzzySongSearcher, targetPlaylist types.Playlist, playlistPrefix string, playlistTime time.Time, interval time.Duration) error {
+	return runContinuousSyncWithSchedule(ctx, kmhdScraper, musicService, fuzzySongSearcher, targetPlaylist, playlistPrefix, playlistTime, interval, time.Now, calculateNextSyncTime)
+}
+
+func runContinuousSyncWithSchedule(ctx context.Context, kmhdScraper types.KMHDScraper, musicService types.MusicService, fuzzySongSearcher *search.FuzzySongSearcher, targetPlaylist types.Playlist, playlistPrefix string, playlistTime time.Time, interval time.Duration, now func() time.Time, nextDelay func(time.Duration) time.Duration) error {
 	log.Info("🎵 Starting continuous sync mode - monitoring KMHD for new songs...")
 	fmt.Printf("🎵 Monitoring KMHD every %v (with randomization) for new songs...\n", interval)
 	fmt.Printf("Press Ctrl+C to stop\n\n")
 
-	// Run initial sync
 	processedSongs := make(map[string]bool)
-	if err := runSingleSync(kmhdScraper, musicService, fuzzySongSearcher, targetPlaylist, processedSongs); err != nil {
-		log.WithError(err).Warn("Initial sync completed with errors; failed songs will be retried")
+	playlistMonth := playlistTime.Format("2006-01")
+	initialSyncTime := now()
+	initialMonth := initialSyncTime.Format("2006-01")
+	initialTargetReady := true
+	if initialMonth != playlistMonth {
+		var err error
+		targetPlaylist, err = getOrCreateMonthlyPlaylistAt(musicService, playlistPrefix, initialSyncTime)
+		if err != nil {
+			log.WithError(err).Error("Failed to rotate monthly playlist before initial sync; will retry next cycle")
+			initialTargetReady = false
+		} else {
+			playlistMonth = initialMonth
+		}
 	}
-	playlistMonth := time.Now().Format("2006-01")
+
+	// Run initial sync only when its target is confirmed for the current month.
+	if initialTargetReady {
+		if err := runSingleSync(kmhdScraper, musicService, fuzzySongSearcher, targetPlaylist, processedSongs); err != nil {
+			log.WithError(err).Warn("Initial sync completed with errors; failed songs will be retried")
+		}
+	}
 
 	// Continue monitoring with randomized intervals
 	for {
 		// Calculate next sync time with randomization
-		nextSyncDuration := calculateNextSyncTime(interval)
-		nextSyncTime := time.Now().Add(nextSyncDuration)
+		nextSyncDuration := nextDelay(interval)
+		nextSyncTime := now().Add(nextSyncDuration)
 
 		log.WithFields(log.Fields{
 			"next_sync_duration": nextSyncDuration,
@@ -142,10 +163,11 @@ func runContinuousSync(ctx context.Context, kmhdScraper types.KMHDScraper, music
 		}
 
 		log.Debug("Running scheduled sync check")
-		currentMonth := time.Now().Format("2006-01")
+		cycleTime := now()
+		currentMonth := cycleTime.Format("2006-01")
 		if currentMonth != playlistMonth {
 			var err error
-			targetPlaylist, err = getOrCreateMonthlyPlaylist(musicService, playlistPrefix)
+			targetPlaylist, err = getOrCreateMonthlyPlaylistAt(musicService, playlistPrefix, cycleTime)
 			if err != nil {
 				log.WithError(err).Error("Failed to rotate monthly playlist; will retry next cycle")
 				continue

@@ -1,6 +1,7 @@
 package spotify
 
 import (
+	"net/url"
 	"path/filepath"
 	"testing"
 	"time"
@@ -23,18 +24,53 @@ func TestOAuthStateIsRandomAndExpires(t *testing.T) {
 		return client
 	}
 
-	first := newTestClient()
-	second := newTestClient()
-	if first.state == second.state {
+	client := newTestClient()
+	if client.state != "" {
+		t.Fatal("NewClient() generated OAuth state before authentication began")
+	}
+	firstURL := client.GetAuthURL()
+	firstState := client.state
+	if firstState == "" || firstURL == "" {
+		t.Fatal("GetAuthURL() did not generate OAuth state and URL")
+	}
+	parsedURL, err := url.Parse(firstURL)
+	if err != nil {
+		t.Fatalf("parse authentication URL: %v", err)
+	}
+	if got := parsedURL.Query().Get("state"); got != firstState {
+		t.Fatalf("authentication URL state = %q, want generated state", got)
+	}
+	secondURL := client.GetAuthURL()
+	secondState := client.state
+	if firstState == secondState || firstURL == secondURL {
 		t.Fatal("OAuth state must be unique per authentication attempt")
 	}
-	if err := first.CompleteAuth("code", "wrong-state"); err == nil {
+	if err := client.CompleteAuth("code", firstState); err == nil {
+		t.Fatal("CompleteAuth() accepted state invalidated by a newer authentication attempt")
+	}
+	if err := client.CompleteAuth("code", "wrong-state"); err == nil {
 		t.Fatal("CompleteAuth() accepted an incorrect OAuth state")
 	}
+	if err := client.consumeOAuthState(secondState, time.Now()); err != nil {
+		t.Fatalf("consumeOAuthState() rejected current state: %v", err)
+	}
+	if err := client.consumeOAuthState(secondState, time.Now()); err == nil {
+		t.Fatal("consumeOAuthState() accepted replayed OAuth state")
+	}
 
-	first.stateTime = time.Now().Add(-11 * time.Minute)
-	if err := first.CompleteAuth("code", first.state); err == nil {
+	secondURL = client.GetAuthURL()
+	secondState = client.state
+	client.stateTime = time.Now().Add(-11 * time.Minute)
+	if err := client.CompleteAuth("code", secondState); err == nil {
 		t.Fatal("CompleteAuth() accepted an expired OAuth state")
+	}
+
+	refreshedURL := client.GetAuthURL()
+	if client.state == secondState || refreshedURL == secondURL {
+		t.Fatal("GetAuthURL() did not refresh expired OAuth state")
+	}
+	if time.Since(client.stateTime) > time.Minute {
+		t.Fatal("GetAuthURL() retained the expired OAuth state timestamp")
 	}
 }
 
