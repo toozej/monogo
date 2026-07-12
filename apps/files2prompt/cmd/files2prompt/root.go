@@ -39,6 +39,9 @@ import (
 // It is populated during package initialization and can be modified by command-line flags.
 var (
 	conf config.Config
+	// configuredPaths preserves PATHS loaded from the environment or .env so
+	// command execution can combine them with positional/stdin paths.
+	configuredPaths []string
 	// debug controls the logging level for the application.
 	// When true, debug-level logging is enabled through logrus.
 	debug bool
@@ -60,13 +63,21 @@ and outputting file contents with optional filtering and formatting.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// Read paths from stdin if available
 		stdinPaths := readPathsFromStdin(conf.Null)
-		// Combine args and stdin paths
-		conf.Paths = append(args, stdinPaths...)
+		// Combine configured, positional, and stdin paths without discarding PATHS.
+		conf.Paths = mergePaths(configuredPaths, args, stdinPaths)
 		if len(conf.Paths) == 0 {
 			return fmt.Errorf("no paths provided via arguments or stdin")
 		}
 		return files2prompt.Run(conf)
 	},
+}
+
+func mergePaths(configured, args, stdin []string) []string {
+	paths := make([]string, 0, len(configured)+len(args)+len(stdin))
+	paths = append(paths, configured...)
+	paths = append(paths, args...)
+	paths = append(paths, stdin...)
+	return paths
 }
 
 // rootCmdPreRun performs setup operations before executing the root command.
@@ -173,41 +184,24 @@ func Execute() {
 func init() {
 	// get configuration from environment variables
 	conf = config.GetEnvVars()
+	configuredPaths = append([]string{}, conf.Paths...)
 
 	// create rootCmd-level flags
 	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "Enable debug-level logging")
 
 	// override .env configurations with flags+args
-	if len(conf.Extensions) == 0 {
-		rootCmd.Flags().StringSliceVarP(&conf.Extensions, "extension", "e", []string{}, "File extensions to include")
-	}
-	if !conf.IncludeHidden {
-		rootCmd.Flags().BoolVarP(&conf.IncludeHidden, "include-hidden", "", false, "Include hidden files and folders")
-	}
-	if !conf.IgnoreGitignore {
-		rootCmd.Flags().BoolVarP(&conf.IgnoreGitignore, "ignore-gitignore", "", false, "Ignore .gitignore files")
-	}
-	if len(conf.IgnorePatterns) == 0 {
-		rootCmd.Flags().StringSliceVarP(&conf.IgnorePatterns, "ignore", "", []string{},
-			"Patterns to ignore (can be comma-separated or specified multiple times). "+
-				"Use '/' suffix to match directories only. Examples: "+
-				"'*.test.js', 'test/', 'path/to/ignore/, 'dir1/,dir2/'")
-	}
-	if conf.OutputFile == "" {
-		rootCmd.Flags().StringVarP(&conf.OutputFile, "output", "o", "", "Output file path")
-	}
-	if !conf.ClaudeXML {
-		rootCmd.Flags().BoolVarP(&conf.ClaudeXML, "cxml", "c", false, "Output in XML format for Claude")
-	}
-	if !conf.LineNumbers {
-		rootCmd.Flags().BoolVarP(&conf.LineNumbers, "line-numbers", "n", false, "Display line numbers in output")
-	}
-	if !conf.Markdown {
-		rootCmd.Flags().BoolVarP(&conf.Markdown, "markdown", "m", false, "Output in Markdown format with fenced code blocks")
-	}
-	if !conf.Null {
-		rootCmd.Flags().BoolVarP(&conf.Null, "null", "0", false, "Use NUL character as separator when reading from stdin")
-	}
+	rootCmd.Flags().StringSliceVarP(&conf.Extensions, "extension", "e", conf.Extensions, "File extensions to include")
+	rootCmd.Flags().BoolVarP(&conf.IncludeHidden, "include-hidden", "", conf.IncludeHidden, "Include hidden files and folders")
+	rootCmd.Flags().BoolVarP(&conf.IgnoreGitignore, "ignore-gitignore", "", conf.IgnoreGitignore, "Ignore .gitignore files")
+	rootCmd.Flags().StringSliceVarP(&conf.IgnorePatterns, "ignore", "", conf.IgnorePatterns,
+		"Patterns to ignore (can be comma-separated or specified multiple times). "+
+			"Use '/' suffix to match directories only. Examples: "+
+			"'*.test.js', 'test/', 'path/to/ignore/, 'dir1/,dir2/'")
+	rootCmd.Flags().StringVarP(&conf.OutputFile, "output", "o", conf.OutputFile, "Output file path")
+	rootCmd.Flags().BoolVarP(&conf.ClaudeXML, "cxml", "c", conf.ClaudeXML, "Output in XML format for Claude")
+	rootCmd.Flags().BoolVarP(&conf.LineNumbers, "line-numbers", "n", conf.LineNumbers, "Display line numbers in output")
+	rootCmd.Flags().BoolVarP(&conf.Markdown, "markdown", "m", conf.Markdown, "Output in Markdown format with fenced code blocks")
+	rootCmd.Flags().BoolVarP(&conf.Null, "null", "0", conf.Null, "Use NUL character as separator when reading from stdin")
 
 	// add sub-commands
 	rootCmd.AddCommand(

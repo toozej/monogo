@@ -2,122 +2,24 @@ package files2prompt
 
 import (
 	"bytes"
+	"encoding/xml"
+	"errors"
+	"io"
+	"os"
+	"path/filepath"
+	"runtime"
 	"testing"
 
+	"github.com/go-git/go-billy/v5"
+	gitignore "github.com/go-git/go-git/v5/plumbing/format/gitignore"
 	"github.com/stretchr/testify/assert"
 	"github.com/toozej/monogo/apps/files2prompt/internal/config"
 )
 
-func TestReadGitignore(t *testing.T) {
-	tests := []struct {
-		name     string
-		path     string
-		expected []string
-	}{
-		{
-			name:     "valid gitignore file",
-			path:     "testdata/gitignore_valid",
-			expected: []string{"*.log", "node_modules/", "dist/", "temp/"},
-		},
-		{
-			name:     "gitignore with empty lines and comments",
-			path:     "testdata/gitignore_valid",
-			expected: []string{"*.log", "node_modules/", "dist/", "temp/"},
-		},
-		{
-			name:     "non-existent gitignore file",
-			path:     "testdata/gitignore_nonexistent",
-			expected: nil,
-		},
-		{
-			name:     "empty gitignore file",
-			path:     "testdata/gitignore_empty",
-			expected: nil,
-		},
-		{
-			name:     "gitignore with only comments and empty lines",
-			path:     "testdata/gitignore_comments_only",
-			expected: nil,
-		},
-	}
+type failingWriter struct{}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := readGitignore(tt.path)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
-}
-
-func TestShouldIgnore(t *testing.T) {
-	tests := []struct {
-		name           string
-		path           string
-		gitignoreRules []string
-		expected       bool
-	}{
-		{
-			name:           "exact filename match",
-			path:           "test.log",
-			gitignoreRules: []string{"*.log"},
-			expected:       true,
-		},
-		{
-			name:           "directory match",
-			path:           "node_modules",
-			gitignoreRules: []string{"node_modules/"},
-			expected:       true,
-		},
-		{
-			name:           "directory path match",
-			path:           "node_modules/package",
-			gitignoreRules: []string{"node_modules/"},
-			expected:       true,
-		},
-		{
-			name:           "no match",
-			path:           "src/main.go",
-			gitignoreRules: []string{"*.log", "node_modules/"},
-			expected:       false,
-		},
-		{
-			name:           "empty rules",
-			path:           "any/path",
-			gitignoreRules: []string{},
-			expected:       false,
-		},
-		{
-			name:           "hidden file match",
-			path:           ".DS_Store",
-			gitignoreRules: []string{".DS_Store"},
-			expected:       true,
-		},
-		{
-			name:           "pattern with multiple wildcards",
-			path:           "src/main.go",
-			gitignoreRules: []string{"src/*.go"},
-			expected:       true,
-		},
-		{
-			name:           "directory pattern without trailing slash",
-			path:           "temp/files",
-			gitignoreRules: []string{"temp"},
-			expected:       true,
-		},
-		{
-			name:           "temp directory with trailing slash pattern",
-			path:           "testdata/test_project/temp",
-			gitignoreRules: []string{"*.log", "node_modules/", "temp/"},
-			expected:       true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := shouldIgnore(tt.path, tt.gitignoreRules)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
+func (failingWriter) Write([]byte) (int, error) {
+	return 0, errors.New("write failed")
 }
 
 func TestProcessFile(t *testing.T) {
@@ -135,7 +37,7 @@ func TestProcessFile(t *testing.T) {
 				LineNumbers: false,
 				ClaudeXML:   false,
 			},
-			expected:    "testdata/file1.txt\n---\nline 1\nline 2\nline 3---\n\n",
+			expected:    "testdata/file1.txt\n---\nline 1\nline 2\nline 3\n---\n\n",
 			expectedErr: false,
 		},
 		{
@@ -165,7 +67,7 @@ func TestProcessFile(t *testing.T) {
 				LineNumbers: true,
 				ClaudeXML:   true,
 			},
-			expected:    "<document index=\"1\">\n<source>testdata/file4.txt</source>\n<document_content>\n 1 │ line 1\n 2 │ line 2\n</document_content>\n</document>\n",
+			expected:    "<document index=\"1\">\n<source>testdata/file4.txt</source>\n<document_content>\n 1 │ line 1&#xA; 2 │ line 2&#xA;</document_content>\n</document>\n",
 			expectedErr: false,
 		},
 		{
@@ -176,7 +78,7 @@ func TestProcessFile(t *testing.T) {
 				ClaudeXML:   false,
 			},
 			expected:    "",
-			expectedErr: false, // Function logs warning and returns nil
+			expectedErr: true,
 		},
 		{
 			name:     "empty file",
@@ -196,7 +98,7 @@ func TestProcessFile(t *testing.T) {
 				ClaudeXML:   false,
 				Markdown:    true,
 			},
-			expected:    "testdata/file1.txt\n```\nline 1\nline 2\nline 3```\n",
+			expected:    "testdata/file1.txt\n```\nline 1\nline 2\nline 3\n```\n",
 			expectedErr: false,
 		},
 		{
@@ -263,15 +165,14 @@ func TestProcessPath(t *testing.T) {
 			config: config.Config{
 				Extensions: []string{".go", ".txt"},
 			},
-			expected:    "testdata/test_project/docs/README.txt\n---\nHello world---\n\ntestdata/test_project/src/main.go\n---\npackage main\n\nfunc main() {}\n---\n\ntestdata/test_project/temp/file.txt\n---\ntemp file---\n\n",
+			expected:    "testdata/test_project/docs/README.txt\n---\nHello world\n---\n\ntestdata/test_project/src/main.go\n---\npackage main\n\nfunc main() {}\n---\n\ntestdata/test_project/temp/file.txt\n---\ntemp file\n---\n\n",
 			expectedErr: false,
 		},
 		{
 			name: "directory with gitignore",
 			path: "testdata/test_project",
 			config: config.Config{
-				IgnoreGitignore: true,
-				Extensions:      []string{".go"},
+				Extensions: []string{".go"},
 			},
 			expected:    "testdata/test_project/src/main.go\n---\npackage main\n\nfunc main() {}\n---\n\n",
 			expectedErr: false,
@@ -283,7 +184,7 @@ func TestProcessPath(t *testing.T) {
 				IgnorePatterns: []string{"*.log", "temp/"},
 				Extensions:     []string{".go", ".txt"},
 			},
-			expected:    "testdata/test_project/docs/README.txt\n---\nHello world---\n\ntestdata/test_project/src/main.go\n---\npackage main\n\nfunc main() {}\n---\n\n",
+			expected:    "testdata/test_project/docs/README.txt\n---\nHello world\n---\n\ntestdata/test_project/src/main.go\n---\npackage main\n\nfunc main() {}\n---\n\n",
 			expectedErr: false,
 		},
 		{
@@ -293,7 +194,7 @@ func TestProcessPath(t *testing.T) {
 				IncludeHidden: true,
 				Extensions:    []string{".go"},
 			},
-			expected:    "testdata/test_project/.hidden.go\n---\nhidden code---\n\ntestdata/test_project/src/main.go\n---\npackage main\n\nfunc main() {}\n---\n\n",
+			expected:    "testdata/test_project/.hidden.go\n---\nhidden code\n---\n\ntestdata/test_project/src/main.go\n---\npackage main\n\nfunc main() {}\n---\n\n",
 			expectedErr: false,
 		},
 		{
@@ -312,7 +213,7 @@ func TestProcessPath(t *testing.T) {
 			config: config.Config{
 				Extensions: []string{".txt"},
 			},
-			expected:    "testdata/empty.txt\n---\n---\n\ntestdata/file1.txt\n---\nline 1\nline 2\nline 3---\n\ntestdata/file2.txt\n---\nfirst line\nsecond line---\n\ntestdata/file3.txt\n---\nxml content---\n\ntestdata/file4.txt\n---\nline 1\nline 2---\n\ntestdata/test_project/docs/README.txt\n---\nHello world---\n\ntestdata/test_project/temp/file.txt\n---\ntemp file---\n\n",
+			expected:    "testdata/empty.txt\n---\n---\n\ntestdata/file1.txt\n---\nline 1\nline 2\nline 3\n---\n\ntestdata/file2.txt\n---\nfirst line\nsecond line\n---\n\ntestdata/file3.txt\n---\nxml content\n---\n\ntestdata/file4.txt\n---\nline 1\nline 2\n---\n\ntestdata/test_project/docs/README.txt\n---\nHello world\n---\n\ntestdata/test_project/temp/file.txt\n---\ntemp file\n---\n\n",
 			expectedErr: false,
 		},
 	}
@@ -320,10 +221,9 @@ func TestProcessPath(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
-			var gitignoreRules []string
 			globalIndex := 1
 
-			err := processPath(tt.path, tt.config, &buf, gitignoreRules, &globalIndex)
+			err := processPath(tt.path, tt.config, &buf, nil, &globalIndex)
 
 			if tt.expectedErr {
 				assert.Error(t, err)
@@ -357,7 +257,7 @@ func TestRun(t *testing.T) {
 				ClaudeXML:  true,
 				Extensions: []string{".go"},
 			},
-			expected:    "<documents>\n<document index=\"1\">\n<source>testdata/test_project/src/main.go</source>\n<document_content>\npackage main\n\nfunc main() {}\n</document_content>\n</document>\n</documents>\n",
+			expected:    "<documents>\n<document index=\"1\">\n<source>testdata/test_project/src/main.go</source>\n<document_content>\npackage main&#xA;&#xA;func main() {}&#xA;</document_content>\n</document>\n</documents>\n",
 			expectedErr: false,
 		},
 		{
@@ -366,7 +266,7 @@ func TestRun(t *testing.T) {
 				Paths:      []string{"testdata/test_project/src", "testdata/test_project/docs"},
 				Extensions: []string{".go", ".txt"},
 			},
-			expected:    "testdata/test_project/src/main.go\n---\npackage main\n\nfunc main() {}\n---\n\ntestdata/test_project/docs/README.txt\n---\nHello world---\n\n",
+			expected:    "testdata/test_project/src/main.go\n---\npackage main\n\nfunc main() {}\n---\n\ntestdata/test_project/docs/README.txt\n---\nHello world\n---\n\n",
 			expectedErr: false,
 		},
 		{
@@ -382,9 +282,8 @@ func TestRun(t *testing.T) {
 		{
 			name: "run with gitignore",
 			config: config.Config{
-				Paths:           []string{"testdata/test_project"},
-				IgnoreGitignore: true,
-				Extensions:      []string{".go"},
+				Paths:      []string{"testdata/test_project"},
+				Extensions: []string{".go"},
 			},
 			expected:    "testdata/test_project/src/main.go\n---\npackage main\n\nfunc main() {}\n---\n\n",
 			expectedErr: false,
@@ -419,4 +318,275 @@ func TestRun(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGitignoreDefaultsAndSemantics(t *testing.T) {
+	root := t.TempDir()
+	assert.NoError(t, os.Mkdir(filepath.Join(root, ".git"), 0o755))
+	assert.NoError(t, os.MkdirAll(filepath.Join(root, "secrets"), 0o755))
+	assert.NoError(t, os.MkdirAll(filepath.Join(root, "nested"), 0o755))
+	assert.NoError(t, os.MkdirAll(filepath.Join(root, "sibling"), 0o755))
+	assert.NoError(t, os.WriteFile(filepath.Join(root, ".gitignore"), []byte("secrets/*.txt\n!secrets/keep.txt\n/root-only.txt\n"), 0o600))
+	assert.NoError(t, os.WriteFile(filepath.Join(root, "nested", ".gitignore"), []byte("*.tmp\n"), 0o600))
+	assert.NoError(t, os.WriteFile(filepath.Join(root, "secrets", "token.txt"), []byte("SECRET"), 0o600))
+	assert.NoError(t, os.WriteFile(filepath.Join(root, "secrets", "keep.txt"), []byte("KEEP"), 0o600))
+	assert.NoError(t, os.WriteFile(filepath.Join(root, "root-only.txt"), []byte("ROOT"), 0o600))
+	assert.NoError(t, os.WriteFile(filepath.Join(root, "nested", "ignored.tmp"), []byte("NESTED"), 0o600))
+	assert.NoError(t, os.WriteFile(filepath.Join(root, "sibling", "visible.tmp"), []byte("SIBLING"), 0o600))
+
+	var output bytes.Buffer
+	originalStdout := osStdout
+	osStdout = &output
+	t.Cleanup(func() { osStdout = originalStdout })
+
+	assert.NoError(t, Run(config.Config{Paths: []string{root}, IncludeHidden: true}))
+	assert.NotContains(t, output.String(), "SECRET")
+	assert.NotContains(t, output.String(), "ROOT")
+	assert.NotContains(t, output.String(), "NESTED")
+	assert.Contains(t, output.String(), "KEEP")
+	assert.Contains(t, output.String(), "SIBLING")
+
+	output.Reset()
+	assert.NoError(t, Run(config.Config{Paths: []string{root}, IgnoreGitignore: true}))
+	assert.Contains(t, output.String(), "SECRET")
+	assert.Contains(t, output.String(), "ROOT")
+	assert.Contains(t, output.String(), "NESTED")
+}
+
+func TestGitMetadataIsExcludedByDefault(t *testing.T) {
+	root := t.TempDir()
+	gitDir := filepath.Join(root, ".git")
+	assert.NoError(t, os.Mkdir(gitDir, 0o755))
+	assert.NoError(t, os.WriteFile(filepath.Join(gitDir, "config"), []byte("GIT SECRET"), 0o600))
+	assert.NoError(t, os.WriteFile(filepath.Join(root, ".visible-hidden"), []byte("HIDDEN SOURCE"), 0o600))
+
+	var output bytes.Buffer
+	originalStdout := osStdout
+	osStdout = &output
+	t.Cleanup(func() { osStdout = originalStdout })
+	assert.NoError(t, Run(config.Config{Paths: []string{root}, IncludeHidden: true}))
+	assert.Contains(t, output.String(), "HIDDEN SOURCE")
+	assert.NotContains(t, output.String(), "GIT SECRET")
+
+	output.Reset()
+	assert.NoError(t, Run(config.Config{Paths: []string{root}, IncludeHidden: true, IgnoreGitignore: true}))
+	assert.Contains(t, output.String(), "GIT SECRET")
+}
+
+func TestSymlinksAreNotFollowed(t *testing.T) {
+	root := t.TempDir()
+	external := filepath.Join(t.TempDir(), "secret.txt")
+	assert.NoError(t, os.WriteFile(external, []byte("EXTERNAL SECRET"), 0o600))
+	link := filepath.Join(root, "linked-secret.txt")
+	if err := os.Symlink(external, link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+
+	var output bytes.Buffer
+	index := 1
+	assert.NoError(t, processPath(root, config.Config{}, &output, nil, &index))
+	assert.NotContains(t, output.String(), "EXTERNAL SECRET")
+
+	output.Reset()
+	assert.Error(t, processPath(link, config.Config{}, &output, nil, &index))
+}
+
+func TestSymlinkSwapCannotEscapeRoot(t *testing.T) {
+	root := t.TempDir()
+	victim := filepath.Join(root, "victim.txt")
+	external := filepath.Join(t.TempDir(), "secret.txt")
+	assert.NoError(t, os.WriteFile(victim, []byte("SAFE"), 0o600))
+	assert.NoError(t, os.WriteFile(external, []byte("EXTERNAL SECRET"), 0o600))
+
+	originalHook := beforeReadFile
+	beforeReadFile = func(path string) {
+		if path != victim {
+			return
+		}
+		assert.NoError(t, os.Remove(victim))
+		assert.NoError(t, os.Symlink(external, victim))
+	}
+	t.Cleanup(func() { beforeReadFile = originalHook })
+
+	var output bytes.Buffer
+	index := 1
+	err := processPath(root, config.Config{IgnoreGitignore: true}, &output, nil, &index)
+	assert.Error(t, err)
+	assert.NotContains(t, output.String(), "EXTERNAL SECRET")
+}
+
+func TestOutputIsAtomicAndNeverReadAsInput(t *testing.T) {
+	root := t.TempDir()
+	input := filepath.Join(root, "input.txt")
+	output := filepath.Join(root, "output.txt")
+	assert.NoError(t, os.WriteFile(input, []byte("INPUT"), 0o600))
+	assert.NoError(t, os.WriteFile(output, []byte("OLD OUTPUT"), 0o600))
+
+	err := Run(config.Config{Paths: []string{input}, OutputFile: input})
+	assert.Error(t, err)
+	content, readErr := os.ReadFile(input)
+	assert.NoError(t, readErr)
+	assert.Equal(t, "INPUT", string(content))
+
+	assert.NoError(t, Run(config.Config{Paths: []string{root}, OutputFile: output, Extensions: []string{".txt"}}))
+	content, readErr = os.ReadFile(output)
+	assert.NoError(t, readErr)
+	assert.Contains(t, string(content), "INPUT")
+	assert.NotContains(t, string(content), "OLD OUTPUT")
+	assert.NotContains(t, string(content), ".files2prompt-")
+
+	assert.NoError(t, os.WriteFile(output, []byte("STILL VALID"), 0o600))
+	err = Run(config.Config{Paths: []string{filepath.Join(root, "missing.txt")}, OutputFile: output})
+	assert.Error(t, err)
+	content, readErr = os.ReadFile(output)
+	assert.NoError(t, readErr)
+	assert.Equal(t, "STILL VALID", string(content))
+}
+
+func TestClaudeXMLIsEscapedAndFormatsAreExclusive(t *testing.T) {
+	root := t.TempDir()
+	input := filepath.Join(root, "special&name.txt")
+	assert.NoError(t, os.WriteFile(input, []byte("<tag>&value"), 0o600))
+
+	var output bytes.Buffer
+	originalStdout := osStdout
+	osStdout = &output
+	t.Cleanup(func() { osStdout = originalStdout })
+	assert.NoError(t, Run(config.Config{Paths: []string{input}, ClaudeXML: true}))
+
+	var parsed struct {
+		Documents []struct {
+			Source  string `xml:"source"`
+			Content string `xml:"document_content"`
+		} `xml:"document"`
+	}
+	assert.NoError(t, xml.Unmarshal(output.Bytes(), &parsed))
+	if assert.Len(t, parsed.Documents, 1) {
+		assert.Equal(t, input, parsed.Documents[0].Source)
+		assert.Equal(t, "\n<tag>&value", parsed.Documents[0].Content)
+	}
+
+	assert.Error(t, Run(config.Config{Paths: []string{input}, ClaudeXML: true, Markdown: true}))
+}
+
+func TestExplicitFilesHonorFilters(t *testing.T) {
+	root := t.TempDir()
+	assert.NoError(t, os.Mkdir(filepath.Join(root, ".git"), 0o755))
+	assert.NoError(t, os.WriteFile(filepath.Join(root, ".gitignore"), []byte("ignored.txt\n"), 0o600))
+	ignored := filepath.Join(root, "ignored.txt")
+	hidden := filepath.Join(root, ".hidden.txt")
+	assert.NoError(t, os.WriteFile(ignored, []byte("IGNORED"), 0o600))
+	assert.NoError(t, os.WriteFile(hidden, []byte("HIDDEN"), 0o600))
+
+	for _, test := range []struct {
+		name string
+		path string
+		cfg  config.Config
+	}{
+		{name: "extension", path: ignored, cfg: config.Config{Extensions: []string{".go"}, IgnoreGitignore: true}},
+		{name: "gitignore", path: ignored, cfg: config.Config{}},
+		{name: "hidden", path: hidden, cfg: config.Config{}},
+		{name: "custom ignore", path: ignored, cfg: config.Config{IgnoreGitignore: true, IgnorePatterns: []string{"ignored.txt"}}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			var output bytes.Buffer
+			index := 1
+			assert.NoError(t, processPath(test.path, test.cfg, &output, nil, &index))
+			assert.Empty(t, output.String())
+		})
+	}
+}
+
+func TestExplicitHiddenDirectoryHonorsFilter(t *testing.T) {
+	root := filepath.Join(t.TempDir(), ".private")
+	assert.NoError(t, os.Mkdir(root, 0o700))
+	assert.NoError(t, os.WriteFile(filepath.Join(root, "secret.txt"), []byte("SECRET"), 0o600))
+
+	var output bytes.Buffer
+	index := 1
+	assert.NoError(t, processPath(root, config.Config{}, &output, nil, &index))
+	assert.Empty(t, output.String())
+
+	output.Reset()
+	assert.NoError(t, processPath(root, config.Config{IncludeHidden: true}, &output, nil, &index))
+	assert.Contains(t, output.String(), "SECRET")
+}
+
+func TestOutputHardLinksAreAliasesAndExcluded(t *testing.T) {
+	root := t.TempDir()
+	input := filepath.Join(root, "input.txt")
+	output := filepath.Join(root, "output.txt")
+	outputAlias := filepath.Join(root, "output-alias.txt")
+	assert.NoError(t, os.WriteFile(input, []byte("INPUT"), 0o600))
+	assert.NoError(t, os.WriteFile(output, []byte("OLD OUTPUT"), 0o600))
+	if err := os.Link(output, outputAlias); err != nil {
+		t.Skipf("hard links unavailable: %v", err)
+	}
+
+	err := Run(config.Config{Paths: []string{outputAlias}, OutputFile: output})
+	assert.ErrorContains(t, err, "aliases input")
+
+	assert.NoError(t, Run(config.Config{Paths: []string{root}, OutputFile: output, Extensions: []string{".txt"}}))
+	content, err := os.ReadFile(output)
+	assert.NoError(t, err)
+	assert.Contains(t, string(content), "INPUT")
+	assert.NotContains(t, string(content), "OLD OUTPUT")
+}
+
+func TestRunLoadsGitignoreOncePerRepository(t *testing.T) {
+	root := t.TempDir()
+	assert.NoError(t, os.Mkdir(filepath.Join(root, ".git"), 0o755))
+	first := filepath.Join(root, "first.txt")
+	second := filepath.Join(root, "second.txt")
+	assert.NoError(t, os.WriteFile(first, []byte("FIRST"), 0o600))
+	assert.NoError(t, os.WriteFile(second, []byte("SECOND"), 0o600))
+
+	originalReadPatterns := readIgnorePatterns
+	loads := 0
+	readIgnorePatterns = func(fs billy.Filesystem, path []string) ([]gitignore.Pattern, error) {
+		loads++
+		return originalReadPatterns(fs, path)
+	}
+	t.Cleanup(func() { readIgnorePatterns = originalReadPatterns })
+
+	originalStdout := osStdout
+	osStdout = io.Discard
+	t.Cleanup(func() { osStdout = originalStdout })
+	assert.NoError(t, Run(config.Config{Paths: []string{first, second}}))
+	assert.Equal(t, 1, loads)
+}
+
+func TestUnreadableGitignoreFailsClosed(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Unix file modes are required")
+	}
+	root := t.TempDir()
+	assert.NoError(t, os.Mkdir(filepath.Join(root, ".git"), 0o755))
+	ignoreFile := filepath.Join(root, ".gitignore")
+	assert.NoError(t, os.WriteFile(ignoreFile, []byte("secret.txt\n"), 0o600))
+	assert.NoError(t, os.WriteFile(filepath.Join(root, "secret.txt"), []byte("SECRET"), 0o600))
+	assert.NoError(t, os.Chmod(ignoreFile, 0o000))
+	t.Cleanup(func() { _ = os.Chmod(ignoreFile, 0o600) })
+	if file, err := os.Open(ignoreFile); err == nil {
+		_ = file.Close()
+		t.Skip("test process can read mode-000 files")
+	}
+
+	originalStdout := osStdout
+	osStdout = io.Discard
+	t.Cleanup(func() { osStdout = originalStdout })
+	assert.ErrorContains(t, Run(config.Config{Paths: []string{root}}), "read gitignore patterns")
+}
+
+func TestRunPropagatesProcessingAndWriterErrors(t *testing.T) {
+	originalStdout := osStdout
+	t.Cleanup(func() { osStdout = originalStdout })
+
+	osStdout = io.Discard
+	assert.Error(t, Run(config.Config{Paths: []string{filepath.Join(t.TempDir(), "missing.txt")}}))
+
+	input := filepath.Join(t.TempDir(), "input.txt")
+	assert.NoError(t, os.WriteFile(input, []byte("content"), 0o600))
+	osStdout = failingWriter{}
+	assert.Error(t, Run(config.Config{Paths: []string{input}}))
 }
