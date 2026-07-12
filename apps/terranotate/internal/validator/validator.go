@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"math"
 	"regexp"
 	"strings"
 
@@ -119,6 +120,13 @@ func loadSchema(fs afero.Fs, schemaFile string) (ValidationSchema, map[string]*r
 	if err := decoder.Decode(&schema); err != nil {
 		return schema, nil, fmt.Errorf("failed to parse schema: %w", err)
 	}
+	var extra interface{}
+	if err := decoder.Decode(&extra); err != io.EOF {
+		if err != nil {
+			return schema, nil, fmt.Errorf("failed to parse schema: %w", err)
+		}
+		return schema, nil, fmt.Errorf("failed to parse schema: multiple YAML documents are not supported")
+	}
 	patterns, err := validateSchema(schema)
 	if err != nil {
 		return schema, nil, fmt.Errorf("invalid schema: %w", err)
@@ -158,6 +166,12 @@ func validateSchema(schema ValidationSchema) (map[string]*regexp.Regexp, error) 
 		}
 		if validation.Min != nil && validation.Max != nil && *validation.Min > *validation.Max {
 			return nil, fmt.Errorf("field %q has min greater than max", name)
+		}
+		if validation.Min != nil && (math.IsNaN(*validation.Min) || math.IsInf(*validation.Min, 0)) {
+			return nil, fmt.Errorf("field %q has non-finite min", name)
+		}
+		if validation.Max != nil && (math.IsNaN(*validation.Max) || math.IsInf(*validation.Max, 0)) {
+			return nil, fmt.Errorf("field %q has non-finite max", name)
 		}
 		if validation.MinLength != nil && *validation.MinLength < 0 {
 			return nil, fmt.Errorf("field %q has negative min_length", name)

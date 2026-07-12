@@ -3,8 +3,8 @@ package parser
 import (
 	"fmt"
 	"io"
+	"math"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"unicode"
@@ -242,19 +242,16 @@ func (cp *CommentParser) parseCommentFields(text string) map[string]interface{} 
 
 // extractKeyValuePairs extracts key:value pairs and handles nested keys
 func (cp *CommentParser) extractKeyValuePairs(line string, fields map[string]interface{}) {
-	// Pattern to match key:value pairs (supports nested keys with dots)
-	// Matches word.word:value where value stops before the next word.word: pattern
-	fieldRegex := regexp.MustCompile(`(?:^|\s)([\w.]+):`)
-	matches := fieldRegex.FindAllStringSubmatchIndex(line, -1)
+	matches := findFieldMarkers(line)
 
 	for i, match := range matches {
-		if len(match) >= 4 {
-			key := line[match[2]:match[3]]
+		if match.keyStart < match.keyEnd {
+			key := line[match.keyStart:match.keyEnd]
 			valueEnd := len(line)
 			if i+1 < len(matches) {
-				valueEnd = matches[i+1][0]
+				valueEnd = matches[i+1].keyStart
 			}
-			value := strings.TrimSpace(line[match[1]:valueEnd])
+			value := strings.TrimSpace(line[match.valueStart:valueEnd])
 			value = strings.Trim(value, `"'`)
 
 			// Handle nested keys (e.g., "contact.email" or "config.db.host")
@@ -266,6 +263,57 @@ func (cp *CommentParser) extractKeyValuePairs(line string, fields map[string]int
 			}
 		}
 	}
+}
+
+type fieldMarker struct {
+	keyStart   int
+	keyEnd     int
+	valueStart int
+}
+
+func findFieldMarkers(line string) []fieldMarker {
+	var markers []fieldMarker
+	var quote byte
+	escaped := false
+	for i := 0; i < len(line); i++ {
+		char := line[i]
+		if quote != 0 {
+			if escaped {
+				escaped = false
+				continue
+			}
+			if char == '\\' {
+				escaped = true
+				continue
+			}
+			if char == quote {
+				quote = 0
+			}
+			continue
+		}
+		if (char == '\'' || char == '"') && (i == 0 || unicode.IsSpace(rune(line[i-1])) || strings.ContainsRune(":,[", rune(line[i-1]))) {
+			quote = char
+			continue
+		}
+		if i > 0 && !unicode.IsSpace(rune(line[i-1])) {
+			continue
+		}
+		end := i
+		for end < len(line) && isFieldKeyChar(line[end]) {
+			end++
+		}
+		if end == i || end >= len(line) || line[end] != ':' {
+			continue
+		}
+		markers = append(markers, fieldMarker{keyStart: i, keyEnd: end, valueStart: end + 1})
+		i = end
+	}
+	return markers
+}
+
+func isFieldKeyChar(char byte) bool {
+	return char >= 'a' && char <= 'z' || char >= 'A' && char <= 'Z' ||
+		char >= '0' && char <= '9' || char == '_' || char == '.'
 }
 
 // setNestedField sets a value in a nested map structure based on dot notation
@@ -311,7 +359,7 @@ func (cp *CommentParser) parseValue(value string) interface{} {
 	if i, err := strconv.Atoi(value); err == nil {
 		return i
 	}
-	if f, err := strconv.ParseFloat(value, 64); err == nil {
+	if f, err := strconv.ParseFloat(value, 64); err == nil && !math.IsNaN(f) && !math.IsInf(f, 0) {
 		return f
 	}
 
@@ -319,6 +367,9 @@ func (cp *CommentParser) parseValue(value string) interface{} {
 	if strings.HasPrefix(value, "[") && strings.HasSuffix(value, "]") {
 		value = strings.TrimPrefix(value, "[")
 		value = strings.TrimSuffix(value, "]")
+		if strings.TrimSpace(value) == "" {
+			return []interface{}{}
+		}
 		items := strings.Split(value, ",")
 		var result []interface{}
 		for _, item := range items {

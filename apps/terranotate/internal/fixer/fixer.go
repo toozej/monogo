@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/spf13/afero"
@@ -68,15 +69,39 @@ func (cf *CommentFixer) FixFile(filename string, resources []parser.TerraformRes
 			continue
 		}
 
-		// Insert comment block immediately before the resource declaration
-		// Skip any existing comments directly above the resource
+		rules := cf.getApplicableRules(resource.Type)
 		insertLine := cf.findInsertionPoint(lines, resource.StartLine)
-
-		// Build comment block
-		commentBlock := cf.buildCommentBlock(fixes)
-
-		// Insert the comment block
-		lines = cf.insertLines(lines, insertLine, commentBlock)
+		var missingPrefixFixes []CommentFix
+		type continuation struct {
+			line int
+			fix  CommentFix
+		}
+		var continuations []continuation
+		for _, fix := range fixes {
+			comments := resource.GetCommentsByPrefix(fix.Prefix)
+			if len(comments) == 0 {
+				missingPrefixFixes = append(missingPrefixFixes, fix)
+				continue
+			}
+			// Add fields to the existing structured comment instead of creating
+			// another occurrence of the same prefix. The validator checks each
+			// occurrence independently, so a duplicate would leave both invalid.
+			target := comments[0]
+			for _, comment := range comments {
+				if comment.Line == fix.Line {
+					target = comment
+					break
+				}
+			}
+			continuations = append(continuations, continuation{line: target.EndLine, fix: fix})
+		}
+		sort.Slice(continuations, func(i, j int) bool { return continuations[i].line > continuations[j].line })
+		for _, item := range continuations {
+			lines = cf.insertLines(lines, item.line, cf.buildContinuationBlock(item.fix, rules))
+		}
+		if len(missingPrefixFixes) > 0 {
+			lines = cf.insertLines(lines, insertLine, cf.buildCommentBlock(missingPrefixFixes, rules))
+		}
 		fixCount += len(fixes)
 	}
 
@@ -110,7 +135,11 @@ func (cf *CommentFixer) generateFixes(resource parser.TerraformResource, errors 
 
 	// Track which prefixes we need to add
 	missingPrefixes := make(map[string]bool)
-	missingFields := make(map[string][]string) // prefix -> []fields
+	type commentKey struct {
+		prefix string
+		line   int
+	}
+	missingFields := make(map[commentKey][]string)
 
 	for _, err := range errors {
 		// Check if it's a missing prefix error
@@ -120,38 +149,78 @@ func (cf *CommentFixer) generateFixes(resource parser.TerraformResource, errors 
 			continue
 		}
 
-		// Check if it's a missing field error
-		if strings.Contains(err.Message, "Missing required field") {
+		// Check if it's a missing nested structure. Populate every required
+		// field in that structure so the generated continuation is complete.
+		if strings.Contains(err.Message, "Missing nested structure") {
+			prefix, nestedPath, ok := parseQuotedValidationError(err.Message)
+			if !ok {
+				continue
+			}
+			prefixRule, exists := rules.PrefixRules[prefix]
+			if !exists {
+				continue
+			}
+			nestedRule, exists := prefixRule.NestedFields[nestedPath]
+			if !exists {
+				continue
+			}
+			for _, field := range nestedRule.RequiredFields {
+				key := commentKey{prefix: prefix, line: err.Line}
+				missingFields[key] = append(missingFields[key], nestedPath+"."+field)
+			}
+			continue
+		}
+
+		// Check if it's a missing field error.
+		if strings.Contains(err.Message, "Missing required field") || strings.Contains(err.Message, "Missing required nested field") {
 			// Extract prefix and field from error message
 			// Format: "@metadata: Missing required field 'owner'"
-			parts := strings.SplitN(err.Message, ":", 2)
-			if len(parts) == 2 {
-				prefix := strings.TrimSpace(parts[0])
-				fieldMsg := strings.TrimSpace(parts[1])
-
-				// Extract field name from quotes
-				if start := strings.Index(fieldMsg, "'"); start != -1 {
-					if end := strings.Index(fieldMsg[start+1:], "'"); end != -1 {
-						field := fieldMsg[start+1 : start+1+end]
-						missingFields[prefix] = append(missingFields[prefix], field)
-					}
-				}
+			if prefix, field, ok := parseQuotedValidationError(err.Message); ok {
+				key := commentKey{prefix: prefix, line: err.Line}
+				missingFields[key] = append(missingFields[key], field)
 			}
 		}
 	}
 
-	// Generate fixes for missing prefixes
-	for prefix := range missingPrefixes {
+	// Generate missing prefixes in schema order so repeated runs and machines
+	// produce the same file.
+	for _, prefix := range rules.RequiredPrefixes {
+		if !missingPrefixes[prefix] {
+			continue
+		}
 		fix := cf.generatePrefixFix(prefix, rules)
 		if fix != nil {
+			fixes = append(fixes, *fix)
+		}
+		delete(missingPrefixes, prefix)
+	}
+	remainingPrefixes := make([]string, 0, len(missingPrefixes))
+	for prefix := range missingPrefixes {
+		remainingPrefixes = append(remainingPrefixes, prefix)
+	}
+	sort.Strings(remainingPrefixes)
+	for _, prefix := range remainingPrefixes {
+		if fix := cf.generatePrefixFix(prefix, rules); fix != nil {
 			fixes = append(fixes, *fix)
 		}
 	}
 
 	// Generate fixes for missing fields
-	for prefix, fields := range missingFields {
-		fix := cf.generateFieldFix(prefix, fields, rules)
+	fieldKeys := make([]commentKey, 0, len(missingFields))
+	for key := range missingFields {
+		fieldKeys = append(fieldKeys, key)
+	}
+	sort.Slice(fieldKeys, func(i, j int) bool {
+		if fieldKeys[i].line != fieldKeys[j].line {
+			return fieldKeys[i].line < fieldKeys[j].line
+		}
+		return fieldKeys[i].prefix < fieldKeys[j].prefix
+	})
+	for _, key := range fieldKeys {
+		fields := missingFields[key]
+		fix := cf.generateFieldFix(key.prefix, fields, rules)
 		if fix != nil {
+			fix.Line = key.line
 			fixes = append(fixes, *fix)
 		}
 	}
@@ -159,10 +228,28 @@ func (cf *CommentFixer) generateFixes(resource parser.TerraformResource, errors 
 	return fixes
 }
 
+func parseQuotedValidationError(message string) (string, string, bool) {
+	parts := strings.SplitN(message, ":", 2)
+	if len(parts) != 2 {
+		return "", "", false
+	}
+	detail := parts[1]
+	start := strings.Index(detail, "'")
+	if start == -1 {
+		return "", "", false
+	}
+	end := strings.Index(detail[start+1:], "'")
+	if end == -1 {
+		return "", "", false
+	}
+	return strings.TrimSpace(parts[0]), detail[start+1 : start+1+end], true
+}
+
 // CommentFix represents a fix to apply
 type CommentFix struct {
 	Prefix string
 	Fields map[string]string
+	Line   int
 }
 
 // generatePrefixFix generates a fix for a missing prefix with default required fields
@@ -268,39 +355,21 @@ func (cf *CommentFixer) getPlaceholderValue(field string) string {
 	return "CHANGEME"
 }
 
-// buildCommentBlock builds a comment block from fixes with fields ordered by schema
-func (cf *CommentFixer) buildCommentBlock(fixes []CommentFix) []string {
+// buildCommentBlock builds a comment block from fixes with fields ordered by
+// the rules that apply to the resource being fixed.
+func (cf *CommentFixer) buildCommentBlock(fixes []CommentFix, rules validator.ResourceRules) []string {
 	var lines []string
 
 	for _, fix := range fixes {
 		// Get the schema rules to determine field order
-		prefixRule, exists := cf.getSchemaRuleForPrefix(fix.Prefix)
+		prefixRule, exists := rules.PrefixRules[fix.Prefix]
 		if !exists {
 			// Fallback to unordered if we can't find the rule
 			cf.buildUnorderedCommentBlock(fix, &lines)
 			continue
 		}
 
-		// Group fields by root vs nested
-		rootFields := make(map[string]string)
-		nestedFields := make(map[string]map[string]string)
-
-		for field, value := range fix.Fields {
-			if strings.Contains(field, ".") {
-				// Nested field
-				parts := strings.SplitN(field, ".", 2)
-				prefix := parts[0]
-				rest := parts[1]
-
-				if nestedFields[prefix] == nil {
-					nestedFields[prefix] = make(map[string]string)
-				}
-				nestedFields[prefix][rest] = value
-			} else {
-				// Root field
-				rootFields[field] = value
-			}
-		}
+		rootFields, nestedFields := splitFixFields(fix, prefixRule)
 
 		// Build comment line with ordered root fields
 		commentLine := "# " + fix.Prefix
@@ -322,7 +391,9 @@ func (cf *CommentFixer) buildCommentBlock(fixes []CommentFix) []string {
 		lines = append(lines, commentLine)
 
 		// Add nested fields on separate lines in schema order
-		for nestedPath, nestedRule := range prefixRule.NestedFields {
+		nestedPaths := sortedNestedPaths(prefixRule)
+		for _, nestedPath := range nestedPaths {
+			nestedRule := prefixRule.NestedFields[nestedPath]
 			if fieldMap, ok := nestedFields[nestedPath]; ok && len(fieldMap) > 0 {
 				nestedLine := "#"
 
@@ -350,16 +421,93 @@ func (cf *CommentFixer) buildCommentBlock(fixes []CommentFix) []string {
 	return lines
 }
 
-// getSchemaRuleForPrefix retrieves the prefix rule from the schema
-func (cf *CommentFixer) getSchemaRuleForPrefix(prefix string) (validator.PrefixRule, bool) {
-	// Check global rules first
-	if rule, ok := cf.schema.Global.PrefixRules[prefix]; ok {
-		return rule, true
+func (cf *CommentFixer) buildContinuationBlock(fix CommentFix, rules validator.ResourceRules) []string {
+	prefixRule, exists := rules.PrefixRules[fix.Prefix]
+	if !exists {
+		var lines []string
+		cf.buildUnorderedContinuationBlock(fix, &lines)
+		return lines
 	}
 
-	// Could also check resource-specific rules if needed
-	// but for now we use global rules
-	return validator.PrefixRule{}, false
+	rootFields, nestedFields := splitFixFields(fix, prefixRule)
+
+	var lines []string
+	rootLine := "#"
+	for _, field := range append(append([]string{}, prefixRule.RequiredFields...), prefixRule.OptionalFields...) {
+		if value, ok := rootFields[field]; ok {
+			rootLine += fmt.Sprintf(" %s:%s", field, value)
+		}
+	}
+	if rootLine != "#" {
+		lines = append(lines, rootLine)
+	}
+
+	nestedPaths := sortedNestedPaths(prefixRule)
+	for _, nestedPath := range nestedPaths {
+		fieldMap := nestedFields[nestedPath]
+		if len(fieldMap) == 0 {
+			continue
+		}
+		nestedLine := "#"
+		nestedRule := prefixRule.NestedFields[nestedPath]
+		for _, field := range append(append([]string{}, nestedRule.RequiredFields...), nestedRule.OptionalFields...) {
+			if value, ok := fieldMap[field]; ok {
+				nestedLine += fmt.Sprintf(" %s.%s:%s", nestedPath, field, value)
+			}
+		}
+		if nestedLine != "#" {
+			lines = append(lines, nestedLine)
+		}
+	}
+	return lines
+}
+
+func splitFixFields(fix CommentFix, rule validator.PrefixRule) (map[string]string, map[string]map[string]string) {
+	rootFields := make(map[string]string)
+	nestedFields := make(map[string]map[string]string)
+	paths := sortedNestedPaths(rule)
+	sort.SliceStable(paths, func(i, j int) bool { return len(paths[i]) > len(paths[j]) })
+
+	for field, value := range fix.Fields {
+		matched := false
+		for _, nestedPath := range paths {
+			prefix := nestedPath + "."
+			if !strings.HasPrefix(field, prefix) {
+				continue
+			}
+			if nestedFields[nestedPath] == nil {
+				nestedFields[nestedPath] = make(map[string]string)
+			}
+			nestedFields[nestedPath][strings.TrimPrefix(field, prefix)] = value
+			matched = true
+			break
+		}
+		if !matched {
+			rootFields[field] = value
+		}
+	}
+	return rootFields, nestedFields
+}
+
+func sortedNestedPaths(rule validator.PrefixRule) []string {
+	paths := make([]string, 0, len(rule.NestedFields))
+	for path := range rule.NestedFields {
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+	return paths
+}
+
+func (cf *CommentFixer) buildUnorderedContinuationBlock(fix CommentFix, lines *[]string) {
+	copyFix := fix
+	copyFix.Prefix = ""
+	cf.buildUnorderedCommentBlock(copyFix, lines)
+	if len(*lines) > 0 {
+		(*lines)[0] = strings.TrimSpace((*lines)[0])
+		if (*lines)[0] == "#" {
+			*lines = (*lines)[1:]
+		}
+	}
 }
 
 // buildUnorderedCommentBlock is a fallback for when schema rules aren't found

@@ -118,6 +118,130 @@ global:
 	}
 }
 
+func TestFixSingleFileUsesResourceSpecificPrefixRule(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	schema := `global:
+  required_prefixes: ["@metadata"]
+  prefix_rules:
+    "@metadata":
+      required_fields: [owner]
+resource_types:
+  aws_instance:
+    required_prefixes: ["@metadata"]
+    prefix_rules:
+      "@metadata":
+        required_fields: [owner, environment]
+`
+	if err := afero.WriteFile(fs, "/schema.yaml", []byte(schema), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := afero.WriteFile(fs, "/main.tf", []byte("resource \"aws_instance\" \"main\" {}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	fixed, _, err := fixSingleFile(fs, "/main.tf", "/schema.yaml")
+	if err != nil {
+		t.Fatalf("fixSingleFile() failed: %v", err)
+	}
+	if !fixed {
+		t.Fatal("expected file to be fixed")
+	}
+	content, err := afero.ReadFile(fs, "/main.tf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(content), "environment:production") {
+		t.Fatalf("resource-specific required field was not generated:\n%s", content)
+	}
+}
+
+func TestFixSingleFileAddsMissingNestedStructure(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	schema := `global:
+  required_prefixes: ["@metadata"]
+  prefix_rules:
+    "@metadata":
+      required_fields: [owner]
+      nested_fields:
+        contact.primary:
+          required_fields: [email]
+`
+	if err := afero.WriteFile(fs, "/schema.yaml", []byte(schema), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	terraform := "# @metadata owner:platform\nresource \"aws_instance\" \"main\" {}\n"
+	if err := afero.WriteFile(fs, "/main.tf", []byte(terraform), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	fixed, _, err := fixSingleFile(fs, "/main.tf", "/schema.yaml")
+	if err != nil {
+		t.Fatalf("fixSingleFile() failed: %v", err)
+	}
+	if !fixed {
+		t.Fatal("expected file to be fixed")
+	}
+	content, err := afero.ReadFile(fs, "/main.tf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(content), "contact.primary.email:changeme@example.com") {
+		t.Fatalf("required nested field was not generated:\n%s", content)
+	}
+}
+
+func TestFixSingleFileRepairsEachRepeatedPrefix(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	schema := `global:
+  required_prefixes: ["@metadata"]
+  prefix_rules:
+    "@metadata":
+      required_fields: [owner, team]
+`
+	if err := afero.WriteFile(fs, "/schema.yaml", []byte(schema), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	terraform := "# @metadata owner:platform\n# @metadata team:compute\nresource \"aws_instance\" \"main\" {}\n"
+	if err := afero.WriteFile(fs, "/main.tf", []byte(terraform), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, _, err := fixSingleFile(fs, "/main.tf", "/schema.yaml"); err != nil {
+		t.Fatalf("fixSingleFile() failed: %v", err)
+	}
+}
+
+func TestFixSingleFileUsesSchemaPrefixOrder(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	schema := `global:
+  required_prefixes: ["@metadata", "@docs"]
+  prefix_rules:
+    "@metadata":
+      required_fields: [owner]
+    "@docs":
+      required_fields: [description]
+`
+	if err := afero.WriteFile(fs, "/schema.yaml", []byte(schema), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := afero.WriteFile(fs, "/main.tf", []byte("resource \"test\" \"example\" {}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, _, err := fixSingleFile(fs, "/main.tf", "/schema.yaml"); err != nil {
+		t.Fatal(err)
+	}
+	content, err := afero.ReadFile(fs, "/main.tf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	metadata := strings.Index(string(content), "@metadata")
+	docs := strings.Index(string(content), "@docs")
+	if metadata == -1 || docs == -1 || metadata > docs {
+		t.Fatalf("generated prefixes do not follow schema order:\n%s", content)
+	}
+}
+
 func TestLoadSchema(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	schemaContent := `
@@ -279,6 +403,13 @@ field_validations:
 	}
 	if err := Fix(fs, "/main.tf", "/schema.yaml"); err == nil {
 		t.Fatal("expected second partial fix to remain nonzero")
+	}
+	fixed, count, err := fixSingleFile(fs, "/main.tf", "/schema.yaml")
+	if err == nil {
+		t.Fatal("expected unresolved value error")
+	}
+	if fixed || count != 0 {
+		t.Fatalf("no-op fix reported a change: fixed=%v count=%d", fixed, count)
 	}
 	backup, err := afero.ReadFile(fs, "/main.tf.bak")
 	if err != nil {

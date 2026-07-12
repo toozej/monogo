@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/spf13/afero"
@@ -171,5 +172,62 @@ func TestParseValueConsumesWholeNumber(t *testing.T) {
 		if got := p.parseValue(input); got != want {
 			t.Errorf("parseValue(%q) = %#v, want %#v", input, got, want)
 		}
+	}
+}
+
+func TestParseFile_PreservesQuotedKeyLikeText(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	content := `# @docs description:"Deploy owner: service" format:markdown
+resource "test" "example" {}
+`
+	if err := afero.WriteFile(fs, "main.tf", []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	resources, err := NewCommentParser(fs, []string{"@docs"}).ParseFile("main.tf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	comment := resources[0].PrecedingComments[0]
+	if got := comment.Fields["description"]; got != "Deploy owner: service" {
+		t.Fatalf("description = %#v", got)
+	}
+	if got := comment.Fields["format"]; got != "markdown" {
+		t.Fatalf("format = %#v", got)
+	}
+	if _, exists := comment.Fields["owner"]; exists {
+		t.Fatalf("quoted text was parsed as a field: %#v", comment.Fields)
+	}
+}
+
+func TestParseFile_ApostropheDoesNotHideFollowingField(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	content := `# @docs description:John's service owner:platform
+resource "test" "example" {}
+`
+	if err := afero.WriteFile(fs, "main.tf", []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	resources, err := NewCommentParser(fs, []string{"@docs"}).ParseFile("main.tf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	comment := resources[0].PrecedingComments[0]
+	if got := comment.Fields["description"]; got != "John's service" {
+		t.Fatalf("description = %#v", got)
+	}
+	if got := comment.Fields["owner"]; got != "platform" {
+		t.Fatalf("owner = %#v", got)
+	}
+}
+
+func TestParseValueRejectsNonFiniteNumbersAndParsesEmptyArray(t *testing.T) {
+	p := NewCommentParser(afero.NewMemMapFs(), nil)
+	for _, input := range []string{"NaN", "Inf", "-Inf"} {
+		if got := p.parseValue(input); got != input {
+			t.Errorf("parseValue(%q) = %#v, want string", input, got)
+		}
+	}
+	if got := p.parseValue("[]"); !reflect.DeepEqual(got, []interface{}{}) {
+		t.Errorf("parseValue(\"[]\") = %#v, want empty array", got)
 	}
 }

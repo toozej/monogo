@@ -119,6 +119,9 @@ func fixSingleFile(fs afero.Fs, terraformFile, schemaFile string) (bool, int, er
 	if err != nil {
 		return false, 0, fmt.Errorf("failed to fix file: %w", err)
 	}
+	if fixCount == 0 {
+		return false, 0, fmt.Errorf("%d validation issues require manual intervention", len(result.Errors))
+	}
 
 	// Write fixed content atomically while preserving the original permissions.
 	fileInfo, err := fs.Stat(terraformFile)

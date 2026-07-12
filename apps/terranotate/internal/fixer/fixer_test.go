@@ -80,7 +80,9 @@ func TestBuildCommentBlock(t *testing.T) {
 		},
 	}
 
-	lines := fixer.buildCommentBlock(fixes)
+	lines := fixer.buildCommentBlock(fixes, validator.ResourceRules{
+		PrefixRules: schema.Global.PrefixRules,
+	})
 
 	if len(lines) == 0 {
 		t.Fatal("buildCommentBlock returned no lines")

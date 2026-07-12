@@ -70,6 +70,22 @@ unknown_setting: true
     type: string
     pattern: "["
 `,
+		"non-finite minimum": `field_validations:
+  uptime:
+    type: float
+    min: .nan
+`,
+		"non-finite maximum": `field_validations:
+  uptime:
+    type: float
+    max: .inf
+`,
+		"second YAML document": `global:
+  required_prefixes: []
+---
+global:
+  required_prefixes: ["@ignored"]
+`,
 	}
 	for name, schema := range tests {
 		t.Run(name, func(t *testing.T) {
