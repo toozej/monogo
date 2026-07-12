@@ -179,7 +179,23 @@ func TestNewSearchCmd(t *testing.T) {
 	assert.Equal(t, "search [query]", cmd.Use)
 	assert.Equal(t, "Search for songs in KMHD playlist", cmd.Short)
 	assert.Contains(t, cmd.Long, "fuzzy matching")
-	assert.NotNil(t, cmd.Run)
+	assert.NotNil(t, cmd.RunE)
+}
+
+func TestSearchCommandRejectsBlankQuery(t *testing.T) {
+	cmd := newSearchCmd()
+	cmd.SetArgs([]string{" \t"})
+
+	err := cmd.Execute()
+
+	assert.ErrorContains(t, err, "search query cannot be empty")
+}
+
+func TestSearchKMHDPlaylistPropagatesFetchError(t *testing.T) {
+	err := searchKMHDPlaylist(&MockKMHDScraperWithError{err: assert.AnError}, "miles")
+
+	assert.ErrorIs(t, err, assert.AnError)
+	assert.ErrorContains(t, err, "fetch KMHD playlist")
 }
 
 func TestInitializeKMHDAPIClient(t *testing.T) {
@@ -191,15 +207,32 @@ func TestInitializeKMHDAPIClient(t *testing.T) {
 }
 
 func TestInitializeAllServices(t *testing.T) {
-	// Skip if Spotify config is not properly set (which is expected in test environment)
-	if conf.Spotify.ClientID == "" || conf.Spotify.ClientSecret == "" {
-		t.Skip("Skipping test due to missing Spotify credentials")
+	original := conf
+	t.Cleanup(func() { conf = original })
+
+	tests := []struct {
+		name        string
+		musicClient string
+		want        string
+	}{
+		{name: "Spotify initialization error", musicClient: "spotify", want: "spotify client ID and secret are required"},
+		{name: "YouTube Music initialization error", musicClient: "youtube", want: "youtube music cookie is required"},
 	}
 
-	kmhdScraper, musicService, fuzzySongSearcher, err := initializeAllServices()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			conf = original
+			conf.MusicClient = tt.musicClient
+			conf.Spotify.ClientID = ""
+			conf.Spotify.ClientSecret = ""
+			conf.YouTubeMusic.Cookie = ""
 
-	assert.NoError(t, err)
-	assert.NotNil(t, kmhdScraper)
-	assert.NotNil(t, musicService)
-	assert.NotNil(t, fuzzySongSearcher)
+			kmhdScraper, musicService, fuzzySongSearcher, err := initializeAllServices()
+
+			assert.ErrorContains(t, err, tt.want)
+			assert.Nil(t, kmhdScraper)
+			assert.Nil(t, musicService)
+			assert.Nil(t, fuzzySongSearcher)
+		})
+	}
 }
