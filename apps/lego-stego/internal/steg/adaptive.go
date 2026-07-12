@@ -42,7 +42,7 @@ func selectEmbeddingMask(img image.Image, threshold float64) [][]bool {
 				continue
 			}
 
-			variance := computeVariance(img, x, y)
+			variance := computeVariance(img, b.Min.X+x, b.Min.Y+y)
 			if variance > threshold {
 				mask[y][x] = true
 			}

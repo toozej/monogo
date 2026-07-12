@@ -27,11 +27,15 @@ func filterCoords(coords [][2]int, mask [][]bool, skip int) [][2]int {
 			continue
 		}
 
-		if c[1] < len(mask) && c[0] < len(mask[c[1]]) && mask[c[1]][c[0]] {
-			noisy = append(noisy, c)
-		} else {
-			flat = append(flat, c)
+		if len(mask) > 0 {
+			minX, minY := coords[0][0], coords[0][1]
+			maskX, maskY := c[0]-minX, c[1]-minY
+			if maskY >= 0 && maskY < len(mask) && maskX >= 0 && maskX < len(mask[maskY]) && mask[maskY][maskX] {
+				noisy = append(noisy, c)
+				continue
+			}
 		}
+		flat = append(flat, c)
 	}
 
 	return append(noisy, flat...)

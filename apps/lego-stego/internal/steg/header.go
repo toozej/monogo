@@ -47,6 +47,18 @@ func DecodeHeader(data []byte) (Header, int, error) {
 		Channels: data[6],
 		Length:   binary.BigEndian.Uint32(data[8:12]),
 	}
+	if h.Version != 1 {
+		return Header{}, 0, errors.New("unsupported payload version")
+	}
+	if h.Flags&^uint8(3) != 0 {
+		return Header{}, 0, errors.New("unsupported payload flags")
+	}
+	if h.Channels != 1 && h.Channels != 3 {
+		return Header{}, 0, errors.New("invalid payload channel count")
+	}
+	if data[7] != 0 {
+		return Header{}, 0, errors.New("invalid reserved header byte")
+	}
 
 	return h, 12, nil
 }

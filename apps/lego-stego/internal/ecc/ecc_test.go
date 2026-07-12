@@ -2,6 +2,8 @@ package ecc
 
 import (
 	"bytes"
+	"encoding/binary"
+	"errors"
 	"testing"
 )
 
@@ -79,6 +81,19 @@ func TestDecodeWithMissingInvalidData(t *testing.T) {
 	_, err := DecodeWithMissing([]byte("x"), nil)
 	if err == nil {
 		t.Fatalf("expected error for data too short")
+	}
+}
+
+func TestDecodeRejectsOriginalLengthBeyondReconstructedData(t *testing.T) {
+	encoded, err := Encode([]byte("short payload"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	binary.BigEndian.PutUint32(encoded[:OrigLenSize], ^uint32(0))
+
+	_, err = Decode(encoded)
+	if !errors.Is(err, ErrInvalidData) {
+		t.Fatalf("Decode() error = %v, want %v", err, ErrInvalidData)
 	}
 }
 

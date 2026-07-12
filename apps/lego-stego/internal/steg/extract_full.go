@@ -7,7 +7,7 @@ import (
 
 type extractState struct {
 	bits     []uint8
-	needed   int
+	needed   int64
 	nch      int
 	complete bool
 	lastErr  error
@@ -57,14 +57,21 @@ func Extract(img image.Image, password string) ([]byte, error) {
 				continue
 			}
 
-			data := bitsToBytes(s.bits[:byteCount*8])
-
 			if s.needed == 0 {
-				h, _, err := DecodeHeader(data)
+				header := bitsToBytes(s.bits[:12*8])
+				h, _, err := DecodeHeader(header)
 				if err != nil {
+					s.complete = true
+					s.lastErr = fmt.Errorf("invalid payload header (nch=%d): %w", s.nch, err)
 					continue
 				}
-				s.needed = 12 + int(h.Length)
+				s.needed = 12 + int64(h.Length)
+				maxBytes := int64(len(coords)) * int64(s.nch) / 8
+				if s.needed > maxBytes {
+					s.complete = true
+					s.lastErr = fmt.Errorf("declared payload length %d exceeds image capacity", h.Length)
+					continue
+				}
 				if h.Channels > 0 && int(h.Channels) != s.nch {
 					s.nch = int(h.Channels)
 					s.bits = nil
@@ -73,11 +80,12 @@ func Extract(img image.Image, password string) ([]byte, error) {
 				}
 			}
 
-			if byteCount < s.needed {
+			if int64(byteCount) < s.needed {
 				continue
 			}
 
-			payload, err := ParsePayload(data[:s.needed], password)
+			data := bitsToBytes(s.bits[:s.needed*8])
+			payload, err := ParsePayload(data, password)
 			if err == nil {
 				return payload, nil
 			}

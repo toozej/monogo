@@ -13,6 +13,7 @@ var infoInput string
 var infoCmd = &cobra.Command{
 	Use:   "info",
 	Short: "Inspect stego image",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// #nosec G304 -- path provided by user via CLI flag
 		data, err := os.ReadFile(infoInput)

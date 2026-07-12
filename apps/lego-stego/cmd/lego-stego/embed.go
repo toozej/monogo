@@ -1,6 +1,9 @@
 package cmd
 
 import (
+	"fmt"
+	"net/url"
+
 	"github.com/spf13/cobra"
 	"github.com/toozej/monogo/apps/lego-stego/internal/api"
 )
@@ -10,7 +13,11 @@ var embedInput, embedOutput, embedURL, embedPassword string
 var embedCmd = &cobra.Command{
 	Use:   "embed",
 	Short: "Embed a QR URL into an image",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := validateEmbedURL(embedURL); err != nil {
+			return err
+		}
 		pw, err := readPassword(embedPassword)
 		if err != nil {
 			return err
@@ -18,6 +25,14 @@ var embedCmd = &cobra.Command{
 
 		return api.EmbedQR(embedInput, embedOutput, embedURL, pw)
 	},
+}
+
+func validateEmbedURL(value string) error {
+	parsed, err := url.ParseRequestURI(value)
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
+		return fmt.Errorf("url must use http or https and include a host")
+	}
+	return nil
 }
 
 func init() {

@@ -47,9 +47,10 @@ func TestECCRecovery(t *testing.T) {
 	}
 
 	newHeader := Header{
-		Version: h.Version,
-		Flags:   h.Flags &^ 2,
-		Length:  uint32(len(recovered)),
+		Version:  h.Version,
+		Flags:    h.Flags &^ 2,
+		Channels: h.Channels,
+		Length:   uint32(len(recovered)),
 	}
 
 	hdr, err := EncodeHeader(newHeader)
