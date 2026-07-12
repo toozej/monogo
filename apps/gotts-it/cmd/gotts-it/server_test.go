@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -250,6 +251,59 @@ func TestServerCmdRunEReturnsBatchFailures(t *testing.T) {
 	err = serverCmdRunE(newServerCmd(), nil)
 	if err == nil || !strings.Contains(err.Error(), "line 3") {
 		t.Fatalf("expected line-numbered batch failure, got %v", err)
+	}
+}
+
+func TestServerCmdRunEStopsOnCancelledContext(t *testing.T) {
+	oldStdin := os.Stdin
+	defer func() { os.Stdin = oldStdin }()
+	inputPath := filepath.Join(t.TempDir(), "input.txt")
+	if err := os.WriteFile(inputPath, []byte("/nonexistent/one.html\n/nonexistent/two.html\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	input, err := os.Open(inputPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = input.Close() }()
+	os.Stdin = input
+
+	origConf := conf
+	defer func() { conf = origConf }()
+	conf = config.Config{OutputDir: t.TempDir(), FetchTimeout: time.Second}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	cmd := newServerCmd()
+	cmd.SetContext(ctx)
+
+	err = serverCmdRunE(cmd, nil)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context cancellation, got %v", err)
+	}
+}
+
+func TestServerCmdRunEJoinsProcessAndScannerErrors(t *testing.T) {
+	oldStdin := os.Stdin
+	defer func() { os.Stdin = oldStdin }()
+	inputPath := filepath.Join(t.TempDir(), "input.txt")
+	inputData := "/nonexistent/article.html\n" + strings.Repeat("x", 70<<10) + "\n"
+	if err := os.WriteFile(inputPath, []byte(inputData), 0600); err != nil {
+		t.Fatal(err)
+	}
+	input, err := os.Open(inputPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = input.Close() }()
+	os.Stdin = input
+
+	origConf := conf
+	defer func() { conf = origConf }()
+	conf = config.Config{OutputDir: t.TempDir(), FetchTimeout: time.Second}
+
+	err = serverCmdRunE(newServerCmd(), nil)
+	if err == nil || !strings.Contains(err.Error(), "line 1") || !strings.Contains(err.Error(), "reading stdin") {
+		t.Fatalf("expected joined process and scanner errors, got %v", err)
 	}
 }
 

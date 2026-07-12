@@ -57,6 +57,10 @@ func serverCmdRunE(cmd *cobra.Command, args []string) error {
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
+		if err := ctx.Err(); err != nil {
+			processErrors = append(processErrors, err)
+			break
+		}
 		processed++
 
 		log.Infof("processing line %d: %s", lineNum, line)
@@ -64,12 +68,16 @@ func serverCmdRunE(cmd *cobra.Command, args []string) error {
 		if err := processLine(ctx, line); err != nil {
 			log.Errorf("line %d: %v", lineNum, err)
 			processErrors = append(processErrors, fmt.Errorf("line %d: %w", lineNum, err))
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				processErrors = append(processErrors, ctxErr)
+				break
+			}
 			continue
 		}
 	}
 
 	if err := scanner.Err(); err != nil && err != io.EOF {
-		return fmt.Errorf("reading stdin: %w", err)
+		processErrors = append(processErrors, fmt.Errorf("reading stdin: %w", err))
 	}
 
 	log.Infof("processed %d inputs", processed)

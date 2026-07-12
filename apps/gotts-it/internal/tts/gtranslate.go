@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"net/url"
 	"strings"
@@ -80,10 +81,18 @@ func SynthesizeGoogleTranslate(ctx context.Context, text, outputPath string, opt
 var GtranslateRequest = gtranslateFromText
 
 func gtranslateFromText(ctx context.Context, client *http.Client, text, lang string) (io.ReadCloser, error) {
-	reqURL := fmt.Sprintf(
-		"https://translate.google.com/translate_tts?ie=UTF-8&textlen=%d&client=tw-ob&q=%s&tl=%s",
-		utf8.RuneCountInString(text), url.QueryEscape(text), lang,
-	)
+	query := url.Values{}
+	query.Set("ie", "UTF-8")
+	query.Set("textlen", fmt.Sprintf("%d", utf8.RuneCountInString(text)))
+	query.Set("client", "tw-ob")
+	query.Set("q", text)
+	query.Set("tl", lang)
+	reqURL := (&url.URL{
+		Scheme:   "https",
+		Host:     "translate.google.com",
+		Path:     "/translate_tts",
+		RawQuery: query.Encode(),
+	}).String()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
 	if err != nil {
@@ -100,6 +109,11 @@ func gtranslateFromText(ctx context.Context, client *http.Client, text, lang str
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
 		_ = resp.Body.Close()
 		return nil, fmt.Errorf("google translate tts returned status %d: %s", resp.StatusCode, string(body))
+	}
+	mediaType, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+	if err != nil || (mediaType != "audio/mpeg" && mediaType != "audio/mp3") {
+		_ = resp.Body.Close()
+		return nil, fmt.Errorf("google translate tts returned non-audio content type %q", resp.Header.Get("Content-Type"))
 	}
 
 	return resp.Body, nil

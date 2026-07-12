@@ -174,6 +174,31 @@ func TestFromSourceRejectsHTTPErrorPage(t *testing.T) {
 	}
 }
 
+func TestFromSourceRejectsNonHTMLSuccess(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"message":"not an article"}`))
+	}))
+	defer srv.Close()
+
+	_, err := FromSource(context.Background(), Source{URL: srv.URL}, time.Second)
+	if err == nil || !strings.Contains(err.Error(), "not HTML") {
+		t.Fatalf("expected non-HTML response error, got %v", err)
+	}
+}
+
+func TestFromSourceEnforcesFetchTimeout(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-r.Context().Done()
+	}))
+	defer srv.Close()
+
+	_, err := FromSource(context.Background(), Source{URL: srv.URL}, 20*time.Millisecond)
+	if err == nil {
+		t.Fatal("expected request timeout")
+	}
+}
+
 func TestFromSourceHonorsCancelledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

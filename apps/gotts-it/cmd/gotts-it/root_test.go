@@ -185,6 +185,52 @@ func TestRootPreRunRejectsNonMP3GoogleOutput(t *testing.T) {
 	}
 }
 
+func TestRootPreRunValidatesEffectiveTTSConfiguration(t *testing.T) {
+	valid := config.Config{
+		URL: "https://example.com/article", TTSBackend: "openai", TTSFormat: "mp3",
+		TTSSpeed: 1, TTSTimeout: time.Second, FetchTimeout: time.Second,
+	}
+	tests := []struct {
+		name   string
+		mutate func(*config.Config)
+		want   string
+	}{
+		{"zero fetch timeout", func(c *config.Config) { c.FetchTimeout = 0 }, "fetch timeout"},
+		{"zero TTS timeout", func(c *config.Config) { c.TTSTimeout = 0 }, "TTS timeout"},
+		{"speed too low", func(c *config.Config) { c.TTSSpeed = 0.24 }, "speed"},
+		{"speed too high", func(c *config.Config) { c.TTSSpeed = 4.01 }, "speed"},
+		{"unsupported OpenAI format", func(c *config.Config) { c.TTSFormat = "ogg" }, "unsupported audio format"},
+		{"unknown backend", func(c *config.Config) { c.TTSBackend = "other" }, "unknown TTS backend"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			origConf := conf
+			defer func() { conf = origConf }()
+			conf = valid
+			tt.mutate(&conf)
+			err := rootCmdPreRunE(&cobra.Command{Use: "gotts-it"}, nil)
+			if err == nil || !strings.Contains(err.Error(), tt.want) {
+				t.Fatalf("expected %q validation error, got %v", tt.want, err)
+			}
+		})
+	}
+}
+
+func TestRootPreRunNormalizesBackendAndFormat(t *testing.T) {
+	origConf := conf
+	defer func() { conf = origConf }()
+	conf = config.Config{
+		URL: "https://example.com/article", TTSBackend: " OPENAI ", TTSFormat: " WAV ",
+		TTSSpeed: 1, TTSTimeout: time.Second, FetchTimeout: time.Second,
+	}
+	if err := rootCmdPreRunE(&cobra.Command{Use: "gotts-it"}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if conf.TTSBackend != "openai" || conf.TTSFormat != "wav" {
+		t.Fatalf("configuration was not normalized: backend=%q format=%q", conf.TTSBackend, conf.TTSFormat)
+	}
+}
+
 func TestURLFlagParsing(t *testing.T) {
 	origConf := conf
 	defer func() { conf = origConf }()

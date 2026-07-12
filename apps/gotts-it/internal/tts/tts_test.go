@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -432,7 +433,7 @@ func TestWriteChunk_PCM(t *testing.T) {
 	resp := &http.Response{
 		Body: io.NopCloser(strings.NewReader("pcm-data")),
 	}
-	if err := writeChunk(f, resp, "pcm", true, true); err != nil {
+	if _, err := writeChunk(f, resp, "pcm", true, true, nil); err != nil {
 		t.Fatalf("writeChunk pcm: %v", err)
 	}
 }
@@ -448,8 +449,180 @@ func TestWriteChunk_WAV(t *testing.T) {
 	resp := &http.Response{
 		Body: io.NopCloser(strings.NewReader(string(createWAVFile(100)))),
 	}
-	if err := writeChunk(f, resp, "wav", true, true); err != nil {
+	if _, err := writeChunk(f, resp, "wav", true, true, nil); err != nil {
 		t.Fatalf("writeChunk wav: %v", err)
+	}
+}
+
+type failureReader struct{}
+
+func (failureReader) Read([]byte) (int, error) {
+	return 0, errors.New("read beyond WAV data")
+}
+
+func TestWriteWAVChunkDoesNotReadTrailingResponseData(t *testing.T) {
+	f, err := os.CreateTemp(t.TempDir(), "chunk-*.wav")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = f.Close() }()
+
+	r := io.MultiReader(bytes.NewReader(createWAVFile(100)), failureReader{})
+	if _, err := writeWAVChunk(f, r, true, nil); err != nil {
+		t.Fatalf("writeWAVChunk consumed trailing response data: %v", err)
+	}
+}
+
+func TestWriteWAVChunkRejectsMalformedFormatChunk(t *testing.T) {
+	data := make([]byte, 32)
+	copy(data[0:4], "RIFF")
+	binary.LittleEndian.PutUint32(data[4:8], uint32(len(data)-8))
+	copy(data[8:12], "WAVE")
+	copy(data[12:16], "fmt ")
+	binary.LittleEndian.PutUint32(data[16:20], 1)
+	data[20] = 1
+	copy(data[22:26], "data")
+	binary.LittleEndian.PutUint32(data[26:30], 2)
+
+	f, err := os.CreateTemp(t.TempDir(), "chunk-*.wav")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = f.Close() }()
+	if _, err := writeWAVChunk(f, bytes.NewReader(data), true, nil); err == nil || !strings.Contains(err.Error(), "format") {
+		t.Fatalf("expected malformed WAV format error, got %v", err)
+	}
+}
+
+func TestWriteWAVChunkRejectsCompressedEncoding(t *testing.T) {
+	data := createWAVFile(100)
+	binary.LittleEndian.PutUint16(data[20:22], 6) // WAVE_FORMAT_ALAW requires fact metadata.
+	f, err := os.CreateTemp(t.TempDir(), "chunk-*.wav")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = f.Close() }()
+	if _, err := writeWAVChunk(f, bytes.NewReader(data), true, nil); err == nil || !strings.Contains(err.Error(), "encoding") {
+		t.Fatalf("expected unsupported WAV encoding error, got %v", err)
+	}
+}
+
+func TestWriteWAVChunkRejectsDuplicateFormatChunks(t *testing.T) {
+	wav := createWAVFile(100)
+	data := append([]byte(nil), wav[:36]...)
+	data = append(data, wav[12:]...)
+	binary.LittleEndian.PutUint32(data[4:8], uint32(len(data)-8))
+	f, err := os.CreateTemp(t.TempDir(), "chunk-*.wav")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = f.Close() }()
+	if _, err := writeWAVChunk(f, bytes.NewReader(data), true, nil); err == nil || !strings.Contains(err.Error(), "format") {
+		t.Fatalf("expected duplicate WAV format error, got %v", err)
+	}
+}
+
+func TestValidateWAVFormatRejectsInconsistentPCMGeometry(t *testing.T) {
+	format := append([]byte(nil), createWAVFile(0)[20:36]...)
+	binary.LittleEndian.PutUint16(format[12:14], 1)
+	if err := validateWAVFormat(format); err == nil {
+		t.Fatal("expected inconsistent PCM block alignment to fail")
+	}
+}
+
+func TestWriteWAVChunkRejectsPartialSampleData(t *testing.T) {
+	data := createWAVFile(101)
+	data = append(data, 0)
+	binary.LittleEndian.PutUint32(data[4:8], uint32(len(data)-8))
+	f, err := os.CreateTemp(t.TempDir(), "chunk-*.wav")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = f.Close() }()
+	if _, err := writeWAVChunk(f, bytes.NewReader(data), true, nil); err == nil || !strings.Contains(err.Error(), "sample") {
+		t.Fatalf("expected partial WAV sample error, got %v", err)
+	}
+}
+
+func TestWriteWAVChunkRejectsMalformedContainers(t *testing.T) {
+	validHeader := createWAVFile(2)
+	tests := []struct {
+		name string
+		data []byte
+	}{
+		{"truncated header", []byte("RIFF")},
+		{"wrong signature", append([]byte("NOPE"), validHeader[4:]...)},
+		{"invalid RIFF size", func() []byte {
+			data := append([]byte(nil), validHeader...)
+			binary.LittleEndian.PutUint32(data[4:8], 3)
+			return data
+		}()},
+		{"missing format chunk", func() []byte {
+			data := make([]byte, 22)
+			copy(data[0:4], "RIFF")
+			binary.LittleEndian.PutUint32(data[4:8], uint32(len(data)-8))
+			copy(data[8:12], "WAVE")
+			copy(data[12:16], "data")
+			binary.LittleEndian.PutUint32(data[16:20], 2)
+			return data
+		}()},
+		{"oversized pre-data header", func() []byte {
+			data := make([]byte, 20)
+			copy(data[0:4], "RIFF")
+			binary.LittleEndian.PutUint32(data[4:8], uint32(maxWAVHeaderBytes+16))
+			copy(data[8:12], "WAVE")
+			copy(data[12:16], "JUNK")
+			binary.LittleEndian.PutUint32(data[16:20], uint32(maxWAVHeaderBytes))
+			return data
+		}()},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f, err := os.CreateTemp(t.TempDir(), "chunk-*.wav")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() { _ = f.Close() }()
+			if _, err := writeWAVChunk(f, bytes.NewReader(tt.data), true, nil); err == nil {
+				t.Fatal("expected malformed WAV response to fail")
+			}
+		})
+	}
+}
+
+func TestSynthesizeWAVPreservesOddDataSizeAndAddsPadding(t *testing.T) {
+	wavData := createWAVFile(101)
+	binary.LittleEndian.PutUint32(wavData[28:32], 44100)
+	binary.LittleEndian.PutUint16(wavData[32:34], 1)
+	binary.LittleEndian.PutUint16(wavData[34:36], 8)
+	wavData = append(wavData, 0)
+	binary.LittleEndian.PutUint32(wavData[4:8], uint32(len(wavData)-8))
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/octet-stream")
+		_, _ = w.Write(wavData)
+	}))
+	defer srv.Close()
+
+	outputPath := filepath.Join(t.TempDir(), "output.wav")
+	err := Synthesize(context.Background(), "short input", outputPath, Options{
+		BaseURL: srv.URL + "/v1", APIKey: "test-key", Model: "test-model",
+		Voice: "test-voice", Format: "wav", Speed: 1, Timeout: time.Second,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := binary.LittleEndian.Uint32(data[40:44]); got != 101 {
+		t.Fatalf("WAV data size = %d, want 101", got)
+	}
+	if got, want := binary.LittleEndian.Uint32(data[4:8]), uint32(len(data)-8); got != want {
+		t.Fatalf("RIFF size = %d, want %d", got, want)
+	}
+	if len(data)%2 != 0 || data[len(data)-1] != 0 {
+		t.Fatalf("odd WAV data was not padded: length=%d last=%d", len(data), data[len(data)-1])
 	}
 }
 
@@ -464,7 +637,7 @@ func TestWriteChunk_DefaultFormat(t *testing.T) {
 	resp := &http.Response{
 		Body: io.NopCloser(strings.NewReader("default-data")),
 	}
-	if err := writeChunk(f, resp, "ogg", true, true); err != nil {
+	if _, err := writeChunk(f, resp, "ogg", true, true, nil); err != nil {
 		t.Fatalf("writeChunk default: %v", err)
 	}
 }
@@ -480,7 +653,7 @@ func TestWriteChunk_FLACNotFirst(t *testing.T) {
 	resp := &http.Response{
 		Body: io.NopCloser(strings.NewReader("flac-data")),
 	}
-	if err := writeChunk(f, resp, "flac", false, false); err == nil {
+	if _, err := writeChunk(f, resp, "flac", false, false, nil); err == nil {
 		t.Error("expected error for FLAC not-first chunk")
 	}
 }
@@ -534,6 +707,68 @@ func TestSynthesize_WAVMultipleChunks(t *testing.T) {
 	}
 	if got := int(binary.LittleEndian.Uint32(data[40:44])); got != callCount*100 {
 		t.Errorf("WAV data size = %d, want %d", got, callCount*100)
+	}
+}
+
+func TestSynthesizeWAVSingleChunkRewritesSizesAfterTrailingChunks(t *testing.T) {
+	wavData := createWAVFile(100)
+	wavData = append(wavData, []byte("LIST\x04\x00\x00\x00meta")...)
+	binary.LittleEndian.PutUint32(wavData[4:8], uint32(len(wavData)-8))
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/octet-stream")
+		_, _ = w.Write(wavData)
+	}))
+	defer srv.Close()
+
+	outputPath := filepath.Join(t.TempDir(), "output.wav")
+	err := Synthesize(context.Background(), "short input", outputPath, Options{
+		BaseURL: srv.URL + "/v1", APIKey: "test-key", Model: "test-model",
+		Voice: "test-voice", Format: "wav", Speed: 1, Timeout: time.Second,
+	})
+	if err != nil {
+		t.Fatalf("Synthesize: %v", err)
+	}
+	data, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := binary.LittleEndian.Uint32(data[4:8]), uint32(len(data)-8); got != want {
+		t.Fatalf("RIFF size = %d, want %d", got, want)
+	}
+}
+
+func TestSynthesizeWAVRejectsMismatchedChunkFormats(t *testing.T) {
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		wavData := createWAVFile(100)
+		if calls > 1 {
+			binary.LittleEndian.PutUint32(wavData[24:28], 22050)
+			binary.LittleEndian.PutUint32(wavData[28:32], 22050*2)
+		}
+		w.Header().Set("Content-Type", "application/octet-stream")
+		_, _ = w.Write(wavData)
+	}))
+	defer srv.Close()
+
+	outputPath := filepath.Join(t.TempDir(), "output.wav")
+	if err := os.WriteFile(outputPath, []byte("existing-audio"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	err := Synthesize(context.Background(), strings.Repeat("This is a sentence. ", 500), outputPath, Options{
+		BaseURL: srv.URL + "/v1", APIKey: "test-key", Model: "test-model",
+		Voice: "test-voice", Format: "wav", Speed: 1, Timeout: time.Second,
+	})
+	if err == nil || !strings.Contains(err.Error(), "format") {
+		t.Fatalf("expected mismatched WAV format error, got %v", err)
+	}
+	data, readErr := os.ReadFile(outputPath)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if string(data) != "existing-audio" {
+		t.Fatalf("failed synthesis replaced existing output with %q", data)
 	}
 }
 

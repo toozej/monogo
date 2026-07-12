@@ -28,6 +28,11 @@ import (
 // MaxInputChars mirrors the OpenAI TTS API's per-request input length cap.
 const MaxInputChars = 4096
 
+// maxWAVHeaderBytes bounds metadata preceding the audio data. Audio itself is
+// streamed, so the response size is limited by the request context rather
+// than buffered in memory.
+const maxWAVHeaderBytes = 1 << 20
+
 // Options holds the configuration for the TTS synthesis.
 type Options struct {
 	BaseURL      string
@@ -79,6 +84,7 @@ func Synthesize(ctx context.Context, text, outputPath string, opts Options) erro
 	format := responseFormat(opts.Format)
 
 	start := time.Now()
+	var wavFormat []byte
 	for i, chunkText := range chunks {
 		log.WithField("chunk", fmt.Sprintf("%d/%d", i+1, len(chunks))).Debugf("synthesizing %d chars", len([]rune(chunkText)))
 
@@ -89,7 +95,8 @@ func Synthesize(ctx context.Context, text, outputPath string, opts Options) erro
 			return fmt.Errorf("synthesize chunk %d/%d: %w", i+1, len(chunks), err)
 		}
 
-		if err := writeChunk(f, resp, opts.Format, i == 0, i == len(chunks)-1); err != nil {
+		wavFormat, err = writeChunk(f, resp, opts.Format, i == 0, i == len(chunks)-1, wavFormat)
+		if err != nil {
 			closeErr := resp.Body.Close()
 			cancel()
 			if closeErr != nil {
@@ -104,7 +111,7 @@ func Synthesize(ctx context.Context, text, outputPath string, opts Options) erro
 		cancel()
 	}
 
-	if opts.Format == "wav" && len(chunks) > 1 {
+	if opts.Format == "wav" {
 		if err := rewriteWAVHeader(output.tempPath); err != nil {
 			return fmt.Errorf("rewrite wav header: %w", err)
 		}
@@ -149,61 +156,135 @@ func synthesizeChunk(ctx context.Context, client openai.Client, text string, opt
 	return resp, nil
 }
 
-func writeChunk(f *os.File, resp *http.Response, format string, isFirst, isLast bool) error {
+func writeChunk(f *os.File, resp *http.Response, format string, isFirst, isLast bool, expectedWAVFormat []byte) ([]byte, error) {
 	switch format {
 	case "mp3", "pcm":
 		_, err := io.Copy(f, resp.Body)
-		return err
+		return expectedWAVFormat, err
 	case "wav":
-		return writeWAVChunk(f, resp.Body, isFirst)
+		return writeWAVChunk(f, resp.Body, isFirst, expectedWAVFormat)
 	case "flac":
 		if !isFirst {
-			return fmt.Errorf("FLAC chunked synthesis not yet supported; use mp3 or wav")
+			return expectedWAVFormat, fmt.Errorf("FLAC chunked synthesis not yet supported; use mp3 or wav")
 		}
 		_, err := io.Copy(f, resp.Body)
-		return err
+		return expectedWAVFormat, err
 	default:
 		_, err := io.Copy(f, resp.Body)
-		return err
+		return expectedWAVFormat, err
 	}
 }
 
-func writeWAVChunk(f *os.File, r io.Reader, isFirst bool) error {
-	header, audio, err := parseWAVChunk(r)
-	if err != nil {
-		return err
+func writeWAVChunk(f *os.File, r io.Reader, isFirst bool, expectedFormat []byte) ([]byte, error) {
+	fixedHeader := make([]byte, 12)
+	if _, err := io.ReadFull(r, fixedHeader); err != nil {
+		return expectedFormat, fmt.Errorf("read WAV header: %w", err)
 	}
+	if !bytes.Equal(fixedHeader[:4], []byte("RIFF")) || !bytes.Equal(fixedHeader[8:12], []byte("WAVE")) {
+		return expectedFormat, fmt.Errorf("invalid WAV response")
+	}
+	riffSize := int64(binary.LittleEndian.Uint32(fixedHeader[4:8]))
+	if riffSize < 4 {
+		return expectedFormat, fmt.Errorf("invalid WAV RIFF size")
+	}
+	remaining := riffSize - 4 // RIFF size includes the four-byte WAVE identifier.
+	preDataBytes := int64(len(fixedHeader))
+	var outputHeader bytes.Buffer
 	if isFirst {
-		if _, err := f.Write(header); err != nil {
-			return err
-		}
+		_, _ = outputHeader.Write(fixedHeader)
 	}
-	_, err = f.Write(audio)
-	return err
+	var format []byte
+	for remaining >= 8 {
+		chunkHeader := make([]byte, 8)
+		if _, err := io.ReadFull(r, chunkHeader); err != nil {
+			return expectedFormat, fmt.Errorf("read WAV chunk header: %w", err)
+		}
+		remaining -= 8
+		size := int64(binary.LittleEndian.Uint32(chunkHeader[4:8]))
+		paddedSize := size + size%2
+		if paddedSize > remaining {
+			return expectedFormat, fmt.Errorf("invalid WAV chunk size")
+		}
+		if bytes.Equal(chunkHeader[:4], []byte("data")) {
+			if len(format) == 0 {
+				return expectedFormat, fmt.Errorf("WAV response has no format chunk before audio data")
+			}
+			if expectedFormat != nil && !bytes.Equal(format, expectedFormat) {
+				return expectedFormat, fmt.Errorf("WAV chunk format does not match the first chunk")
+			}
+			blockAlign := int64(binary.LittleEndian.Uint16(format[12:14]))
+			if size%blockAlign != 0 {
+				return expectedFormat, fmt.Errorf("WAV audio data ends with a partial sample: %d bytes at block alignment %d", size, blockAlign)
+			}
+			if isFirst {
+				if _, err := f.Write(outputHeader.Bytes()); err != nil {
+					return expectedFormat, err
+				}
+				if _, err := f.Write(chunkHeader); err != nil {
+					return expectedFormat, err
+				}
+			}
+			if _, err := io.CopyN(f, r, size); err != nil {
+				return expectedFormat, fmt.Errorf("read WAV audio data: %w", err)
+			}
+			if size%2 != 0 {
+				if _, err := io.CopyN(io.Discard, r, 1); err != nil {
+					return expectedFormat, fmt.Errorf("read WAV audio padding: %w", err)
+				}
+			}
+			return format, nil
+		}
+		if preDataBytes+8+paddedSize > maxWAVHeaderBytes {
+			return expectedFormat, fmt.Errorf("WAV header exceeds %d-byte limit", maxWAVHeaderBytes)
+		}
+		payload := make([]byte, paddedSize)
+		if _, err := io.ReadFull(r, payload); err != nil {
+			return expectedFormat, fmt.Errorf("read WAV chunk: %w", err)
+		}
+		if bytes.Equal(chunkHeader[:4], []byte("fmt ")) {
+			if format != nil {
+				return expectedFormat, fmt.Errorf("WAV response has duplicate format chunks")
+			}
+			format = append([]byte(nil), payload[:size]...)
+			if err := validateWAVFormat(format); err != nil {
+				return expectedFormat, err
+			}
+		}
+		if isFirst {
+			_, _ = outputHeader.Write(chunkHeader)
+			_, _ = outputHeader.Write(payload)
+		}
+		preDataBytes += 8 + paddedSize
+		remaining -= paddedSize
+	}
+	return expectedFormat, fmt.Errorf("WAV response has no data chunk")
 }
 
-func parseWAVChunk(r io.Reader) ([]byte, []byte, error) {
-	data, err := io.ReadAll(r)
-	if err != nil {
-		return nil, nil, err
+func validateWAVFormat(format []byte) error {
+	if len(format) < 16 {
+		return fmt.Errorf("invalid WAV format chunk: got %d bytes, want at least 16", len(format))
 	}
-	if len(data) < 12 || !bytes.Equal(data[:4], []byte("RIFF")) || !bytes.Equal(data[8:12], []byte("WAVE")) {
-		return nil, nil, fmt.Errorf("invalid WAV response")
+	encoding := binary.LittleEndian.Uint16(format[0:2])
+	channels := binary.LittleEndian.Uint16(format[2:4])
+	sampleRate := binary.LittleEndian.Uint32(format[4:8])
+	byteRate := binary.LittleEndian.Uint32(format[8:12])
+	blockAlign := binary.LittleEndian.Uint16(format[12:14])
+	bitsPerSample := binary.LittleEndian.Uint16(format[14:16])
+	if encoding == 0 || channels == 0 || sampleRate == 0 || byteRate == 0 || blockAlign == 0 || bitsPerSample == 0 {
+		return fmt.Errorf("invalid WAV format chunk values")
 	}
-	dataLen := int64(len(data))
-	for offset := int64(12); offset+8 <= dataLen; {
-		size := int64(binary.LittleEndian.Uint32(data[offset+4 : offset+8]))
-		payloadStart := offset + 8
-		payloadEnd := payloadStart + size
-		if payloadEnd < payloadStart || payloadEnd > dataLen {
-			return nil, nil, fmt.Errorf("invalid WAV chunk size")
-		}
-		if bytes.Equal(data[offset:offset+4], []byte("data")) {
-			return data[:payloadStart], data[payloadStart:payloadEnd], nil
-		}
-		offset = payloadEnd + size%2
+	if encoding != 1 && encoding != 3 {
+		return fmt.Errorf("unsupported WAV encoding %d: chunked synthesis requires PCM or IEEE float audio", encoding)
 	}
-	return nil, nil, fmt.Errorf("WAV response has no data chunk")
+	wantBlockAlign := uint64(channels) * ((uint64(bitsPerSample) + 7) / 8)
+	if uint64(blockAlign) != wantBlockAlign {
+		return fmt.Errorf("invalid WAV block alignment %d for %d channels at %d bits", blockAlign, channels, bitsPerSample)
+	}
+	wantByteRate := uint64(sampleRate) * uint64(blockAlign)
+	if uint64(byteRate) != wantByteRate {
+		return fmt.Errorf("invalid WAV byte rate %d for sample rate %d and block alignment %d", byteRate, sampleRate, blockAlign)
+	}
+	return nil
 }
 
 func responseFormat(format string) openai.AudioSpeechNewParamsResponseFormat {
@@ -331,8 +412,14 @@ func rewriteWAVHeader(path string) error {
 		return fmt.Errorf("WAV file has no data chunk")
 	}
 
-	riffSize := fileSize - 8
 	dataSize := fileSize - dataStart
+	if dataSize%2 != 0 {
+		if _, err := f.WriteAt([]byte{0}, fileSize); err != nil {
+			return err
+		}
+		fileSize++
+	}
+	riffSize := fileSize - 8
 
 	if riffSize > math.MaxUint32 {
 		return fmt.Errorf("riff size %d exceeds uint32 max", riffSize)

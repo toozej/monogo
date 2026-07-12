@@ -98,11 +98,49 @@ func TestGtranslateRequestUsesHTTPS(t *testing.T) {
 		return &http.Response{
 			StatusCode: http.StatusOK,
 			Body:       io.NopCloser(strings.NewReader("audio")),
-			Header:     make(http.Header),
+			Header:     http.Header{"Content-Type": []string{"audio/mpeg"}},
 		}, nil
 	})}
 
 	body, err := gtranslateFromText(context.Background(), client, "hello", "en")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = body.Close()
+}
+
+func TestGtranslateRequestRejectsSuccessfulNonAudioResponse(t *testing.T) {
+	client := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("<html>consent required</html>")),
+			Header:     http.Header{"Content-Type": []string{"text/html"}},
+		}, nil
+	})}
+
+	body, err := gtranslateFromText(context.Background(), client, "hello", "en")
+	if body != nil {
+		_ = body.Close()
+	}
+	if err == nil || !strings.Contains(err.Error(), "audio") {
+		t.Fatalf("expected non-audio response error, got %v", err)
+	}
+}
+
+func TestGtranslateRequestEncodesLanguageAsOneQueryValue(t *testing.T) {
+	const language = "en&client=attacker"
+	client := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if got := req.URL.Query().Get("tl"); got != language {
+			t.Fatalf("language query value = %q, want %q", got, language)
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("audio")),
+			Header:     http.Header{"Content-Type": []string{"audio/mpeg"}},
+		}, nil
+	})}
+
+	body, err := gtranslateFromText(context.Background(), client, "hello", language)
 	if err != nil {
 		t.Fatal(err)
 	}
