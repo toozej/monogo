@@ -50,12 +50,12 @@ var conf config.Config
 // to the ghreleases2rss package. It supports persistent flags that are inherited by
 // all subcommands for debug logging and category feed management.
 var rootCmd = &cobra.Command{
-	Use:              "ghreleases2rss",
-	Short:            "Subscribe to GitHub projects' releases in RSS reader",
-	Long:             `Subscribe to GitHub repo release feeds in Miniflux`,
-	Args:             cobra.ExactArgs(0),
-	PersistentPreRun: rootCmdPreRun,
-	RunE:             rootCmdRun,
+	Use:               "ghreleases2rss",
+	Short:             "Subscribe to GitHub projects' releases in RSS reader",
+	Long:              `Subscribe to GitHub repo release feeds in Miniflux`,
+	Args:              cobra.ExactArgs(0),
+	PersistentPreRunE: rootCmdPreRun,
+	RunE:              rootCmdRun,
 }
 
 // rootCmdRun is a wrapper function that validates configuration and passes
@@ -79,13 +79,18 @@ func rootCmdRun(cmd *cobra.Command, args []string) error {
 // Parameters:
 //   - cmd: The cobra command being executed
 //   - args: Command-line arguments
-func rootCmdPreRun(cmd *cobra.Command, args []string) {
+func rootCmdPreRun(cmd *cobra.Command, args []string) error {
 	// Load configuration from environment variables
-	conf = config.GetEnvVars()
+	loaded, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("load configuration: %w", err)
+	}
+	conf = loaded
 
 	if debug {
 		log.SetLevel(log.DebugLevel)
 	}
+	return nil
 }
 
 // Execute starts the command-line interface execution.

@@ -29,7 +29,12 @@ type Category struct {
 }
 
 var limiter = rate.NewLimiter(1, 5) // Allow 1 request per second with a burst size of 5.
-var httpClient = &http.Client{Timeout: 30 * time.Second}
+var httpClient = &http.Client{
+	Timeout: 30 * time.Second,
+	CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+		return http.ErrUseLastResponse
+	},
+}
 
 const maxResponseBytes = 10 << 20
 

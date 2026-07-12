@@ -55,15 +55,43 @@ func Run(cmd *cobra.Command, args []string, conf config.Config) error {
 	}
 	defer func() { _ = file.Close() }()
 
+	// Read and validate the complete input before a clear can mutate Miniflux.
+	// In non-clearing mode, valid repositories are still processed while invalid
+	// entries are returned together as command errors.
+	var releaseFeeds []string
+	var inputErrors []error
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		repo := strings.TrimSpace(scanner.Text())
+		if repo == "" {
+			continue
+		}
+
+		releaseFeed, err := github.GetReleaseFeedURL(repo)
+		if err != nil {
+			log.Printf("Error processing repo '%s': %v", repo, err)
+			inputErrors = append(inputErrors, fmt.Errorf("process repo %q: %w", repo, err))
+			continue
+		}
+		releaseFeeds = append(releaseFeeds, releaseFeed)
+	}
+	if err := scanner.Err(); err != nil {
+		return errors.Join(append(inputErrors, fmt.Errorf("read input file: %w", err))...)
+	}
+	if clearCategoryFeeds && len(inputErrors) > 0 {
+		return errors.Join(inputErrors...)
+	}
+
 	// Validate the category if provided
 	var categoryID int
 	if category != "" {
 		categoryID, err = miniflux.GetCategoryID(minifluxURL, minifluxAPIKey, category)
 		if err != nil {
-			return fmt.Errorf("validate category %q: %w", category, err)
+			categoryError := fmt.Errorf("validate category %q: %w", category, err)
+			return errors.Join(append(inputErrors, categoryError)...)
 		}
 	}
-	var runErrors []error
+	runErrors := append([]error(nil), inputErrors...)
 
 	// delete all feeds within categoryId if user requested it
 	if clearCategoryFeeds {
@@ -84,21 +112,7 @@ func Run(cmd *cobra.Command, args []string, conf config.Config) error {
 		}
 	}
 
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		repo := strings.TrimSpace(scanner.Text())
-		if repo == "" {
-			continue
-		}
-
-		// Validate and parse the GitHub repository
-		releaseFeed, err := github.GetReleaseFeedURL(repo)
-		if err != nil {
-			log.Printf("Error processing repo '%s': %v", repo, err)
-			runErrors = append(runErrors, fmt.Errorf("process repo %q: %w", repo, err))
-			continue
-		}
-
+	for _, releaseFeed := range releaseFeeds {
 		// Subscribe to the feed in Miniflux with optional category
 		if debug {
 			log.Debug("Pretending to subscribe to feed: ", releaseFeed)
@@ -111,9 +125,6 @@ func Run(cmd *cobra.Command, args []string, conf config.Config) error {
 		}
 	}
 
-	if err := scanner.Err(); err != nil {
-		runErrors = append(runErrors, fmt.Errorf("read input file: %w", err))
-	}
 	return errors.Join(runErrors...)
 }
 
