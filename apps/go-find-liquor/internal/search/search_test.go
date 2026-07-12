@@ -55,6 +55,67 @@ func TestSearchItemHonorsContextOnEveryRequest(t *testing.T) {
 	}
 }
 
+func TestSearchItemRejectsInvalidInputsBeforeNetworkCall(t *testing.T) {
+	requestCount := 0
+	searcher := &Searcher{
+		client: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			requestCount++
+			return response(req, http.StatusOK, "<html></html>"), nil
+		})},
+		userAgent: "test-agent",
+	}
+	tests := []struct {
+		name     string
+		item     string
+		zipcode  string
+		distance int
+	}{
+		{name: "blank item", item: " ", zipcode: "97201", distance: 10},
+		{name: "blank zipcode", item: "item", zipcode: "\t", distance: 10},
+		{name: "zero distance", item: "item", zipcode: "97201", distance: 0},
+		{name: "negative distance", item: "item", zipcode: "97201", distance: -1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if _, err := searcher.SearchItem(context.Background(), tt.item, tt.zipcode, tt.distance); err == nil {
+				t.Fatal("SearchItem() error = nil")
+			}
+		})
+	}
+	if requestCount != 0 {
+		t.Fatalf("request count = %d, want no requests for invalid inputs", requestCount)
+	}
+}
+
+func TestSearchItemRejectsBadStatusAndOversizedBody(t *testing.T) {
+	tests := []struct {
+		name   string
+		status int
+		body   string
+	}{
+		{name: "bad status", status: http.StatusBadGateway, body: "error"},
+		{name: "oversized", status: http.StatusOK, body: strings.Repeat("x", maxHTMLBytes+1)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			requestCount := 0
+			searcher := &Searcher{
+				client: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+					requestCount++
+					if requestCount < 3 {
+						return response(req, http.StatusOK, "<html></html>"), nil
+					}
+					return response(req, tt.status, tt.body), nil
+				})},
+				userAgent: "test-agent",
+			}
+			if _, err := searcher.SearchItem(context.Background(), "item", "97201", 10); err == nil {
+				t.Fatal("SearchItem() error = nil")
+			}
+		})
+	}
+}
+
 func TestAgeVerificationRejectsBadStatusAndOversizedBody(t *testing.T) {
 	tests := []struct {
 		name   string

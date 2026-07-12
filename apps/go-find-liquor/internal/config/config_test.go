@@ -352,7 +352,9 @@ func TestValidateConfigRejectsUnsafeRunnerInputs(t *testing.T) {
 	}{
 		{name: "negative interval", edit: func(c *Config) { c.Interval = -time.Second }},
 		{name: "duplicate names", edit: func(c *Config) { c.Users = append(c.Users, c.Users[0]) }},
+		{name: "blank name", edit: func(c *Config) { c.Users[0].Name = " " }},
 		{name: "empty item", edit: func(c *Config) { c.Users[0].Items = []string{" "} }},
+		{name: "blank zipcode", edit: func(c *Config) { c.Users[0].Zipcode = "\t" }},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

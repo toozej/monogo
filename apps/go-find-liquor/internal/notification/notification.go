@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bwmarrin/discordgo"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/nikoksr/notify"
-	"github.com/nikoksr/notify/service/discord"
 	"github.com/nikoksr/notify/service/pushbullet"
 	"github.com/nikoksr/notify/service/pushover"
 	"github.com/nikoksr/notify/service/slack"
@@ -106,17 +106,6 @@ func (n *NikoksrNotifier) AddSlack(token string, channelID string) {
 	n.notifier.UseServices(service)
 }
 
-// AddDiscord adds Discord notification service
-func (n *NikoksrNotifier) AddDiscord(token string, channelID string) error {
-	service := discord.New()
-	if err := service.AuthenticateWithBotToken(token); err != nil {
-		return err
-	}
-	service.AddReceivers(channelID)
-	n.notifier.UseServices(service)
-	return nil
-}
-
 // AddPushover adds Pushover notification service
 func (n *NikoksrNotifier) AddPushover(token string, recipientID string) {
 	service := pushover.New(token)
@@ -139,6 +128,40 @@ func (n *NikoksrNotifier) Notify(ctx context.Context, subject, message string) e
 type TelegramNotifier struct {
 	bot    *tgbotapi.BotAPI
 	chatID int64
+}
+
+type DiscordNotifier struct {
+	session   *discordgo.Session
+	channelID string
+}
+
+func NewDiscordNotifier(token, channelID string) (*DiscordNotifier, error) {
+	if strings.TrimSpace(token) == "" {
+		return nil, fmt.Errorf("discord requires bot token in credentials")
+	}
+	channelID = strings.TrimSpace(channelID)
+	if _, err := strconv.ParseUint(channelID, 10, 64); err != nil {
+		return nil, fmt.Errorf("invalid Discord channel_id: %w", err)
+	}
+
+	session, err := discordgo.New("Bot " + token)
+	if err != nil {
+		return nil, fmt.Errorf("authenticate Discord bot: %w", err)
+	}
+	session.Client.Timeout = 10 * time.Second
+	return &DiscordNotifier{session: session, channelID: channelID}, nil
+}
+
+func (d *DiscordNotifier) Notify(ctx context.Context, subject, message string) error {
+	_, err := d.session.ChannelMessageSend(
+		d.channelID,
+		subject+"\n"+message,
+		discordgo.WithContext(ctx),
+	)
+	if err != nil {
+		return fmt.Errorf("send Discord notification: %w", err)
+	}
+	return nil
 }
 
 func NewTelegramNotifier(token string, chatID int64) (*TelegramNotifier, error) {
@@ -193,7 +216,7 @@ func NewNotificationManager(notificationConfigs []config.NotificationConfig) (*N
 		switch strings.ToLower(nc.Type) {
 		case "gotify":
 			token, ok := nc.Credential["token"]
-			if !ok || token == "" {
+			if !ok || strings.TrimSpace(token) == "" {
 				return nil, fmt.Errorf("gotify requires token in credentials")
 			}
 			if err := validateEndpoint("gotify", nc.Endpoint); err != nil {
@@ -204,20 +227,15 @@ func NewNotificationManager(notificationConfigs []config.NotificationConfig) (*N
 
 		case "slack":
 			token, ok := nc.Credential["token"]
-			if !ok || token == "" {
+			if !ok || strings.TrimSpace(token) == "" {
 				return nil, fmt.Errorf("slack requires token in credentials")
 			}
 
-			channelIDStr, ok := nc.Credential["channel_id"]
-			if !ok {
+			channelID, ok := nc.Credential["channel_id"]
+			if !ok || strings.TrimSpace(channelID) == "" {
 				return nil, fmt.Errorf("slack requires channel_id in credentials")
 			}
-
-			var channelID string
-			_, err := fmt.Sscanf(channelIDStr, "%s", &channelID)
-			if err != nil {
-				return nil, fmt.Errorf("invalid Slack channel_id: %w", err)
-			}
+			channelID = strings.TrimSpace(channelID)
 
 			service := NewNikoksrNotifier()
 			service.AddSlack(token, channelID)
@@ -225,17 +243,16 @@ func NewNotificationManager(notificationConfigs []config.NotificationConfig) (*N
 
 		case "telegram":
 			token, ok := nc.Credential["token"]
-			if !ok || token == "" {
+			if !ok || strings.TrimSpace(token) == "" {
 				return nil, fmt.Errorf("telegram requires token in credentials")
 			}
 
 			chatIDStr, ok := nc.Credential["chat_id"]
-			if !ok {
+			if !ok || strings.TrimSpace(chatIDStr) == "" {
 				return nil, fmt.Errorf("telegram requires chat_id in credentials")
 			}
 
-			var chatID int64
-			_, err := fmt.Sscanf(chatIDStr, "%d", &chatID)
+			chatID, err := strconv.ParseInt(strings.TrimSpace(chatIDStr), 10, 64)
 			if err != nil {
 				return nil, fmt.Errorf("invalid telegram chat_id: %w", err)
 			}
@@ -248,37 +265,32 @@ func NewNotificationManager(notificationConfigs []config.NotificationConfig) (*N
 
 		case "discord":
 			token, ok := nc.Credential["token"]
-			if !ok || token == "" {
+			if !ok || strings.TrimSpace(token) == "" {
 				return nil, fmt.Errorf("discord requires bot token in credentials")
 			}
 
-			channelIDStr, ok := nc.Credential["channel_id"]
-			if !ok {
+			channelID, ok := nc.Credential["channel_id"]
+			if !ok || strings.TrimSpace(channelID) == "" {
 				return nil, fmt.Errorf("discord requires channel_id in credentials")
 			}
 
-			var channelID string
-			_, err := fmt.Sscanf(channelIDStr, "%s", &channelID)
+			service, err := NewDiscordNotifier(token, channelID)
 			if err != nil {
-				return nil, fmt.Errorf("invalid Slack channel_id: %w", err)
-			}
-
-			service := NewNikoksrNotifier()
-			if err := service.AddDiscord(token, channelID); err != nil {
-				return nil, fmt.Errorf("authenticate Discord bot: %w", err)
+				return nil, err
 			}
 			notifier = service
 
 		case "pushover":
 			token, ok := nc.Credential["token"]
-			if !ok || token == "" {
+			if !ok || strings.TrimSpace(token) == "" {
 				return nil, fmt.Errorf("pushover requires token in credentials")
 			}
 
 			recipientID, ok := nc.Credential["recipient_id"]
-			if !ok {
+			if !ok || strings.TrimSpace(recipientID) == "" {
 				return nil, fmt.Errorf("pushover requires recipient_id in credentials")
 			}
+			recipientID = strings.TrimSpace(recipientID)
 
 			service := NewNikoksrNotifier()
 			service.AddPushover(token, recipientID)
@@ -286,14 +298,15 @@ func NewNotificationManager(notificationConfigs []config.NotificationConfig) (*N
 
 		case "pushbullet":
 			token, ok := nc.Credential["token"]
-			if !ok || token == "" {
+			if !ok || strings.TrimSpace(token) == "" {
 				return nil, fmt.Errorf("pushbullet requires token in credentials")
 			}
 
 			deviceNickname, ok := nc.Credential["device_nickname"]
-			if !ok {
+			if !ok || strings.TrimSpace(deviceNickname) == "" {
 				return nil, fmt.Errorf("pushbullet requires device_nickname in credentials")
 			}
+			deviceNickname = strings.TrimSpace(deviceNickname)
 
 			service := NewNikoksrNotifier()
 			service.AddPushbullet(token, deviceNickname)

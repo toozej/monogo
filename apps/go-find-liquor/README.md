@@ -291,7 +291,7 @@ notifications:
     condense: true  # Combine multiple findings into one message
     credential:
       token: "YOUR_SLACK_TOKEN"
-      channel_id: "https://exampleorg.slack.com/archives/XXXXXXXXXXXXXXXXXXXXXXXX"
+      channel_id: "C0123456789"
 ```
 
 ### Telegram
@@ -312,7 +312,8 @@ notifications:
   - type: discord
     condense: true
     credential:
-      webhook_url: "https://discord.com/api/webhooks/000000000000000000/XXXXXXXXXXXXXXXXXXXXX"
+      token: "YOUR_DISCORD_BOT_TOKEN"
+      channel_id: "123456789012345678"
 ```
 
 ### Pushover
@@ -323,7 +324,7 @@ notifications:
     condense: false
     credential:
       token: "YOUR_PUSHOVER_TOKEN"
-      receipient_id: "XXXXXXXXXXXXX"
+      recipient_id: "XXXXXXXXXXXXX"
 ```
 
 ### Pushbullet

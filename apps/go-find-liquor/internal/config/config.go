@@ -227,7 +227,7 @@ func validateConfig(config Config) error {
 
 	seenNames := make(map[string]struct{}, len(config.Users))
 	for i, user := range config.Users {
-		if user.Name == "" {
+		if strings.TrimSpace(user.Name) == "" {
 			return fmt.Errorf("user %d must have a name", i)
 		}
 		if _, exists := seenNames[user.Name]; exists {
@@ -239,7 +239,7 @@ func validateConfig(config Config) error {
 			return fmt.Errorf("user '%s' must have at least one item to search for", user.Name)
 		}
 
-		if user.Zipcode == "" {
+		if strings.TrimSpace(user.Zipcode) == "" {
 			return fmt.Errorf("user '%s' must have a zipcode specified", user.Name)
 		}
 

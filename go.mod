@@ -27,7 +27,7 @@ require (
 	github.com/awalterschulze/gographviz v2.0.3+incompatible // indirect
 	github.com/blacktop/go-termimg v0.1.26
 	github.com/bmatcuk/doublestar/v4 v4.10.0
-	github.com/bwmarrin/discordgo v0.29.0 // indirect
+	github.com/bwmarrin/discordgo v0.29.0
 	github.com/bytedance/gopkg v0.1.4 // indirect
 	github.com/bytedance/sonic v1.15.2 // indirect
 	github.com/bytedance/sonic/loader v0.5.1 // indirect
