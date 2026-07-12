@@ -1000,6 +1000,8 @@ func makeQuery(url string) ([]byte, error) {
 	}
 	req.Header.Set("Accept", "*/*")
 
+	// codeql[go/request-forgery] The URL is validated above; the transport also
+	// validates every redirect and resolves, rejects, then pins the dialed IP.
 	resp, err := metadataHTTPClient().Do(req) // #nosec G704 -- every redirect and dial is validated by metadataHTTPClient
 	if err != nil {
 		return nil, fmt.Errorf("error making request: %w", err)
