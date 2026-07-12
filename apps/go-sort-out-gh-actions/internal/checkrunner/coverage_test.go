@@ -210,8 +210,8 @@ func TestDetectArchived_VerboseWithAPIErrors(t *testing.T) {
 	}
 
 	result, err := DetectArchived(rc, workflowFiles, allActionRefs)
-	if err != nil {
-		t.Fatalf("DetectArchived() error = %v", err)
+	if err == nil {
+		t.Fatal("DetectArchived() should return the API error")
 	}
 	if len(result.ArchivedActions) != 0 {
 		t.Errorf("Expected 0 archived actions on API error, got %d", len(result.ArchivedActions))

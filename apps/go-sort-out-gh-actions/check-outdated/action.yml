@@ -42,26 +42,23 @@ inputs:
 outputs:
   outdated-count:
     description: 'Number of outdated actions found'
-    value: ${{ steps.check.outputs.outdated-count }}
   has-outdated:
     description: 'Whether any outdated actions were found (true/false)'
-    value: ${{ steps.check.outputs.has-outdated }}
 runs:
   using: 'docker'
   image: 'docker://ghcr.io/toozej/go-sort-out-gh-actions:latest'
-  args:
-    - outdated
-    - ${{ inputs.verbose == 'true' && '--verbose' || '' }}
-    - ${{ inputs.debug == 'true' && '--debug' || '' }}
-    - ${{ inputs.workflow && format('--workflow={0}', inputs.workflow) || '' }}
-    - ${{ inputs.workflows-dir && format('--workflows-dir={0}', inputs.workflows-dir) || ''
-      }}
-    - ${{ inputs.repos-dir && format('--repos-dir={0}', inputs.repos-dir) || '' }}
-    - ${{ inputs.update == 'true' && '--update' || '' }}
-    - ${{ inputs.pin == 'true' && '--pin' || '' }}
-    - ${{ inputs.semver == 'true' && '--semver' || '' }}
   env:
     GH_TOKEN: ${{ inputs.token }}
+  args:
+    - outdated
+    - --verbose=${{ inputs.verbose }}
+    - --debug=${{ inputs.debug }}
+    - --workflow=${{ inputs.workflow }}
+    - --workflows-dir=${{ inputs.workflows-dir }}
+    - --repos-dir=${{ inputs.repos-dir }}
+    - --update=${{ inputs.update }}
+    - --pin=${{ inputs.pin }}
+    - --semver=${{ inputs.semver }}
 
 # Example usage in a workflow:
 #
@@ -80,7 +77,7 @@ runs:
 #
 #     - name: Check for outdated GitHub Actions
 #       id: check
-#       uses: toozej/go-sort-out-gh-actions/check-outdated@main
+#       uses: toozej/monogo/apps/go-sort-out-gh-actions/check-outdated@main
 #       with:
 #         token: ${{ secrets.GITHUB_TOKEN }}
 #         verbose: true
@@ -95,7 +92,7 @@ runs:
 #
 #     - name: Update outdated GitHub Actions
 #       id: update
-#       uses: toozej/go-sort-out-gh-actions/check-outdated@main
+#       uses: toozej/monogo/apps/go-sort-out-gh-actions/check-outdated@main
 #       with:
 #         token: ${{ secrets.GITHUB_TOKEN }}
 #         verbose: true

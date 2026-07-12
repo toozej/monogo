@@ -1,0 +1,61 @@
+---
+name: 'Find Archived GitHub Actions'
+description: 'Detect archived and stale GitHub Actions in repository workflows'
+author: 'toozej'
+inputs:
+  token:
+    description: 'GitHub token for API access'
+    required: true
+  verbose:
+    description: 'Enable verbose output'
+    required: false
+    default: 'false'
+  debug:
+    description: 'Enable debug logging'
+    required: false
+    default: 'false'
+  workflow:
+    description: 'Path to a specific workflow file (optional)'
+    required: false
+  workflows-dir:
+    description: 'Path to a directory containing workflow files (optional)'
+    required: false
+  repos-dir:
+    description: 'Path to a directory containing repositories to scan (optional)'
+    required: false
+  notify:
+    description: 'Send notifications using provider environment variables'
+    required: false
+    default: 'false'
+  create-issue:
+    description: 'Create a GitHub issue when archived actions are found'
+    required: false
+    default: 'false'
+  stale-days:
+    description: 'Days after which an action is considered stale'
+    required: false
+    default: '365'
+outputs:
+  archived-count:
+    description: 'Number of archived actions found'
+  has-archived:
+    description: 'Whether archived actions were found'
+  stale-count:
+    description: 'Number of stale or deprecated actions found'
+  has-stale:
+    description: 'Whether stale or deprecated actions were found'
+runs:
+  using: 'docker'
+  image: 'docker://ghcr.io/toozej/go-sort-out-gh-actions:latest'
+  env:
+    GH_TOKEN: ${{ inputs.token }}
+  args:
+    - archived
+    - --verbose=${{ inputs.verbose }}
+    - --debug=${{ inputs.debug }}
+    - --workflow=${{ inputs.workflow }}
+    - --workflows-dir=${{ inputs.workflows-dir }}
+    - --repos-dir=${{ inputs.repos-dir }}
+    - --notify=${{ inputs.notify }}
+    - --create-issue=${{ inputs.create-issue }}
+    - --stale-days=${{ inputs.stale-days }}

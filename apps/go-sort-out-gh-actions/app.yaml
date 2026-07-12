@@ -6,7 +6,11 @@ mainPath: apps/go-sort-out-gh-actions
 description: "Find archived, outdated, EOL runtime GitHub Actions in use in GHA Workflows with optional notifications, auto-updates, pinning, and GH Issue creation"
 shortDescription: "go-sort-out-gh-actions"
 goImage: golang:1.26-trixie
-distrolessImage: gcr.io/distroless/static-debian13:nonroot
+# GitHub Docker actions must run as the image's default root user so they can
+# write the runner-mounted workspace. The generated default Dockerfile still
+# drops to UID 65532 explicitly; the distroless variants consumed by action.yml
+# intentionally retain the base image's root user.
+distrolessImage: gcr.io/distroless/static-debian13:latest
 distrolessOnly: true
 # cgoEnabled defaults to false. When true, builds use CGO_ENABLED=1, the runtime
 # image becomes glibc-capable (debian:trixie-slim / distroless base-debian), and
