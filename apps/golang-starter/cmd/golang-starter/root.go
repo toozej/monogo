@@ -33,15 +33,6 @@ import (
 	"github.com/toozej/monogo/pkg/version"
 )
 
-// conf holds the application configuration loaded from environment variables.
-// It is populated during package initialization and can be modified by command-line flags.
-var (
-	conf config.Config
-	// debug controls the logging level for the application.
-	// When true, debug-level logging is enabled through logrus.
-	debug bool
-)
-
 // rootCmd defines the base command for the golang-starter CLI application.
 // It serves as the entry point for all command-line operations and establishes
 // the application's structure, flags, and subcommands.
@@ -49,13 +40,43 @@ var (
 // The command accepts no positional arguments and delegates its main functionality
 // to the starter package. It supports persistent flags that are inherited by
 // all subcommands.
-var rootCmd = &cobra.Command{
-	Use:              "golang-starter",
-	Short:            "golang-starter starter template",
-	Long:             `Golang starter template using cobra, logrus, dotenv and env modules`,
-	Args:             cobra.ExactArgs(0),
-	PersistentPreRun: rootCmdPreRun,
-	Run:              rootCmdRun,
+var rootCmd *cobra.Command
+
+// newRootCommand constructs the root cobra command together with its flags and
+// subcommands.
+//
+// SilenceErrors and SilenceUsage are enabled so that command failures are
+// reported exactly once, by Execute, rather than also being printed by cobra.
+//
+// The debug flag (-d, --debug) is persistent and inherited by all subcommands;
+// it enables debug-level logging. The username flag (-u, --username) is local to
+// the root command and overrides the username loaded from configuration.
+func newRootCommand() *cobra.Command {
+	var debug bool
+	var username string
+
+	cmd := &cobra.Command{
+		Use:           "golang-starter",
+		Short:         "golang-starter starter template",
+		Long:          `Golang starter template using cobra, logrus, dotenv and env modules`,
+		Args:          cobra.ExactArgs(0),
+		SilenceErrors: true,
+		SilenceUsage:  true,
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			rootCmdPreRun(debug)
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return rootCmdRun(cmd, args, username)
+		},
+	}
+	cmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "Enable debug-level logging")
+	cmd.Flags().StringVarP(&username, "username", "u", "", "Username")
+	cmd.AddCommand(
+		avatar.NewCommand("golang-starter"),
+		man.NewManCmd(),
+		version.Command(),
+	)
+	return cmd
 }
 
 // rootCmdRun is the main execution function for the root command.
@@ -64,8 +85,17 @@ var rootCmd = &cobra.Command{
 // Parameters:
 //   - cmd: The cobra command being executed
 //   - args: Command-line arguments (unused, as root command takes no args)
-func rootCmdRun(cmd *cobra.Command, args []string) {
-	starter.Run(conf.Username)
+//   - username: The value of the root command's username flag
+func rootCmdRun(cmd *cobra.Command, args []string, username string) error {
+	loadedConf, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("load configuration: %w", err)
+	}
+	if cmd.Flags().Changed("username") {
+		loadedConf.Username = username
+	}
+	starter.Run(loadedConf.Username)
+	return nil
 }
 
 // rootCmdPreRun performs setup operations before executing the root command.
@@ -75,9 +105,8 @@ func rootCmdRun(cmd *cobra.Command, args []string) {
 // is enabled, logrus is set to DebugLevel for detailed logging output.
 //
 // Parameters:
-//   - cmd: The cobra command being executed
-//   - args: Command-line arguments
-func rootCmdPreRun(cmd *cobra.Command, args []string) {
+//   - debug: Whether debug logging was requested for this command tree
+func rootCmdPreRun(debug bool) {
 	if debug {
 		log.SetLevel(log.DebugLevel)
 	}
@@ -86,7 +115,7 @@ func rootCmdPreRun(cmd *cobra.Command, args []string) {
 // Execute starts the command-line interface execution.
 // This is the main entry point called from main.go to begin command processing.
 //
-// If command execution fails, it prints the error message to stdout and
+// If command execution fails, it prints the error message to stderr and
 // exits the program with status code 1. This follows standard Unix conventions
 // for command-line tool error handling.
 //
@@ -97,36 +126,17 @@ func rootCmdPreRun(cmd *cobra.Command, args []string) {
 //	}
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err.Error())
+		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
 	}
 }
 
 // init initializes the command-line interface during package loading.
 //
-// This function performs the following setup operations:
-//   - Loads configuration from environment variables using config.GetEnvVars()
-//   - Defines persistent flags that are available to all commands
-//   - Sets up command-specific flags for the root command
-//   - Registers subcommands (man pages and version information)
-//
-// The debug flag (-d, --debug) enables debug-level logging and is persistent,
-// meaning it's inherited by all subcommands. The username flag (-u, --username)
-// allows overriding the username from environment variables.
+// It builds the root command, including its flags and subcommands, via
+// newRootCommand. Application configuration is loaded later by rootCmdRun so
+// utility subcommands such as "version" and "man" do not read .env or the
+// application environment.
 func init() {
-	// get configuration from environment variables
-	conf = config.GetEnvVars()
-
-	// create rootCmd-level flags
-	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "Enable debug-level logging")
-
-	// optional flag for username, overrides env var
-	rootCmd.Flags().StringVarP(&conf.Username, "username", "u", conf.Username, "Username")
-
-	// add sub-commands
-	rootCmd.AddCommand(
-		avatar.NewCommand("golang-starter"),
-		man.NewManCmd(),
-		version.Command(),
-	)
+	rootCmd = newRootCommand()
 }
