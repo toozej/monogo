@@ -1,4 +1,5 @@
 [[- $app := ds "app" -]]
+[[- $compose := index $app "compose" -]]
 [[- /* Docker repository names must be lower-case (e.g. RSSFFS -> rssffs) */ -]]
 ---
 services:
@@ -9,7 +10,13 @@ services:
     security_opt:
       - no-new-privileges:true
     read_only: true
-    labels:
+[[ if and $compose (index $compose "environment") ]]    environment:
+[[ range $name, $value := index $compose "environment" ]]      [[$name]]: "[[$value]]"
+[[ end ]][[ end ]][[ if and $compose (index $compose "ports") ]]    ports:
+[[ range index $compose "ports" ]]      - "[[.]]"
+[[ end ]][[ end ]][[ if and $compose (index $compose "volumes") ]]    volumes:
+[[ range index $compose "volumes" ]]      - "[[.]]"
+[[ end ]][[ end ]]    labels:
       - "traefik.enable=false"
       # labels below for publishing as web service
       # - "traefik.docker.network=traefik"
@@ -21,3 +28,6 @@ services:
       # - "traefik.http.routers.[[$app.name]]-secure.tls=true"
     # networks:
       # - traefik
+[[ if and $compose (index $compose "namedVolumes") ]]volumes:
+[[ range index $compose "namedVolumes" ]]  [[.]]:
+[[ end ]][[ end -]]

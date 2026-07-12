@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -34,19 +33,17 @@ Examples:
 
   # Force add even if duplicates exist
   go-listen scrape --url "https://example.com" --playlist "playlist_id" --force`,
-	Run: runScrapeCommand,
+	RunE: runScrapeCommand,
 }
 
-func runScrapeCommand(cmd *cobra.Command, args []string) {
+func runScrapeCommand(cmd *cobra.Command, args []string) error {
 	// Validate required flags
 	if scrapeURL == "" {
-		fmt.Fprintln(os.Stderr, "Error: --url flag is required")
-		os.Exit(1)
+		return fmt.Errorf("--url flag is required")
 	}
 
 	if playlistID == "" {
-		fmt.Fprintln(os.Stderr, "Error: --playlist flag is required")
-		os.Exit(1)
+		return fmt.Errorf("--playlist flag is required")
 	}
 
 	// Initialize logger
@@ -60,8 +57,7 @@ func runScrapeCommand(cmd *cobra.Command, args []string) {
 
 	// Check if authenticated
 	if !spotifyService.IsAuthenticated() {
-		fmt.Fprintln(os.Stderr, "Error: Not authenticated with Spotify. Please run 'go-listen serve' and authenticate first.")
-		os.Exit(1)
+		return fmt.Errorf("not authenticated with Spotify; run 'go-listen serve' and authenticate first")
 	}
 
 	// Initialize playlist manager
@@ -75,7 +71,7 @@ func runScrapeCommand(cmd *cobra.Command, args []string) {
 	extractor := scraper.NewPatternArtistExtractor(logger)
 
 	// Create scraper service
-	scraperConfig := scraper.DefaultScraperConfig()
+	scraperConfig := configuredScraper(conf.Scraper)
 	scraperService := scraper.NewWebScraper(
 		scraperConfig,
 		parser,
@@ -96,8 +92,7 @@ func runScrapeCommand(cmd *cobra.Command, args []string) {
 	result, err := scraperService.ScrapeAndAddToPlaylist(scrapeURL, cssSelector, playlistID, forceAdd)
 	if err != nil {
 		logger.WithError(err).Error("Scraping operation failed")
-		fmt.Fprintf(os.Stderr, "Error: Scraping operation failed: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("scraping operation failed: %w", err)
 	}
 
 	// Display results
@@ -105,12 +100,9 @@ func runScrapeCommand(cmd *cobra.Command, args []string) {
 
 	// Exit with appropriate code
 	if result.FailureCount > 0 && result.SuccessCount == 0 {
-		// All operations failed
-		os.Exit(1)
+		return fmt.Errorf("all artist operations failed")
 	}
-
-	// Success (even if partial)
-	os.Exit(0)
+	return nil
 }
 
 func displayScrapeResults(result *scraper.ScrapeResult) {

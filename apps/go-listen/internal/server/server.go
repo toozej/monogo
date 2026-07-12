@@ -90,7 +90,7 @@ func NewServer(cfg *config.Config) *Server {
 	rateLimiter := middleware.NewRateLimiter(requestsPerSecond, burst)
 
 	// Initialize security middleware (depends on rate limiter)
-	securityMiddleware := middleware.NewSecurityMiddleware(logger.Logger, rateLimiter)
+	securityMiddleware := middleware.NewSecurityMiddleware(logger.Logger, rateLimiter, cfg.Security.TrustProxyHeaders)
 
 	// Initialize logging middleware (depends on logger)
 	loggingMiddleware := middleware.NewLoggingMiddleware(logger)
@@ -159,19 +159,16 @@ func (s *Server) GetPlaylistManager() types.PlaylistManager {
 
 // setupRoutes configures all HTTP routes with security and logging middleware
 func (s *Server) setupRoutes() {
-	// Create a new mux for routes that will have middleware applied
+	// Create a new mux for routes that get the full security middleware chain,
+	// including input validation and CSRF protection.
 	protectedMux := http.NewServeMux()
 
-	// Static file serving (no middleware needed)
-	s.setupStaticRoutes()
+	// Static assets are part of the same authenticated surface as the UI.
+	s.setupStaticRoutes(protectedMux)
 
 	// Web interface routes
 	protectedMux.HandleFunc("/", s.handleIndex)
 	protectedMux.HandleFunc("/api/csrf-token", s.handleCSRFToken)
-
-	// Authentication routes (no CSRF protection needed for these)
-	s.router.HandleFunc("/auth", s.handleAuth)
-	s.router.HandleFunc("/callback", s.handleCallback)
 
 	// API routes
 	protectedMux.HandleFunc("/api/add-artist", s.handleAddArtist)
@@ -179,17 +176,35 @@ func (s *Server) setupRoutes() {
 	protectedMux.HandleFunc("/api/auth-status", s.handleAuthStatus)
 	protectedMux.HandleFunc("/api/scrape-artists", s.handleScrapeArtists)
 
-	// Apply middleware chain: logging -> security
-	var handler http.Handler = protectedMux
+	// OAuth routes use GET and carry opaque, provider-issued code/state values
+	// that can legitimately contain byte sequences (for example "--") which the
+	// input-validation suspicious-pattern filter would reject, breaking the
+	// login flow. They therefore bypass InputValidation and CSRF (which only
+	// guards state-changing methods anyway) but still receive security headers,
+	// rate limiting, and Basic Auth.
+	authMux := http.NewServeMux()
+	authMux.HandleFunc("/auth", s.handleAuth)
+	authMux.HandleFunc("/callback", s.handleCallback)
 
-	// Apply security middleware chain
-	handler = s.securityMiddleware.SecurityHeaders(
-		s.securityMiddleware.RateLimit(
-			s.securityMiddleware.InputValidation(
-				s.securityMiddleware.CSRFProtection(handler),
-			),
-		),
+	// Protected routes additionally validate user-controlled input and enforce
+	// CSRF protection for state-changing methods.
+	protectedHandler := s.securityMiddleware.InputValidation(
+		s.securityMiddleware.CSRFProtection(protectedMux),
 	)
+
+	// Dispatch OAuth paths to the lighter chain and everything else to the
+	// protected chain.
+	rootMux := http.NewServeMux()
+	rootMux.Handle("/", protectedHandler)
+	rootMux.Handle("/auth", authMux)
+	rootMux.Handle("/callback", authMux)
+
+	// Rate limiting must wrap Basic Auth so failed password attempts cannot
+	// bypass it. Security headers are outermost so they are present on rejected
+	// authentication and rate-limit responses too.
+	handler := s.securityMiddleware.BasicAuth(rootMux, s.config.Security.Username, s.config.Security.Password)
+	handler = s.securityMiddleware.RateLimit(handler)
+	handler = s.securityMiddleware.SecurityHeaders(handler)
 
 	// Apply logging middleware (outermost layer)
 	if s.config.Logging.EnableHTTP {
@@ -200,10 +215,10 @@ func (s *Server) setupRoutes() {
 	s.router.Handle("/", handler)
 }
 
-// setupStaticRoutes configures static file serving using embedded files
-func (s *Server) setupStaticRoutes() {
+// setupStaticRoutes configures static file serving using embedded files.
+func (s *Server) setupStaticRoutes(router *http.ServeMux) {
 	staticHandler := http.FileServer(http.FS(staticFiles))
-	s.router.Handle("/static/", staticHandler)
+	router.Handle("/static/", staticHandler)
 }
 
 // handleCSRFToken generates and returns a CSRF token
@@ -544,7 +559,6 @@ func (s *Server) handleAuth(w http.ResponseWriter, r *http.Request) {
 	s.logger.WithContext(r.Context()).WithFields(logrus.Fields{
 		"component": "server",
 		"operation": "auth_redirect",
-		"auth_url":  authURL,
 	}).Info("Redirecting to Spotify authentication")
 
 	http.Redirect(w, r, authURL, http.StatusTemporaryRedirect)
@@ -580,13 +594,16 @@ func (s *Server) handleCallback(w http.ResponseWriter, r *http.Request) {
 	s.logger.WithContext(r.Context()).WithFields(logrus.Fields{
 		"component": "server",
 		"operation": "auth_callback",
-		"state":     state,
 	}).Info("Processing Spotify authentication callback")
 
 	err := s.spotify.CompleteAuth(code, state)
 	if err != nil {
 		s.logger.WithContext(r.Context()).WithField("component", "server").WithError(err).Error("Failed to complete authentication")
-		http.Error(w, "Authentication failed: "+err.Error(), http.StatusInternalServerError)
+		if errors.Is(err, spotify.ErrInvalidOAuthState) {
+			http.Error(w, "Invalid callback state", http.StatusBadRequest)
+			return
+		}
+		http.Error(w, "Authentication failed", http.StatusInternalServerError)
 		return
 	}
 

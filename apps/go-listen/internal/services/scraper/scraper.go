@@ -6,9 +6,11 @@
 package scraper
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -82,15 +84,7 @@ func NewWebScraper(
 	playlist types.PlaylistManager,
 	logger *logrus.Logger,
 ) *WebScraper {
-	httpClient := &http.Client{
-		Timeout: config.Timeout,
-		Transport: &http.Transport{
-			MaxIdleConns:       10,
-			IdleConnTimeout:    30 * time.Second,
-			DisableCompression: false,
-			DisableKeepAlives:  false,
-		},
-	}
+	httpClient := newHTTPClient(config)
 
 	ws := &WebScraper{
 		httpClient: httpClient,
@@ -107,6 +101,66 @@ func NewWebScraper(
 	ws.trackAdder = ws.addTracksToPlaylistDefault
 
 	return ws
+}
+
+var (
+	lookupIPAddr = net.DefaultResolver.LookupIPAddr
+	networkDial  = (&net.Dialer{Timeout: 30 * time.Second}).DialContext
+)
+
+func safeDialContext(allowPrivate bool) func(context.Context, string, string) (net.Conn, error) {
+	return func(ctx context.Context, network, address string) (net.Conn, error) {
+		if allowPrivate {
+			return networkDial(ctx, network, address)
+		}
+		host, port, err := net.SplitHostPort(address)
+		if err != nil {
+			return nil, fmt.Errorf("invalid dial address %q: %w", address, err)
+		}
+		ips, err := lookupIPAddr(ctx, host)
+		if err != nil {
+			return nil, fmt.Errorf("resolving %s: %w", host, err)
+		}
+		if len(ips) == 0 {
+			return nil, fmt.Errorf("hostname %s resolved to no addresses", host)
+		}
+		for _, resolved := range ips {
+			if urlsafe.IsInternalIP(resolved.IP) {
+				return nil, fmt.Errorf("refusing to dial private/internal address %s for %s", resolved.IP, host)
+			}
+		}
+		var dialErrors []error
+		for _, resolved := range ips {
+			conn, dialErr := networkDial(ctx, network, net.JoinHostPort(resolved.IP.String(), port))
+			if dialErr == nil {
+				return conn, nil
+			}
+			dialErrors = append(dialErrors, fmt.Errorf("%s: %w", resolved.IP, dialErr))
+			if ctx.Err() != nil {
+				break
+			}
+		}
+		return nil, fmt.Errorf("dialing all resolved addresses for %s: %w", host, errors.Join(dialErrors...))
+	}
+}
+
+func newHTTPClient(config ScraperConfig) *http.Client {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.Proxy = nil
+	transport.MaxIdleConns = 10
+	transport.IdleConnTimeout = 30 * time.Second
+	transport.DialContext = safeDialContext(config.AllowPrivateNetwork)
+
+	return &http.Client{
+		Timeout:   config.Timeout,
+		Transport: transport,
+		CheckRedirect: func(req *http.Request, _ []*http.Request) error {
+			if err := urlsafe.Validate(req.URL.String(), config.AllowPrivateNetwork); err != nil {
+				return fmt.Errorf("refusing redirect target: %w", err)
+			}
+			return nil
+		},
+	}
 }
 
 // MinConfidenceThreshold is the minimum confidence score required for a fuzzy match.
@@ -345,6 +399,9 @@ func (w *WebScraper) fetchWithRetry(url string) (string, error) {
 		htmlContent, err := w.fetchURL(url)
 		if err == nil {
 			return htmlContent, nil
+		}
+		if errors.Is(err, urlsafe.ErrUnsafeURL) {
+			return "", err
 		}
 
 		lastErr = err
