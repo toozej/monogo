@@ -37,6 +37,11 @@ inputs:
       actions found)'
     required: false
     default: 'false'
+  semver:
+    description: 'Use semver version strings instead of SHAs when applying outdated-action
+      updates during write mode'
+    required: false
+    default: 'false'
   stale-days:
     description: 'Number of days after which an action is considered stale (default 365)'
     required: false
@@ -57,9 +62,10 @@ outputs:
 runs:
   using: 'docker'
   image: 'docker://ghcr.io/toozej/go-sort-out-gh-actions:latest'
+  env:
+    GH_TOKEN: ${{ inputs.token }}
   args:
     - check
-    - --token=${{ inputs.token }}
     - --verbose=${{ inputs.verbose }}
     - --debug=${{ inputs.debug }}
     - --workflow=${{ inputs.workflow }}
@@ -68,6 +74,7 @@ runs:
     - --notify=${{ inputs.notify }}
     - --create-issue=${{ inputs.create-issue }}
     - --write=${{ inputs.write }}
+    - --semver=${{ inputs.semver }}
     - --stale-days=${{ inputs.stale-days }}
 
 # Example usage in a workflow:

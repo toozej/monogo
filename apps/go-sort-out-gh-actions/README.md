@@ -177,7 +177,7 @@ See [the Configuration Reference](CONFIG.md) for full configuration options
 
 ### GitHub Actions
 
-This repository provides multiple container actions. The examples below track `main`; releases can instead be pinned with refs such as `@apps/go-sort-out-gh-actions/v1.3.0`.
+This repository provides multiple container actions. The examples below track `main`. Tagged refs such as `@apps/go-sort-out-gh-actions/vX.Y.Z` pin the action metadata, while the metadata currently runs the latest published container image.
 
 | Action | Description | Example Workflow |
 |--------|-------------|------------------|

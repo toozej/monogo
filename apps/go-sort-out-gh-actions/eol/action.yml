@@ -45,9 +45,10 @@ outputs:
 runs:
   using: 'docker'
   image: 'docker://ghcr.io/toozej/go-sort-out-gh-actions:latest'
+  env:
+    GH_TOKEN: ${{ inputs.token }}
   args:
     - eol
-    - --token=${{ inputs.token }}
     - --verbose=${{ inputs.verbose }}
     - --debug=${{ inputs.debug }}
     - --workflow=${{ inputs.workflow }}
