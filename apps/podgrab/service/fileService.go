@@ -79,20 +79,9 @@ func Download(link, episodeTitle, podcastName, episodePathName string) (string, 
 	}
 	cleanPath := filepath.Clean(finalPath)
 
-	file, err := os.Create(cleanPath) // #nosec G703 -- path is validated by validatePath and cleaned before use
-	if err != nil {
-		logger.Log.Errorw("Error creating file"+link, err)
+	if err := writeFileAtomically(cleanPath, resp.Body); err != nil {
+		logger.Log.Errorw("Error saving file", "url", link, "error", err)
 		return "", err
-	}
-	_, erra := io.Copy(file, resp.Body)
-	defer func() {
-		if closeErr := file.Close(); closeErr != nil {
-			logger.Log.Errorw("Error closing file", closeErr)
-		}
-	}()
-	if erra != nil {
-		logger.Log.Errorw("Error saving file"+link, err)
-		return "", erra
 	}
 	changeOwnership(finalPath)
 	return finalPath, nil
@@ -176,20 +165,9 @@ func DownloadPodcastCoverImage(link, podcastName string) (string, error) {
 		return cleanPath, nil
 	}
 
-	file, err := os.Create(cleanPath)
-	if err != nil {
-		logger.Log.Errorw("Error creating file"+link, err)
+	if err := writeFileAtomically(cleanPath, resp.Body); err != nil {
+		logger.Log.Errorw("Error saving file", "url", link, "error", err)
 		return "", err
-	}
-	_, erra := io.Copy(file, resp.Body)
-	defer func() {
-		if closeErr := file.Close(); closeErr != nil {
-			logger.Log.Errorw("Error closing file", closeErr)
-		}
-	}()
-	if erra != nil {
-		logger.Log.Errorw("Error saving file"+link, err)
-		return "", erra
 	}
 	changeOwnership(finalPath)
 	return finalPath, nil
@@ -237,24 +215,39 @@ func DownloadImage(link, episodeID, podcastName string) (string, error) {
 		return cleanPath, nil
 	}
 
-	file, err := os.Create(cleanPath)
-	if err != nil {
-		logger.Log.Errorw("Error creating file"+link, err)
+	if err := writeFileAtomically(cleanPath, resp.Body); err != nil {
+		logger.Log.Errorw("Error saving file", "url", link, "error", err)
 		return "", err
-	}
-	_, erra := io.Copy(file, resp.Body)
-	defer func() {
-		if closeErr := file.Close(); closeErr != nil {
-			logger.Log.Errorw("Error closing file", closeErr)
-		}
-	}()
-	if erra != nil {
-		logger.Log.Errorw("Error saving file"+link, err)
-		return "", erra
 	}
 	changeOwnership(finalPath)
 	return finalPath, nil
 }
+
+func writeFileAtomically(finalPath string, contents io.Reader) (returnErr error) {
+	temporary, err := os.CreateTemp(filepath.Dir(finalPath), ".podgrab-download-*")
+	if err != nil {
+		return err
+	}
+	temporaryPath := temporary.Name()
+	defer func() {
+		if returnErr != nil {
+			_ = os.Remove(temporaryPath)
+		}
+	}()
+
+	if _, err = io.Copy(temporary, contents); err != nil {
+		_ = temporary.Close()
+		return err
+	}
+	if err = temporary.Close(); err != nil {
+		return err
+	}
+	if err = os.Rename(temporaryPath, finalPath); err != nil {
+		return err
+	}
+	return nil
+}
+
 func changeOwnership(filePath string) {
 	uid, err1 := strconv.Atoi(os.Getenv("PUID"))
 	gid, err2 := strconv.Atoi(os.Getenv("PGID"))
@@ -493,6 +486,12 @@ func httpClient() *http.Client {
 			return nil
 		},
 	}
+}
+
+func metadataHTTPClient() *http.Client {
+	client := httpClient()
+	client.Timeout = 30 * time.Second
+	return client
 }
 
 func getRequest(urlStr string) (*http.Request, error) {

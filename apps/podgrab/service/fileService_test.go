@@ -11,6 +11,7 @@ import (
 	"path"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -387,6 +388,33 @@ func TestDownload(t *testing.T) {
 	}
 }
 
+func TestDownloadRemovesPartialFileAfterInterruptedTransfer(t *testing.T) {
+	dataDir, cleanup := testhelpers.SetupTestDataDir(t)
+	defer cleanup()
+
+	database := testhelpers.SetupTestDB(t)
+	defer testhelpers.TeardownTestDB(t, database)
+	originalDB := db.DB
+	db.DB = database
+	defer func() { db.DB = originalDB }()
+	db.CreateTestSetting(t, database)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Length", "100")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("truncated"))
+	}))
+	defer server.Close()
+
+	_, err := Download(server.URL, "Episode", "Partial Podcast", "interrupted")
+	require.Error(t, err)
+	finalPath := filepath.Join(dataDir, cleanFileName("Partial Podcast"), "interrupted.mp3")
+	assert.NoFileExists(t, finalPath, "an interrupted transfer must not occupy the final episode path")
+	entries, readErr := os.ReadDir(filepath.Dir(finalPath))
+	require.NoError(t, readErr)
+	assert.Empty(t, entries, "an interrupted transfer must clean up its temporary file")
+}
+
 // TestDownload_EmptyLink tests error handling for empty download link.
 func TestDownload_EmptyLink(t *testing.T) {
 	_, err := Download("", "Episode", "Podcast", "")
@@ -588,6 +616,13 @@ func TestHttpClient(t *testing.T) {
 	// downloads, so it must stay unset; the time-to-first-byte is bounded on the
 	// transport's ResponseHeaderTimeout instead.
 	assert.Zero(t, client.Timeout, "Client must not set an overall timeout that truncates large downloads")
+}
+
+func TestMetadataHTTPClientRetainsOverallTimeout(t *testing.T) {
+	client := metadataHTTPClient()
+	require.NotNil(t, client)
+	assert.Equal(t, 30*time.Second, client.Timeout, "metadata requests must not hang on a stalled body")
+	assert.NotNil(t, client.CheckRedirect, "metadata requests must retain redirect validation")
 }
 
 // TestGetRequest tests HTTP request creation with user agent.

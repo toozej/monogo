@@ -423,20 +423,40 @@ func findEpisodeFile(item *db.PodcastItem) string {
 		podcastDir := filepath.Join(dataPath, sanitizedName)
 
 		candidate := filepath.Join(podcastDir, episodeFileName)
-		if info, err := os.Stat(candidate); err == nil && info.Mode().IsRegular() {
-			return candidate
+		if resolved := existingRegularFileWithin(dataPath, candidate); resolved != "" {
+			return resolved
 		}
 
 		// Also try the old-style folder name (with spaces/unsanitized)
 		oldStyleDir := filepath.Join(dataPath, podcastName)
 		if oldStyleDir != podcastDir {
 			candidate = filepath.Join(oldStyleDir, episodeFileName)
-			if info, err := os.Stat(candidate); err == nil && info.Mode().IsRegular() {
-				return candidate
+			if resolved := existingRegularFileWithin(dataPath, candidate); resolved != "" {
+				return resolved
 			}
 		}
 	}
 	return ""
+}
+
+func existingRegularFileWithin(baseDir, candidate string) string {
+	resolvedBase, err := filepath.EvalSymlinks(baseDir)
+	if err != nil {
+		return ""
+	}
+	resolvedCandidate, err := filepath.EvalSymlinks(candidate)
+	if err != nil {
+		return ""
+	}
+	relative, err := filepath.Rel(resolvedBase, resolvedCandidate)
+	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return ""
+	}
+	info, err := os.Stat(resolvedCandidate)
+	if err != nil || !info.Mode().IsRegular() {
+		return ""
+	}
+	return candidate
 }
 
 // GetFileContentType handles the get file content type request.

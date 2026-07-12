@@ -3,7 +3,9 @@
 [[- if conv.ToBool (index $app "distrolessOnly") -]][[- $runtime = $app.distrolessImage -]][[- end -]]
 [[- if and (conv.ToBool (index $app "distrolessOnly")) (conv.ToBool (index $app "cgoEnabled")) -]][[- $runtime = strings.ReplaceAll "static-" "base-" $runtime -]][[- end -]]
 [[ if index $app "writableDirs" -]]
-FROM [[$app.goImage]] AS filesystem
+# Directory metadata is architecture-independent; keep this RUN on the native
+# builder so multi-platform image assembly does not require QEMU/binfmt.
+FROM --platform=$BUILDPLATFORM [[$app.goImage]] AS filesystem
 RUN mkdir -p[[ range index $app "writableDirs" ]] /container-root[[.]][[ end ]] && \
     chown -R 65532:65532 /container-root
 [[ end -]]

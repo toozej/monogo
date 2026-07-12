@@ -1000,7 +1000,7 @@ func makeQuery(url string) ([]byte, error) {
 	}
 	req.Header.Set("Accept", "*/*")
 
-	resp, err := httpClient().Do(req) // #nosec G704 -- every redirect and dial is validated by httpClient
+	resp, err := metadataHTTPClient().Do(req) // #nosec G704 -- every redirect and dial is validated by metadataHTTPClient
 	if err != nil {
 		return nil, fmt.Errorf("error making request: %w", err)
 	}

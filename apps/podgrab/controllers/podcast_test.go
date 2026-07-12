@@ -308,6 +308,42 @@ func TestFindEpisodeFile(t *testing.T) {
 			wantFound: false,
 		},
 		{
+			name: "legacy_folder_cannot_escape_data_directory",
+			setupFiles: func(t *testing.T, dataDir string) (db.PodcastItem, string) {
+				podcast := db.CreateTestPodcast(t, database, &db.Podcast{Title: "../escaped"})
+				outsideDir := filepath.Clean(filepath.Join(dataDir, podcast.Title))
+				outsideFile := filepath.Join(outsideDir, "secret.mp3")
+				require.NoError(t, os.MkdirAll(outsideDir, 0o755))
+				require.NoError(t, os.WriteFile(outsideFile, []byte("secret"), 0o600))
+
+				item := db.CreateTestPodcastItem(t, database, podcast.ID, &db.PodcastItem{
+					DownloadPath:   filepath.Join(dataDir, "stale-folder", "secret.mp3"),
+					DownloadStatus: db.Downloaded,
+				})
+				database.Preload("Podcast").First(item, "id = ?", item.ID)
+				return *item, outsideFile
+			},
+			wantFound: false,
+		},
+		{
+			name: "podcast_folder_symlink_cannot_escape_data_directory",
+			setupFiles: func(t *testing.T, dataDir string) (db.PodcastItem, string) {
+				podcast := db.CreateTestPodcast(t, database, &db.Podcast{Title: "Linked Podcast"})
+				outsideDir := t.TempDir()
+				outsideFile := filepath.Join(outsideDir, "secret.mp3")
+				require.NoError(t, os.WriteFile(outsideFile, []byte("secret"), 0o600))
+				require.NoError(t, os.Symlink(outsideDir, filepath.Join(dataDir, sanitize.Name(podcast.Title))))
+
+				item := db.CreateTestPodcastItem(t, database, podcast.ID, &db.PodcastItem{
+					DownloadPath:   filepath.Join(dataDir, "stale-folder", "secret.mp3"),
+					DownloadStatus: db.Downloaded,
+				})
+				database.Preload("Podcast").First(item, "id = ?", item.ID)
+				return *item, outsideFile
+			},
+			wantFound: false,
+		},
+		{
 			name: "file_not_found",
 			setupFiles: func(t *testing.T, dataDir string) (db.PodcastItem, string) {
 				// Create podcast but no file
