@@ -132,15 +132,32 @@ func ConvertAllTCXToGPX(inputDir string) error {
 		}
 
 		gpxRel := strings.TrimSuffix(rel, filepath.Ext(rel)) + ".gpx"
+		mode := os.FileMode(0o666)
+		preserveMode := false
+		if info, statErr := root.Stat(gpxRel); statErr == nil && info.Mode().IsRegular() {
+			mode = info.Mode().Perm()
+			preserveMode = true
+		} else if statErr != nil && !errors.Is(statErr, fs.ErrNotExist) {
+			conversionErrors = append(conversionErrors, fmt.Errorf("inspect existing %s: %w", gpxRel, statErr))
+			return nil
+		}
 		tempRel, err := temporaryName(gpxRel)
 		if err != nil {
 			conversionErrors = append(conversionErrors, fmt.Errorf("temporary name for %s: %w", rel, err))
 			return nil
 		}
-		dst, err := root.OpenFile(tempRel, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+		dst, err := root.OpenFile(tempRel, os.O_WRONLY|os.O_CREATE|os.O_EXCL, mode)
 		if err != nil {
 			conversionErrors = append(conversionErrors, fmt.Errorf("create temporary GPX for %s: %w", rel, err))
 			return nil
+		}
+		if preserveMode {
+			if err := dst.Chmod(mode); err != nil {
+				_ = dst.Close()
+				_ = root.Remove(tempRel)
+				conversionErrors = append(conversionErrors, fmt.Errorf("preserve permissions on %s: %w", gpxRel, err))
+				return nil
+			}
 		}
 		if _, err := dst.Write(gpxData); err != nil {
 			_ = dst.Close()
@@ -174,7 +191,7 @@ func ConvertAllTCXToGPX(inputDir string) error {
 	})
 
 	if err != nil {
-		return fmt.Errorf("walk directory: %w", err)
+		conversionErrors = append(conversionErrors, fmt.Errorf("walk directory: %w", err))
 	}
 	if len(conversionErrors) > 0 {
 		return errors.Join(conversionErrors...)
@@ -194,7 +211,15 @@ func temporaryName(gpxRel string) (string, error) {
 
 func convertTCX(reader io.Reader) ([]byte, error) {
 	var tcx TrainingCenterDatabase
-	if err := xml.NewDecoder(reader).Decode(&tcx); err != nil {
+	decoder := xml.NewDecoder(reader)
+	if err := decoder.Decode(&tcx); err != nil {
+		return nil, fmt.Errorf("failed to parse TCX data: %w", err)
+	}
+	var trailing struct{}
+	if err := decoder.Decode(&trailing); err != io.EOF {
+		if err == nil {
+			return nil, fmt.Errorf("failed to parse TCX data: unexpected trailing XML element")
+		}
 		return nil, fmt.Errorf("failed to parse TCX data: %w", err)
 	}
 	gpxOutput, err := xml.MarshalIndent(convertToGPX(&tcx), "", "  ")

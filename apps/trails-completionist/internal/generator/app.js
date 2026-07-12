@@ -98,9 +98,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 const cellText = cell.textContent.trim();
                 
                 // Special handling for 'completed' column
-                if (column === 'completed' && (value.toLowerCase() === 'true' || value.toLowerCase() === 'yes')) {
+                if (column === 'completed') {
                     const checkbox = cell.querySelector('input[type="checkbox"]');
-                    if (!checkbox || !checkbox.checked) {
+                    const normalizedValue = value.toLowerCase();
+                    const expected = ['true', 'yes', 'completed'].includes(normalizedValue)
+                        ? true
+                        : ['false', 'no', 'incomplete'].includes(normalizedValue)
+                            ? false
+                            : null;
+                    if (!checkbox || expected === null || checkbox.checked !== expected) {
                         matchesFilters = false;
                         break;
                     }

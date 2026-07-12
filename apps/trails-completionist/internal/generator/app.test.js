@@ -22,6 +22,10 @@ function row(type, completed) {
     return {
         style: { display: '' },
         querySelectorAll: selector => selector === 'td' ? cells : [],
+        querySelector: selector => {
+            const match = selector.match(/^td:nth-child\((\d+)\)$/);
+            return match ? cells[Number(match[1]) - 1] : null;
+        },
     };
 }
 
@@ -34,12 +38,15 @@ test('free-text search spans columns and includes completion state', () => {
         value: '',
         addEventListener: (_event, callback) => { onInput = callback; },
     };
+    const headers = Array.from({ length: 7 }, () => ({}));
+    const headerRow = { children: headers };
+    headers.forEach(header => { header.parentNode = headerRow; });
     global.document = {
         addEventListener: (_event, callback) => { onReady = callback; },
         getElementById: id => id === 'tableBody'
             ? { querySelectorAll: () => [completedModerate, incompleteModerate] }
             : input,
-        querySelector: () => null,
+        querySelector: selector => selector === 'th[data-column="completed"]' ? headers[5] : null,
     };
 
     require('./app.js');
@@ -49,5 +56,10 @@ test('free-text search spans columns and includes completion state', () => {
 
     assert.equal(completedModerate.style.display, '');
     assert.equal(incompleteModerate.style.display, 'none');
+
+    input.value = 'completed:no';
+    onInput();
+    assert.equal(completedModerate.style.display, 'none');
+    assert.equal(incompleteModerate.style.display, '');
     delete global.document;
 });

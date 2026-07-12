@@ -3,6 +3,7 @@ package trailscompletionist
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -142,6 +143,11 @@ func HTMLHandler(htmlFile string) http.Handler {
 		}
 		asset, ok := assets[r.URL.Path]
 		if !ok {
+			http.NotFound(w, r)
+			return
+		}
+		info, err := os.Lstat(asset)
+		if err != nil || !info.Mode().IsRegular() {
 			http.NotFound(w, r)
 			return
 		}

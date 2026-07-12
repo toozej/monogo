@@ -75,6 +75,9 @@ func extractTrailInfo(file *os.File) ([]types.Trail, error) {
 	if err := scanner.Err(); err != nil {
 		return nil, err
 	}
+	if len(lines) != 0 {
+		return nil, fmt.Errorf("incomplete trail record: got %d of 3 required lines", len(lines))
+	}
 
 	return trails, nil
 }
