@@ -33,16 +33,6 @@ import (
 	"github.com/toozej/monogo/pkg/version"
 )
 
-// conf holds the application configuration loaded from environment variables.
-// It is populated during package initialization and can be modified by command-line flags.
-var (
-	conf          config.Config
-	configLoadErr error
-	// debug controls the logging level for the application.
-	// When true, debug-level logging is enabled through logrus.
-	debug bool
-)
-
 // rootCmd defines the base command for the golang-starter CLI application.
 // It serves as the entry point for all command-line operations and establishes
 // the application's structure, flags, and subcommands.
@@ -62,18 +52,25 @@ var rootCmd *cobra.Command
 // it enables debug-level logging. The username flag (-u, --username) is local to
 // the root command and overrides the username loaded from configuration.
 func newRootCommand() *cobra.Command {
+	var debug bool
+	var username string
+
 	cmd := &cobra.Command{
-		Use:              "golang-starter",
-		Short:            "golang-starter starter template",
-		Long:             `Golang starter template using cobra, logrus, dotenv and env modules`,
-		Args:             cobra.ExactArgs(0),
-		SilenceErrors:    true,
-		SilenceUsage:     true,
-		PersistentPreRun: rootCmdPreRun,
-		RunE:             rootCmdRun,
+		Use:           "golang-starter",
+		Short:         "golang-starter starter template",
+		Long:          `Golang starter template using cobra, logrus, dotenv and env modules`,
+		Args:          cobra.ExactArgs(0),
+		SilenceErrors: true,
+		SilenceUsage:  true,
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			rootCmdPreRun(debug)
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return rootCmdRun(cmd, args, username)
+		},
 	}
 	cmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "Enable debug-level logging")
-	cmd.Flags().StringVarP(&conf.Username, "username", "u", conf.Username, "Username")
+	cmd.Flags().StringVarP(&username, "username", "u", "", "Username")
 	cmd.AddCommand(
 		avatar.NewCommand("golang-starter"),
 		man.NewManCmd(),
@@ -88,11 +85,16 @@ func newRootCommand() *cobra.Command {
 // Parameters:
 //   - cmd: The cobra command being executed
 //   - args: Command-line arguments (unused, as root command takes no args)
-func rootCmdRun(cmd *cobra.Command, args []string) error {
-	if configLoadErr != nil {
-		return fmt.Errorf("load configuration: %w", configLoadErr)
+//   - username: The value of the root command's username flag
+func rootCmdRun(cmd *cobra.Command, args []string, username string) error {
+	loadedConf, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("load configuration: %w", err)
 	}
-	starter.Run(conf.Username)
+	if cmd.Flags().Changed("username") {
+		loadedConf.Username = username
+	}
+	starter.Run(loadedConf.Username)
 	return nil
 }
 
@@ -103,9 +105,8 @@ func rootCmdRun(cmd *cobra.Command, args []string) error {
 // is enabled, logrus is set to DebugLevel for detailed logging output.
 //
 // Parameters:
-//   - cmd: The cobra command being executed
-//   - args: Command-line arguments
-func rootCmdPreRun(cmd *cobra.Command, args []string) {
+//   - debug: Whether debug logging was requested for this command tree
+func rootCmdPreRun(debug bool) {
 	if debug {
 		log.SetLevel(log.DebugLevel)
 	}
@@ -132,15 +133,10 @@ func Execute() {
 
 // init initializes the command-line interface during package loading.
 //
-// It loads configuration once via config.Load, capturing any error in
-// configLoadErr instead of exiting the process. This defers configuration
-// problems to command execution (see rootCmdRun) so that subcommands such as
-// "version" and "man", which do not need application configuration, keep
-// working even when configuration fails to load. It then builds the root
-// command, including its flags and subcommands, via newRootCommand.
+// It builds the root command, including its flags and subcommands, via
+// newRootCommand. Application configuration is loaded later by rootCmdRun so
+// utility subcommands such as "version" and "man" do not read .env or the
+// application environment.
 func init() {
-	// Load configuration, deferring any error to command execution.
-	conf, configLoadErr = config.Load()
-
 	rootCmd = newRootCommand()
 }

@@ -2,26 +2,23 @@ package cmd
 
 import (
 	"bytes"
-	"errors"
 	"os"
+	"os/exec"
 	"strings"
 	"testing"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
 func useFreshRootCommand(t *testing.T) {
 	t.Helper()
 	originalCmd := rootCmd
-	originalConf := conf
-	originalDebug := debug
-	originalConfigErr := configLoadErr
+	originalLogLevel := log.GetLevel()
 	rootCmd = newRootCommand()
 	t.Cleanup(func() {
 		rootCmd = originalCmd
-		conf = originalConf
-		debug = originalDebug
-		configLoadErr = originalConfigErr
+		log.SetLevel(originalLogLevel)
 	})
 }
 
@@ -44,28 +41,93 @@ func TestRootCmdStructure(t *testing.T) {
 }
 
 func TestRootCmdRunReturnsConfigurationError(t *testing.T) {
-	originalErr := configLoadErr
-	configLoadErr = errors.New("invalid dotenv")
-	t.Cleanup(func() { configLoadErr = originalErr })
+	dir := t.TempDir()
+	t.Chdir(dir)
+	if err := os.WriteFile(".env", []byte("USERNAME='unterminated\n"), 0o600); err != nil {
+		t.Fatalf("write invalid .env: %v", err)
+	}
 
-	if err := rootCmdRun(rootCmd, nil); err == nil {
+	err := rootCmdRun(rootCmd, nil, "")
+	if err == nil {
 		t.Fatal("rootCmdRun() error = nil")
+	}
+	if !strings.Contains(err.Error(), "load configuration: error loading .env file") {
+		t.Fatalf("rootCmdRun() error = %q", err)
 	}
 }
 
-func TestVersionDoesNotRequireApplicationConfiguration(t *testing.T) {
-	useFreshRootCommand(t)
-	originalErr := configLoadErr
-	configLoadErr = errors.New("invalid dotenv")
-	t.Cleanup(func() {
-		configLoadErr = originalErr
-		rootCmd.SetArgs(nil)
-	})
-
-	rootCmd.SetArgs([]string{"version"})
-	if err := rootCmd.Execute(); err != nil {
-		t.Fatalf("version command error = %v", err)
+func TestVersionDoesNotLoadApplicationConfiguration(t *testing.T) {
+	const helperEnv = "GO_WANT_VERSION_WITHOUT_CONFIG_HELPER"
+	if os.Getenv(helperEnv) == "1" {
+		rootCmd.SetArgs([]string{"version"})
+		if err := rootCmd.Execute(); err != nil {
+			t.Fatalf("version command error = %v", err)
+		}
+		if username, ok := os.LookupEnv("USERNAME"); ok {
+			t.Fatalf("version command loaded USERNAME=%q from .env", username)
+		}
+		return
 	}
+
+	dir := t.TempDir()
+	if err := os.WriteFile(dir+"/.env", []byte("USERNAME=from-dotenv\n"), 0o600); err != nil {
+		t.Fatalf("write .env: %v", err)
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run=^TestVersionDoesNotLoadApplicationConfiguration$")
+	cmd.Dir = dir
+	cmd.Env = append(environmentWithout("USERNAME"), helperEnv+"=1")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("version helper failed: %v\n%s", err, output)
+	}
+}
+
+func TestExecuteReportsConfigurationErrorOnceToStderr(t *testing.T) {
+	const helperEnv = "GO_WANT_EXECUTE_CONFIG_ERROR_HELPER"
+	if os.Getenv(helperEnv) == "1" {
+		rootCmd.SetArgs(nil)
+		Execute()
+		return
+	}
+
+	dir := t.TempDir()
+	if err := os.WriteFile(dir+"/.env", []byte("USERNAME='unterminated\n"), 0o600); err != nil {
+		t.Fatalf("write invalid .env: %v", err)
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run=^TestExecuteReportsConfigurationErrorOnceToStderr$")
+	cmd.Dir = dir
+	cmd.Env = append(environmentWithout("USERNAME"), helperEnv+"=1")
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	exitErr, ok := err.(*exec.ExitError)
+	if !ok || exitErr.ExitCode() != 1 {
+		t.Fatalf("Execute() error = %v, stderr = %q", err, stderr.String())
+	}
+	if stdout.Len() != 0 {
+		t.Errorf("Execute() stdout = %q, want empty", stdout.String())
+	}
+	if count := strings.Count(stderr.String(), "load configuration:"); count != 1 {
+		t.Errorf("configuration error count = %d, stderr = %q", count, stderr.String())
+	}
+	if strings.Contains(stderr.String(), "Usage:") {
+		t.Errorf("Execute() printed usage for a configuration error: %q", stderr.String())
+	}
+}
+
+func environmentWithout(name string) []string {
+	prefix := name + "="
+	environment := os.Environ()
+	filtered := environment[:0]
+	for _, entry := range environment {
+		if !strings.HasPrefix(entry, prefix) {
+			filtered = append(filtered, entry)
+		}
+	}
+	return filtered
 }
 
 func TestRootCmdExactArgs(t *testing.T) {
@@ -113,27 +175,62 @@ func TestRootCmdLocalFlags(t *testing.T) {
 	}
 }
 
-func TestRootCmdPreRun_DebugFalse(t *testing.T) {
-	origDebug := debug
-	debug = false
-	defer func() { debug = origDebug }()
+func TestNewRootCommandsDoNotShareFlagState(t *testing.T) {
+	first := newRootCommand()
+	second := newRootCommand()
 
-	rootCmdPreRun(rootCmd, []string{})
+	if err := first.PersistentFlags().Set("debug", "true"); err != nil {
+		t.Fatalf("set first debug flag: %v", err)
+	}
+	if err := first.Flags().Set("username", "first-user"); err != nil {
+		t.Fatalf("set first username flag: %v", err)
+	}
+
+	debug, err := second.PersistentFlags().GetBool("debug")
+	if err != nil {
+		t.Fatalf("get second debug flag: %v", err)
+	}
+	if debug {
+		t.Error("second command inherited the first command's debug flag")
+	}
+	username, err := second.Flags().GetString("username")
+	if err != nil {
+		t.Fatalf("get second username flag: %v", err)
+	}
+	if username != "" {
+		t.Errorf("second command inherited username %q from the first command", username)
+	}
+}
+
+func TestRootCmdPreRun_DebugFalse(t *testing.T) {
+	origLevel := log.GetLevel()
+	log.SetLevel(log.InfoLevel)
+	defer func() {
+		log.SetLevel(origLevel)
+	}()
+
+	rootCmdPreRun(false)
+	if got := log.GetLevel(); got != log.InfoLevel {
+		t.Errorf("log level = %s, want %s", got, log.InfoLevel)
+	}
 }
 
 func TestRootCmdPreRun_DebugTrue(t *testing.T) {
-	origDebug := debug
-	debug = true
-	defer func() { debug = origDebug }()
+	origLevel := log.GetLevel()
+	log.SetLevel(log.InfoLevel)
+	defer func() {
+		log.SetLevel(origLevel)
+	}()
 
-	rootCmdPreRun(rootCmd, []string{})
+	rootCmdPreRun(true)
+	if got := log.GetLevel(); got != log.DebugLevel {
+		t.Errorf("log level = %s, want %s", got, log.DebugLevel)
+	}
 }
 
 func TestRootCmdRun(t *testing.T) {
-	origConf := conf
-	defer func() { conf = origConf }()
-
-	conf.Username = "testuser"
+	t.Chdir(t.TempDir())
+	t.Setenv("USERNAME", "testuser")
 
 	old := os.Stdout
 	defer func() { os.Stdout = old }()
@@ -141,7 +238,7 @@ func TestRootCmdRun(t *testing.T) {
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	if err := rootCmdRun(rootCmd, []string{}); err != nil {
+	if err := rootCmdRun(rootCmd, []string{}, ""); err != nil {
 		t.Fatalf("rootCmdRun() error = %v", err)
 	}
 
@@ -156,10 +253,8 @@ func TestRootCmdRun(t *testing.T) {
 }
 
 func TestRootCmdRun_EmptyUsername(t *testing.T) {
-	origConf := conf
-	defer func() { conf = origConf }()
-
-	conf.Username = ""
+	t.Chdir(t.TempDir())
+	t.Setenv("USERNAME", "")
 
 	old := os.Stdout
 	defer func() { os.Stdout = old }()
@@ -167,7 +262,7 @@ func TestRootCmdRun_EmptyUsername(t *testing.T) {
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	if err := rootCmdRun(rootCmd, []string{}); err != nil {
+	if err := rootCmdRun(rootCmd, []string{}, ""); err != nil {
 		t.Fatalf("rootCmdRun() error = %v", err)
 	}
 
@@ -183,10 +278,8 @@ func TestRootCmdRun_EmptyUsername(t *testing.T) {
 
 func TestExecute(t *testing.T) {
 	useFreshRootCommand(t)
-	origConf := conf
-	defer func() { conf = origConf }()
-
-	conf.Username = "executetest"
+	t.Chdir(t.TempDir())
+	t.Setenv("USERNAME", "executetest")
 
 	old := os.Stdout
 	defer func() { os.Stdout = old }()
@@ -255,8 +348,6 @@ func TestRootCmdRejectsArgs(t *testing.T) {
 
 func TestDebugFlagParsing(t *testing.T) {
 	useFreshRootCommand(t)
-	origDebug := debug
-	defer func() { debug = origDebug }()
 
 	rootCmd.SetArgs([]string{"-d", "version"})
 	err := rootCmd.Execute()
@@ -268,8 +359,8 @@ func TestDebugFlagParsing(t *testing.T) {
 
 func TestUsernameFlagParsing(t *testing.T) {
 	useFreshRootCommand(t)
-	origConf := conf
-	defer func() { conf = origConf }()
+	t.Chdir(t.TempDir())
+	t.Setenv("USERNAME", "environment-user")
 
 	old := os.Stdout
 	defer func() { os.Stdout = old }()
