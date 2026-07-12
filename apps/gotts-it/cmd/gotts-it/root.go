@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -49,13 +50,17 @@ gotts-it --url https://en.wikipedia.org/wiki/Readability
 gotts-it --file article.html -o article.mp3
 gotts-it --url https://example.com/post --format wav --speed 1.5
 gotts-it --url https://example.com/post --tts-backend google --lang fr`,
-	Args:             cobra.ExactArgs(0),
-	PersistentPreRun: rootCmdPreRun,
-	RunE:             rootCmdRunE,
+	Args:              cobra.ExactArgs(0),
+	PersistentPreRun:  rootCmdPreRun,
+	PersistentPreRunE: rootCmdPreRunE,
+	RunE:              rootCmdRunE,
 }
 
 func rootCmdRunE(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
+	ctx := cmd.Context()
+	if ctx == nil {
+		ctx = context.Background()
+	}
 
 	src := article.Source{URL: conf.URL, FilePath: conf.File}
 	art, err := article.FromSource(ctx, src, conf.FetchTimeout)
@@ -68,16 +73,14 @@ func rootCmdRunE(cmd *cobra.Command, args []string) error {
 		"chars": len(art.Text),
 	}).Infof("extracted article %q", art.Title)
 
-	outputPath := conf.Output
-	if outputPath == "" {
-		outputPath = defaultOutputPath(art, conf.TTSFormat)
-	}
-
 	if conf.Output == "" && conf.OutputDir != "" {
-		outputPath = filepath.Join(conf.OutputDir, filepath.Base(outputPath))
 		if err := os.MkdirAll(conf.OutputDir, 0750); err != nil {
 			return fmt.Errorf("create output directory %s: %w", conf.OutputDir, err)
 		}
+	}
+	outputPath := conf.Output
+	if outputPath == "" {
+		outputPath = defaultOutputPathInDir(art, conf.TTSFormat, conf.OutputDir)
 	}
 
 	switch conf.TTSBackend {
@@ -112,6 +115,10 @@ func rootCmdRunE(cmd *cobra.Command, args []string) error {
 }
 
 func defaultOutputPath(art article.Article, format string) string {
+	return defaultOutputPathInDir(art, format, "")
+}
+
+func defaultOutputPathInDir(art article.Article, format, dir string) string {
 	var s string
 	switch {
 	case art.Title != "":
@@ -126,14 +133,17 @@ func defaultOutputPath(art article.Article, format string) string {
 		s = "output"
 	}
 
+	if dir == "" {
+		dir = "."
+	}
 	base := s + "." + format
-	candidate := base
+	candidate := filepath.Join(dir, base)
 	counter := 2
 	for {
-		if _, err := os.Stat(candidate); os.IsNotExist(err) {
+		if _, err := os.Stat(candidate); err != nil {
 			return candidate
 		}
-		candidate = fmt.Sprintf("%s-%d.%s", s, counter, format)
+		candidate = filepath.Join(dir, fmt.Sprintf("%s-%d.%s", s, counter, format))
 		counter++
 	}
 }
@@ -142,6 +152,47 @@ func rootCmdPreRun(cmd *cobra.Command, args []string) {
 	if debug {
 		log.SetLevel(log.DebugLevel)
 	}
+}
+
+func rootCmdPreRunE(cmd *cobra.Command, args []string) error {
+	rootCmdPreRun(cmd, args)
+	conf.TTSBackend = strings.ToLower(strings.TrimSpace(conf.TTSBackend))
+	conf.TTSFormat = strings.ToLower(strings.TrimSpace(conf.TTSFormat))
+	isRootCommand := cmd.Parent() == nil
+	if !isRootCommand && cmd.Name() != "server" {
+		return nil
+	}
+	if isRootCommand {
+		hasURL := conf.URL != ""
+		hasFile := conf.File != ""
+		if hasURL == hasFile {
+			return fmt.Errorf("provide exactly one of --url or --file")
+		}
+	}
+	if conf.FetchTimeout <= 0 {
+		return fmt.Errorf("fetch timeout must be greater than zero")
+	}
+	if conf.TTSTimeout <= 0 {
+		return fmt.Errorf("TTS timeout must be greater than zero")
+	}
+	if conf.TTSSpeed < 0.25 || conf.TTSSpeed > 4 {
+		return fmt.Errorf("TTS speed must be between 0.25 and 4.0")
+	}
+	switch conf.TTSBackend {
+	case "openai":
+		switch conf.TTSFormat {
+		case "mp3", "wav", "flac", "pcm":
+		default:
+			return fmt.Errorf("unsupported audio format %q", conf.TTSFormat)
+		}
+	case "google":
+		if conf.TTSFormat != "mp3" {
+			return fmt.Errorf("google translate TTS only supports mp3 output")
+		}
+	default:
+		return fmt.Errorf("unknown TTS backend %q: use \"openai\" or \"google\"", conf.TTSBackend)
+	}
+	return nil
 }
 
 func Execute() {
@@ -170,7 +221,6 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&conf.TTSBackend, "tts-backend", conf.TTSBackend, "TTS backend: openai or google")
 	rootCmd.PersistentFlags().StringVar(&conf.GoogleTranslateLang, "lang", conf.GoogleTranslateLang, "Language for Google Translate TTS (e.g. en, fr, de)")
 
-	rootCmd.MarkFlagsOneRequired("url", "file")
 	rootCmd.MarkFlagsMutuallyExclusive("url", "file")
 
 	rootCmd.AddCommand(

@@ -6,12 +6,12 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"net/url"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -38,24 +38,12 @@ func SynthesizeGoogleTranslate(ctx context.Context, text, outputPath string, opt
 		opts.Lang = "en"
 	}
 
-	absPath, err := filepath.Abs(outputPath)
+	output, err := newAtomicOutput(outputPath)
 	if err != nil {
-		return fmt.Errorf("resolve output path %s: %w", outputPath, err)
+		return err
 	}
-	dir := filepath.Dir(absPath)
-	base := filepath.Base(absPath)
-
-	root, err := os.OpenRoot(dir)
-	if err != nil {
-		return fmt.Errorf("open root %s: %w", dir, err)
-	}
-	defer func() { _ = root.Close() }()
-
-	f, err := root.Create(base)
-	if err != nil {
-		return fmt.Errorf("create output file %s: %w", outputPath, err)
-	}
-	defer func() { _ = f.Close() }()
+	defer output.abort()
+	f := output.file
 
 	client := &http.Client{Timeout: opts.Timeout}
 
@@ -69,10 +57,18 @@ func SynthesizeGoogleTranslate(ctx context.Context, text, outputPath string, opt
 		}
 
 		if _, err := io.Copy(f, audio); err != nil {
-			_ = audio.Close()
+			closeErr := audio.Close()
+			if closeErr != nil {
+				return fmt.Errorf("write chunk %d/%d: %w (close response: %v)", i+1, len(chunks), err, closeErr)
+			}
 			return fmt.Errorf("write chunk %d/%d: %w", i+1, len(chunks), err)
 		}
-		_ = audio.Close()
+		if err := audio.Close(); err != nil {
+			return fmt.Errorf("close chunk %d/%d response: %w", i+1, len(chunks), err)
+		}
+	}
+	if err := output.commit(); err != nil {
+		return err
 	}
 
 	log.Infof("synthesized %d chunks via google translate in %s", len(chunks), time.Since(start).Round(time.Millisecond))
@@ -85,10 +81,18 @@ func SynthesizeGoogleTranslate(ctx context.Context, text, outputPath string, opt
 var GtranslateRequest = gtranslateFromText
 
 func gtranslateFromText(ctx context.Context, client *http.Client, text, lang string) (io.ReadCloser, error) {
-	reqURL := fmt.Sprintf(
-		"http://translate.google.com/translate_tts?ie=UTF-8&textlen=%d&client=tw-ob&q=%s&tl=%s",
-		len(text), url.QueryEscape(text), lang,
-	)
+	query := url.Values{}
+	query.Set("ie", "UTF-8")
+	query.Set("textlen", fmt.Sprintf("%d", utf8.RuneCountInString(text)))
+	query.Set("client", "tw-ob")
+	query.Set("q", text)
+	query.Set("tl", lang)
+	reqURL := (&url.URL{
+		Scheme:   "https",
+		Host:     "translate.google.com",
+		Path:     "/translate_tts",
+		RawQuery: query.Encode(),
+	}).String()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
 	if err != nil {
@@ -106,6 +110,11 @@ func gtranslateFromText(ctx context.Context, client *http.Client, text, lang str
 		_ = resp.Body.Close()
 		return nil, fmt.Errorf("google translate tts returned status %d: %s", resp.StatusCode, string(body))
 	}
+	mediaType, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+	if err != nil || (mediaType != "audio/mpeg" && mediaType != "audio/mp3") {
+		_ = resp.Body.Close()
+		return nil, fmt.Errorf("google translate tts returned non-audio content type %q", resp.Header.Get("Content-Type"))
+	}
 
 	return resp.Body, nil
 }
@@ -113,39 +122,47 @@ func gtranslateFromText(ctx context.Context, client *http.Client, text, lang str
 // gtranslateChunk splits text into pieces of at most max characters,
 // preferring sentence boundaries. Google Translate has a ~200 char limit.
 func gtranslateChunk(text string, max int) []string {
-	if len(text) == 0 {
+	if max <= 0 || text == "" {
 		return nil
 	}
-	if len(text) <= max {
+	remaining := []rune(text)
+	if len(remaining) <= max {
 		return []string{text}
 	}
 
 	var chunks []string
-	remaining := text
 	for len(remaining) > max {
-		boundary := findGoogleTranslateBoundary(remaining, max)
+		prefix := string(remaining[:max])
+		boundary := findGoogleTranslateBoundary(prefix, max)
 		if boundary == 0 {
-			boundary = max
+			chunks = append(chunks, prefix)
+			remaining = []rune(strings.TrimSpace(string(remaining[max:])))
+			continue
 		}
-		chunks = append(chunks, remaining[:boundary])
-		remaining = strings.TrimSpace(remaining[boundary:])
+		split := len([]rune(prefix[:boundary]))
+		chunks = append(chunks, string(remaining[:split]))
+		remaining = []rune(strings.TrimSpace(string(remaining[split:])))
 	}
 	if len(remaining) > 0 {
-		chunks = append(chunks, remaining)
+		chunks = append(chunks, string(remaining))
 	}
 	return chunks
 }
 
 func findGoogleTranslateBoundary(text string, max int) int {
-	searchEnd := max
-	if searchEnd > len(text) {
-		searchEnd = len(text)
+	if max <= 0 {
+		return 0
 	}
+	runes := []rune(text)
+	if len(runes) > max {
+		runes = runes[:max]
+	}
+	prefix := string(runes)
 
 	separators := []string{". ", "! ", "? ", ", ", "; ", ": ", "\n"}
 	best := 0
 	for _, sep := range separators {
-		idx := strings.LastIndex(text[:searchEnd], sep)
+		idx := strings.LastIndex(prefix, sep)
 		if idx > 0 {
 			splitPoint := idx + len(sep)
 			if splitPoint > best {
@@ -155,7 +172,7 @@ func findGoogleTranslateBoundary(text string, max int) int {
 	}
 
 	if best == 0 {
-		idx := strings.LastIndex(text[:searchEnd], " ")
+		idx := strings.LastIndex(prefix, " ")
 		if idx > 0 {
 			best = idx + 1
 		}

@@ -12,6 +12,12 @@ import (
 	"time"
 )
 
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
+
 func TestGtranslateChunk_SmallText(t *testing.T) {
 	chunks := gtranslateChunk("Hello", 200)
 	if len(chunks) != 1 {
@@ -84,6 +90,63 @@ func TestFindGoogleTranslateBoundary_WithBoundary(t *testing.T) {
 	}
 }
 
+func TestGtranslateRequestUsesHTTPS(t *testing.T) {
+	client := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.URL.Scheme != "https" {
+			t.Fatalf("request scheme = %q, want https", req.URL.Scheme)
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("audio")),
+			Header:     http.Header{"Content-Type": []string{"audio/mpeg"}},
+		}, nil
+	})}
+
+	body, err := gtranslateFromText(context.Background(), client, "hello", "en")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = body.Close()
+}
+
+func TestGtranslateRequestRejectsSuccessfulNonAudioResponse(t *testing.T) {
+	client := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("<html>consent required</html>")),
+			Header:     http.Header{"Content-Type": []string{"text/html"}},
+		}, nil
+	})}
+
+	body, err := gtranslateFromText(context.Background(), client, "hello", "en")
+	if body != nil {
+		_ = body.Close()
+	}
+	if err == nil || !strings.Contains(err.Error(), "audio") {
+		t.Fatalf("expected non-audio response error, got %v", err)
+	}
+}
+
+func TestGtranslateRequestEncodesLanguageAsOneQueryValue(t *testing.T) {
+	const language = "en&client=attacker"
+	client := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if got := req.URL.Query().Get("tl"); got != language {
+			t.Fatalf("language query value = %q, want %q", got, language)
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("audio")),
+			Header:     http.Header{"Content-Type": []string{"audio/mpeg"}},
+		}, nil
+	})}
+
+	body, err := gtranslateFromText(context.Background(), client, "hello", language)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = body.Close()
+}
+
 func TestSynthesizeGoogleTranslate_EmptyText(t *testing.T) {
 	outputPath := filepath.Join(t.TempDir(), "output.mp3")
 	opts := GoogleTranslateOptions{
@@ -142,6 +205,54 @@ func TestSynthesizeGoogleTranslate_Non2xx(t *testing.T) {
 	err := SynthesizeGoogleTranslate(context.Background(), "Hello world", outputPath, opts)
 	if err == nil {
 		t.Error("expected error for non-2xx response")
+	}
+}
+
+func TestSynthesizeGoogleTranslateFailurePreservesExistingOutput(t *testing.T) {
+	orig := GtranslateRequest
+	defer func() { GtranslateRequest = orig }()
+	requests := 0
+	GtranslateRequest = func(ctx context.Context, c *http.Client, text, lang string) (io.ReadCloser, error) {
+		requests++
+		if requests == 1 {
+			return io.NopCloser(strings.NewReader("partial")), nil
+		}
+		return nil, fmt.Errorf("temporary failure")
+	}
+
+	outputPath := filepath.Join(t.TempDir(), "output.mp3")
+	if err := os.WriteFile(outputPath, []byte("existing-audio"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	err := SynthesizeGoogleTranslate(context.Background(), strings.Repeat("sentence. ", 50), outputPath, GoogleTranslateOptions{Timeout: time.Second})
+	if err == nil {
+		t.Fatal("expected synthesis to fail")
+	}
+	data, readErr := os.ReadFile(outputPath)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if string(data) != "existing-audio" {
+		t.Fatalf("failed synthesis replaced existing output with %q", data)
+	}
+}
+
+func TestGtranslateChunkPreservesUTF8(t *testing.T) {
+	text := strings.Repeat("界", gtranslateTextLimit+1)
+	chunks := gtranslateChunk(text, gtranslateTextLimit)
+	if len(chunks) != 2 {
+		t.Fatalf("chunk count = %d, want 2", len(chunks))
+	}
+	for i, chunk := range chunks {
+		if strings.ToValidUTF8(chunk, "") != chunk {
+			t.Fatalf("chunk %d contains invalid UTF-8", i)
+		}
+		if len([]rune(chunk)) > gtranslateTextLimit {
+			t.Fatalf("chunk %d exceeds character limit", i)
+		}
+	}
+	if strings.Join(chunks, "") != text {
+		t.Fatal("chunking changed Unicode text")
 	}
 }
 
