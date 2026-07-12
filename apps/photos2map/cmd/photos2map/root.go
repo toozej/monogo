@@ -85,12 +85,12 @@ var debugFlag bool
 //   - PersistentPreRun: Configures logging and loads configuration
 //   - Run: Executes the main photo processing workflow
 var rootCmd = &cobra.Command{
-	Use:              "photos2map",
-	Short:            "Generate a GPX file from photos EXIF data",
-	Long:             `Generates a map on a HTML page or GPX file from GPS coordinates in images`,
-	Args:             cobra.ExactArgs(0),
-	PersistentPreRun: rootCmdPreRun,
-	Run:              run,
+	Use:               "photos2map",
+	Short:             "Generate a GPX file from photos EXIF data",
+	Long:              `Generates a map on a HTML page or GPX file from GPS coordinates in images`,
+	Args:              cobra.ExactArgs(0),
+	PersistentPreRunE: rootCmdPreRun,
+	RunE:              run,
 }
 
 // rootCmdPreRun configures the application environment before command execution.
@@ -109,14 +109,18 @@ var rootCmd = &cobra.Command{
 // Parameters:
 //   - cmd: The cobra command being executed
 //   - args: Command line arguments (unused in this function)
-func rootCmdPreRun(cmd *cobra.Command, args []string) {
+func rootCmdPreRun(cmd *cobra.Command, args []string) error {
 	// Load configuration from environment variables and .env file
-	conf := config.GetEnvVars()
+	conf, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("load configuration: %w", err)
+	}
 
 	// Set debug level based on CLI flag (highest priority) or config
 	if debugFlag || conf.Debug {
 		log.SetLevel(log.DebugLevel)
 	}
+	return nil
 }
 
 // Execute runs the root command and handles any execution errors.
@@ -212,13 +216,22 @@ func init() {
 //  2. Function loads config, processes ./vacation directory
 //  3. Extracts GPS data from JPEG EXIF information
 //  4. Generates vacation.gpx file with GPS waypoints
-func run(cmd *cobra.Command, args []string) {
+func run(cmd *cobra.Command, args []string) error {
 	// Load configuration from environment variables and .env file
-	conf := config.GetEnvVars()
+	conf, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("load configuration: %w", err)
+	}
 
 	// Get CLI flag values (these take priority over config)
-	dir, _ := cmd.Flags().GetString("dir")
-	outputType, _ := cmd.Flags().GetString("output")
+	dir, err := cmd.Flags().GetString("dir")
+	if err != nil {
+		return fmt.Errorf("read directory flag: %w", err)
+	}
+	outputType, err := cmd.Flags().GetString("output")
+	if err != nil {
+		return fmt.Errorf("read output flag: %w", err)
+	}
 
 	// Use config values if CLI flags are at default values
 	if !cmd.Flags().Changed("dir") && conf.Dir != "." {
@@ -228,15 +241,27 @@ func run(cmd *cobra.Command, args []string) {
 		outputType = conf.Output
 	}
 
-	gpsData := extract.ExtractGPSData(dir)
+	if outputType != "html" && outputType != "gpx" {
+		return fmt.Errorf("unsupported output format %q: expected html or gpx", outputType)
+	}
+
+	gpsData, err := extract.ExtractGPSData(dir)
+	if err != nil {
+		return err
+	}
 
 	if len(gpsData) > 0 {
 		if outputType == "gpx" {
-			output.GenerateGPX(gpsData)
+			if err := output.GenerateGPX(gpsData); err != nil {
+				return err
+			}
 		} else {
-			output.GenerateMap(gpsData)
+			if err := output.GenerateMap(gpsData); err != nil {
+				return err
+			}
 		}
 	} else {
-		fmt.Println("No GPS data found in the images.")
+		return fmt.Errorf("no GPS data found in images under %q", dir)
 	}
+	return nil
 }
