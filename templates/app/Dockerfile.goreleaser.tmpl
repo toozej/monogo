@@ -17,10 +17,12 @@ COPY $TARGETPLATFORM/[[$app.binary]] /go/bin/[[$app.binary]]
 [[ range index $app "writableDirs" -]]
 COPY --from=filesystem --chown=65532:65532 /container-root[[.]] [[.]]
 [[ end -]]
-[[ if index $app "port" -]]
 # Expose port for publishing as web service
+[[- if index $app "port" ]]
 EXPOSE [[$app.port]]
-[[ end -]]
+[[- else ]]
+# EXPOSE 8081
+[[- end ]]
 # Run the binary.
 USER 65532:65532
 ENTRYPOINT ["/go/bin/[[$app.binary]]"]
