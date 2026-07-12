@@ -7,8 +7,11 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
+	"github.com/go-git/go-billy/v5"
+	gitignore "github.com/go-git/go-git/v5/plumbing/format/gitignore"
 	"github.com/stretchr/testify/assert"
 	"github.com/toozej/monogo/apps/files2prompt/internal/config"
 )
@@ -350,6 +353,26 @@ func TestGitignoreDefaultsAndSemantics(t *testing.T) {
 	assert.Contains(t, output.String(), "NESTED")
 }
 
+func TestGitMetadataIsExcludedByDefault(t *testing.T) {
+	root := t.TempDir()
+	gitDir := filepath.Join(root, ".git")
+	assert.NoError(t, os.Mkdir(gitDir, 0o755))
+	assert.NoError(t, os.WriteFile(filepath.Join(gitDir, "config"), []byte("GIT SECRET"), 0o600))
+	assert.NoError(t, os.WriteFile(filepath.Join(root, ".visible-hidden"), []byte("HIDDEN SOURCE"), 0o600))
+
+	var output bytes.Buffer
+	originalStdout := osStdout
+	osStdout = &output
+	t.Cleanup(func() { osStdout = originalStdout })
+	assert.NoError(t, Run(config.Config{Paths: []string{root}, IncludeHidden: true}))
+	assert.Contains(t, output.String(), "HIDDEN SOURCE")
+	assert.NotContains(t, output.String(), "GIT SECRET")
+
+	output.Reset()
+	assert.NoError(t, Run(config.Config{Paths: []string{root}, IncludeHidden: true, IgnoreGitignore: true}))
+	assert.Contains(t, output.String(), "GIT SECRET")
+}
+
 func TestSymlinksAreNotFollowed(t *testing.T) {
 	root := t.TempDir()
 	external := filepath.Join(t.TempDir(), "secret.txt")
@@ -448,6 +471,87 @@ func TestExplicitFilesHonorFilters(t *testing.T) {
 			assert.Empty(t, output.String())
 		})
 	}
+}
+
+func TestExplicitHiddenDirectoryHonorsFilter(t *testing.T) {
+	root := filepath.Join(t.TempDir(), ".private")
+	assert.NoError(t, os.Mkdir(root, 0o700))
+	assert.NoError(t, os.WriteFile(filepath.Join(root, "secret.txt"), []byte("SECRET"), 0o600))
+
+	var output bytes.Buffer
+	index := 1
+	assert.NoError(t, processPath(root, config.Config{}, &output, nil, &index))
+	assert.Empty(t, output.String())
+
+	output.Reset()
+	assert.NoError(t, processPath(root, config.Config{IncludeHidden: true}, &output, nil, &index))
+	assert.Contains(t, output.String(), "SECRET")
+}
+
+func TestOutputHardLinksAreAliasesAndExcluded(t *testing.T) {
+	root := t.TempDir()
+	input := filepath.Join(root, "input.txt")
+	output := filepath.Join(root, "output.txt")
+	outputAlias := filepath.Join(root, "output-alias.txt")
+	assert.NoError(t, os.WriteFile(input, []byte("INPUT"), 0o600))
+	assert.NoError(t, os.WriteFile(output, []byte("OLD OUTPUT"), 0o600))
+	if err := os.Link(output, outputAlias); err != nil {
+		t.Skipf("hard links unavailable: %v", err)
+	}
+
+	err := Run(config.Config{Paths: []string{outputAlias}, OutputFile: output})
+	assert.ErrorContains(t, err, "aliases input")
+
+	assert.NoError(t, Run(config.Config{Paths: []string{root}, OutputFile: output, Extensions: []string{".txt"}}))
+	content, err := os.ReadFile(output)
+	assert.NoError(t, err)
+	assert.Contains(t, string(content), "INPUT")
+	assert.NotContains(t, string(content), "OLD OUTPUT")
+}
+
+func TestRunLoadsGitignoreOncePerRepository(t *testing.T) {
+	root := t.TempDir()
+	assert.NoError(t, os.Mkdir(filepath.Join(root, ".git"), 0o755))
+	first := filepath.Join(root, "first.txt")
+	second := filepath.Join(root, "second.txt")
+	assert.NoError(t, os.WriteFile(first, []byte("FIRST"), 0o600))
+	assert.NoError(t, os.WriteFile(second, []byte("SECOND"), 0o600))
+
+	originalReadPatterns := readIgnorePatterns
+	loads := 0
+	readIgnorePatterns = func(fs billy.Filesystem, path []string) ([]gitignore.Pattern, error) {
+		loads++
+		return originalReadPatterns(fs, path)
+	}
+	t.Cleanup(func() { readIgnorePatterns = originalReadPatterns })
+
+	originalStdout := osStdout
+	osStdout = io.Discard
+	t.Cleanup(func() { osStdout = originalStdout })
+	assert.NoError(t, Run(config.Config{Paths: []string{first, second}}))
+	assert.Equal(t, 1, loads)
+}
+
+func TestUnreadableGitignoreFailsClosed(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Unix file modes are required")
+	}
+	root := t.TempDir()
+	assert.NoError(t, os.Mkdir(filepath.Join(root, ".git"), 0o755))
+	ignoreFile := filepath.Join(root, ".gitignore")
+	assert.NoError(t, os.WriteFile(ignoreFile, []byte("secret.txt\n"), 0o600))
+	assert.NoError(t, os.WriteFile(filepath.Join(root, "secret.txt"), []byte("SECRET"), 0o600))
+	assert.NoError(t, os.Chmod(ignoreFile, 0o000))
+	t.Cleanup(func() { _ = os.Chmod(ignoreFile, 0o600) })
+	if file, err := os.Open(ignoreFile); err == nil {
+		_ = file.Close()
+		t.Skip("test process can read mode-000 files")
+	}
+
+	originalStdout := osStdout
+	osStdout = io.Discard
+	t.Cleanup(func() { osStdout = originalStdout })
+	assert.ErrorContains(t, Run(config.Config{Paths: []string{root}}), "read gitignore patterns")
 }
 
 func TestRunPropagatesProcessingAndWriterErrors(t *testing.T) {

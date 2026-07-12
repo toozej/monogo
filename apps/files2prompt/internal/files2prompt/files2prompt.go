@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/bmatcuk/doublestar/v4"
+	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-billy/v5/osfs"
 	gitignore "github.com/go-git/go-git/v5/plumbing/format/gitignore"
 	log "github.com/sirupsen/logrus"
@@ -20,7 +21,8 @@ import (
 
 // Standard OS functions
 var (
-	osStdout io.Writer = os.Stdout
+	osStdout           io.Writer = os.Stdout
+	readIgnorePatterns           = gitignore.ReadPatterns
 )
 
 var extToLang = map[string]string{
@@ -55,6 +57,20 @@ type pathFilter struct {
 	ignoreRoot   string
 	ignore       gitignore.Matcher
 	excludedPath map[string]struct{}
+	excludedFile []os.FileInfo
+}
+
+type readErrorFilesystem struct {
+	billy.Filesystem
+	err error
+}
+
+func (f *readErrorFilesystem) Open(filename string) (billy.File, error) {
+	file, err := f.Filesystem.Open(filename)
+	if err != nil && !os.IsNotExist(err) {
+		f.err = errors.Join(f.err, fmt.Errorf("open %s: %w", filename, err))
+	}
+	return file, err
 }
 
 func canonicalPath(path string) (string, error) {
@@ -103,7 +119,7 @@ func findIgnoreRoot(path string, isDir bool) (string, error) {
 	return start, nil
 }
 
-func newPathFilter(path string, info os.FileInfo, cfg config.Config, excludedPaths []string) (*pathFilter, error) {
+func newPathFilter(path string, info os.FileInfo, cfg config.Config, excludedPaths []string, ignoreCache map[string]gitignore.Matcher) (*pathFilter, error) {
 	scanRoot := path
 	if !info.IsDir() {
 		scanRoot = filepath.Dir(path)
@@ -124,6 +140,12 @@ func newPathFilter(path string, info os.FileInfo, cfg config.Config, excludedPat
 			return nil, canonicalErr
 		}
 		filter.excludedPath[canonical] = struct{}{}
+		info, statErr := os.Stat(canonical)
+		if statErr == nil {
+			filter.excludedFile = append(filter.excludedFile, info)
+		} else if !os.IsNotExist(statErr) {
+			return nil, statErr
+		}
 	}
 
 	if !cfg.IgnoreGitignore {
@@ -131,11 +153,22 @@ func newPathFilter(path string, info os.FileInfo, cfg config.Config, excludedPat
 		if err != nil {
 			return nil, err
 		}
-		patterns, patternErr := gitignore.ReadPatterns(osfs.New(filter.ignoreRoot), nil)
-		if patternErr != nil {
-			return nil, fmt.Errorf("read gitignore patterns: %w", patternErr)
+		if matcher, ok := ignoreCache[filter.ignoreRoot]; ok {
+			filter.ignore = matcher
+		} else {
+			filesystem := &readErrorFilesystem{Filesystem: osfs.New(filter.ignoreRoot)}
+			patterns, patternErr := readIgnorePatterns(filesystem, nil)
+			if patternErr != nil {
+				return nil, fmt.Errorf("read gitignore patterns: %w", patternErr)
+			}
+			if filesystem.err != nil {
+				return nil, fmt.Errorf("read gitignore patterns: %w", filesystem.err)
+			}
+			filter.ignore = gitignore.NewMatcher(patterns)
+			if ignoreCache != nil {
+				ignoreCache[filter.ignoreRoot] = filter.ignore
+			}
 		}
-		filter.ignore = gitignore.NewMatcher(patterns)
 	}
 
 	return filter, nil
@@ -198,13 +231,21 @@ func (f *pathFilter) include(filePath string, info os.FileInfo) (bool, error) {
 	if _, excluded := f.excludedPath[canonical]; excluded {
 		return false, nil
 	}
+	for _, excluded := range f.excludedFile {
+		if os.SameFile(info, excluded) {
+			return false, nil
+		}
+	}
 
 	relScan, err := filepath.Rel(f.scanRoot, absFilePath)
 	if err != nil {
 		return false, err
 	}
-	if !f.config.IncludeHidden && hasHiddenComponent(relScan) {
-		return false, nil
+	if !f.config.IncludeHidden {
+		hiddenRoot := relScan == "." && strings.HasPrefix(filepath.Base(absFilePath), ".")
+		if hiddenRoot || hasHiddenComponent(relScan) {
+			return false, nil
+		}
 	}
 
 	if f.ignore != nil {
@@ -214,6 +255,9 @@ func (f *pathFilter) include(filePath string, info os.FileInfo) (bool, error) {
 		}
 		if relIgnore != ".." && !strings.HasPrefix(relIgnore, ".."+string(filepath.Separator)) {
 			parts := strings.Split(filepath.ToSlash(relIgnore), "/")
+			if len(parts) > 0 && parts[0] == ".git" {
+				return false, nil
+			}
 			if f.ignore.Match(parts, info.IsDir()) {
 				return false, nil
 			}
@@ -238,6 +282,10 @@ func (f *pathFilter) include(filePath string, info os.FileInfo) (bool, error) {
 }
 
 func processPath(path string, cfg config.Config, writer io.Writer, excludedPaths []string, globalIndex *int) error {
+	return processPathWithCache(path, cfg, writer, excludedPaths, globalIndex, nil)
+}
+
+func processPathWithCache(path string, cfg config.Config, writer io.Writer, excludedPaths []string, globalIndex *int, ignoreCache map[string]gitignore.Matcher) error {
 	// Handle current directory case
 	if path == "." {
 		var err error
@@ -251,7 +299,7 @@ func processPath(path string, cfg config.Config, writer io.Writer, excludedPaths
 	if err != nil {
 		return err
 	}
-	filter, err := newPathFilter(path, info, cfg, excludedPaths)
+	filter, err := newPathFilter(path, info, cfg, excludedPaths, ignoreCache)
 	if err != nil {
 		return err
 	}
@@ -373,6 +421,10 @@ func Run(config config.Config) error {
 		if err != nil {
 			return fmt.Errorf("resolve output file: %w", err)
 		}
+		outputInfo, outputStatErr := os.Stat(canonicalOutput)
+		if outputStatErr != nil && !os.IsNotExist(outputStatErr) {
+			return fmt.Errorf("stat output file: %w", outputStatErr)
+		}
 		for _, input := range config.Paths {
 			info, statErr := os.Lstat(input)
 			if statErr != nil {
@@ -385,7 +437,15 @@ func Run(config config.Config) error {
 			if canonicalErr != nil {
 				return fmt.Errorf("resolve input %s: %w", input, canonicalErr)
 			}
-			if canonicalInput == canonicalOutput {
+			aliasesOutput := canonicalInput == canonicalOutput
+			if outputStatErr == nil {
+				inputInfo, inputStatErr := os.Stat(canonicalInput)
+				if inputStatErr != nil {
+					return fmt.Errorf("stat input %s: %w", input, inputStatErr)
+				}
+				aliasesOutput = aliasesOutput || os.SameFile(inputInfo, outputInfo)
+			}
+			if aliasesOutput {
 				return fmt.Errorf("output file %s aliases input %s", config.OutputFile, input)
 			}
 		}
@@ -413,8 +473,9 @@ func Run(config config.Config) error {
 	}
 
 	var processingErrors []error
+	ignoreCache := make(map[string]gitignore.Matcher)
 	for _, path := range config.Paths {
-		if err := processPath(path, config, writer, excludedPaths, &globalIndex); err != nil {
+		if err := processPathWithCache(path, config, writer, excludedPaths, &globalIndex, ignoreCache); err != nil {
 			processingErrors = append(processingErrors, fmt.Errorf("process %s: %w", path, err))
 		}
 	}
