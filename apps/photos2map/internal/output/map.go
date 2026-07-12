@@ -7,11 +7,18 @@ import (
 	"github.com/go-echarts/go-echarts/v2/charts"
 	"github.com/go-echarts/go-echarts/v2/opts"
 	"github.com/go-echarts/go-echarts/v2/types"
+	log "github.com/sirupsen/logrus"
 )
 
 // GenerateMap creates an HTML file with a world map and pins based on GPS coordinates extracted from images.
 // The map is saved to "map.html".
 func GenerateMap(gpsData []opts.GeoData) error {
+	for _, data := range gpsData {
+		if _, _, err := coordinates(data); err != nil {
+			return err
+		}
+	}
+
 	geo := charts.NewGeo()
 	geo.SetGlobalOptions(
 		charts.WithTitleOpts(opts.Title{Title: "photos2map: GPS Image Map"}),
@@ -42,5 +49,6 @@ func GenerateMap(gpsData []opts.GeoData) error {
 	if err := commit(); err != nil {
 		return fmt.Errorf("commit map output: %w", err)
 	}
+	log.Println("HTML map generated successfully.")
 	return nil
 }

@@ -3,9 +3,9 @@ package output
 import (
 	"encoding/xml"
 	"fmt"
-	"math"
 
 	"github.com/go-echarts/go-echarts/v2/opts"
+	log "github.com/sirupsen/logrus"
 	"github.com/twpayne/go-gpx"
 )
 
@@ -19,16 +19,9 @@ func GenerateGPX(gpsData []opts.GeoData) error {
 	}
 
 	for _, data := range gpsData {
-		// Type assert data.Value as []float64
-		coords, ok := data.Value.([]float64)
-		if !ok || len(coords) != 2 {
-			return fmt.Errorf("invalid GPS coordinates for %q", data.Name)
-		}
-
-		lat, lon := coords[1], coords[0]
-		if math.IsNaN(lat) || math.IsInf(lat, 0) || lat < -90 || lat > 90 ||
-			math.IsNaN(lon) || math.IsInf(lon, 0) || lon < -180 || lon > 180 {
-			return fmt.Errorf("GPS coordinates for %q are out of range", data.Name)
+		lon, lat, err := coordinates(data)
+		if err != nil {
+			return err
 		}
 		g.Wpt = append(g.Wpt, &gpx.WptType{
 			Lat:  lat,
@@ -59,5 +52,6 @@ func GenerateGPX(gpsData []opts.GeoData) error {
 	if err := commit(); err != nil {
 		return fmt.Errorf("commit GPX output: %w", err)
 	}
+	log.Println("GPX file generated successfully.")
 	return nil
 }
