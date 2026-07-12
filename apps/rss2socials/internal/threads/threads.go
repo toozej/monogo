@@ -3,6 +3,7 @@ package threads
 import (
 	"context"
 	"fmt"
+	"time"
 
 	threadsgo "github.com/tirthpatell/threads-go"
 
@@ -19,6 +20,7 @@ func NewClient(conf config.Config) (*threadsgo.Client, error) {
 		ClientSecret: conf.ThreadsClientSecret,
 		RedirectURI:  conf.ThreadsRedirectURI,
 		Scopes:       []string{"threads_basic", "threads_content_publish"},
+		HTTPTimeout:  30 * time.Second,
 	}
 
 	if conf.ThreadsToken != "" {

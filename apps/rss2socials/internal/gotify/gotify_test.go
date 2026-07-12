@@ -1,10 +1,12 @@
 package gotify
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/toozej/monogo/apps/rss2socials/internal/config"
 )
@@ -21,6 +23,24 @@ func TestLogFailure(t *testing.T) {
 		GotifyToken: "test-token",
 	}
 	LogFailure("Test Error", errors.New("this is a test error"), conf)
+}
+
+func TestSendGotifyNotificationHonorsContext(t *testing.T) {
+	release := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-release
+	}))
+	defer server.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	err := SendGotifyNotificationContext(ctx, &config.Config{
+		GotifyURL: server.URL, GotifyToken: "token",
+	}, "title", "message")
+	close(release)
+	if err == nil {
+		t.Fatal("SendGotifyNotificationContext() error = nil, want deadline error")
+	}
 }
 
 // Test LogSuccess function with Gotify notifications enabled
