@@ -391,6 +391,30 @@ func TestSymlinksAreNotFollowed(t *testing.T) {
 	assert.Error(t, processPath(link, config.Config{}, &output, nil, &index))
 }
 
+func TestSymlinkSwapCannotEscapeRoot(t *testing.T) {
+	root := t.TempDir()
+	victim := filepath.Join(root, "victim.txt")
+	external := filepath.Join(t.TempDir(), "secret.txt")
+	assert.NoError(t, os.WriteFile(victim, []byte("SAFE"), 0o600))
+	assert.NoError(t, os.WriteFile(external, []byte("EXTERNAL SECRET"), 0o600))
+
+	originalHook := beforeReadFile
+	beforeReadFile = func(path string) {
+		if path != victim {
+			return
+		}
+		assert.NoError(t, os.Remove(victim))
+		assert.NoError(t, os.Symlink(external, victim))
+	}
+	t.Cleanup(func() { beforeReadFile = originalHook })
+
+	var output bytes.Buffer
+	index := 1
+	err := processPath(root, config.Config{IgnoreGitignore: true}, &output, nil, &index)
+	assert.Error(t, err)
+	assert.NotContains(t, output.String(), "EXTERNAL SECRET")
+}
+
 func TestOutputIsAtomicAndNeverReadAsInput(t *testing.T) {
 	root := t.TempDir()
 	input := filepath.Join(root, "input.txt")

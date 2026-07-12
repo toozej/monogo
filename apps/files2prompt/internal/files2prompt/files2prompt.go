@@ -23,6 +23,7 @@ import (
 var (
 	osStdout           io.Writer = os.Stdout
 	readIgnorePatterns           = gitignore.ReadPatterns
+	beforeReadFile               = func(string) {}
 )
 
 var extToLang = map[string]string{
@@ -303,6 +304,22 @@ func processPathWithCache(path string, cfg config.Config, writer io.Writer, excl
 	if err != nil {
 		return err
 	}
+	root, err := os.OpenRoot(filter.scanRoot)
+	if err != nil {
+		return fmt.Errorf("open scan root: %w", err)
+	}
+	defer func() { _ = root.Close() }()
+	readFile := func(filePath string) ([]byte, error) {
+		absFilePath, absErr := filepath.Abs(filePath)
+		if absErr != nil {
+			return nil, absErr
+		}
+		relPath, relErr := filepath.Rel(filter.scanRoot, absFilePath)
+		if relErr != nil {
+			return nil, relErr
+		}
+		return root.ReadFile(relPath)
+	}
 
 	if !info.IsDir() {
 		include, includeErr := filter.include(path, info)
@@ -315,7 +332,7 @@ func processPathWithCache(path string, cfg config.Config, writer io.Writer, excl
 			}
 			return nil
 		}
-		return processFile(path, cfg, writer, globalIndex)
+		return processFileWithReader(path, cfg, writer, globalIndex, readFile)
 	}
 
 	return filepath.Walk(path, func(filePath string, info os.FileInfo, err error) error {
@@ -335,14 +352,19 @@ func processPathWithCache(path string, cfg config.Config, writer io.Writer, excl
 		}
 
 		if !info.IsDir() {
-			return processFile(filePath, cfg, writer, globalIndex)
+			return processFileWithReader(filePath, cfg, writer, globalIndex, readFile)
 		}
 		return nil
 	})
 }
 
 func processFile(filePath string, config config.Config, writer io.Writer, globalIndex *int) error {
-	content, err := os.ReadFile(filePath) // #nosec G304
+	return processFileWithReader(filePath, config, writer, globalIndex, os.ReadFile)
+}
+
+func processFileWithReader(filePath string, config config.Config, writer io.Writer, globalIndex *int, readFile func(string) ([]byte, error)) error {
+	beforeReadFile(filePath)
+	content, err := readFile(filePath)
 	if err != nil {
 		return fmt.Errorf("read %s: %w", filePath, err)
 	}
