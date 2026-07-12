@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"net/http"
 	"net/http/httptest"
@@ -204,6 +205,50 @@ func TestServer_RoutesRequireConfiguredBasicAuth(t *testing.T) {
 	if authorized.Code != http.StatusOK {
 		t.Fatalf("authenticated status = %d", authorized.Code)
 	}
+
+	static := httptest.NewRecorder()
+	server.router.ServeHTTP(static, httptest.NewRequest(http.MethodGet, "/static/js/app.js", http.NoBody))
+	if static.Code != http.StatusUnauthorized {
+		t.Fatalf("unauthenticated static asset status = %d, want %d", static.Code, http.StatusUnauthorized)
+	}
+}
+
+func TestServer_RateLimitsFailedBasicAuth(t *testing.T) {
+	cfg := &config.Config{
+		Server: config.ServerConfig{Host: "0.0.0.0", Port: 8080},
+		Spotify: config.SpotifyConfig{
+			ClientID:     "test_client_id",
+			ClientSecret: "test_client_secret",
+			RedirectURL:  "http://localhost/callback",
+			TokenFile:    filepath.Join(t.TempDir(), "token.json"),
+		},
+		Security: config.SecurityConfig{
+			Username: "user",
+			Password: "secret",
+			RateLimit: config.RateLimitConfig{
+				RequestsPerSecond: 1,
+				Burst:             1,
+			},
+		},
+	}
+	server := NewServer(cfg)
+	server.setupRoutes()
+
+	first := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	request.RemoteAddr = "192.0.2.1:1234"
+	server.router.ServeHTTP(first, request)
+	if first.Code != http.StatusUnauthorized {
+		t.Fatalf("first failed login status = %d", first.Code)
+	}
+
+	second := httptest.NewRecorder()
+	request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	request.RemoteAddr = "192.0.2.1:1234"
+	server.router.ServeHTTP(second, request)
+	if second.Code != http.StatusTooManyRequests {
+		t.Fatalf("second failed login status = %d, want %d", second.Code, http.StatusTooManyRequests)
+	}
 }
 
 // TestServer_CallbackAllowsOpaqueOAuthState ensures the OAuth callback is not
@@ -223,6 +268,8 @@ func TestServer_CallbackAllowsOpaqueOAuthState(t *testing.T) {
 	}
 	server := NewServer(cfg)
 	server.setupRoutes()
+	var logs bytes.Buffer
+	server.logger.SetOutput(&logs)
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/callback?code=abc&state=aa--bb", http.NoBody)
@@ -233,7 +280,10 @@ func TestServer_CallbackAllowsOpaqueOAuthState(t *testing.T) {
 	}
 	// The unknown state must be rejected by the auth handler, proving the
 	// request reached it rather than being blocked upstream.
-	if rec.Code != http.StatusInternalServerError {
-		t.Fatalf("callback status = %d, want %d (auth handler reached)", rec.Code, http.StatusInternalServerError)
+	if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "Invalid callback state") {
+		t.Fatalf("callback status = %d body=%q, want invalid-state response", rec.Code, rec.Body.String())
+	}
+	if strings.Contains(logs.String(), "aa--bb") {
+		t.Fatalf("OAuth state leaked to logs: %s", logs.String())
 	}
 }

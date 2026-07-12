@@ -100,7 +100,7 @@ SCRAPER_ALLOW_PRIVATE_NETWORK=false    # Permit trusted internal scrape targets
 # Rate limiting (optional, defaults shown)
 SECURITY_RATE_LIMIT_REQUESTS_PER_SECOND=10  # Requests per second per IP
 SECURITY_RATE_LIMIT_BURST=20                # Burst capacity per IP
-SECURITY_TRUST_PROXY_HEADERS=false          # Enable only behind a trusted proxy
+SECURITY_TRUST_PROXY_HEADERS=false          # Enable only behind a trusted proxy that overwrites client IP headers
 
 # Required whenever SERVER_HOST is not loopback
 SECURITY_USERNAME=go-listen

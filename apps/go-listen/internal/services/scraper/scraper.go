@@ -108,11 +108,6 @@ var (
 	networkDial  = (&net.Dialer{Timeout: 30 * time.Second}).DialContext
 )
 
-func isInternalAddress(ip net.IP) bool {
-	return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() ||
-		ip.IsLinkLocalMulticast() || ip.IsUnspecified()
-}
-
 func safeDialContext(allowPrivate bool) func(context.Context, string, string) (net.Conn, error) {
 	return func(ctx context.Context, network, address string) (net.Conn, error) {
 		if allowPrivate {
@@ -130,11 +125,22 @@ func safeDialContext(allowPrivate bool) func(context.Context, string, string) (n
 			return nil, fmt.Errorf("hostname %s resolved to no addresses", host)
 		}
 		for _, resolved := range ips {
-			if isInternalAddress(resolved.IP) {
+			if urlsafe.IsInternalIP(resolved.IP) {
 				return nil, fmt.Errorf("refusing to dial private/internal address %s for %s", resolved.IP, host)
 			}
 		}
-		return networkDial(ctx, network, net.JoinHostPort(ips[0].IP.String(), port))
+		var dialErrors []error
+		for _, resolved := range ips {
+			conn, dialErr := networkDial(ctx, network, net.JoinHostPort(resolved.IP.String(), port))
+			if dialErr == nil {
+				return conn, nil
+			}
+			dialErrors = append(dialErrors, fmt.Errorf("%s: %w", resolved.IP, dialErr))
+			if ctx.Err() != nil {
+				break
+			}
+		}
+		return nil, fmt.Errorf("dialing all resolved addresses for %s: %w", host, errors.Join(dialErrors...))
 	}
 }
 
@@ -393,6 +399,9 @@ func (w *WebScraper) fetchWithRetry(url string) (string, error) {
 		htmlContent, err := w.fetchURL(url)
 		if err == nil {
 			return htmlContent, nil
+		}
+		if errors.Is(err, urlsafe.ErrUnsafeURL) {
+			return "", err
 		}
 
 		lastErr = err

@@ -122,8 +122,22 @@ func TestOAuthStateIsRandomAndSingleUse(t *testing.T) {
 	if err := client.CompleteAuth("code", state); err == nil {
 		t.Fatal("first callback should reach the fake exchange and fail")
 	}
-	if err := client.CompleteAuth("code", state); err == nil || !strings.Contains(err.Error(), "invalid state") {
+	if err := client.CompleteAuth("code", state); !errors.Is(err, ErrInvalidOAuthState) {
 		t.Fatalf("replayed state error = %v", err)
+	}
+}
+
+func TestOAuthStateExpires(t *testing.T) {
+	client := &Client{
+		logger: logrus.New(),
+		auth:   &fakeAuth{},
+		states: map[string]time.Time{"expired": time.Now().Add(-time.Second)},
+	}
+	if err := client.CompleteAuth("code", "expired"); !errors.Is(err, ErrInvalidOAuthState) {
+		t.Fatalf("expired state error = %v", err)
+	}
+	if _, exists := client.states["expired"]; exists {
+		t.Fatal("expired state was not consumed")
 	}
 }
 

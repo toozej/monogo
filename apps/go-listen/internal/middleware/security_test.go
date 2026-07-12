@@ -1,8 +1,11 @@
 package middleware
 
 import (
+	"bytes"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strings"
 	"testing"
 
 	log "github.com/sirupsen/logrus"
@@ -147,6 +150,24 @@ func TestInputValidation(t *testing.T) {
 				t.Errorf("Expected status %d, got %d", tt.expectedStatus, w.Code)
 			}
 		})
+	}
+}
+
+func TestInputValidationDoesNotLogRejectedQueryValue(t *testing.T) {
+	var logs bytes.Buffer
+	logger := log.New()
+	logger.SetOutput(&logs)
+	sm := NewSecurityMiddleware(logger, NewRateLimiter(10, 20))
+	handler := sm.InputValidation(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	const secret = "secret<script>"
+	req := httptest.NewRequest(http.MethodGet, "/?input="+url.QueryEscape(secret), http.NoBody)
+	handler.ServeHTTP(httptest.NewRecorder(), req)
+
+	if strings.Contains(logs.String(), secret) {
+		t.Fatalf("rejected query value leaked to logs: %s", logs.String())
 	}
 }
 

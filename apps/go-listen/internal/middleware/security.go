@@ -131,7 +131,6 @@ func (sm *SecurityMiddleware) InputValidation(next http.Handler) http.Handler {
 						"event_type": "suspicious_parameter",
 						"client_ip":  sm.clientIP(r),
 						"param":      key,
-						"value":      value,
 						"user_agent": r.UserAgent(),
 						"method":     r.Method,
 						"path":       r.URL.Path,
