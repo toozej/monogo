@@ -396,7 +396,6 @@ func GetPodcastItemFileByID(c *gin.Context) {
 
 // findEpisodeFile attempts to locate the same episode filename in the current
 // and legacy podcast directories. It never substitutes another episode's file.
-// #nosec G703 -- dataPath is from env var, podcast name is sanitized
 func findEpisodeFile(item *db.PodcastItem) string {
 	episodeFileName := filepath.Base(item.DownloadPath)
 	if episodeFileName == "." || episodeFileName == string(filepath.Separator) || episodeFileName == "" {
@@ -452,7 +451,7 @@ func existingRegularFileWithin(baseDir, candidate string) string {
 	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
 		return ""
 	}
-	info, err := os.Stat(resolvedCandidate)
+	info, err := os.Stat(resolvedCandidate) // #nosec G703 -- EvalSymlinks and filepath.Rel above prove the resolved path remains within resolvedBase
 	if err != nil || !info.Mode().IsRegular() {
 		return ""
 	}
