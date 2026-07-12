@@ -35,6 +35,13 @@ const maxFeedBytes = 2 << 20
 const maxDomains = 100
 const maxDomainWorkers = 10
 
+const (
+	atomNamespace   = "http://www.w3.org/2005/Atom"
+	atom03Namespace = "http://purl.org/atom/ns#"
+	rdfNamespace    = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+	rss1Namespace   = "http://purl.org/rss/1.0/"
+)
+
 var lookupIPAddr = net.DefaultResolver.LookupIPAddr
 var networkDialer = (&net.Dialer{Timeout: timeoutSeconds * time.Second}).DialContext
 
@@ -68,7 +75,10 @@ func validateURLContext(ctx context.Context, rawURL string) error {
 	// Resolve the hostname to IP addresses
 	ips, err := lookupIPAddr(ctx, hostname)
 	if err != nil {
-		return fmt.Errorf("failed to resolve hostname %s: %v", hostname, err)
+		return fmt.Errorf("failed to resolve hostname %s: %w", hostname, err)
+	}
+	if len(ips) == 0 {
+		return fmt.Errorf("no addresses found for %s", hostname)
 	}
 
 	// Check if any resolved IP is in a private/internal range
@@ -105,14 +115,32 @@ func safeDialContext(ctx context.Context, network, address string) (net.Conn, er
 	if len(ips) == 0 {
 		return nil, fmt.Errorf("no addresses found for %s", host)
 	}
-	return networkDialer(ctx, network, net.JoinHostPort(ips[0].IP.String(), port))
+	var dialErrors []error
+	for _, candidate := range ips {
+		conn, dialErr := networkDialer(ctx, network, net.JoinHostPort(candidate.IP.String(), port))
+		if dialErr == nil {
+			return conn, nil
+		}
+		dialErrors = append(dialErrors, fmt.Errorf("%s: %w", candidate.IP, dialErr))
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+	}
+	return nil, fmt.Errorf("dial %s: %w", host, errors.Join(dialErrors...))
+}
+
+func newSafeHTTPTransport() *http.Transport {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	// A proxy resolves and dials the target itself, which would bypass the
+	// validated and pinned address selected by safeDialContext.
+	transport.Proxy = nil
+	transport.DialContext = safeDialContext
+	return transport
 }
 
 func newSafeHTTPClient(timeout time.Duration) *http.Client {
-	transport := http.DefaultTransport.(*http.Transport).Clone()
-	transport.DialContext = safeDialContext
 	return &http.Client{
-		Transport: transport,
+		Transport: newSafeHTTPTransport(),
 		Timeout:   timeout,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			if len(via) >= maxRedirects {
@@ -160,11 +188,12 @@ func extractDomainFromURL(pageURL string) (string, error) {
 // getAllDomainsFromPage retrieves all unique domain names from a webpage
 func getAllDomainsFromPage(ctx context.Context, pageURL string) (map[string]bool, error) {
 	// Validate the URL before making the request
-	if err := validateURL(pageURL); err != nil {
-		return nil, fmt.Errorf("invalid URL: %v", err)
+	if err := validateURLContext(ctx, pageURL); err != nil {
+		return nil, fmt.Errorf("invalid URL: %w", err)
 	}
 
 	client := newSafeHTTPClient(time.Second * timeoutSeconds)
+	defer client.CloseIdleConnections()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, pageURL, nil)
 	if err != nil {
@@ -183,13 +212,20 @@ func getAllDomainsFromPage(ctx context.Context, pageURL string) (map[string]bool
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("fetch page: unexpected status %s", resp.Status)
 	}
-	baseURL, err := url.Parse(pageURL)
+	submittedURL, err := url.Parse(pageURL)
 	if err != nil {
 		return nil, err
 	}
+	baseURL := submittedURL
+	if resp.Request != nil && resp.Request.URL != nil {
+		baseURL = resp.Request.URL
+	}
 	tokenizer := html.NewTokenizer(io.LimitReader(resp.Body, maxPageBytes))
 	domains := make(map[string]bool)
-	domains[baseURL.Scheme+"://"+baseURL.Host] = true
+	domains[submittedURL.Scheme+"://"+submittedURL.Host] = true
+	if len(domains) < maxDomains {
+		domains[baseURL.Scheme+"://"+baseURL.Host] = true
+	}
 
 	// Parse HTML and extract URLs
 	for {
@@ -220,7 +256,7 @@ func getAllDomainsFromPage(ctx context.Context, pageURL string) (map[string]bool
 }
 
 // checkDomainsForRSS checks for RSS feeds on the given domains with concurrency
-func checkDomainsForRSS(ctx context.Context, domains map[string]bool, pageURL string) []string {
+func checkDomainsForRSS(ctx context.Context, domains map[string]bool, pageURL string) ([]string, error) {
 	var wg sync.WaitGroup
 	jobs := make(chan string)
 	feedChan := make(chan string, len(domains))
@@ -269,12 +305,16 @@ func checkDomainsForRSS(ctx context.Context, domains map[string]bool, pageURL st
 		validFeeds = append(validFeeds, feed)
 	}
 
-	return validFeeds
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return validFeeds, nil
 }
 
 // findPreferredRSSFeed checks RSS patterns for a domain and returns the first valid one based on preference
 func findPreferredRSSFeed(ctx context.Context, origin string, originalURL string) string {
 	client := newSafeHTTPClient(time.Second * timeoutSeconds)
+	defer client.CloseIdleConnections()
 
 	log.Debugf("Checking RSS patterns for origin: %s", origin)
 	for _, pattern := range commonPatterns {
@@ -308,7 +348,7 @@ func findPreferredRSSFeed(ctx context.Context, origin string, originalURL string
 // checkRSSFeed checks if the given URL is a valid RSS feed
 func checkRSSFeed(ctx context.Context, client *http.Client, feedURL string) bool {
 	// Validate the URL before making the request
-	if err := validateURL(feedURL); err != nil {
+	if err := validateURLContext(ctx, feedURL); err != nil {
 		log.Debugf("Skipping invalid RSS feed URL %s: %v", feedURL, err)
 		return false
 	}
@@ -341,18 +381,37 @@ func checkRSSFeed(ctx context.Context, client *http.Client, feedURL string) bool
 			return false
 		}
 		if start, ok := token.(xml.StartElement); ok {
-			switch strings.ToLower(start.Name.Local) {
-			case "rss", "feed", "rdf":
-				return true
-			default:
-				return false
-			}
+			return isFeedRoot(decoder, start)
 		}
 	}
 }
 
+func isFeedRoot(decoder *xml.Decoder, root xml.StartElement) bool {
+	switch root.Name.Local {
+	case "rss":
+		return root.Name.Space == ""
+	case "feed":
+		return root.Name.Space == atomNamespace || root.Name.Space == atom03Namespace
+	case "RDF":
+		if root.Name.Space != rdfNamespace {
+			return false
+		}
+		for {
+			token, err := decoder.Token()
+			if err != nil {
+				return false
+			}
+			if start, ok := token.(xml.StartElement); ok && start.Name.Local == "channel" && start.Name.Space == rss1Namespace {
+				return true
+			}
+		}
+	default:
+		return false
+	}
+}
+
 func Run(pageURL string, category string, debug bool, clearCategoryFeeds bool, singleURLMode bool, conf config.Config) (int, error) {
-	return RunContext(context.Background(), pageURL, category, debug, clearCategoryFeeds, singleURLMode, conf)
+	return RunContext(context.Background(), pageURL, category, debug, clearCategoryFeeds, singleURLMode || conf.SingleURLMode, conf)
 }
 
 // RunContext discovers and subscribes to feeds while honoring caller cancellation.
@@ -363,6 +422,9 @@ func RunContext(ctx context.Context, pageURL string, category string, debug bool
 	categoryId, err := getCategoryId(ctx, conf.RSSReaderEndpoint, conf.RSSReaderAPIKey, category)
 	if err != nil {
 		return 0, fmt.Errorf("error getting categoryId from category %s: %w", category, err)
+	}
+	if category != "" && categoryId == 0 {
+		return 0, fmt.Errorf("RSS reader category %q was not found", category)
 	}
 
 	feeds, err := discoverFeeds(ctx, pageURL, singleURLMode)
@@ -412,31 +474,51 @@ func discoverFeeds(ctx context.Context, pageURL string, singleURLMode bool) ([]s
 }
 
 func discoverSingleURLMode(ctx context.Context, pageURL string) ([]string, error) {
-	domain, err := extractDomainFromURL(pageURL)
+	parsed, err := normalizeHTTPURL(pageURL)
 	if err != nil {
 		log.Errorf("Single URL mode: Failed to extract domain from URL '%s': %v", pageURL, err)
 		log.Errorf("Single URL mode: Please ensure the URL is properly formatted (e.g., https://example.com)")
 		return nil, err
 	}
+	domain := parsed.Hostname()
 
 	log.Infof("Using single URL mode for domain: %s", domain)
 	log.Debugf("Single URL mode: checking common RSS patterns on %s", domain)
 
-	parsed, err := url.Parse(pageURL)
-	if err != nil {
-		return nil, err
-	}
+	normalizedURL := parsed.String()
 	origin := parsed.Scheme + "://" + parsed.Host
-	feed := findPreferredRSSFeed(ctx, origin, pageURL)
+	feed := findPreferredRSSFeed(ctx, origin, normalizedURL)
 	if feed != "" {
 		log.Infof("Single URL mode: Found RSS feed on %s: %s", domain, feed)
 		return []string{feed}, nil
 	} else {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		log.Infof("Single URL mode: No RSS feeds found on domain %s", domain)
 		log.Infof("Single URL mode: Checked common RSS patterns: %v", commonPatterns)
 		log.Infof("Single URL mode: The website may not have RSS feeds, or they may be located at non-standard paths")
 	}
 	return nil, nil
+}
+
+func normalizeHTTPURL(rawURL string) (*url.URL, error) {
+	normalized := rawURL
+	if !strings.Contains(normalized, "://") {
+		normalized = "https://" + normalized
+	}
+	parsed, err := url.Parse(normalized)
+	if err != nil {
+		return nil, err
+	}
+	parsed.Scheme = strings.ToLower(parsed.Scheme)
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return nil, fmt.Errorf("only HTTP and HTTPS schemes are allowed, got: %s", parsed.Scheme)
+	}
+	if parsed.Hostname() == "" {
+		return nil, fmt.Errorf("no hostname found in URL")
+	}
+	return parsed, nil
 }
 
 func discoverTraversalMode(ctx context.Context, pageURL string) ([]string, error) {
@@ -456,7 +538,10 @@ func discoverTraversalMode(ctx context.Context, pageURL string) ([]string, error
 	}
 
 	// Deduplicate valid RSS feeds
-	validFeeds := checkDomainsForRSS(ctx, domains, pageURL)
+	validFeeds, err := checkDomainsForRSS(ctx, domains, pageURL)
+	if err != nil {
+		return nil, err
+	}
 
 	if len(validFeeds) == 0 {
 		log.Infof("Traversal mode: No RSS feeds found across %d domains", len(domains))

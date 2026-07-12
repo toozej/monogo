@@ -1,15 +1,42 @@
 package web
 
 import (
+	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/toozej/monogo/apps/RSSFFS/internal/config"
 )
+
+func TestFetchCategoriesDoesNotForwardAPIKeyAcrossRedirect(t *testing.T) {
+	var targetRequests atomic.Int32
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		targetRequests.Add(1)
+		if token := r.Header.Get("X-Auth-Token"); token != "" {
+			t.Errorf("redirect target received API token %q", token)
+		}
+		_, _ = io.WriteString(w, `[]`)
+	}))
+	defer target.Close()
+	source := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, target.URL, http.StatusFound)
+	}))
+	defer source.Close()
+
+	server := NewServer(config.Config{RSSReaderEndpoint: source.URL, RSSReaderAPIKey: "super-secret"}, false)
+	if _, err := server.fetchCategoriesFromAPI(context.Background()); err == nil {
+		t.Fatal("reader API redirect must be rejected")
+	}
+	if got := targetRequests.Load(); got != 0 {
+		t.Fatalf("redirect target received %d requests", got)
+	}
+}
 
 // Helper function to create a request with a valid CSRF token (cookie and header)
 func newCSRFRequest(method, path, body string, token string) *http.Request {
@@ -329,6 +356,8 @@ func TestValidateCategory(t *testing.T) {
 		{strings.Repeat("a", 101), true, "Category too long"},
 		{"<script>alert('xss')</script>", true, "Category with script tag"},
 		{"category with\x00null", true, "Category with null byte"},
+		{"category\nforged log", true, "Category with newline"},
+		{"category\twith tab", true, "Category with tab"},
 		{"valid category 123", false, "Category with numbers"},
 	}
 

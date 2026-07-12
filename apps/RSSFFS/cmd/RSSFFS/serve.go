@@ -9,6 +9,8 @@ package cmd
 import (
 	"fmt"
 	"net"
+	"strconv"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -90,6 +92,7 @@ func (s *ServeCommand) runServer(cmd *cobra.Command, args []string) error {
 }
 
 func isLoopbackHost(host string) bool {
+	host = strings.TrimSuffix(strings.ToLower(host), ".")
 	if host == "localhost" {
 		return true
 	}
@@ -99,7 +102,7 @@ func isLoopbackHost(host string) bool {
 
 // checkPortAvailability verifies that the specified port is available for binding
 func (s *ServeCommand) checkPortAvailability() error {
-	addr := fmt.Sprintf("%s:%d", s.Host, s.Port)
+	addr := bindAddress(s.Host, s.Port)
 
 	// Try to listen on the address to check availability
 	listener, err := net.Listen("tcp", addr)
@@ -109,4 +112,8 @@ func (s *ServeCommand) checkPortAvailability() error {
 
 	// Close the listener immediately since we're just checking availability
 	return listener.Close()
+}
+
+func bindAddress(host string, port int) string {
+	return net.JoinHostPort(host, strconv.Itoa(port))
 }

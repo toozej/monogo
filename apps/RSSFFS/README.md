@@ -97,6 +97,11 @@ Examples:
 Binding the web UI to a non-loopback address requires `WEB_USERNAME` and
 `WEB_PASSWORD`. All UI, API, category, and log routes are protected with HTTP
 Basic authentication when these values are configured.
+The sample environment file leaves both values empty intentionally; set strong,
+deployment-specific credentials before starting the development Compose service,
+which binds the application to `0.0.0.0` inside its container while publishing
+the port only on the host's loopback interface. For any remote deployment, put
+the service behind TLS; HTTP Basic authentication does not encrypt credentials.
 
 ## Configuration
 

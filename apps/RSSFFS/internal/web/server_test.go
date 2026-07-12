@@ -150,7 +150,39 @@ func TestWithMiddlewareRequiresConfiguredBasicAuth(t *testing.T) {
 			if got := w.Header().Get("Access-Control-Allow-Origin"); got != "" {
 				t.Fatalf("unexpected permissive CORS header %q", got)
 			}
+			if got := w.Header().Get("X-Content-Type-Options"); got != "nosniff" {
+				t.Fatalf("security header = %q, want nosniff", got)
+			}
 		})
+	}
+}
+
+func TestValidateBindAuthentication(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		host    string
+		conf    config.Config
+		wantErr bool
+	}{
+		{name: "loopback without auth", host: "127.0.0.1"},
+		{name: "IPv6 loopback without auth", host: "::1"},
+		{name: "public without auth", host: "0.0.0.0", wantErr: true},
+		{name: "public with auth", host: "0.0.0.0", conf: config.Config{WebUsername: "owner", WebPassword: "secret"}},
+		{name: "partial auth", host: "127.0.0.1", conf: config.Config{WebUsername: "owner"}, wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			server := NewServer(tc.conf, false)
+			err := server.validateBindAuthentication(tc.host)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("validateBindAuthentication() error = %v, wantErr %t", err, tc.wantErr)
+			}
+		})
+	}
+}
+
+func TestSubmissionTimeoutFitsServerWriteDeadline(t *testing.T) {
+	if submissionTimeout >= serverWriteTimeout {
+		t.Fatalf("submission timeout %s must be shorter than server write timeout %s", submissionTimeout, serverWriteTimeout)
 	}
 }
 

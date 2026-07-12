@@ -20,7 +20,14 @@ type Feed struct {
 }
 
 var limiter = rate.NewLimiter(1, 5) // Allow 1 request per second with a burst size of 1
-var readerHTTPClient = &http.Client{Timeout: 15 * time.Second}
+var readerHTTPClient = &http.Client{
+	Timeout: 15 * time.Second,
+	CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+		// Reader API requests carry a custom authentication header. Never follow
+		// redirects, which could forward that secret to another origin.
+		return http.ErrUseLastResponse
+	},
+}
 
 func getCategoryId(ctx context.Context, apiEndpoint, apiKey, category string) (int, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf(`%s/v1/categories`, apiEndpoint), nil)
@@ -91,7 +98,7 @@ func subscribeToFeed(ctx context.Context, apiEndpoint string, apiKey string, cat
 		}
 	}()
 
-	if resp.StatusCode >= 400 {
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		log.Debugf("Got response %s with response code %d\n", resp.Status, resp.StatusCode)
 		return fmt.Errorf("failed to subscribe, status code: %d", resp.StatusCode)
 	}
@@ -171,10 +178,8 @@ func deleteFeed(ctx context.Context, apiEndpoint string, apiKey string, feedId i
 		// HTTP 204 No Content means successful deletion
 		log.Infof("Successfully deleted feed with ID %d", feedId)
 		return nil
-	} else if resp.StatusCode >= 400 {
+	} else {
 		log.Debugf("Got response %s with response code %d when deleting feed ID %d", resp.Status, resp.StatusCode, feedId)
 		return fmt.Errorf("failed to delete feed, status code: %d", resp.StatusCode)
 	}
-
-	return nil
 }

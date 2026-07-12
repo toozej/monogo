@@ -55,6 +55,8 @@ type ValidationErrors struct {
 	Errors []ValidationError `json:"errors"`
 }
 
+const submissionTimeout = 2 * time.Minute
+
 func (ve ValidationErrors) Error() string {
 	if len(ve.Errors) == 0 {
 		return "validation failed"
@@ -112,7 +114,9 @@ func (s *Server) handleSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Process the submission
-	response := s.processSubmissionContext(r.Context(), req)
+	ctx, cancel := context.WithTimeout(r.Context(), submissionTimeout)
+	defer cancel()
+	response := s.processSubmissionContext(ctx, req)
 
 	// Send JSON response
 	w.WriteHeader(s.getStatusCode(response))
@@ -237,7 +241,7 @@ func (s *Server) validateCategory(category string) error {
 	}
 
 	// Allow alphanumeric, spaces, hyphens, underscores, and common punctuation
-	validCategory := regexp.MustCompile(`^[a-zA-Z0-9\s\-_.,!?()]+$`)
+	validCategory := regexp.MustCompile(`^[a-zA-Z0-9 _.,!?()-]+$`)
 	if !validCategory.MatchString(category) {
 		return fmt.Errorf("category name contains invalid characters (only letters, numbers, spaces, and basic punctuation allowed)")
 	}
@@ -272,7 +276,7 @@ func (s *Server) processSubmissionContext(ctx context.Context, req SubmitRequest
 	}
 
 	// Call the RSSFFS core function
-	count, err := RSSFFS.RunContext(ctx, req.URL, req.Category, s.debug, false, req.SingleURLMode, s.config)
+	count, err := RSSFFS.RunContext(ctx, req.URL, req.Category, s.debug, false, req.SingleURLMode || s.config.SingleURLMode, s.config)
 	if err != nil {
 		log.Errorf("Error processing RSSFFS request: %v", err)
 		return SubmitResponse{
@@ -406,7 +410,7 @@ func (s *Server) handleCategories(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch categories from RSS reader API
-	categories, err := s.fetchCategoriesFromAPI()
+	categories, err := s.fetchCategoriesFromAPI(r.Context())
 	if err != nil {
 		log.Warnf("Could not fetch categories from RSS reader: %v", err)
 		// Instead of returning an error, provide a fallback with common categories
@@ -427,9 +431,9 @@ func (s *Server) handleCategories(w http.ResponseWriter, r *http.Request) {
 }
 
 // fetchCategoriesFromAPI fetches categories from the RSS reader API
-func (s *Server) fetchCategoriesFromAPI() ([]CategoryResponseItem, error) {
+func (s *Server) fetchCategoriesFromAPI(ctx context.Context) ([]CategoryResponseItem, error) {
 	// Create HTTP request to fetch categories
-	req, err := http.NewRequest("GET", fmt.Sprintf("%s/v1/categories", s.config.RSSReaderEndpoint), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/v1/categories", s.config.RSSReaderEndpoint), nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -439,6 +443,9 @@ func (s *Server) fetchCategoriesFromAPI() ([]CategoryResponseItem, error) {
 
 	client := &http.Client{
 		Timeout: 10 * time.Second,
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
 	}
 
 	resp, err := client.Do(req) // #nosec G704 -- URL is from config, not user input

@@ -21,6 +21,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"os"
@@ -114,7 +115,7 @@ Examples:
 			effectiveSingleURLMode = singleURLMode
 		}
 
-		count, err := RSSFFS.Run(pageURL.String(), category, debug, clearCategoryFeeds, effectiveSingleURLMode, conf)
+		count, err := RSSFFS.RunContext(context.Background(), pageURL.String(), category, debug, clearCategoryFeeds, effectiveSingleURLMode, conf)
 		if err != nil {
 			log.Fatalf("An error occurred during execution: %v", err)
 		}
