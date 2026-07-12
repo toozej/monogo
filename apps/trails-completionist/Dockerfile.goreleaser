@@ -3,6 +3,8 @@ FROM scratch
 # Copy our static executable.
 ARG TARGETPLATFORM
 COPY $TARGETPLATFORM/trails-completionist /go/bin/trails-completionist
+# Expose port for publishing as web service
+# EXPOSE 8081
 # Run the binary.
 USER 65532:65532
 ENTRYPOINT ["/go/bin/trails-completionist"]
