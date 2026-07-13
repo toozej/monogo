@@ -2,12 +2,16 @@
 package service
 
 import (
+	"context"
+	"errors"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -384,6 +388,33 @@ func TestDownload(t *testing.T) {
 	}
 }
 
+func TestDownloadRemovesPartialFileAfterInterruptedTransfer(t *testing.T) {
+	dataDir, cleanup := testhelpers.SetupTestDataDir(t)
+	defer cleanup()
+
+	database := testhelpers.SetupTestDB(t)
+	defer testhelpers.TeardownTestDB(t, database)
+	originalDB := db.DB
+	db.DB = database
+	defer func() { db.DB = originalDB }()
+	db.CreateTestSetting(t, database)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Length", "100")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("truncated"))
+	}))
+	defer server.Close()
+
+	_, err := Download(server.URL, "Episode", "Partial Podcast", "interrupted")
+	require.Error(t, err)
+	finalPath := filepath.Join(dataDir, cleanFileName("Partial Podcast"), "interrupted.mp3")
+	assert.NoFileExists(t, finalPath, "an interrupted transfer must not occupy the final episode path")
+	entries, readErr := os.ReadDir(filepath.Dir(finalPath))
+	require.NoError(t, readErr)
+	assert.Empty(t, entries, "an interrupted transfer must clean up its temporary file")
+}
+
 // TestDownload_EmptyLink tests error handling for empty download link.
 func TestDownload_EmptyLink(t *testing.T) {
 	_, err := Download("", "Episode", "Podcast", "")
@@ -579,6 +610,19 @@ func TestHttpClient(t *testing.T) {
 
 	// Verify it handles redirects
 	assert.NotNil(t, client.CheckRedirect, "Should have redirect handler")
+
+	// The client downloads full podcast episodes, which can take longer than any
+	// fixed deadline. An overall Client.Timeout would silently truncate large
+	// downloads, so it must stay unset; the time-to-first-byte is bounded on the
+	// transport's ResponseHeaderTimeout instead.
+	assert.Zero(t, client.Timeout, "Client must not set an overall timeout that truncates large downloads")
+}
+
+func TestMetadataHTTPClientRetainsOverallTimeout(t *testing.T) {
+	client := metadataHTTPClient()
+	require.NotNil(t, client)
+	assert.Equal(t, 30*time.Second, client.Timeout, "metadata requests must not hang on a stalled body")
+	assert.NotNil(t, client.CheckRedirect, "metadata requests must retain redirect validation")
 }
 
 // TestGetRequest tests HTTP request creation with user agent.
@@ -670,4 +714,60 @@ func TestGetFileSizeFromURLRejectsUnsafeURL(t *testing.T) {
 	// nosemgrep: problem-based-packs.insecure-transport.go-stdlib.grequests-http-request.grequests-http-request -- intentional: asserting the guard rejects this http metadata endpoint
 	_, err = GetFileSizeFromURL("http://169.254.169.254/latest/meta-data/")
 	require.Error(t, err, "Should reject link-local metadata endpoint when private networking is disabled")
+}
+
+func TestHTTPClientRejectsUnsafeRedirect(t *testing.T) {
+	t.Setenv("ALLOW_PRIVATE_NETWORK", "false")
+	req, err := http.NewRequest(http.MethodGet, "https://169.254.169.254/latest/meta-data/", http.NoBody)
+	require.NoError(t, err)
+
+	err = httpClient().CheckRedirect(req, nil)
+	require.ErrorContains(t, err, "refusing redirect target")
+}
+
+func TestHTTPClientRejectsTooManyRedirects(t *testing.T) {
+	t.Setenv("ALLOW_PRIVATE_NETWORK", "true")
+	req, err := http.NewRequest(http.MethodGet, "https://example.com/next", http.NoBody)
+	require.NoError(t, err)
+
+	err = httpClient().CheckRedirect(req, make([]*http.Request, 10))
+	require.ErrorContains(t, err, "10 redirects")
+}
+
+func TestSafeDialContextRejectsReboundInternalAddress(t *testing.T) {
+	t.Setenv("ALLOW_PRIVATE_NETWORK", "false")
+	originalLookup := lookupIPAddr
+	originalDial := networkDial
+	t.Cleanup(func() {
+		lookupIPAddr = originalLookup
+		networkDial = originalDial
+	})
+	lookupIPAddr = func(context.Context, string) ([]net.IPAddr, error) {
+		return []net.IPAddr{{IP: net.ParseIP("127.0.0.1")}}, nil
+	}
+	networkDial = func(context.Context, string, string) (net.Conn, error) {
+		return nil, errors.New("dial should not be reached")
+	}
+
+	_, err := safeDialContext(context.Background(), "tcp", "example.test:80")
+	require.ErrorContains(t, err, "private/internal")
+}
+
+func TestSafeDialContextRejectsSharedAddressSpace(t *testing.T) {
+	t.Setenv("ALLOW_PRIVATE_NETWORK", "false")
+	originalLookup := lookupIPAddr
+	originalDial := networkDial
+	t.Cleanup(func() {
+		lookupIPAddr = originalLookup
+		networkDial = originalDial
+	})
+	lookupIPAddr = func(context.Context, string) ([]net.IPAddr, error) {
+		return []net.IPAddr{{IP: net.ParseIP("100.100.100.200")}}, nil
+	}
+	networkDial = func(context.Context, string, string) (net.Conn, error) {
+		return nil, errors.New("dial should not be reached")
+	}
+
+	_, err := safeDialContext(context.Background(), "tcp", "metadata.example:80")
+	require.ErrorContains(t, err, "private/internal")
 }

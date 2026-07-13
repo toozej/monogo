@@ -374,7 +374,8 @@ func Search(c *gin.Context) {
 		var searcher service.SearchService
 		var isValidSearchProvider bool
 		if searcher, isValidSearchProvider = searchProvider[searchQuery.SearchSource]; !isValidSearchProvider {
-			searcher = new(service.PodcastIndexService)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid search provider"})
+			return
 		}
 
 		data := searcher.Query(searchQuery.Q)

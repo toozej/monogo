@@ -1,10 +1,16 @@
 package main
 
 import (
+	"bytes"
 	"errors"
+	"html/template"
+	"net/http"
+	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/toozej/monogo/apps/podgrab/db"
 	"gorm.io/gorm"
 )
@@ -25,6 +31,54 @@ func TestRunReturnsErrorWhenDatabaseInitFails(t *testing.T) {
 	exitCode := run()
 	if exitCode != 1 {
 		t.Fatalf("expected exit code 1 when db init fails, got %d", exitCode)
+	}
+}
+
+func TestSettingsTemplateUsesCurrentFieldNames(t *testing.T) {
+	funcs := template.FuncMap{
+		"intRange":            func(...any) []int { return nil },
+		"removeStartingSlash": func(...any) string { return "" },
+		"isDateNull":          func(...any) bool { return false },
+		"formatDate":          func(...any) string { return "" },
+		"naturalDate":         func(...any) string { return "" },
+		"latestEpisodeDate":   func(...any) string { return "" },
+		"downloadedEpisodes":  func(...any) int { return 0 },
+		"downloadingEpisodes": func(...any) int { return 0 },
+		"formatFileSize":      func(...any) string { return "" },
+		"formatDuration":      func(...any) string { return "" },
+	}
+	tmpl, err := template.New("settings").Funcs(funcs).ParseFS(clientEmbed, "client/*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	setting := &db.Setting{BaseURL: "https://podgrab.example", PassthroughPodcastGUID: true, MaxDownloadConcurrency: 5}
+	var output bytes.Buffer
+	err = tmpl.ExecuteTemplate(&output, "settings.html", map[string]any{
+		"setting": setting,
+		"diskStats": map[string]int64{
+			"Downloaded":      0,
+			"PendingDownload": 0,
+		},
+	})
+	if err != nil {
+		t.Fatalf("execute settings template: %v", err)
+	}
+	if !strings.Contains(output.String(), "podgrab.example") ||
+		!strings.Contains(output.String(), "passthroughPodcastGuid: true") {
+		t.Fatalf("settings fields were not rendered: %s", output.String())
+	}
+}
+
+func TestWebsocketRouteUsesApplicationAuthentication(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	registerWebsocketRoute(applicationRouter(r, "secret"))
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/ws", http.NoBody)
+	r.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("unauthenticated websocket status = %d, want %d", recorder.Code, http.StatusUnauthorized)
 	}
 }
 

@@ -30,10 +30,20 @@ func TestItunesService_Constants(t *testing.T) {
 
 // TestPodcastIndexService_Credentials tests that Podcast Index credentials can be retrieved.
 func TestPodcastIndexService_Credentials(t *testing.T) {
-	// Verify credentials can be retrieved
+	t.Setenv("PODCASTINDEX_KEY", "test-key")
+	t.Setenv("PODCASTINDEX_SECRET", "test-secret")
+
 	key, secret := getPodcastIndexCredentials()
-	assert.NotEmpty(t, key, "Should have Podcast Index API key")
-	assert.NotEmpty(t, secret, "Should have Podcast Index API secret")
+	assert.Equal(t, "test-key", key)
+	assert.Equal(t, "test-secret", secret)
+}
+
+func TestPodcastIndexService_MissingCredentials(t *testing.T) {
+	t.Setenv("PODCASTINDEX_KEY", "")
+	t.Setenv("PODCASTINDEX_SECRET", "")
+
+	results := (PodcastIndexService{}).Query("technology")
+	assert.Empty(t, results)
 }
 
 // TestPodcastIndexService_Query tests Podcast Index API search.

@@ -4,10 +4,12 @@ package service
 import (
 	"archive/tar"
 	"compress/gzip"
+	"context"
 	"encoding/xml"
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -61,8 +63,11 @@ func Download(link, episodeTitle, podcastName, episodePathName string) (string, 
 		logger.Log.Errorw("Error getting response: "+link, err)
 		return "", err
 	}
-
-	// Check HTTP status code
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			logger.Log.Errorw("Error closing response body", "error", closeErr)
+		}
+	}()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return "", fmt.Errorf("HTTP error: %d %s", resp.StatusCode, resp.Status)
 	}
@@ -74,25 +79,9 @@ func Download(link, episodeTitle, podcastName, episodePathName string) (string, 
 	}
 	cleanPath := filepath.Clean(finalPath)
 
-	file, err := os.Create(cleanPath) // #nosec G703 -- path is validated by validatePath and cleaned before use
-	if err != nil {
-		logger.Log.Errorw("Error creating file"+link, err)
+	if err := writeFileAtomically(cleanPath, resp.Body); err != nil {
+		logger.Log.Errorw("Error saving file", "url", link, "error", err)
 		return "", err
-	}
-	defer func() {
-		if closeErr := resp.Body.Close(); closeErr != nil {
-			logger.Log.Errorw("Error closing response body", closeErr)
-		}
-	}()
-	_, erra := io.Copy(file, resp.Body)
-	defer func() {
-		if closeErr := file.Close(); closeErr != nil {
-			logger.Log.Errorw("Error closing file", closeErr)
-		}
-	}()
-	if erra != nil {
-		logger.Log.Errorw("Error saving file"+link, err)
-		return "", erra
 	}
 	changeOwnership(finalPath)
 	return finalPath, nil
@@ -136,11 +125,16 @@ func CreateNfoFile(podcast *db.Podcast) error {
 
 // DownloadPodcastCoverImage download podcast cover image.
 func DownloadPodcastCoverImage(link, podcastName string) (string, error) {
+	setting := db.GetOrCreateSetting()
+	return downloadPodcastCoverImage(link, podcastName, setting.UserAgent)
+}
+
+func downloadPodcastCoverImage(link, podcastName, userAgent string) (string, error) {
 	if link == "" {
 		return "", errors.New("Download link empty")
 	}
 	client := httpClient()
-	req, err := getRequest(link)
+	req, err := getRequestWithUserAgent(link, userAgent)
 	if err != nil {
 		logger.Log.Errorw("Error creating request: "+link, err)
 		return "", err
@@ -150,6 +144,14 @@ func DownloadPodcastCoverImage(link, podcastName string) (string, error) {
 	if err != nil {
 		logger.Log.Errorw("Error getting response: "+link, err)
 		return "", err
+	}
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			logger.Log.Errorw("Error closing response body", "error", closeErr)
+		}
+	}()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "", fmt.Errorf("HTTP error: %d %s", resp.StatusCode, resp.Status)
 	}
 
 	fileName := getFileName(link, "folder", ".jpg")
@@ -168,25 +170,9 @@ func DownloadPodcastCoverImage(link, podcastName string) (string, error) {
 		return cleanPath, nil
 	}
 
-	file, err := os.Create(cleanPath)
-	if err != nil {
-		logger.Log.Errorw("Error creating file"+link, err)
+	if err := writeFileAtomically(cleanPath, resp.Body); err != nil {
+		logger.Log.Errorw("Error saving file", "url", link, "error", err)
 		return "", err
-	}
-	defer func() {
-		if closeErr := resp.Body.Close(); closeErr != nil {
-			logger.Log.Errorw("Error closing response body", closeErr)
-		}
-	}()
-	_, erra := io.Copy(file, resp.Body)
-	defer func() {
-		if closeErr := file.Close(); closeErr != nil {
-			logger.Log.Errorw("Error closing file", closeErr)
-		}
-	}()
-	if erra != nil {
-		logger.Log.Errorw("Error saving file"+link, err)
-		return "", erra
 	}
 	changeOwnership(finalPath)
 	return finalPath, nil
@@ -209,6 +195,14 @@ func DownloadImage(link, episodeID, podcastName string) (string, error) {
 		logger.Log.Errorw("Error getting response: "+link, err)
 		return "", err
 	}
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			logger.Log.Errorw("Error closing response body", "error", closeErr)
+		}
+	}()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "", fmt.Errorf("HTTP error: %d %s", resp.StatusCode, resp.Status)
+	}
 
 	fileName := getFileName(link, episodeID, ".jpg")
 	folder := createDataFolderIfNotExists(podcastName)
@@ -226,29 +220,39 @@ func DownloadImage(link, episodeID, podcastName string) (string, error) {
 		return cleanPath, nil
 	}
 
-	file, err := os.Create(cleanPath)
-	if err != nil {
-		logger.Log.Errorw("Error creating file"+link, err)
+	if err := writeFileAtomically(cleanPath, resp.Body); err != nil {
+		logger.Log.Errorw("Error saving file", "url", link, "error", err)
 		return "", err
-	}
-	defer func() {
-		if closeErr := resp.Body.Close(); closeErr != nil {
-			logger.Log.Errorw("Error closing response body", closeErr)
-		}
-	}()
-	_, erra := io.Copy(file, resp.Body)
-	defer func() {
-		if closeErr := file.Close(); closeErr != nil {
-			logger.Log.Errorw("Error closing file", closeErr)
-		}
-	}()
-	if erra != nil {
-		logger.Log.Errorw("Error saving file"+link, err)
-		return "", erra
 	}
 	changeOwnership(finalPath)
 	return finalPath, nil
 }
+
+func writeFileAtomically(finalPath string, contents io.Reader) (returnErr error) {
+	temporary, err := os.CreateTemp(filepath.Dir(finalPath), ".podgrab-download-*")
+	if err != nil {
+		return err
+	}
+	temporaryPath := temporary.Name()
+	defer func() {
+		if returnErr != nil {
+			_ = os.Remove(temporaryPath)
+		}
+	}()
+
+	if _, err = io.Copy(temporary, contents); err != nil {
+		_ = temporary.Close()
+		return err
+	}
+	if err = temporary.Close(); err != nil {
+		return err
+	}
+	if err = os.Rename(temporaryPath, finalPath); err != nil {
+		return err
+	}
+	return nil
+}
+
 func changeOwnership(filePath string) {
 	uid, err1 := strconv.Atoi(os.Getenv("PUID"))
 	gid, err2 := strconv.Atoi(os.Getenv("PGID"))
@@ -324,7 +328,11 @@ func GetFileSizeFromURL(urlString string) (int64, error) {
 		return 0, err
 	}
 
-	resp, err := http.Head(urlString) // #nosec G107 -- URL validated by urlsafe.Validate above
+	req, err := http.NewRequest(http.MethodHead, urlString, http.NoBody)
+	if err != nil {
+		return 0, err
+	}
+	resp, err := httpClient().Do(req) // #nosec G704 -- every redirect and dial is validated by httpClient
 	if err != nil {
 		return 0, err
 	}
@@ -425,17 +433,80 @@ func addFileToTarWriter(filePath string, tarWriter *tar.Writer) error {
 
 	return nil
 }
+
+var (
+	lookupIPAddr = net.DefaultResolver.LookupIPAddr
+	networkDial  = (&net.Dialer{Timeout: 30 * time.Second}).DialContext
+)
+
+func isInternalAddress(ip net.IP) bool {
+	return urlsafe.IsInternalIP(ip)
+}
+
+// safeDialContext resolves and validates the address at dial time, then dials
+// the validated IP directly. This closes the DNS-rebinding window between the
+// initial URL validation and the actual connection.
+func safeDialContext(ctx context.Context, network, address string) (net.Conn, error) {
+	if allowPrivateNetwork() {
+		return networkDial(ctx, network, address)
+	}
+
+	host, port, err := net.SplitHostPort(address)
+	if err != nil {
+		return nil, fmt.Errorf("invalid dial address %q: %w", address, err)
+	}
+	ips, err := lookupIPAddr(ctx, host)
+	if err != nil {
+		return nil, fmt.Errorf("resolving %s: %w", host, err)
+	}
+	if len(ips) == 0 {
+		return nil, fmt.Errorf("hostname %s resolved to no addresses", host)
+	}
+	for _, resolved := range ips {
+		if isInternalAddress(resolved.IP) {
+			return nil, fmt.Errorf("refusing to dial private/internal address %s for %s", resolved.IP, host)
+		}
+	}
+
+	return networkDial(ctx, network, net.JoinHostPort(ips[0].IP.String(), port))
+}
+
 func httpClient() *http.Client {
-	client := http.Client{
-		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.Proxy = nil
+	transport.DialContext = safeDialContext
+	// Bound the connection setup and time-to-first-byte, but deliberately leave
+	// the overall Client.Timeout unset: this client also downloads full podcast
+	// episodes, which can legitimately take far longer than any fixed deadline.
+	// A total timeout here would silently truncate large downloads.
+	transport.ResponseHeaderTimeout = 30 * time.Second
+
+	return &http.Client{
+		Transport: transport,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 10 {
+				return errors.New("stopped after 10 redirects")
+			}
+			if err := urlsafe.Validate(req.URL.String(), allowPrivateNetwork()); err != nil {
+				return fmt.Errorf("refusing redirect target: %w", err)
+			}
 			return nil
 		},
 	}
+}
 
-	return &client
+func metadataHTTPClient() *http.Client {
+	client := httpClient()
+	client.Timeout = 30 * time.Second
+	return client
 }
 
 func getRequest(urlStr string) (*http.Request, error) {
+	setting := db.GetOrCreateSetting()
+	return getRequestWithUserAgent(urlStr, setting.UserAgent)
+}
+
+func getRequestWithUserAgent(urlStr, userAgent string) (*http.Request, error) {
 	// Guard against SSRF: urlStr is a user-supplied podcast feed/enclosure/image
 	// URL, so reject non-HTTP(S) schemes and (unless explicitly allowed)
 	// private/internal targets before building the request. This covers every
@@ -449,9 +520,8 @@ func getRequest(urlStr string) (*http.Request, error) {
 		return nil, err
 	}
 
-	setting := db.GetOrCreateSetting()
-	if setting.UserAgent != "" {
-		req.Header.Add("User-Agent", setting.UserAgent)
+	if userAgent != "" {
+		req.Header.Add("User-Agent", userAgent)
 	} else {
 		req.Header.Add("User-Agent", "AppleCoreMedia/1.0.0.22B82 (iPhone; U; CPU OS 18_1 like Mac OS X; en_us)")
 	}

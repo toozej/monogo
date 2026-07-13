@@ -1,8 +1,8 @@
 // Package urlsafe validates outbound-request URLs to mitigate server-side
 // request forgery (SSRF). It rejects non-HTTP(S) schemes and, unless explicitly
-// allowed, hostnames that resolve to loopback, link-local, unspecified, or
-// private/unique-local IP ranges (which include cloud metadata endpoints such
-// as 169.254.169.254).
+// allowed, hostnames that resolve to non-global, private/unique-local, or shared
+// address-space ranges (which include cloud metadata endpoints such as
+// 169.254.169.254 and 100.100.100.200).
 //
 // Validation resolves the hostname and inspects the returned IPs. This is a
 // point-in-time check and does not by itself defend against DNS rebinding
@@ -48,8 +48,8 @@ func mustNetworks(cidrs ...string) []*net.IPNet {
 
 // Validate reports whether rawURL is safe to request. It requires an http or
 // https scheme and a resolvable hostname. Unless allowPrivate is true, it
-// rejects hostnames resolving to any private, loopback, link-local, or
-// unspecified address, blocking SSRF against internal/metadata services.
+// rejects hostnames resolving to any non-global, private, or shared-space
+// address, blocking SSRF against internal/metadata services.
 func Validate(rawURL string, allowPrivate bool) error {
 	if rawURL == "" {
 		return fmt.Errorf("%w: URL cannot be empty", ErrUnsafeURL)

@@ -5,6 +5,8 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -401,6 +403,40 @@ func TestUpdateSettings(t *testing.T) {
 	assert.Equal(t, "http://test.local", setting.BaseURL, "BaseURL should be updated")
 	assert.Equal(t, 10, setting.MaxDownloadConcurrency, "MaxDownloadConcurrency should be updated")
 	assert.Equal(t, "TestAgent/1.0", setting.UserAgent, "UserAgent should be updated")
+}
+
+func TestUpdateSettingsRejectsZeroDownloadConcurrency(t *testing.T) {
+	database := testhelpers.SetupTestDB(t)
+	defer testhelpers.TeardownTestDB(t, database)
+	originalDB := db.DB
+	db.DB = database
+	defer func() { db.DB = originalDB }()
+	db.CreateTestSetting(t, database)
+
+	err := UpdateSettings(false, 1, false, "%EpisodeTitle%", false, false, false, false, false, "", 0, 0, "")
+	require.ErrorContains(t, err, "at least 1")
+	assert.Equal(t, 5, db.GetOrCreateSetting().MaxDownloadConcurrency)
+}
+
+func TestDeletePodcastKeepsFilesWhenRequested(t *testing.T) {
+	database := testhelpers.SetupTestDB(t)
+	defer testhelpers.TeardownTestDB(t, database)
+	originalDB := db.DB
+	db.DB = database
+	defer func() { db.DB = originalDB }()
+
+	dataDir := t.TempDir()
+	t.Setenv("DATA", dataDir)
+	podcast := db.CreateTestPodcast(t, database, &db.Podcast{Title: "Keep Files"})
+	podcastDir := filepath.Join(dataDir, "Keep-Files")
+	require.NoError(t, os.MkdirAll(podcastDir, 0o750))
+	episodePath := filepath.Join(podcastDir, "episode.mp3")
+	require.NoError(t, os.WriteFile(episodePath, []byte("audio"), 0o600))
+	db.CreateTestPodcastItem(t, database, podcast.ID, &db.PodcastItem{DownloadPath: episodePath})
+
+	require.NoError(t, DeletePodcast(podcast.ID, false))
+	_, err := os.Stat(episodePath)
+	require.NoError(t, err, "episode file must remain when deleteFiles is false")
 }
 
 // TestSetPodcastItemPlayedStatus tests marking episodes as played/unplayed.

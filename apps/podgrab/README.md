@@ -34,6 +34,8 @@ episodes.
 ```bash
 docker run -d \
   -p 8080:8080 \
+  -e CONFIG=/config \
+  -e DATA=/assets \
   -v podgrab-config:/config \
   -v podgrab-data:/assets \
   --name=podgrab \
@@ -48,12 +50,18 @@ services:
     image: toozej/podgrab
     container_name: podgrab
     environment:
+      - CONFIG=/config
+      - DATA=/assets
       - CHECK_FREQUENCY=240
     volumes:
-      - ./config:/config
-      - ./assets:/assets
+      - podgrab-config:/config
+      - podgrab-data:/assets
     ports:
       - 8080:8080
+
+volumes:
+  podgrab-config:
+  podgrab-data:
 ```
 
 ### From Source

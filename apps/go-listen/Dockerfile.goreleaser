@@ -1,4 +1,6 @@
-FROM golang:1.26-trixie AS filesystem
+# Directory metadata is architecture-independent; keep this RUN on the native
+# builder so multi-platform image assembly does not require QEMU/binfmt.
+FROM --platform=$BUILDPLATFORM golang:1.26-trixie AS filesystem
 RUN mkdir -p /container-root/config && \
     chown -R 65532:65532 /container-root
 # runtime image
