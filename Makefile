@@ -125,38 +125,33 @@ test: local-test ## Run go test for APP
 
 build: docker-build ## Build APP Docker image
 
-VERSION ?= 
-RELEASE_VERSION = $(if $(VERSION),$(VERSION),$(shell \
-	latest=$$( { git tag --list 'apps/$(APP)/v*'; git ls-remote --tags --refs origin 'apps/$(APP)/v*' 2>/dev/null | sed 's#.*refs/tags/##'; } \
-		| grep -E '^apps/$(APP)/v[0-9]+\.[0-9]+\.[0-9]+$$' | sort -V | tail -n 1 || true); \
-	if [ -n "$$latest" ]; then version_tag="$${latest##*/}"; base="$${version_tag#v}"; else base="0.0.0"; fi; \
-	IFS=. read -r major minor patch <<< "$$base"; \
-	case "$(TYPE)" in \
-		major) major=$$((major + 1)); minor=0; patch=0 ;; \
-		minor) minor=$$((minor + 1)); patch=0 ;; \
-		patch) patch=$$((patch + 1)) ;; \
-	esac; \
-	echo "v$${major}.$${minor}.$${patch}"))
-
 release: local-test ## Release APP: VERSION=<vX.Y.Z> or TYPE=<major|minor|patch> (one required). Pushes tag and lets CI publish
 	@set -euo pipefail; \
-	if [ -z "$(VERSION)" ] && [ -z "$(TYPE)" ]; then \
-		echo "Either VERSION or TYPE must be provided."; exit 1; \
-	fi; \
-	if [ -n "$(VERSION)" ]; then \
+	if [ "$(origin VERSION)" != "file" ] && [ "$(origin VERSION)" != "default" ] && [ "$(origin VERSION)" != "undefined" ]; then \
+		test -n "$(VERSION)" || { echo "VERSION cannot be empty when provided explicitly."; exit 1; }; \
 		echo "$(VERSION)" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$$' || { echo "VERSION must look like vX.Y.Z (got '$(VERSION)')."; exit 1; }; \
 		new_version="$(VERSION)"; \
-	elif [ -n "$(TYPE)" ]; then \
-		case "$(TYPE)" in major|minor|patch) ;; *) echo "TYPE must be major, minor, or patch (got '$(TYPE)')."; exit 1 ;; esac; \
-		new_version="$(RELEASE_VERSION)"; \
+		release_reason="version $(VERSION) provided"; \
 	else \
-		echo "Either VERSION or TYPE must be provided."; exit 1; \
+		test -n "$(TYPE)" || { echo "Either VERSION or TYPE must be provided."; exit 1; }; \
+		case "$(TYPE)" in major|minor|patch) ;; *) echo "TYPE must be major, minor, or patch (got '$(TYPE)')."; exit 1 ;; esac; \
+		latest=$$( { git tag --list 'apps/$(APP)/v*'; git ls-remote --tags --refs origin 'apps/$(APP)/v*' 2>/dev/null | sed 's#.*refs/tags/##'; } \
+			| grep -E '^apps/$(APP)/v[0-9]+\.[0-9]+\.[0-9]+$$' | sort -V | tail -n 1 || true); \
+		if [ -n "$$latest" ]; then version_tag="$${latest##*/}"; base="$${version_tag#v}"; else base="0.0.0"; fi; \
+		IFS=. read -r major minor patch <<< "$$base"; \
+		case "$(TYPE)" in \
+			major) major=$$((major + 1)); minor=0; patch=0 ;; \
+			minor) minor=$$((minor + 1)); patch=0 ;; \
+			patch) patch=$$((patch + 1)) ;; \
+		esac; \
+		new_version="v$${major}.$${minor}.$${patch}"; \
+		release_reason="$(TYPE) bump from $${latest:-<none>}"; \
 	fi; \
 	new_tag="apps/$(APP)/$${new_version}"; \
 	if git rev-parse -q --verify "refs/tags/$$new_tag" >/dev/null 2>&1 || git ls-remote --exit-code --tags origin "refs/tags/$$new_tag" >/dev/null 2>&1; then \
 		echo "$$new_tag already exists locally or on origin; aborting."; exit 1; \
 	fi; \
-	echo "Releasing $(APP) $$new_version ($(if $(VERSION),version $(VERSION) provided,$(TYPE) bump from $(shell git tag --list 'apps/$(APP)/v*' 2>/dev/null | grep -E '^apps/$(APP)/v[0-9]+\.[0-9]+\.[0-9]+$$' | sort -V | tail -n 1 || echo '<none>')})) at commit $$(git rev-parse --short HEAD)..."; \
+	echo "Releasing $(APP) $$new_version ($$release_reason) at commit $$(git rev-parse --short HEAD)..."; \
 	git tag -a "$$new_tag" -m "$(APP) $$new_version"; \
 	git push origin "refs/tags/$$new_tag"; \
 	echo "Pushed $$new_tag; the Release workflow will build, sign, and publish $(APP)."
@@ -202,12 +197,23 @@ release-all: ## Release all apps with previous releases using TYPE=<major|minor|
 	fi; \
 	case "$(TYPE)" in major|minor|patch) ;; *) echo "TYPE must be major, minor, or patch (got '$(TYPE)')."; exit 1 ;; esac; \
 	echo "Finding all apps with previous releases..."; \
+	released_apps=$$( \
+		{ \
+			git tag --list 'apps/*/v*'; \
+			git ls-remote --tags --refs origin 'apps/*/v*' 2>/dev/null | sed 's#.*refs/tags/##' || true; \
+		} | sed -nE 's#^apps/([^/]+)/v[0-9]+\.[0-9]+\.[0-9]+$$#\1#p' | sort -u \
+	); \
+	release_count=0; \
 	for app in $(APPS); do \
-		if git tag --list "apps/$$app/v*" 2>/dev/null | grep -qE '^apps/$$app/v[0-9]+\.[0-9]+\.[0-9]+$$'; then \
+		if grep -Fx "$$app" <<< "$$released_apps" >/dev/null; then \
 			echo "=== Releasing $$app with TYPE=$(TYPE) ==="; \
 			$(MAKE) release APP=$$app TYPE=$(TYPE); \
+			release_count=$$((release_count + 1)); \
 		fi; \
-	done
+	done; \
+	if [ "$$release_count" -eq 0 ]; then \
+		echo "No apps with previous releases were found locally or on origin."; \
+	fi
 
 verify: app-check ## Verify APP Docker image with Cosign (keyless)
 	cosign verify \
