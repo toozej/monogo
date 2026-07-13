@@ -66,9 +66,21 @@ type readErrorFilesystem struct {
 	err error
 }
 
+func isGitFileInfoExclude(fs billy.Filesystem, filename string) bool {
+	clean := filepath.Clean(filename)
+	infoDir := filepath.Dir(clean)
+	gitPath := filepath.Dir(infoDir)
+	if filepath.Base(clean) != "exclude" || filepath.Base(infoDir) != "info" || filepath.Base(gitPath) != ".git" {
+		return false
+	}
+
+	info, err := fs.Stat(gitPath)
+	return err == nil && info.Mode().IsRegular()
+}
+
 func (f *readErrorFilesystem) Open(filename string) (billy.File, error) {
 	file, err := f.Filesystem.Open(filename)
-	if err != nil && !os.IsNotExist(err) {
+	if err != nil && !os.IsNotExist(err) && !isGitFileInfoExclude(f.Filesystem, filename) {
 		f.err = errors.Join(f.err, fmt.Errorf("open %s: %w", filename, err))
 	}
 	return file, err
