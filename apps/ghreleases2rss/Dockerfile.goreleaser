@@ -3,6 +3,8 @@ FROM gcr.io/distroless/static-debian13:nonroot
 # Copy our static executable.
 ARG TARGETPLATFORM
 COPY $TARGETPLATFORM/ghreleases2rss /go/bin/ghreleases2rss
+# Expose port for publishing as web service
+# EXPOSE 8081
 # Run the binary.
 USER 65532:65532
 ENTRYPOINT ["/go/bin/ghreleases2rss"]

@@ -23,7 +23,11 @@ var GenerateChecklistCmd = &cobra.Command{
 		var foundGPXTrails []types.Trail
 		var err error
 		if trackFiles != "" {
-			foundGPXTrails, err = parser.ParseTrailsFromTrackFiles(trackFiles, true, nil)
+			osmData, loadErr := loadConfiguredOSM()
+			if loadErr != nil {
+				return loadErr
+			}
+			foundGPXTrails, err = parser.ParseTrailsFromTrackFiles(trackFiles, true, osmData)
 			if err != nil {
 				return err
 			}

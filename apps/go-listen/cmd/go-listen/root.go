@@ -47,12 +47,12 @@ var (
 // The command accepts no positional arguments and shows help when no subcommand
 // is provided. It supports persistent flags that are inherited by all subcommands.
 var rootCmd = &cobra.Command{
-	Use:              "go-listen",
-	Short:            "Spotify playlist management tool",
-	Long:             `go-listen is a web application that allows users to search for artists and automatically add their top 5 songs to designated "incoming" playlists on Spotify.`,
-	Args:             cobra.ExactArgs(0),
-	PersistentPreRun: rootCmdPreRun,
-	Run:              rootCmdRun,
+	Use:               "go-listen",
+	Short:             "Spotify playlist management tool",
+	Long:              `go-listen is a web application that allows users to search for artists and automatically add their top 5 songs to designated "incoming" playlists on Spotify.`,
+	Args:              cobra.ExactArgs(0),
+	PersistentPreRunE: rootCmdPreRun,
+	Run:               rootCmdRun,
 }
 
 // rootCmdRun is the main execution function for the root command.
@@ -79,13 +79,18 @@ func rootCmdRun(cmd *cobra.Command, args []string) {
 // Parameters:
 //   - cmd: The cobra command being executed
 //   - args: Command-line arguments
-func rootCmdPreRun(cmd *cobra.Command, args []string) {
+func rootCmdPreRun(cmd *cobra.Command, args []string) error {
 	if debug {
 		log.SetLevel(log.DebugLevel)
 	}
 
 	// Load configuration
-	conf = config.GetEnvVars()
+	loaded, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("load configuration: %w", err)
+	}
+	conf = loaded
+	return nil
 }
 
 // Execute starts the command-line interface execution.
@@ -110,17 +115,13 @@ func Execute() {
 // init initializes the command-line interface during package loading.
 //
 // This function performs the following setup operations:
-//   - Loads initial configuration from environment variables using config.GetEnvVars()
 //   - Defines persistent flags that are available to all commands
 //   - Registers subcommands (man pages and version information)
 //
 // The debug flag (-d, --debug) enables debug-level logging and is persistent,
-// meaning it's inherited by all subcommands. Configuration is reloaded in
-// rootCmdPreRun with the debug flag value to enable debug output during loading.
+// meaning it's inherited by all subcommands. Configuration is loaded in
+// rootCmdPreRun so parsing failures can be returned through Cobra normally.
 func init() {
-	// get configuration from environment variables
-	conf = config.GetEnvVars()
-
 	// create rootCmd-level flags
 	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "Enable debug-level logging")
 

@@ -1,6 +1,7 @@
 package checkrunner
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"time"
@@ -16,15 +17,15 @@ func DetectArchived(rc *RunContext, workflowFiles []*workflow.WorkflowFile, allA
 
 	fmt.Printf("Checking %d action repositories for archived status...\n", len(ownerRepos))
 
-	archived, errors := rc.GHClient.CheckMultipleRepos(rc.Ctx, ownerRepos)
+	archived, apiErrors := rc.GHClient.CheckMultipleRepos(rc.Ctx, ownerRepos)
 
 	if rc.Debug {
 		rc.GHClient.LogRateLimits(rc.Ctx)
 	}
 
-	if rc.Verbose && len(errors) > 0 {
+	if rc.Verbose && len(apiErrors) > 0 {
 		fmt.Printf("API errors encountered:\n")
-		for repo, err := range errors {
+		for repo, err := range apiErrors {
 			fmt.Printf(" - %s: %v\n", repo, err)
 		}
 	}
@@ -48,12 +49,18 @@ func DetectArchived(rc *RunContext, workflowFiles []*workflow.WorkflowFile, allA
 	archivedRepos = actioninfo.RemoveDuplicates(archivedRepos)
 	nonArchivedRepos := actioninfo.GetNonArchivedRepos(allActionRefs, archived)
 
-	return &CheckResult{
+	result := &CheckResult{
 		ArchivedActions:  archivedActions,
 		ArchivedRepos:    archivedRepos,
 		Archived:         archived,
 		NonArchivedRepos: nonArchivedRepos,
-	}, nil
+	}
+
+	var checkErrors []error
+	for repo, err := range apiErrors {
+		checkErrors = append(checkErrors, fmt.Errorf("check archived status for %s: %w", repo, err))
+	}
+	return result, errors.Join(checkErrors...)
 }
 
 func DetectStale(rc *RunContext, workflowFiles []*workflow.WorkflowFile, allActionRefs []workflow.ActionRef, archived map[string]bool, staleDays int) []actioninfo.StaleActionInfo {

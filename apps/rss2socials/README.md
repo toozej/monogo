@@ -19,19 +19,19 @@ rss2socials is a CLI tool that monitors an RSS feed for new posts and automatica
 
 ## Installation
 ### Prerequisites
-- Go (version 1.25 or later)
+- Go (version 1.26 or later)
 - SQLite for database management
 - Make
 
 ### Steps
 1.	Clone the repository:
 ```bash
-git clone https://github.com/toozej/rss2socials.git
-cd rss2socials
+git clone https://github.com/toozej/monogo.git
+cd monogo
 ```
 
 2.	Build the executable:
-`make build`
+`make local-build APP=rss2socials`
 
 ## Usage
 1.	Set Environment Variables:
@@ -87,9 +87,9 @@ Use the --debug flag to enable debug-level logging for troubleshooting.
 ## Major Components
 ### Command Structure (cmd/rss2socials/root.go)
 - Defines the main rss2socials command and its subcommands (man and version).
-- Sets up CLI flags and binds them to configuration via Viper.
+- Sets up CLI flags and applies them over environment-based configuration.
 
-### Configuration (pkg/config/config.go)
+### Configuration (internal/config/config.go)
 - Loads configuration from environment variables and the .env file if present.
 
 ### RSS Handling (internal/rss/rss.go)
@@ -151,9 +151,7 @@ See the [Threads API documentation](https://developers.facebook.com/docs/threads
 - Manages an SQLite database to store and check previously posted items.
 - Database path defaults to `./tooted_posts.db`; override with the `DB_PATH` environment variable.
 - When running via Docker, mount the database file as a volume: `./data/db/sqlite.db:/data/db/sqlite.db` and set `DB_PATH=/data/db/sqlite.db`.
-- Tracks `startup_time` per post to support the PostNewEntriesOnly dedup behavior.
-- On first startup with `POST_NEW_ENTRIES_ONLY=true`, existing feed entries are stored in the DB but not posted to any social site. Only new entries appearing in subsequent feed checks are posted.
+- On first startup with `POST_NEW_ENTRIES_ONLY=true`, the first successful feed snapshot is stored transactionally but not posted. Later entries are identified by DB membership rather than publication time, so backdated posts and posts first seen after downtime are still delivered.
 
 ## update golang version
 - `make update-golang-version`
-

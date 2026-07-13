@@ -17,4 +17,21 @@ cgoEnabled: false
 # Dockerfile. Defaults to "scratch", or "debian:trixie-slim" when cgoEnabled is true.
 # runtimeImage: debian:trixie-slim
 # port (optional) is EXPOSEd in the generated Dockerfiles when set.
-# port: 8081
+port: 8080
+writableDirs:
+  - /config
+compose:
+  environment:
+    SERVER_HOST: 0.0.0.0
+    SPOTIFY_CLIENT_ID: "${SPOTIFY_CLIENT_ID:?set SPOTIFY_CLIENT_ID}"
+    SPOTIFY_CLIENT_SECRET: "${SPOTIFY_CLIENT_SECRET:?set SPOTIFY_CLIENT_SECRET}"
+    SPOTIFY_REDIRECT_URL: "${SPOTIFY_REDIRECT_URL:-http://localhost:8080/callback}"
+    SPOTIFY_TOKEN_FILE: /config/spotify-token.json
+    SECURITY_USERNAME: "${SECURITY_USERNAME:-go-listen}"
+    SECURITY_PASSWORD: "${SECURITY_PASSWORD:?set SECURITY_PASSWORD}"
+  ports:
+    - 8080:8080
+  volumes:
+    - go-listen-config:/config
+  namedVolumes:
+    - go-listen-config

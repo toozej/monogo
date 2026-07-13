@@ -24,18 +24,17 @@ func newSearchCmd() *cobra.Command {
 This command fetches the current KMHD playlist from the JSON API and searches for songs
 matching the provided query using fuzzy string matching.`,
 		Args: cobra.ExactArgs(1),
-		Run:  runSearch,
+		RunE: runSearch,
 	}
 
 	return cmd
 }
 
 // runSearch executes the search command.
-func runSearch(cmd *cobra.Command, args []string) {
+func runSearch(cmd *cobra.Command, args []string) error {
 	query := strings.TrimSpace(args[0])
 	if query == "" {
-		log.Error("Search query cannot be empty")
-		return
+		return fmt.Errorf("search query cannot be empty")
 	}
 
 	log.WithField("query", query).Info("Starting KMHD playlist search")
@@ -43,21 +42,22 @@ func runSearch(cmd *cobra.Command, args []string) {
 	// Initialize services using configuration
 	kmhdAPIClient, err := initializeKMHDAPIClient()
 	if err != nil {
-		log.WithError(err).Fatal("Failed to initialize KMHD API client")
-		return
+		return fmt.Errorf("initialize KMHD API client: %w", err)
 	}
+	return searchKMHDPlaylist(kmhdAPIClient, query)
+}
 
+func searchKMHDPlaylist(kmhdScraper types.KMHDScraper, query string) error {
 	// Fetch KMHD playlist
 	log.Info("Fetching KMHD playlist from API...")
-	songCollection, err := kmhdAPIClient.ScrapePlaylist()
+	songCollection, err := kmhdScraper.ScrapePlaylist()
 	if err != nil {
-		log.WithError(err).Fatal("Failed to fetch KMHD playlist")
-		return
+		return fmt.Errorf("fetch KMHD playlist: %w", err)
 	}
 
 	if len(songCollection.Songs) == 0 {
 		log.Warn("No songs found in KMHD playlist")
-		return
+		return nil
 	}
 
 	log.WithField("song_count", len(songCollection.Songs)).Info("Successfully fetched KMHD playlist")
@@ -67,11 +67,12 @@ func runSearch(cmd *cobra.Command, args []string) {
 
 	if len(matches) == 0 {
 		log.WithField("query", query).Warn("No matching songs found")
-		return
+		return nil
 	}
 
 	// Display results
 	displaySearchResults(matches, query)
+	return nil
 }
 
 // initializeKMHDAPIClient creates and initializes the KMHD API client using configuration
@@ -91,11 +92,15 @@ func initializeAllServices() (types.KMHDScraper, types.MusicService, *search.Fuz
 
 	// Initialize music service based on MUSIC_CLIENT configuration
 	var musicService types.MusicService
+	var err error
 	switch conf.MusicClient {
 	case "youtube":
-		musicService = youtubemusic.NewService(conf.YouTubeMusic, logger)
+		musicService, err = youtubemusic.NewServiceWithError(conf.YouTubeMusic, logger)
 	default:
-		musicService = spotify.NewService(conf.Spotify, logger)
+		musicService, err = spotify.NewServiceWithError(conf.Spotify, logger)
+	}
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("initialize %s music client: %w", conf.MusicClient, err)
 	}
 
 	// Initialize fuzzy song searcher

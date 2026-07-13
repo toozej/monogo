@@ -1,9 +1,13 @@
+FROM golang:1.26-trixie AS filesystem
+RUN mkdir -p /container-root/config && \
+    chown -R 65532:65532 /container-root
 # runtime image including CA certs and tzdata
 FROM gcr.io/distroless/static-debian13:nonroot
 # Copy our static executable.
 ARG TARGETPLATFORM
 COPY $TARGETPLATFORM/go-listen /go/bin/go-listen
+COPY --from=filesystem --chown=65532:65532 /container-root/config /config
 # Expose port for publishing as web service
-# EXPOSE 8081
+EXPOSE 8080
 # Run the binary.
 ENTRYPOINT ["/go/bin/go-listen"]

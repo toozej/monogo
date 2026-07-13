@@ -16,4 +16,4 @@ cgoEnabled: false
 # Dockerfile. Defaults to "scratch", or "debian:trixie-slim" when cgoEnabled is true.
 # runtimeImage: debian:trixie-slim
 # port (optional) is EXPOSEd in the generated Dockerfiles when set.
-# port: 8081
+port: 8080

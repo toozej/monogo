@@ -1,6 +1,7 @@
 package fixer
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -79,7 +80,9 @@ func TestBuildCommentBlock(t *testing.T) {
 		},
 	}
 
-	lines := fixer.buildCommentBlock(fixes)
+	lines := fixer.buildCommentBlock(fixes, validator.ResourceRules{
+		PrefixRules: schema.Global.PrefixRules,
+	})
 
 	if len(lines) == 0 {
 		t.Fatal("buildCommentBlock returned no lines")
@@ -217,8 +220,8 @@ func TestFindInsertionPoint(t *testing.T) {
 				"  cidr_block = \"10.0.0.0/16\"",
 				"}",
 			},
-			resourceStartLine: 1,
-			expected:          0, // inserts at blank line before resource
+			resourceStartLine: 2,
+			expected:          1,
 		},
 		{
 			name: "resource with user comment",
@@ -229,7 +232,7 @@ func TestFindInsertionPoint(t *testing.T) {
 				"  cidr_block = \"10.0.0.0/16\"",
 				"}",
 			},
-			resourceStartLine: 2,
+			resourceStartLine: 3,
 			expected:          2, // inserts after user comment
 		},
 		{
@@ -241,8 +244,8 @@ func TestFindInsertionPoint(t *testing.T) {
 				"  cidr_block = \"10.0.0.0/16\"",
 				"}",
 			},
-			resourceStartLine: 2,
-			expected:          0, // skips managed comment and inserts at blank line
+			resourceStartLine: 3,
+			expected:          1, // inserts before the managed annotation block
 		},
 	}
 
@@ -343,6 +346,55 @@ func TestFixFile(t *testing.T) {
 	}
 }
 
+func TestFixFileProcessesResourcesBottomUp(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	var source strings.Builder
+	for i := 1; i <= 6; i++ {
+		fmt.Fprintf(&source, "resource \"test\" \"r%d\" {}\n", i)
+	}
+	if err := afero.WriteFile(fs, "/many.tf", []byte(source.String()), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	schema := validator.ValidationSchema{Global: validator.GlobalRules{
+		RequiredPrefixes: []string{"@metadata"},
+		PrefixRules: map[string]validator.PrefixRule{
+			"@metadata": {RequiredFields: []string{"owner"}},
+		},
+	}}
+	p := parser.NewCommentParser(fs, []string{"@metadata"})
+	resources, err := p.ParseFile("/many.tf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	validationErrors := make([]validator.ValidationError, 0, len(resources))
+	for _, resource := range resources {
+		validationErrors = append(validationErrors, validator.ValidationError{
+			ResourceType: resource.Type,
+			ResourceName: resource.Name,
+			Message:      "Missing required comment prefix: @metadata",
+		})
+	}
+	fixed, count, err := NewCommentFixer(fs, schema).FixFile("/many.tf", resources, validationErrors)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 6 {
+		t.Fatalf("applied %d fixes, want 6", count)
+	}
+	if err := afero.WriteFile(fs, "/fixed.tf", []byte(fixed), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	fixedResources, err := p.ParseFile("/fixed.tf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, resource := range fixedResources {
+		if len(resource.PrecedingComments) != 1 {
+			t.Errorf("%s.%s has %d adjacent annotations, want 1", resource.Type, resource.Name, len(resource.PrecedingComments))
+		}
+	}
+}
+
 func TestCopyFile(t *testing.T) {
 	fs := afero.NewMemMapFs()
 
@@ -405,5 +457,94 @@ func TestGetApplicableRules(t *testing.T) {
 	subnetRules := fixer.getApplicableRules("aws_subnet")
 	if len(subnetRules.RequiredPrefixes) != 1 {
 		t.Errorf("Expected 1 required prefix (global), got %d", len(subnetRules.RequiredPrefixes))
+	}
+}
+
+// failingRenameFs wraps an afero.Fs and forces Rename to fail so tests can
+// exercise the atomic-write failure path without a real crash.
+type failingRenameFs struct {
+	afero.Fs
+}
+
+func (failingRenameFs) Rename(_, _ string) error {
+	return fmt.Errorf("simulated rename failure")
+}
+
+func hasTempLeftovers(t *testing.T, fs afero.Fs, dir string) bool {
+	t.Helper()
+	entries, err := afero.ReadDir(fs, dir)
+	if err != nil {
+		t.Fatalf("failed to read dir %s: %v", dir, err)
+	}
+	for _, entry := range entries {
+		if strings.HasPrefix(entry.Name(), ".terranotate-") {
+			return true
+		}
+	}
+	return false
+}
+
+func TestWriteFileAtomicReplacesAndCleansUp(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	if err := fs.MkdirAll("/dir", 0o755); err != nil {
+		t.Fatal(err)
+	}
+	original := []byte("original terraform\n")
+	if err := afero.WriteFile(fs, "/dir/main.tf", original, 0o640); err != nil {
+		t.Fatal(err)
+	}
+
+	updated := []byte("updated terraform annotated\n")
+	if err := WriteFileAtomic(fs, "/dir/main.tf", updated, 0o640); err != nil {
+		t.Fatalf("WriteFileAtomic returned error: %v", err)
+	}
+
+	got, err := afero.ReadFile(fs, "/dir/main.tf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != string(updated) {
+		t.Fatalf("content = %q, want %q", got, updated)
+	}
+	info, err := fs.Stat("/dir/main.tf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0o640 {
+		t.Fatalf("mode = %o, want 0640", info.Mode().Perm())
+	}
+	if hasTempLeftovers(t, fs, "/dir") {
+		t.Fatal("temporary file left behind after successful write")
+	}
+}
+
+// TestWriteFileAtomicPreservesOriginalOnFailure is the core reliability
+// guarantee: a failure while swapping in the new contents must never corrupt
+// or truncate the file being replaced, and must not leak temporary files.
+func TestWriteFileAtomicPreservesOriginalOnFailure(t *testing.T) {
+	base := afero.NewMemMapFs()
+	if err := base.MkdirAll("/dir", 0o755); err != nil {
+		t.Fatal(err)
+	}
+	original := []byte("original terraform that must survive\n")
+	if err := afero.WriteFile(base, "/dir/main.tf", original, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	fs := failingRenameFs{Fs: base}
+	err := WriteFileAtomic(fs, "/dir/main.tf", []byte("clobbered contents\n"), 0o600)
+	if err == nil {
+		t.Fatal("expected WriteFileAtomic to fail when rename fails")
+	}
+
+	got, readErr := afero.ReadFile(base, "/dir/main.tf")
+	if readErr != nil {
+		t.Fatalf("original file no longer readable: %v", readErr)
+	}
+	if string(got) != string(original) {
+		t.Fatalf("original file was modified on failure: %q", got)
+	}
+	if hasTempLeftovers(t, base, "/dir") {
+		t.Fatal("temporary file left behind after failed write")
 	}
 }

@@ -33,9 +33,6 @@ inputs:
     description: 'Write updated versions to affected workflow files'
     required: false
     default: 'false'
-  notification-endpoints:
-    description: 'Comma-separated list of notification endpoints (required if notify=true)'
-    required: false
   stale-days:
     description: 'Number of days after which an action is considered stale (default 365)'
     required: false
@@ -43,27 +40,23 @@ inputs:
 outputs:
   eol-count:
     description: 'Number of EOL/stale/deprecated actions found'
-    value: ${{ steps.check.outputs.eol-count }}
   has-eol:
     description: 'Whether any EOL actions were found (true/false)'
-    value: ${{ steps.check.outputs.has-eol }}
 runs:
   using: 'docker'
   image: 'docker://ghcr.io/toozej/go-sort-out-gh-actions:latest'
-  args:
-    - eol
-    - ${{ inputs.verbose == 'true' && '--verbose' || '' }}
-    - ${{ inputs.debug == 'true' && '--debug' || '' }}
-    - ${{ inputs.workflow && format('--workflow={0}', inputs.workflow) || '' }}
-    - ${{ inputs.workflows-dir && format('--workflows-dir={0}', inputs.workflows-dir) || ''
-      }}
-    - ${{ inputs.repos-dir && format('--repos-dir={0}', inputs.repos-dir) || '' }}
-    - ${{ inputs.notify == 'true' && '--notify' || '' }}
-    - ${{ inputs.update == 'true' && '--update' || '' }}
-    - ${{ inputs.stale-days && format('--stale-days={0}', inputs.stale-days) || '' }}
   env:
     GH_TOKEN: ${{ inputs.token }}
-    NOTIFICATION_ENDPOINTS: ${{ inputs.notification-endpoints }}
+  args:
+    - eol
+    - --verbose=${{ inputs.verbose }}
+    - --debug=${{ inputs.debug }}
+    - --workflow=${{ inputs.workflow }}
+    - --workflows-dir=${{ inputs.workflows-dir }}
+    - --repos-dir=${{ inputs.repos-dir }}
+    - --notify=${{ inputs.notify }}
+    - --update=${{ inputs.update }}
+    - --stale-days=${{ inputs.stale-days }}
 
 # Example usage in a workflow:
 #
@@ -82,7 +75,7 @@ runs:
 #
 #     - name: Check for EOL GitHub Actions
 #       id: check
-#       uses: toozej/go-sort-out-gh-actions/eol@main
+#       uses: toozej/monogo/apps/go-sort-out-gh-actions/eol@main
 #       with:
 #         token: ${{ secrets.GITHUB_TOKEN }}
 #         verbose: true

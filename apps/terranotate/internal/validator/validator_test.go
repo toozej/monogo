@@ -59,6 +59,47 @@ func TestNewSchemaValidator_InvalidYAML(t *testing.T) {
 	}
 }
 
+func TestNewSchemaValidator_RejectsUnknownKeysAndInvalidPatterns(t *testing.T) {
+	tests := map[string]string{
+		"unknown key": `global:
+  required_prefixes: []
+unknown_setting: true
+`,
+		"invalid pattern": `field_validations:
+  owner:
+    type: string
+    pattern: "["
+`,
+		"non-finite minimum": `field_validations:
+  uptime:
+    type: float
+    min: .nan
+`,
+		"non-finite maximum": `field_validations:
+  uptime:
+    type: float
+    max: .inf
+`,
+		"second YAML document": `global:
+  required_prefixes: []
+---
+global:
+  required_prefixes: ["@ignored"]
+`,
+	}
+	for name, schema := range tests {
+		t.Run(name, func(t *testing.T) {
+			fs := afero.NewMemMapFs()
+			if err := afero.WriteFile(fs, "/schema.yaml", []byte(schema), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := NewSchemaValidator(fs, "/schema.yaml"); err == nil {
+				t.Fatal("expected invalid schema to be rejected")
+			}
+		})
+	}
+}
+
 func TestValidateResources_Pass(t *testing.T) {
 	fs := afero.NewMemMapFs()
 
@@ -455,6 +496,76 @@ func TestValidateResources_NestedFields(t *testing.T) {
 
 	if !result.Passed {
 		t.Errorf("Expected validation to pass with nested fields, got errors: %v", result.Errors)
+	}
+}
+
+func TestValidateResources_AppliesValidationToNestedLeafFields(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	schema := `global:
+  required_prefixes: ["@metadata"]
+  prefix_rules:
+    "@metadata":
+      nested_fields:
+        contact:
+          required_fields: [email]
+field_validations:
+  email:
+    type: string
+    pattern: "^[^@]+@[^@]+$"
+`
+	if err := afero.WriteFile(fs, "/schema.yaml", []byte(schema), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	validator, err := NewSchemaValidator(fs, "/schema.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resource := parser.TerraformResource{
+		Type: "test", Name: "nested", StartLine: 1,
+		PrecedingComments: []parser.StructuredComment{{
+			Prefix: "@metadata",
+			Fields: map[string]interface{}{
+				"contact": map[string]interface{}{"email": "not-an-email"},
+			},
+		}},
+	}
+	result := validator.ValidateResources([]parser.TerraformResource{resource})
+	if result.Passed || len(result.Errors) == 0 {
+		t.Fatalf("invalid nested email passed validation: %+v", result)
+	}
+	if !contains(result.Errors[0].Message, "contact.email") {
+		t.Fatalf("nested field path missing from error: %s", result.Errors[0].Message)
+	}
+}
+
+func TestValidateResources_EnforcesExplicitZeroBounds(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	schema := `global:
+  required_prefixes: ["@metadata"]
+  prefix_rules:
+    "@metadata": {}
+field_validations:
+  replicas:
+    type: integer
+    min: 0
+`
+	if err := afero.WriteFile(fs, "/schema.yaml", []byte(schema), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	validator, err := NewSchemaValidator(fs, "/schema.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resource := parser.TerraformResource{
+		Type: "test", Name: "zero", StartLine: 1,
+		PrecedingComments: []parser.StructuredComment{{
+			Prefix: "@metadata",
+			Fields: map[string]interface{}{"replicas": -1},
+		}},
+	}
+	result := validator.ValidateResources([]parser.TerraformResource{resource})
+	if result.Passed || len(result.Errors) == 0 {
+		t.Fatalf("explicit min: 0 was not enforced: %+v", result)
 	}
 }
 

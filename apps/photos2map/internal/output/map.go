@@ -2,18 +2,23 @@
 package output
 
 import (
-	"os"
-
-	log "github.com/sirupsen/logrus"
+	"fmt"
 
 	"github.com/go-echarts/go-echarts/v2/charts"
 	"github.com/go-echarts/go-echarts/v2/opts"
 	"github.com/go-echarts/go-echarts/v2/types"
+	log "github.com/sirupsen/logrus"
 )
 
 // GenerateMap creates an HTML file with a world map and pins based on GPS coordinates extracted from images.
 // The map is saved to "map.html".
-func GenerateMap(gpsData []opts.GeoData) {
+func GenerateMap(gpsData []opts.GeoData) error {
+	for _, data := range gpsData {
+		if _, _, err := coordinates(data); err != nil {
+			return err
+		}
+	}
+
 	geo := charts.NewGeo()
 	geo.SetGlobalOptions(
 		charts.WithTitleOpts(opts.Title{Title: "photos2map: GPS Image Map"}),
@@ -32,15 +37,18 @@ func GenerateMap(gpsData []opts.GeoData) {
 		}),
 	)
 
-	file, err := os.Create("out/map.html")
+	file, commit, err := createAtomic("out/map.html")
 	if err != nil {
-		log.Fatalf("Error creating map file: %v", err)
+		return fmt.Errorf("create map output: %w", err)
 	}
-	defer func() { _ = file.Close() }()
+	defer file.abort()
 
-	err = geo.Render(file)
-	if err != nil {
-		log.Errorf("Error rendering map file to html: %v", err)
+	if err := geo.Render(file.File); err != nil {
+		return fmt.Errorf("render map output: %w", err)
+	}
+	if err := commit(); err != nil {
+		return fmt.Errorf("commit map output: %w", err)
 	}
 	log.Println("HTML map generated successfully.")
+	return nil
 }

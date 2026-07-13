@@ -19,7 +19,7 @@ jobs:
 
       - name: Run all GitHub Actions checks and auto-write updates
         id: check
-        uses: toozej/go-sort-out-gh-actions/check@main
+        uses: toozej/monogo/apps/go-sort-out-gh-actions/check@main
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           verbose: true

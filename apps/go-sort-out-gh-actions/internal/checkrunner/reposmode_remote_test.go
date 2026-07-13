@@ -188,8 +188,8 @@ func TestRunRemoteRepoMode(t *testing.T) {
 		if processFuncCalled {
 			t.Error("Expected processFunc not to be called on API error")
 		}
-		if result {
-			t.Error("Expected RunRemoteRepoMode to return false on API error")
+		if !result {
+			t.Error("Expected RunRemoteRepoMode to fail closed on API error")
 		}
 	})
 }

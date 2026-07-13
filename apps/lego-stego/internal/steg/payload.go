@@ -43,14 +43,11 @@ func ParsePayload(data []byte, password string) ([]byte, error) {
 		return nil, err
 	}
 
-	if int(h.Length) < 0 {
-		return nil, errors.New("payload length overflow")
-	}
-
-	if offset+int(h.Length) > len(data) {
+	end := int64(offset) + int64(h.Length)
+	if end > int64(len(data)) {
 		return nil, errors.New("payload length exceeds data size")
 	}
-	payload := data[offset : offset+int(h.Length)]
+	payload := data[int64(offset):end]
 
 	if h.Flags&2 == 2 {
 		payload, err = ecc.Decode(payload)

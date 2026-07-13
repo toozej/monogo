@@ -12,6 +12,7 @@ var hideInput, hideOutput, hideFile, hidePassword string
 var hideCmd = &cobra.Command{
 	Use:   "hide",
 	Short: "Hide a file inside an image",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		pw, err := readPassword(hidePassword)
 		if err != nil {

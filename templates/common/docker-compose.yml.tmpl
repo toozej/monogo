@@ -1,34 +1,24 @@
 [[- $app := ds "app" -]]
+[[- $compose := index $app "compose" -]]
 [[- /* Docker repository names must be lower-case (e.g. RSSFFS -> rssffs) */ -]]
 ---
 services:
   [[$app.name]]:
     container_name: [[$app.name]]
     image: toozej/[[ strings.ToLower $app.name ]]:latest
-[[- if index $app "composeUser" ]]
-    user: "[[$app.composeUser]]"
-[[- end ]]
-[[- if index $app "composeRestart" ]]
-    restart: "[[$app.composeRestart]]"
-[[- else ]]
-    restart: unless-stopped
-[[- end ]]
-    security_opt:
+[[ if and $compose (index $compose "user") ]]    user: "[[ index $compose "user" ]]"
+[[ end ]][[ if and $compose (index $compose "restart") ]]    restart: "[[ index $compose "restart" ]]"
+[[ else ]]    restart: unless-stopped
+[[ end ]]    security_opt:
       - no-new-privileges:true
     read_only: true
-[[- if index $app "composeEnvironment" ]]
-    environment:
-[[- range $app.composeEnvironment ]]
-      - "[[.]]"
-[[- end ]]
-[[- end ]]
-[[- if index $app "composeVolumes" ]]
-    volumes:
-[[- range $app.composeVolumes ]]
-      - "[[.]]"
-[[- end ]]
-[[- end ]]
-    labels:
+[[ if and $compose (index $compose "environment") ]]    environment:
+[[ range $name, $value := index $compose "environment" ]]      [[$name]]: "[[$value]]"
+[[ end ]][[ end ]][[ if and $compose (index $compose "ports") ]]    ports:
+[[ range index $compose "ports" ]]      - "[[.]]"
+[[ end ]][[ end ]][[ if and $compose (index $compose "volumes") ]]    volumes:
+[[ range index $compose "volumes" ]]      - "[[.]]"
+[[ end ]][[ end ]]    labels:
       - "traefik.enable=false"
       # labels below for publishing as web service
       # - "traefik.docker.network=traefik"
@@ -40,3 +30,6 @@ services:
       # - "traefik.http.routers.[[$app.name]]-secure.tls=true"
     # networks:
       # - traefik
+[[ if and $compose (index $compose "namedVolumes") ]]volumes:
+[[ range index $compose "namedVolumes" ]]  [[.]]:
+[[ end ]][[ end -]]

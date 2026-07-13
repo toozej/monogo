@@ -102,7 +102,11 @@ func processPin(rc *checkrunner.RunContext, workflowFiles []*workflow.WorkflowFi
 		return false
 	}
 
-	result, _ := checkrunner.DetectArchived(rc, workflowFiles, allActionRefs)
+	result, err := checkrunner.DetectArchived(rc, workflowFiles, allActionRefs)
+	if err != nil {
+		log.Errorf("Archived-action precheck did not complete: %v", err)
+		return true
+	}
 	pinnableActions := actioninfo.DetectPinnableActions(workflowFiles, result.Archived)
 
 	hasPinnable := len(pinnableActions) > 0

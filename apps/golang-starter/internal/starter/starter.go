@@ -19,6 +19,8 @@ package starter
 
 import (
 	"fmt"
+	"io"
+	"os"
 )
 
 // Run executes the main functionality of the starter package by printing
@@ -43,5 +45,9 @@ import (
 //	starter.Run("John Doe")
 //	// Output: Hello from John Doe
 func Run(username string) {
-	fmt.Println("Hello from", username)
+	run(os.Stdout, username)
+}
+
+func run(writer io.Writer, username string) {
+	_, _ = fmt.Fprintln(writer, "Hello from", username)
 }

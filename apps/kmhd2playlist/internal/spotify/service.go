@@ -40,6 +40,15 @@ func (s *Service) CompleteAuth(code, state string) error {
 
 // NewService creates a new Spotify service that implements types.MusicService
 func NewService(cfg config.SpotifyConfig, logger *logrus.Logger) *Service {
+	service, err := NewServiceWithError(cfg, logger)
+	if err != nil {
+		logger.WithError(err).Error("Failed to create Spotify client")
+	}
+	return service
+}
+
+// NewServiceWithError creates a Spotify service and reports initialization failures.
+func NewServiceWithError(cfg config.SpotifyConfig, logger *logrus.Logger) (*Service, error) {
 	logger.WithFields(logrus.Fields{
 		"client_id":     cfg.ClientID,
 		"client_secret": cfg.ClientSecret != "",
@@ -48,18 +57,16 @@ func NewService(cfg config.SpotifyConfig, logger *logrus.Logger) *Service {
 
 	client, err := NewClient(cfg, logger)
 	if err != nil {
-		logger.WithError(err).Error("Failed to create Spotify client")
-		// Return service with nil client for now - will be handled in actual implementation
 		return &Service{
 			client: nil,
 			logger: logger,
-		}
+		}, err
 	}
 
 	return &Service{
 		client: client,
 		logger: logger,
-	}
+	}, nil
 }
 
 // SearchArtist searches for an artist by name and returns the best match

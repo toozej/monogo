@@ -12,6 +12,7 @@ var extractInput, extractOutput, extractPassword string
 var extractCmd = &cobra.Command{
 	Use:   "extract",
 	Short: "Extract and decode QR from image",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		pw, err := readPassword(extractPassword)
 		if err != nil {
@@ -34,7 +35,5 @@ func init() {
 	extractCmd.Flags().StringVar(&extractPassword, "password", "", "password")
 
 	_ = extractCmd.MarkFlagRequired("input")
-	_ = extractCmd.MarkFlagRequired("output")
-
 	rootCmd.AddCommand(extractCmd)
 }

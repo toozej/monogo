@@ -2,6 +2,7 @@ package parser
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 	"regexp"
 	"strings"
@@ -50,6 +51,12 @@ func extractTrailInfoFromChecklist(file *os.File) ([]types.Trail, error) {
 				currentTrail.URL = parseTrailURLFromChecklist(line)
 			}
 		}
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	if currentTrail.Name != "" {
+		trails = append(trails, currentTrail)
 	}
 
 	return trails, nil
@@ -196,9 +203,13 @@ func ParseTrailsFromChecklist(filename string) ([]types.Trail, error) {
 		return []types.Trail{}, err
 	}
 
-	trails, err := extractTrailInfoFromChecklist(f)
-	if err != nil {
-		return []types.Trail{}, err
+	trails, parseErr := extractTrailInfoFromChecklist(f)
+	closeErr := f.Close()
+	if parseErr != nil {
+		return []types.Trail{}, parseErr
+	}
+	if closeErr != nil {
+		return []types.Trail{}, fmt.Errorf("closing checklist file: %w", closeErr)
 	}
 
 	return trails, nil

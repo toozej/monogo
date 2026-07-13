@@ -3,6 +3,9 @@ package fixer
 import (
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/spf13/afero"
@@ -45,7 +48,8 @@ func (cf *CommentFixer) FixFile(filename string, resources []parser.TerraformRes
 	errorsByResource := cf.groupErrorsByResource(errors)
 
 	// Process each resource
-	for _, resource := range resources {
+	for resourceIndex := len(resources) - 1; resourceIndex >= 0; resourceIndex-- {
+		resource := resources[resourceIndex]
 		resourceKey := fmt.Sprintf("%s.%s", resource.Type, resource.Name)
 		resourceErrors, hasErrors := errorsByResource[resourceKey]
 
@@ -65,15 +69,39 @@ func (cf *CommentFixer) FixFile(filename string, resources []parser.TerraformRes
 			continue
 		}
 
-		// Insert comment block immediately before the resource declaration
-		// Skip any existing comments directly above the resource
+		rules := cf.getApplicableRules(resource.Type)
 		insertLine := cf.findInsertionPoint(lines, resource.StartLine)
-
-		// Build comment block
-		commentBlock := cf.buildCommentBlock(fixes)
-
-		// Insert the comment block
-		lines = cf.insertLines(lines, insertLine, commentBlock)
+		var missingPrefixFixes []CommentFix
+		type continuation struct {
+			line int
+			fix  CommentFix
+		}
+		var continuations []continuation
+		for _, fix := range fixes {
+			comments := resource.GetCommentsByPrefix(fix.Prefix)
+			if len(comments) == 0 {
+				missingPrefixFixes = append(missingPrefixFixes, fix)
+				continue
+			}
+			// Add fields to the existing structured comment instead of creating
+			// another occurrence of the same prefix. The validator checks each
+			// occurrence independently, so a duplicate would leave both invalid.
+			target := comments[0]
+			for _, comment := range comments {
+				if comment.Line == fix.Line {
+					target = comment
+					break
+				}
+			}
+			continuations = append(continuations, continuation{line: target.EndLine, fix: fix})
+		}
+		sort.Slice(continuations, func(i, j int) bool { return continuations[i].line > continuations[j].line })
+		for _, item := range continuations {
+			lines = cf.insertLines(lines, item.line, cf.buildContinuationBlock(item.fix, rules))
+		}
+		if len(missingPrefixFixes) > 0 {
+			lines = cf.insertLines(lines, insertLine, cf.buildCommentBlock(missingPrefixFixes, rules))
+		}
 		fixCount += len(fixes)
 	}
 
@@ -107,7 +135,11 @@ func (cf *CommentFixer) generateFixes(resource parser.TerraformResource, errors 
 
 	// Track which prefixes we need to add
 	missingPrefixes := make(map[string]bool)
-	missingFields := make(map[string][]string) // prefix -> []fields
+	type commentKey struct {
+		prefix string
+		line   int
+	}
+	missingFields := make(map[commentKey][]string)
 
 	for _, err := range errors {
 		// Check if it's a missing prefix error
@@ -117,38 +149,78 @@ func (cf *CommentFixer) generateFixes(resource parser.TerraformResource, errors 
 			continue
 		}
 
-		// Check if it's a missing field error
-		if strings.Contains(err.Message, "Missing required field") {
+		// Check if it's a missing nested structure. Populate every required
+		// field in that structure so the generated continuation is complete.
+		if strings.Contains(err.Message, "Missing nested structure") {
+			prefix, nestedPath, ok := parseQuotedValidationError(err.Message)
+			if !ok {
+				continue
+			}
+			prefixRule, exists := rules.PrefixRules[prefix]
+			if !exists {
+				continue
+			}
+			nestedRule, exists := prefixRule.NestedFields[nestedPath]
+			if !exists {
+				continue
+			}
+			for _, field := range nestedRule.RequiredFields {
+				key := commentKey{prefix: prefix, line: err.Line}
+				missingFields[key] = append(missingFields[key], nestedPath+"."+field)
+			}
+			continue
+		}
+
+		// Check if it's a missing field error.
+		if strings.Contains(err.Message, "Missing required field") || strings.Contains(err.Message, "Missing required nested field") {
 			// Extract prefix and field from error message
 			// Format: "@metadata: Missing required field 'owner'"
-			parts := strings.SplitN(err.Message, ":", 2)
-			if len(parts) == 2 {
-				prefix := strings.TrimSpace(parts[0])
-				fieldMsg := strings.TrimSpace(parts[1])
-
-				// Extract field name from quotes
-				if start := strings.Index(fieldMsg, "'"); start != -1 {
-					if end := strings.Index(fieldMsg[start+1:], "'"); end != -1 {
-						field := fieldMsg[start+1 : start+1+end]
-						missingFields[prefix] = append(missingFields[prefix], field)
-					}
-				}
+			if prefix, field, ok := parseQuotedValidationError(err.Message); ok {
+				key := commentKey{prefix: prefix, line: err.Line}
+				missingFields[key] = append(missingFields[key], field)
 			}
 		}
 	}
 
-	// Generate fixes for missing prefixes
-	for prefix := range missingPrefixes {
+	// Generate missing prefixes in schema order so repeated runs and machines
+	// produce the same file.
+	for _, prefix := range rules.RequiredPrefixes {
+		if !missingPrefixes[prefix] {
+			continue
+		}
 		fix := cf.generatePrefixFix(prefix, rules)
 		if fix != nil {
+			fixes = append(fixes, *fix)
+		}
+		delete(missingPrefixes, prefix)
+	}
+	remainingPrefixes := make([]string, 0, len(missingPrefixes))
+	for prefix := range missingPrefixes {
+		remainingPrefixes = append(remainingPrefixes, prefix)
+	}
+	sort.Strings(remainingPrefixes)
+	for _, prefix := range remainingPrefixes {
+		if fix := cf.generatePrefixFix(prefix, rules); fix != nil {
 			fixes = append(fixes, *fix)
 		}
 	}
 
 	// Generate fixes for missing fields
-	for prefix, fields := range missingFields {
-		fix := cf.generateFieldFix(prefix, fields, rules)
+	fieldKeys := make([]commentKey, 0, len(missingFields))
+	for key := range missingFields {
+		fieldKeys = append(fieldKeys, key)
+	}
+	sort.Slice(fieldKeys, func(i, j int) bool {
+		if fieldKeys[i].line != fieldKeys[j].line {
+			return fieldKeys[i].line < fieldKeys[j].line
+		}
+		return fieldKeys[i].prefix < fieldKeys[j].prefix
+	})
+	for _, key := range fieldKeys {
+		fields := missingFields[key]
+		fix := cf.generateFieldFix(key.prefix, fields, rules)
 		if fix != nil {
+			fix.Line = key.line
 			fixes = append(fixes, *fix)
 		}
 	}
@@ -156,10 +228,28 @@ func (cf *CommentFixer) generateFixes(resource parser.TerraformResource, errors 
 	return fixes
 }
 
+func parseQuotedValidationError(message string) (string, string, bool) {
+	parts := strings.SplitN(message, ":", 2)
+	if len(parts) != 2 {
+		return "", "", false
+	}
+	detail := parts[1]
+	start := strings.Index(detail, "'")
+	if start == -1 {
+		return "", "", false
+	}
+	end := strings.Index(detail[start+1:], "'")
+	if end == -1 {
+		return "", "", false
+	}
+	return strings.TrimSpace(parts[0]), detail[start+1 : start+1+end], true
+}
+
 // CommentFix represents a fix to apply
 type CommentFix struct {
 	Prefix string
 	Fields map[string]string
+	Line   int
 }
 
 // generatePrefixFix generates a fix for a missing prefix with default required fields
@@ -248,13 +338,13 @@ func (cf *CommentFixer) getPlaceholderValue(field string) string {
 		case "boolean":
 			return "true"
 		case "integer":
-			if validation.Min > 0 {
-				return fmt.Sprintf("%d", int(validation.Min))
+			if validation.Min != nil {
+				return fmt.Sprintf("%d", int(*validation.Min))
 			}
 			return "1"
 		case "float":
-			if validation.Min > 0 {
-				return fmt.Sprintf("%.1f", validation.Min)
+			if validation.Min != nil {
+				return fmt.Sprintf("%.1f", *validation.Min)
 			}
 			return "1.0"
 		case "array":
@@ -265,39 +355,21 @@ func (cf *CommentFixer) getPlaceholderValue(field string) string {
 	return "CHANGEME"
 }
 
-// buildCommentBlock builds a comment block from fixes with fields ordered by schema
-func (cf *CommentFixer) buildCommentBlock(fixes []CommentFix) []string {
+// buildCommentBlock builds a comment block from fixes with fields ordered by
+// the rules that apply to the resource being fixed.
+func (cf *CommentFixer) buildCommentBlock(fixes []CommentFix, rules validator.ResourceRules) []string {
 	var lines []string
 
 	for _, fix := range fixes {
 		// Get the schema rules to determine field order
-		prefixRule, exists := cf.getSchemaRuleForPrefix(fix.Prefix)
+		prefixRule, exists := rules.PrefixRules[fix.Prefix]
 		if !exists {
 			// Fallback to unordered if we can't find the rule
 			cf.buildUnorderedCommentBlock(fix, &lines)
 			continue
 		}
 
-		// Group fields by root vs nested
-		rootFields := make(map[string]string)
-		nestedFields := make(map[string]map[string]string)
-
-		for field, value := range fix.Fields {
-			if strings.Contains(field, ".") {
-				// Nested field
-				parts := strings.SplitN(field, ".", 2)
-				prefix := parts[0]
-				rest := parts[1]
-
-				if nestedFields[prefix] == nil {
-					nestedFields[prefix] = make(map[string]string)
-				}
-				nestedFields[prefix][rest] = value
-			} else {
-				// Root field
-				rootFields[field] = value
-			}
-		}
+		rootFields, nestedFields := splitFixFields(fix, prefixRule)
 
 		// Build comment line with ordered root fields
 		commentLine := "# " + fix.Prefix
@@ -319,7 +391,9 @@ func (cf *CommentFixer) buildCommentBlock(fixes []CommentFix) []string {
 		lines = append(lines, commentLine)
 
 		// Add nested fields on separate lines in schema order
-		for nestedPath, nestedRule := range prefixRule.NestedFields {
+		nestedPaths := sortedNestedPaths(prefixRule)
+		for _, nestedPath := range nestedPaths {
+			nestedRule := prefixRule.NestedFields[nestedPath]
 			if fieldMap, ok := nestedFields[nestedPath]; ok && len(fieldMap) > 0 {
 				nestedLine := "#"
 
@@ -347,16 +421,93 @@ func (cf *CommentFixer) buildCommentBlock(fixes []CommentFix) []string {
 	return lines
 }
 
-// getSchemaRuleForPrefix retrieves the prefix rule from the schema
-func (cf *CommentFixer) getSchemaRuleForPrefix(prefix string) (validator.PrefixRule, bool) {
-	// Check global rules first
-	if rule, ok := cf.schema.Global.PrefixRules[prefix]; ok {
-		return rule, true
+func (cf *CommentFixer) buildContinuationBlock(fix CommentFix, rules validator.ResourceRules) []string {
+	prefixRule, exists := rules.PrefixRules[fix.Prefix]
+	if !exists {
+		var lines []string
+		cf.buildUnorderedContinuationBlock(fix, &lines)
+		return lines
 	}
 
-	// Could also check resource-specific rules if needed
-	// but for now we use global rules
-	return validator.PrefixRule{}, false
+	rootFields, nestedFields := splitFixFields(fix, prefixRule)
+
+	var lines []string
+	rootLine := "#"
+	for _, field := range append(append([]string{}, prefixRule.RequiredFields...), prefixRule.OptionalFields...) {
+		if value, ok := rootFields[field]; ok {
+			rootLine += fmt.Sprintf(" %s:%s", field, value)
+		}
+	}
+	if rootLine != "#" {
+		lines = append(lines, rootLine)
+	}
+
+	nestedPaths := sortedNestedPaths(prefixRule)
+	for _, nestedPath := range nestedPaths {
+		fieldMap := nestedFields[nestedPath]
+		if len(fieldMap) == 0 {
+			continue
+		}
+		nestedLine := "#"
+		nestedRule := prefixRule.NestedFields[nestedPath]
+		for _, field := range append(append([]string{}, nestedRule.RequiredFields...), nestedRule.OptionalFields...) {
+			if value, ok := fieldMap[field]; ok {
+				nestedLine += fmt.Sprintf(" %s.%s:%s", nestedPath, field, value)
+			}
+		}
+		if nestedLine != "#" {
+			lines = append(lines, nestedLine)
+		}
+	}
+	return lines
+}
+
+func splitFixFields(fix CommentFix, rule validator.PrefixRule) (map[string]string, map[string]map[string]string) {
+	rootFields := make(map[string]string)
+	nestedFields := make(map[string]map[string]string)
+	paths := sortedNestedPaths(rule)
+	sort.SliceStable(paths, func(i, j int) bool { return len(paths[i]) > len(paths[j]) })
+
+	for field, value := range fix.Fields {
+		matched := false
+		for _, nestedPath := range paths {
+			prefix := nestedPath + "."
+			if !strings.HasPrefix(field, prefix) {
+				continue
+			}
+			if nestedFields[nestedPath] == nil {
+				nestedFields[nestedPath] = make(map[string]string)
+			}
+			nestedFields[nestedPath][strings.TrimPrefix(field, prefix)] = value
+			matched = true
+			break
+		}
+		if !matched {
+			rootFields[field] = value
+		}
+	}
+	return rootFields, nestedFields
+}
+
+func sortedNestedPaths(rule validator.PrefixRule) []string {
+	paths := make([]string, 0, len(rule.NestedFields))
+	for path := range rule.NestedFields {
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+	return paths
+}
+
+func (cf *CommentFixer) buildUnorderedContinuationBlock(fix CommentFix, lines *[]string) {
+	copyFix := fix
+	copyFix.Prefix = ""
+	cf.buildUnorderedCommentBlock(copyFix, lines)
+	if len(*lines) > 0 {
+		(*lines)[0] = strings.TrimSpace((*lines)[0])
+		if (*lines)[0] == "#" {
+			*lines = (*lines)[1:]
+		}
+	}
 }
 
 // buildUnorderedCommentBlock is a fallback for when schema rules aren't found
@@ -478,42 +629,33 @@ func (cf *CommentFixer) allPrefixesHaveComments(resource parser.TerraformResourc
 // findInsertionPoint finds where to insert comments for a resource
 // It places comments immediately above the resource declaration, skipping any existing comments
 func (cf *CommentFixer) findInsertionPoint(lines []string, resourceStartLine int) int {
-	// Start from the line before the resource
-	insertLine := resourceStartLine - 1
-	if insertLine < 0 {
+	resourceIndex := resourceStartLine - 1
+	if resourceIndex <= 0 {
 		return 0
 	}
-
-	// Scan backwards to skip existing non-managed comments
-	// We want to insert our managed comments right before the resource declaration
-	// but after any existing user comments
-	for insertLine > 0 {
-		trimmed := strings.TrimSpace(lines[insertLine])
-
-		// If it's a blank line or existing managed comment, place our comments here
-		if trimmed == "" {
-			// Keep the blank line, insert before it
-			return insertLine
-		}
-
-		// If it's a user comment (not managed), we want to insert AFTER it
-		if strings.HasPrefix(trimmed, "#") {
-			// Check if it's a managed comment
-			if strings.HasPrefix(trimmed, "# @") || strings.HasPrefix(trimmed, "# terraform:") {
-				// Skip managed comments
-				insertLine--
-				continue
-			}
-			// It's a user comment, insert after it
-			return insertLine + 1
-		}
-
-		// If it's code, insert here
-		return insertLine + 1
+	if resourceIndex > len(lines) {
+		resourceIndex = len(lines)
 	}
 
-	// Insert at the beginning if we've scanned to the top
-	return 0
+	// Keep a contiguous managed annotation block together. New annotations go
+	// before that block; otherwise they go immediately before the resource.
+	insertIndex := resourceIndex
+	foundManaged := false
+	for i := resourceIndex - 1; i >= 0; i-- {
+		trimmed := strings.TrimSpace(lines[i])
+		managedStart := strings.HasPrefix(trimmed, "# @") || strings.HasPrefix(trimmed, "# terraform:")
+		if managedStart {
+			foundManaged = true
+			insertIndex = i
+			continue
+		}
+		if foundManaged && strings.HasPrefix(trimmed, "#") {
+			insertIndex = i
+			continue
+		}
+		break
+	}
+	return insertIndex
 }
 
 // getApplicableRules returns applicable rules for a resource type
@@ -537,22 +679,79 @@ func CopyFile(fs afero.Fs, src, dst string) error {
 	}
 	defer func() { _ = sourceFile.Close() }()
 
-	// #nosec G304 - Destination path derived from user input
-	destFile, err := fs.Create(dst)
+	info, err := sourceFile.Stat()
 	if err != nil {
 		return err
 	}
-	defer func() { _ = destFile.Close() }()
+	return writeAtomic(fs, dst, sourceFile, info.Mode())
+}
 
-	_, err = io.Copy(destFile, sourceFile)
-	/*
-		if err != nil {
+// CopyFileExclusive copies src to dst without replacing an existing destination.
+func CopyFileExclusive(fs afero.Fs, src, dst string) error {
+	sourceFile, err := fs.Open(src)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = sourceFile.Close() }()
+	info, err := sourceFile.Stat()
+	if err != nil {
+		return err
+	}
+	destFile, err := fs.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_EXCL, info.Mode().Perm())
+	if err != nil {
+		return err
+	}
+	removeDestination := true
+	defer func() {
+		_ = destFile.Close()
+		if removeDestination {
+			_ = fs.Remove(dst)
+		}
+	}()
+	if _, err := io.Copy(destFile, sourceFile); err != nil {
+		return err
+	}
+	if syncer, ok := destFile.(interface{ Sync() error }); ok {
+		if err := syncer.Sync(); err != nil {
 			return err
 		}
-		// Afero files might not implement Sync, so checking interface
-		if syncer, ok := destFile.(interface{ Sync() error }); ok {
-			return syncer.Sync()
+	}
+	if err := destFile.Close(); err != nil {
+		return err
+	}
+	removeDestination = false
+	return nil
+}
+
+// WriteFileAtomic replaces a file only after its complete new contents are durable.
+func WriteFileAtomic(fs afero.Fs, filename string, contents []byte, mode os.FileMode) error {
+	return writeAtomic(fs, filename, strings.NewReader(string(contents)), mode)
+}
+
+func writeAtomic(fs afero.Fs, dst string, source io.Reader, mode os.FileMode) error {
+	dir := filepath.Dir(dst)
+	temp, err := afero.TempFile(fs, dir, ".terranotate-*")
+	if err != nil {
+		return err
+	}
+	tempName := temp.Name()
+	defer func() {
+		_ = temp.Close()
+		_ = fs.Remove(tempName)
+	}()
+	if err := fs.Chmod(tempName, mode.Perm()); err != nil {
+		return err
+	}
+	if _, err := io.Copy(temp, source); err != nil {
+		return err
+	}
+	if syncer, ok := temp.(interface{ Sync() error }); ok {
+		if err := syncer.Sync(); err != nil {
+			return err
 		}
-	*/
-	return err
+	}
+	if err := temp.Close(); err != nil {
+		return err
+	}
+	return fs.Rename(tempName, dst)
 }

@@ -23,10 +23,35 @@ the devcontainer build. Run `make app-generate APP=<app>` after editing
 | `cgoEnabled` | no (default `false`) | Toggles `CGO_ENABLED`. See [CGO apps](#cgo-apps). |
 | `runtimeImage` | no | Overrides the runtime base in the non-distroless `Dockerfile`. Defaults to `scratch`, or `debian:trixie-slim` when `cgoEnabled` is `true`. |
 | `port` | no | When set, `EXPOSE <port>` is emitted in the generated Dockerfiles. |
-| `composeUser` | no | User or UID/GID used to run the Compose service. Useful for nonroot CLI containers that write to bind mounts. |
-| `composeRestart` | no (default `unless-stopped`) | Docker Compose restart policy. Set to `no` for one-shot CLI apps. |
-| `composeEnvironment` | no | Environment entries rendered into the app's Compose service. |
-| `composeVolumes` | no | Volume mounts rendered into the app's Compose service. |
+| `writableDirs` | no | Runtime directories created with ownership for the image's nonroot user. This lets empty named volumes inherit usable permissions. |
+| `compose.user` | no | User or UID/GID used to run the Compose service. Useful for nonroot CLI containers that write to bind mounts. |
+| `compose.restart` | no (default `unless-stopped`) | Docker Compose restart policy. Set to `no` for one-shot CLI apps. |
+| `compose.environment` | no | Environment variables emitted for the app service in `docker-compose.yml`. |
+| `compose.ports` | no | Port mappings emitted for the app service, such as `8080:8080`. |
+| `compose.volumes` | no | Bind mounts or named-volume mappings emitted for the app service. |
+| `compose.namedVolumes` | no | Named volumes declared at the top level of `docker-compose.yml`. |
+
+The `compose` fields are useful for server apps whose generated development
+deployment needs persistent writable paths or a published port. For example:
+
+```yaml
+port: 8080
+writableDirs:
+  - /config
+  - /assets
+compose:
+  environment:
+    CONFIG: /config
+    DATA: /assets
+  ports:
+    - 8080:8080
+  volumes:
+    - app-config:/config
+    - app-assets:/assets
+  namedVolumes:
+    - app-config
+    - app-assets
+```
 
 ## CGO apps
 

@@ -7,7 +7,7 @@ This guide covers different deployment options for the go-listen application.
 1. **Spotify Developer Account**: Required for API access
    - Create an app at [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
    - Note your Client ID and Client Secret
-   - Configure redirect URI: `http://your-domain:port/callback`
+   - Configure redirect URI: `https://your-domain/callback` (Spotify permits plain HTTP only for loopback development)
 
 2. **System Requirements**:
    - Linux/macOS/Windows
@@ -16,13 +16,17 @@ This guide covers different deployment options for the go-listen application.
 
 ## Deployment Options
 
+Basic Auth protects the application but does not encrypt credentials. Bind to
+loopback for local use, or terminate HTTPS at a reverse proxy/Ingress before
+exposing the service beyond the host.
+
 ### 1. Binary Deployment
 
 #### Build using Make
 
 ```bash
 # Build the binary
-make local-build 
+make local-build APP=go-listen
 
 # Create configuration
 cp .env.sample .env
@@ -36,11 +40,11 @@ make local-run
 
 ```bash
 # Clone the repository
-git clone https://github.com/toozej/go-listen.git
-cd go-listen
+git clone https://github.com/toozej/monogo.git
+cd monogo
 
 # Build the binary
-go build -o go-listen .
+make local-build APP=go-listen
 
 # Create configuration
 cp .env.sample .env
@@ -73,8 +77,6 @@ export SPOTIFY_CLIENT_SECRET=your_client_secret
 Create `docker-compose.yml`:
 
 ```yaml
-version: '3.8'
-
 services:
   go-listen:
     image: go-listen:latest
@@ -85,7 +87,8 @@ services:
       # Required Spotify configuration
       - SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID}
       - SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET}
-      - SPOTIFY_REDIRECT_URL=http://localhost:8080/callback
+      - SPOTIFY_REDIRECT_URL=${SPOTIFY_REDIRECT_URL}
+      - SPOTIFY_TOKEN_FILE=/config/spotify-token.json
       
       # Server configuration
       - SERVER_HOST=0.0.0.0
@@ -101,6 +104,8 @@ services:
       # Security configuration
       - SECURITY_RATE_LIMIT_REQUESTS_PER_SECOND=10
       - SECURITY_RATE_LIMIT_BURST=20
+      - SECURITY_USERNAME=${SECURITY_USERNAME}
+      - SECURITY_PASSWORD=${SECURITY_PASSWORD}
       
       # Logging configuration
       - LOGGING_LEVEL=info
@@ -109,17 +114,8 @@ services:
     
     restart: unless-stopped
     
-    # Optional: Mount logs directory
     volumes:
-      - ./logs:/app/logs
-    
-    # Optional: Health check
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+      - go-listen-config:/config
 
 # Optional: Add reverse proxy
   nginx:
@@ -134,6 +130,9 @@ services:
     depends_on:
       - go-listen
     restart: unless-stopped
+
+volumes:
+  go-listen-config:
 ```
 
 Create `.env` file for Docker Compose:
@@ -142,6 +141,9 @@ Create `.env` file for Docker Compose:
 # Spotify API credentials
 SPOTIFY_CLIENT_ID=your_actual_client_id
 SPOTIFY_CLIENT_SECRET=your_actual_client_secret
+SPOTIFY_REDIRECT_URL=https://your-domain/callback
+SECURITY_USERNAME=go-listen
+SECURITY_PASSWORD=choose-a-strong-password
 ```
 
 Deploy:
@@ -166,7 +168,12 @@ docker run -d \
   -p 8080:8080 \
   -e SPOTIFY_CLIENT_ID=your_client_id \
   -e SPOTIFY_CLIENT_SECRET=your_client_secret \
+  -e SPOTIFY_REDIRECT_URL=https://your-domain/callback \
+  -e SPOTIFY_TOKEN_FILE=/config/spotify-token.json \
   -e SERVER_HOST=0.0.0.0 \
+  -e SECURITY_USERNAME=go-listen \
+  -e SECURITY_PASSWORD=choose-a-strong-password \
+  -v go-listen-config:/config \
   --restart unless-stopped \
   go-listen:latest
 ```
@@ -193,8 +200,12 @@ RestartSec=5
 # Environment variables
 Environment=SPOTIFY_CLIENT_ID=your_client_id
 Environment=SPOTIFY_CLIENT_SECRET=your_client_secret
+Environment=SPOTIFY_REDIRECT_URL=https://your-domain/callback
+Environment=SPOTIFY_TOKEN_FILE=/var/lib/go-listen/spotify-token.json
 Environment=SERVER_HOST=0.0.0.0
 Environment=SERVER_PORT=8080
+Environment=SECURITY_USERNAME=go-listen
+Environment=SECURITY_PASSWORD=choose-a-strong-password
 Environment=SCRAPER_TIMEOUT=30s
 Environment=SCRAPER_MAX_RETRIES=3
 Environment=SCRAPER_RETRY_BACKOFF=2s
@@ -207,7 +218,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/go-listen/logs
+ReadWritePaths=/opt/go-listen/logs /var/lib/go-listen
 
 [Install]
 WantedBy=multi-user.target
@@ -218,8 +229,8 @@ Set up the service:
 ```bash
 # Create user and directory
 sudo useradd --system --shell /bin/false go-listen
-sudo mkdir -p /opt/go-listen/logs
-sudo chown go-listen:go-listen /opt/go-listen/logs
+sudo mkdir -p /opt/go-listen/logs /var/lib/go-listen
+sudo chown go-listen:go-listen /opt/go-listen/logs /var/lib/go-listen
 
 # Copy binary
 sudo cp go-listen /opt/go-listen/
@@ -249,6 +260,8 @@ type: Opaque
 stringData:
   spotify-client-id: "your_client_id"
   spotify-client-secret: "your_client_secret"
+  security-username: "go-listen"
+  security-password: "choose-a-strong-password"
 
 ---
 apiVersion: v1
@@ -258,6 +271,8 @@ metadata:
 data:
   SERVER_HOST: "0.0.0.0"
   SERVER_PORT: "8080"
+  SPOTIFY_REDIRECT_URL: "https://go-listen.yourdomain.com/callback"
+  SPOTIFY_TOKEN_FILE: "/config/spotify-token.json"
   SCRAPER_TIMEOUT: "30s"
   SCRAPER_MAX_RETRIES: "3"
   SCRAPER_RETRY_BACKOFF: "2s"
@@ -277,7 +292,9 @@ metadata:
   labels:
     app: go-listen
 spec:
-  replicas: 2
+  # OAuth state is process-local, so use one replica unless ingress affinity
+  # is configured for the complete authorization flow.
+  replicas: 1
   selector:
     matchLabels:
       app: go-listen
@@ -286,6 +303,9 @@ spec:
       labels:
         app: go-listen
     spec:
+      securityContext:
+        fsGroup: 65532
+        fsGroupChangePolicy: OnRootMismatch
       containers:
       - name: go-listen
         image: go-listen:latest
@@ -302,18 +322,26 @@ spec:
             secretKeyRef:
               name: go-listen-secrets
               key: spotify-client-secret
+        - name: SECURITY_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: go-listen-secrets
+              key: security-username
+        - name: SECURITY_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: go-listen-secrets
+              key: security-password
         envFrom:
         - configMapRef:
             name: go-listen-config
         livenessProbe:
-          httpGet:
-            path: /
+          tcpSocket:
             port: 8080
           initialDelaySeconds: 30
           periodSeconds: 10
         readinessProbe:
-          httpGet:
-            path: /
+          tcpSocket:
             port: 8080
           initialDelaySeconds: 5
           periodSeconds: 5
@@ -324,6 +352,25 @@ spec:
           limits:
             memory: "128Mi"
             cpu: "200m"
+        volumeMounts:
+        - name: config
+          mountPath: /config
+      volumes:
+      - name: config
+        persistentVolumeClaim:
+          claimName: go-listen-config
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: go-listen-config
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
 
 ---
 apiVersion: v1
@@ -344,9 +391,11 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: go-listen-ingress
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
+  tls:
+  - hosts:
+    - go-listen.yourdomain.com
+    secretName: go-listen-tls
   rules:
   - host: go-listen.yourdomain.com
     http:
@@ -424,7 +473,9 @@ http {
             proxy_pass http://go-listen;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            # Overwrite rather than append so clients cannot spoof the first
+            # address when SECURITY_TRUST_PROXY_HEADERS=true.
+            proxy_set_header X-Forwarded-For $remote_addr;
             proxy_set_header X-Forwarded-Proto $scheme;
             
             # WebSocket support (if needed in future)

@@ -1,8 +1,10 @@
 package rss
 
 import (
+	"encoding/xml"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -100,9 +102,8 @@ func TestCheckRSSFeed(t *testing.T) {
 					</channel>
 				</rss>`,
 			statusCode:    200,
-			expectedPosts: 1,
-			expectedError: false,
-			expectedTitle: "Malformed Post",
+			expectedPosts: 0,
+			expectedError: true,
 		},
 	}
 
@@ -124,6 +125,42 @@ func TestCheckRSSFeed(t *testing.T) {
 				assert.Equal(t, tt.expectedTitle, posts[0].Title)
 			}
 		})
+	}
+}
+
+func TestCheckRSSFeedRejectsNonHTTPURL(t *testing.T) {
+	for _, feedURL := range []string{"file:///etc/passwd", "ftp://example.com/feed", "not-a-url", ""} {
+		if _, err := CheckRSSFeed(feedURL); err == nil || !strings.Contains(err.Error(), "absolute HTTP(S) URL") {
+			t.Fatalf("CheckRSSFeed(%q) error = %v, want absolute-URL error", feedURL, err)
+		}
+	}
+}
+
+func TestCheckRSSFeedRejectsOversizedResponse(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(strings.Repeat("x", maxFeedBytes+1)))
+	}))
+	defer server.Close()
+
+	if _, err := CheckRSSFeed(server.URL); err == nil || !strings.Contains(err.Error(), "exceeds") {
+		t.Fatalf("CheckRSSFeed() error = %v, want size-limit error", err)
+	}
+}
+
+func TestCheckRSSFeedRejectsTooManyItems(t *testing.T) {
+	feed := RSSFeed{}
+	for i := 0; i <= maxFeedItems; i++ {
+		feed.Channel.Items = append(feed.Channel.Items, RSSItem{
+			Title: "post", Link: "https://example.com/post", Content: "content",
+		})
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = xml.NewEncoder(w).Encode(feed)
+	}))
+	defer server.Close()
+
+	if _, err := CheckRSSFeed(server.URL); err == nil || !strings.Contains(err.Error(), "more than") {
+		t.Fatalf("CheckRSSFeed() error = %v, want item-limit error", err)
 	}
 }
 

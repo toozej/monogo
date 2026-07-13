@@ -125,3 +125,26 @@ func TestFindTerraformFilesForGeneration(t *testing.T) {
 		}
 	}
 }
+
+func TestGenerateReturnsPartialParseFailures(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	if err := afero.WriteFile(fs, "/schema.yaml", []byte(`global: {required_prefixes: []}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := fs.MkdirAll("/infra", 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := afero.WriteFile(fs, "/infra/valid.tf", []byte(`resource "test" "valid" {}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := afero.WriteFile(fs, "/infra/invalid.tf", []byte(`resource "test" "invalid" {`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := Generate(fs, "/infra", "/schema.yaml", "/output.md"); err == nil {
+		t.Fatal("expected mixed valid/invalid directory to return an error")
+	}
+	if exists, _ := afero.Exists(fs, "/output.md"); !exists {
+		t.Fatal("partial documentation output was not retained")
+	}
+}

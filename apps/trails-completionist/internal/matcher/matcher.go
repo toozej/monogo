@@ -1,10 +1,6 @@
 package matcher
 
-import (
-	"fmt"
-
-	"github.com/toozej/monogo/apps/trails-completionist/internal/types"
-)
+import "github.com/toozej/monogo/apps/trails-completionist/internal/types"
 
 // Match completed / GPX Trails with raw input Trails, creating a combined list of Trails
 func MatchTrails(completedTrails []types.Trail, rawTrails []types.Trail) ([]types.Trail, error) {
@@ -12,7 +8,7 @@ func MatchTrails(completedTrails []types.Trail, rawTrails []types.Trail) ([]type
 
 	// If completedTrails is empty, return rawTrails as is
 	if len(completedTrails) == 0 {
-		return rawTrails, fmt.Errorf("no completed trails found, therefore no matches to be made. Returning raw trails")
+		return rawTrails, nil
 	}
 
 	// Iterate over raw trails

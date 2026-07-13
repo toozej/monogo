@@ -40,7 +40,7 @@ FROM gcr.io/distroless/static-debian13:nonroot
 # Copy our executable.
 COPY --from=build /out/podgrab /go/bin/podgrab
 # Expose port for publishing as web service
-# EXPOSE 8081
+EXPOSE 8080
 # Run the binary.
 USER 65532:65532
 ENTRYPOINT ["/go/bin/podgrab"]

@@ -9,10 +9,10 @@ services:
       - no-new-privileges:true
     read_only: true
     environment:
-      - "URL2ANKI_URL=${URL2ANKI_URL:?URL2ANKI_URL is required}"
-      - "URL2ANKI_QUESTION_SELECTOR=${URL2ANKI_QUESTION_SELECTOR:?required}"
-      - "URL2ANKI_ANSWER_SELECTOR=${URL2ANKI_ANSWER_SELECTOR:?required}"
-      - "URL2ANKI_OUTPUT_FILE=/output/anki_cards.csv"
+      URL2ANKI_ANSWER_SELECTOR: "${URL2ANKI_ANSWER_SELECTOR:?required}"
+      URL2ANKI_OUTPUT_FILE: "/output/anki_cards.csv"
+      URL2ANKI_QUESTION_SELECTOR: "${URL2ANKI_QUESTION_SELECTOR:?required}"
+      URL2ANKI_URL: "${URL2ANKI_URL:?URL2ANKI_URL is required}"
     volumes:
       - "${URL2ANKI_OUTPUT_DIR:?URL2ANKI_OUTPUT_DIR is required}:/output"
     labels:

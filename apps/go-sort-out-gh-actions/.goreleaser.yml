@@ -158,7 +158,8 @@ archives:
       - goos: windows
         formats: ['zip']
     files:
-      - README.md
+      - src: apps/go-sort-out-gh-actions/README.md
+        dst: README.md
       - LICENSE
       - completions/go-sort-out-gh-actions.bash
       - completions/go-sort-out-gh-actions.fish

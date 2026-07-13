@@ -105,7 +105,11 @@ func processCheck(rc *checkrunner.RunContext, workflowFiles []*workflow.Workflow
 		return false
 	}
 
-	result, _ := checkrunner.DetectArchived(rc, workflowFiles, allActionRefs)
+	result, err := checkrunner.DetectArchived(rc, workflowFiles, allActionRefs)
+	if err != nil {
+		log.Errorf("Archived-action scan did not complete: %v", err)
+		return true
+	}
 	staleActions := checkrunner.DetectStale(rc, workflowFiles, allActionRefs, result.Archived, staleDays)
 	runtimeEOLActions := checkrunner.DetectRuntimeEOL(rc, workflowFiles, result.Archived, result.NonArchivedRepos)
 	outdatedActions, releases := checkrunner.DetectOutdated(rc, workflowFiles, result.Archived, result.NonArchivedRepos)

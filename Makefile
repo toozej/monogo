@@ -58,7 +58,7 @@ IMAGE_TAG = latest
 COSIGN_IDENTITY_REGEXP := '^https://github.com/toozej/monogo/.github/workflows/(release|weekly-docker-refresh).yaml@refs/(tags/.*|heads/main)$$'
 COSIGN_OIDC_ISSUER := 'https://token.actions.githubusercontent.com'
 
-.PHONY: all list-apps import new-app delete-app migrate-internal-package app-check common-generate app-generate generate generate-all app-templates-check templates-check vet test build release delete-release verify verify-docker verify-docker-all-registries run up down docker-vet docker-test docker-build distroless-build distroless-run install local local-all local-update-deps local-vet local-vendor local-test local-cover local-build local-run local-kill local-iterate release-test local-install docker-login pre-commit-install pre-commit-run pre-commit pre-reqs licenses licenses-all update-golang-version upload-secrets-to-gh upload-secrets-envfile-to-1pass docs diagrams mutation-test test-changed watch-test profile-cpu profile-mem profile-all benchmark demo clean clean-all help
+.PHONY: all list-apps import new-app delete-app migrate-internal-package app-check common-generate app-generate generate generate-all app-templates-check templates-check vet test build release delete-release re-release verify verify-docker verify-docker-all-registries run up down docker-vet docker-test docker-build distroless-build distroless-run install local local-all local-update-deps local-vet local-vendor local-test local-cover local-build local-run local-kill local-iterate release-test local-install docker-login pre-commit-install pre-commit-run pre-commit pre-reqs licenses licenses-all update-golang-version upload-secrets-to-gh upload-secrets-envfile-to-1pass docs diagrams mutation-test test-changed watch-test profile-cpu profile-mem profile-all benchmark demo clean clean-all help
 .PHONY: common-generate-no-prereqs app-generate-no-prereqs app-templates-check-no-generate docker-vet-no-generate docker-test-no-generate docker-build-no-generate release-test-no-generate pre-commit-install-no-prereqs pre-commit-run-no-generate
 
 all: generate-all ## Run default workflow for every app using Docker where available
@@ -125,9 +125,8 @@ test: local-test ## Run go test for APP
 
 build: docker-build ## Build APP Docker image
 
-release: local-test ## Release APP: bump TYPE=<major|minor|patch> from the latest apps/APP/vX.Y.Z tag, push the new tag, and let CI publish
-	@set -euo pipefail; \
-	case "$(TYPE)" in major|minor|patch) ;; *) echo "TYPE must be major, minor, or patch (got '$(TYPE)')."; exit 1 ;; esac; \
+VERSION ?= 
+RELEASE_VERSION = $(if $(VERSION),$(VERSION),$(shell \
 	latest=$$( { git tag --list 'apps/$(APP)/v*'; git ls-remote --tags --refs origin 'apps/$(APP)/v*' 2>/dev/null | sed 's#.*refs/tags/##'; } \
 		| grep -E '^apps/$(APP)/v[0-9]+\.[0-9]+\.[0-9]+$$' | sort -V | tail -n 1 || true); \
 	if [ -n "$$latest" ]; then version_tag="$${latest##*/}"; base="$${version_tag#v}"; else base="0.0.0"; fi; \
@@ -137,12 +136,27 @@ release: local-test ## Release APP: bump TYPE=<major|minor|patch> from the lates
 		minor) minor=$$((minor + 1)); patch=0 ;; \
 		patch) patch=$$((patch + 1)) ;; \
 	esac; \
-	new_version="v$${major}.$${minor}.$${patch}"; \
+	echo "v$${major}.$${minor}.$${patch}"))
+
+release: local-test ## Release APP: VERSION=<vX.Y.Z> or TYPE=<major|minor|patch> (one required). Pushes tag and lets CI publish
+	@set -euo pipefail; \
+	if [ -z "$(VERSION)" ] && [ -z "$(TYPE)" ]; then \
+		echo "Either VERSION or TYPE must be provided."; exit 1; \
+	fi; \
+	if [ -n "$(VERSION)" ]; then \
+		echo "$(VERSION)" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$$' || { echo "VERSION must look like vX.Y.Z (got '$(VERSION)')."; exit 1; }; \
+		new_version="$(VERSION)"; \
+	elif [ -n "$(TYPE)" ]; then \
+		case "$(TYPE)" in major|minor|patch) ;; *) echo "TYPE must be major, minor, or patch (got '$(TYPE)')."; exit 1 ;; esac; \
+		new_version="$(RELEASE_VERSION)"; \
+	else \
+		echo "Either VERSION or TYPE must be provided."; exit 1; \
+	fi; \
 	new_tag="apps/$(APP)/$${new_version}"; \
 	if git rev-parse -q --verify "refs/tags/$$new_tag" >/dev/null 2>&1 || git ls-remote --exit-code --tags origin "refs/tags/$$new_tag" >/dev/null 2>&1; then \
 		echo "$$new_tag already exists locally or on origin; aborting."; exit 1; \
 	fi; \
-	echo "Releasing $(APP) $$new_version ($(TYPE) bump from $${latest:-<none>}) at commit $$(git rev-parse --short HEAD)..."; \
+	echo "Releasing $(APP) $$new_version ($(if $(VERSION),version $(VERSION) provided,$(TYPE) bump from $(shell git tag --list 'apps/$(APP)/v*' 2>/dev/null | grep -E '^apps/$(APP)/v[0-9]+\.[0-9]+\.[0-9]+$$' | sort -V | tail -n 1 || echo '<none>')})) at commit $$(git rev-parse --short HEAD)..."; \
 	git tag -a "$$new_tag" -m "$(APP) $$new_version"; \
 	git push origin "refs/tags/$$new_tag"; \
 	echo "Pushed $$new_tag; the Release workflow will build, sign, and publish $(APP)."
@@ -176,6 +190,9 @@ delete-release: ## Delete a release: its GitHub release plus the apps/APP/VERSIO
 		echo "  no origin tag $$tag (skipping)"; \
 	fi; \
 	echo "Done."
+
+re-release: delete-release release ## Delete and re-release APP at VERSION; usage: make re-release APP=<app-name> VERSION=<vX.Y.Z>
+	@echo "Re-release complete."
 
 verify: app-check ## Verify APP Docker image with Cosign (keyless)
 	cosign verify \
