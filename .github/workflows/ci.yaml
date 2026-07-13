@@ -35,7 +35,8 @@ jobs:
             ~/go/bin
             ~/.cache/pip
             ~/.cache/pre-commit
-          key: ${{ runner.os }}-${{ runner.arch }}-checks-tools-${{ hashFiles('Makefile', '.pre-commit-config.yaml', 'go.mod') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-checks-tools-${{ hashFiles('Makefile',
+            '.pre-commit-config.yaml', 'go.mod') }}
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-checks-tools-
       - name: Install pre-commit
