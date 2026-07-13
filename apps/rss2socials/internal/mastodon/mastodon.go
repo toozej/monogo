@@ -6,6 +6,8 @@ package mastodon
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"time"
 
 	"github.com/mattn/go-mastodon"
 	"github.com/toozej/monogo/apps/rss2socials/internal/config"
@@ -21,24 +23,46 @@ func GetTootContent(post rss.RSSItem) string {
 
 // NewClient creates a new Mastodon API client from the given configuration.
 func NewClient(conf config.Config) *mastodon.Client {
-	return mastodon.NewClient(&mastodon.Config{
+	client := mastodon.NewClient(&mastodon.Config{
 		Server:       conf.MastodonURL,
 		ClientID:     conf.MastodonClientKey,
 		ClientSecret: conf.MastodonClientSecret,
 		AccessToken:  conf.MastodonAccessToken,
 	})
+	client.Timeout = 30 * time.Second
+	return client
 }
 
 // TootPost sends a post to Mastodon using the go-mastodon library.
 func TootPost(conf config.Config, content string) error {
+	return TootPostContext(context.Background(), conf, content, "")
+}
+
+func TootPostContext(ctx context.Context, conf config.Config, content, idempotencyKey string) error {
 	if conf.MastodonURL == "" || conf.MastodonAccessToken == "" {
 		return fmt.Errorf("mastodon URL and access token must be set")
 	}
 
 	client := NewClient(conf)
-	_, err := client.PostStatus(context.Background(), &mastodon.Toot{
+	if idempotencyKey != "" {
+		client.Transport = idempotencyTransport{base: http.DefaultTransport, key: idempotencyKey}
+	}
+	opCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	_, err := client.PostStatus(opCtx, &mastodon.Toot{
 		Status:     content,
 		Visibility: mastodon.VisibilityPublic,
 	})
 	return err
+}
+
+type idempotencyTransport struct {
+	base http.RoundTripper
+	key  string
+}
+
+func (t idempotencyTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	request := req.Clone(req.Context())
+	request.Header.Set("Idempotency-Key", t.key)
+	return t.base.RoundTrip(request)
 }

@@ -18,7 +18,7 @@ jobs:
 
       - name: Check for outdated GitHub Actions (semver update)
         id: check
-        uses: toozej/go-sort-out-gh-actions/check-outdated@main
+        uses: toozej/monogo/apps/go-sort-out-gh-actions/check-outdated@main
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           verbose: true

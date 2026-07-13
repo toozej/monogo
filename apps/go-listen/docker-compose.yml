@@ -7,6 +7,18 @@ services:
     security_opt:
       - no-new-privileges:true
     read_only: true
+    environment:
+      SECURITY_PASSWORD: "${SECURITY_PASSWORD:?set SECURITY_PASSWORD}"
+      SECURITY_USERNAME: "${SECURITY_USERNAME:-go-listen}"
+      SERVER_HOST: "0.0.0.0"
+      SPOTIFY_CLIENT_ID: "${SPOTIFY_CLIENT_ID:?set SPOTIFY_CLIENT_ID}"
+      SPOTIFY_CLIENT_SECRET: "${SPOTIFY_CLIENT_SECRET:?set SPOTIFY_CLIENT_SECRET}"
+      SPOTIFY_REDIRECT_URL: "${SPOTIFY_REDIRECT_URL:-http://localhost:8080/callback}"
+      SPOTIFY_TOKEN_FILE: "/config/spotify-token.json"
+    ports:
+      - "8080:8080"
+    volumes:
+      - "go-listen-config:/config"
     labels:
       - "traefik.enable=false"
       # labels below for publishing as web service
@@ -19,3 +31,5 @@ services:
       # - "traefik.http.routers.go-listen-secure.tls=true"
     # networks:
       # - traefik
+volumes:
+  go-listen-config:

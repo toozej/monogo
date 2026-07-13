@@ -20,8 +20,12 @@
 package cmd
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -36,7 +40,8 @@ import (
 // conf holds the application configuration loaded from environment variables.
 // It is populated during package initialization and can be modified by command-line flags.
 var (
-	conf config.Config
+	conf          config.Config
+	configLoadErr error
 	// debug controls the logging level for the application.
 	// When true, debug-level logging is enabled through logrus.
 	debug bool
@@ -55,7 +60,8 @@ var rootCmd = &cobra.Command{
 	Long:             `Watches a RSS feed for new posts, then announces them on various social media sites`,
 	Args:             cobra.ExactArgs(0),
 	PersistentPreRun: rootCmdPreRun,
-	Run:              rootCmdRun,
+	RunE:             rootCmdRun,
+	SilenceErrors:    true,
 }
 
 // rootCmdRun is the main execution function for the root command.
@@ -64,16 +70,14 @@ var rootCmd = &cobra.Command{
 // Parameters:
 //   - cmd: The cobra command being executed
 //   - args: Command-line arguments (unused, as root command takes no args)
-func rootCmdRun(cmd *cobra.Command, args []string) {
+func rootCmdRun(cmd *cobra.Command, args []string) error {
 	// Validate required configuration only when the main command runs, so that
 	// subcommands like completion, version, and man work without a fully
 	// configured environment.
-	if err := config.ValidateRequired(conf); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
-		os.Exit(1)
+	if configLoadErr != nil {
+		return fmt.Errorf("load configuration: %w", configLoadErr)
 	}
-
-	rss2socials.Run(conf)
+	return rss2socials.RunContext(cmd.Context(), conf)
 }
 
 // rootCmdPreRun performs setup operations before executing the root command.
@@ -94,9 +98,11 @@ func rootCmdPreRun(cmd *cobra.Command, args []string) {
 // Execute starts the command-line interface execution.
 // This is the main entry point called from main.go to begin command processing.
 //
-// If command execution fails, it prints the error message to stdout and
-// exits the program with status code 1. This follows standard Unix conventions
-// for command-line tool error handling.
+// It installs a signal handler so that SIGINT/SIGTERM cancel the run context
+// and allow an in-flight cycle to unwind gracefully. If command execution fails
+// for any reason other than that graceful cancellation, it prints the error
+// message to stderr and exits the program with status code 1. This follows
+// standard Unix conventions for command-line tool error handling.
 //
 // Example:
 //
@@ -104,10 +110,41 @@ func rootCmdPreRun(cmd *cobra.Command, args []string) {
 //		cmd.Execute()
 //	}
 func Execute() {
-	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err.Error())
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	rootCmd.SetContext(ctx)
+	err := rootCmd.Execute()
+	stop()
+	if err != nil && !isCancellationOnly(err) {
+		// context.Canceled is the expected result of a SIGINT/SIGTERM-driven
+		// graceful shutdown, so treat it as a clean (exit 0) termination.
+		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
 	}
+}
+
+// isCancellationOnly distinguishes a normal signal-driven cancellation from
+// a cancellation joined with another failure, such as an error closing the
+// database. The latter must still produce a non-zero exit.
+func isCancellationOnly(err error) bool {
+	if err == nil {
+		return false
+	}
+	if joined, ok := err.(interface{ Unwrap() []error }); ok {
+		children := joined.Unwrap()
+		if len(children) == 0 {
+			return false
+		}
+		for _, child := range children {
+			if !isCancellationOnly(child) {
+				return false
+			}
+		}
+		return true
+	}
+	if wrapped, ok := err.(interface{ Unwrap() error }); ok {
+		return isCancellationOnly(wrapped.Unwrap())
+	}
+	return errors.Is(err, context.Canceled)
 }
 
 // init initializes the command-line interface during package loading.
@@ -123,12 +160,7 @@ func Execute() {
 // configuration values from environment variables.
 func init() {
 	// get configuration from environment variables
-	var err error
-	conf, err = config.GetEnvVars()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error loading configuration: %v\n", err)
-		os.Exit(1)
-	}
+	conf, configLoadErr = config.GetEnvVars()
 
 	// create rootCmd-level flags
 	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "Enable debug-level logging")

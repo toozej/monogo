@@ -1,7 +1,9 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -20,7 +22,29 @@ func TestNewSyncCmd(t *testing.T) {
 	assert.Equal(t, "sync", cmd.Use)
 	assert.Equal(t, "Sync KMHD playlist to music service", cmd.Short)
 	assert.Contains(t, cmd.Long, "fuzzy matching")
-	assert.NotNil(t, cmd.Run)
+	assert.NotNil(t, cmd.RunE)
+}
+
+func TestSyncCommandRejectsNonPositiveContinuousInterval(t *testing.T) {
+	cmd := newSyncCmd()
+	cmd.SetArgs([]string{"--continuous", "--interval=0s"})
+
+	err := cmd.Execute()
+
+	assert.ErrorContains(t, err, "interval must be greater than zero")
+}
+
+func TestRunSyncPropagatesServiceInitializationError(t *testing.T) {
+	original := conf
+	t.Cleanup(func() { conf = original })
+	conf.MusicClient = "spotify"
+	conf.Spotify.ClientID = ""
+	conf.Spotify.ClientSecret = ""
+
+	err := runSync(newSyncCmd(), nil)
+
+	assert.ErrorContains(t, err, "failed to initialize services")
+	assert.ErrorContains(t, err, "spotify client ID and secret are required")
 }
 
 func TestSyncSongsToService(t *testing.T) {
@@ -49,16 +73,22 @@ func TestSyncSongsToService(t *testing.T) {
 	targetPlaylist := types.Playlist{ID: "playlist1", Name: "Test Playlist"}
 	seenSongs := make(map[string]bool) // Add the missing seenSongs parameter
 
-	// Test that syncSongsToService doesn't panic
-	assert.NotPanics(t, func() {
-		syncSongsToService(songs, mockSpotify, fuzzySongSearcher, targetPlaylist, seenSongs)
-	})
+	err := syncSongsToService(songs, mockSpotify, fuzzySongSearcher, targetPlaylist, seenSongs)
+	assert.ErrorContains(t, err, "confidence")
 }
 
 // MockSpotifyServiceForSync implements types.MusicService for testing sync
 type MockSpotifyServiceForSync struct {
-	playlists []types.Playlist
-	tracks    []types.Track
+	playlists        []types.Playlist
+	tracks           []types.Track
+	existing         []bool
+	checkErr         error
+	addErr           error
+	addCalls         int
+	addedPlaylistIDs []string
+	afterAdd         func()
+	playlistErrors   []error
+	playlistCalls    int
 }
 
 func (m *MockSpotifyServiceForSync) SearchArtist(query string) (*types.Artist, error) {
@@ -70,15 +100,33 @@ func (m *MockSpotifyServiceForSync) GetArtistTopTracks(artistID string) ([]types
 }
 
 func (m *MockSpotifyServiceForSync) GetUserPlaylists(folderName string) ([]types.Playlist, error) {
+	if m.playlistCalls < len(m.playlistErrors) {
+		err := m.playlistErrors[m.playlistCalls]
+		m.playlistCalls++
+		if err != nil {
+			return nil, err
+		}
+	}
 	return m.playlists, nil
 }
 
 func (m *MockSpotifyServiceForSync) AddTracksToPlaylist(playlistID string, trackIDs []string) error {
-	return nil
+	m.addCalls++
+	m.addedPlaylistIDs = append(m.addedPlaylistIDs, playlistID)
+	if m.afterAdd != nil {
+		m.afterAdd()
+	}
+	return m.addErr
 }
 
 func (m *MockSpotifyServiceForSync) CheckTracksInPlaylist(playlistID string, trackIDs []string) ([]bool, error) {
-	return []bool{false}, nil // Track not in playlist
+	if m.checkErr != nil {
+		return nil, m.checkErr
+	}
+	if m.existing != nil {
+		return m.existing, nil
+	}
+	return []bool{false}, nil
 }
 
 func (m *MockSpotifyServiceForSync) GetAuthURL() string {
@@ -186,6 +234,17 @@ func TestGetOrCreateMonthlyPlaylist(t *testing.T) {
 	assert.Contains(t, err.Error(), "no playlists found")
 }
 
+func TestGetOrCreateMonthlyPlaylistAtUsesProvidedMonth(t *testing.T) {
+	mockSpotify := &MockSpotifyServiceForSync{
+		playlists: []types.Playlist{{ID: "july", Name: "KMHD-2026-07"}},
+	}
+
+	playlist, err := getOrCreateMonthlyPlaylistAt(mockSpotify, "KMHD", time.Date(2026, time.July, 10, 0, 0, 0, 0, time.UTC))
+
+	assert.NoError(t, err)
+	assert.Equal(t, "july", playlist.ID)
+}
+
 // Integration tests for full sync workflow
 
 func TestRunSingleSyncIntegration(t *testing.T) {
@@ -219,56 +278,114 @@ func TestRunSingleSyncIntegration(t *testing.T) {
 	targetPlaylist := types.Playlist{ID: "playlist1", Name: "Test Playlist"}
 	seenSongs := make(map[string]bool)
 
-	// Test single sync operation
-	assert.NotPanics(t, func() {
-		runSingleSync(mockKMHD, mockSpotify, fuzzySongSearcher, targetPlaylist, seenSongs)
-	})
+	// Only successfully confirmed tracks are remembered; failed matches remain retryable.
+	err := runSingleSync(mockKMHD, mockSpotify, fuzzySongSearcher, targetPlaylist, seenSongs)
 
-	// Verify songs were marked as seen
+	assert.Error(t, err)
 	assert.True(t, seenSongs["Miles Davis - Kind of Blue"])
-	assert.True(t, seenSongs["John Coltrane - Giant Steps"])
+	assert.False(t, seenSongs["John Coltrane - Giant Steps"])
 }
 
 func TestDuplicatePreventionAcrossCycles(t *testing.T) {
-	// Clear global seen songs for clean test
-	originalGlobalSeen := globalSeenSongs
-	globalSeenSongs = make(map[string]time.Time)
-	defer func() { globalSeenSongs = originalGlobalSeen }()
-
 	songs := []types.Song{
 		{Artist: "Miles Davis", Title: "Kind of Blue", Album: "Kind of Blue"},
 		{Artist: "John Coltrane", Title: "Giant Steps", Album: "Giant Steps"},
 		{Artist: "Miles Davis", Title: "Kind of Blue", Album: "Kind of Blue"}, // Duplicate
 	}
 
-	// First cycle
-	cycle1Seen := make(map[string]bool)
-	newSongs1 := filterNewSongs(songs, cycle1Seen)
-
-	// Should get 2 unique songs (duplicate filtered out)
+	seenSongs := make(map[string]bool)
+	newSongs1 := filterNewSongs(songs, seenSongs)
 	assert.Equal(t, 2, len(newSongs1))
-	assert.Equal(t, 2, len(cycle1Seen))
-	assert.Equal(t, 2, len(globalSeenSongs))
+	assert.Empty(t, seenSongs, "filtering must not mark unprocessed songs as complete")
 
-	// Second cycle with same songs
-	cycle2Seen := make(map[string]bool)
-	newSongs2 := filterNewSongs(songs, cycle2Seen)
+	seenSongs["Miles Davis - Kind of Blue"] = true
+	newSongs2 := filterNewSongs(songs, seenSongs)
+	assert.Len(t, newSongs2, 1)
+	assert.Equal(t, "John Coltrane", newSongs2[0].Artist)
+}
 
-	// Should get 0 songs (all already seen globally)
-	assert.Equal(t, 0, len(newSongs2))
-	assert.Equal(t, 0, len(cycle2Seen))
-	assert.Equal(t, 2, len(globalSeenSongs)) // Global count unchanged
+func TestSyncSongsRetriesFailedAddition(t *testing.T) {
+	mockSpotify := &MockSpotifyServiceForSync{
+		tracks: []types.Track{{ID: "track1", Name: "Kind of Blue"}},
+		addErr: fmt.Errorf("temporary add failure"),
+	}
+	searcher := search.NewFuzzySongSearcher(mockSpotify, log.New())
+	songs := []types.Song{{Artist: "Miles Davis", Title: "Kind of Blue"}}
+	seenSongs := make(map[string]bool)
+	playlist := types.Playlist{ID: "playlist1", Name: "KMHD"}
 
-	// Third cycle with new song
-	songs = append(songs, types.Song{Artist: "Bill Evans", Title: "Waltz for Debby"})
-	cycle3Seen := make(map[string]bool)
-	newSongs3 := filterNewSongs(songs, cycle3Seen)
+	err := syncSongsToService(songs, mockSpotify, searcher, playlist, seenSongs)
+	assert.ErrorContains(t, err, "temporary add failure")
+	assert.False(t, seenSongs["Miles Davis - Kind of Blue"])
 
-	// Should get 1 new song
-	assert.Equal(t, 1, len(newSongs3))
-	assert.Equal(t, "Bill Evans", newSongs3[0].Artist)
-	assert.Equal(t, "Waltz for Debby", newSongs3[0].Title)
-	assert.Equal(t, 3, len(globalSeenSongs))
+	mockSpotify.addErr = nil
+	err = syncSongsToService(filterNewSongs(songs, seenSongs), mockSpotify, searcher, playlist, seenSongs)
+	assert.NoError(t, err)
+	assert.True(t, seenSongs["Miles Davis - Kind of Blue"])
+	assert.Equal(t, 2, mockSpotify.addCalls)
+}
+
+func TestSyncSongsFailsClosedWhenDuplicateCheckFails(t *testing.T) {
+	mockSpotify := &MockSpotifyServiceForSync{
+		tracks:   []types.Track{{ID: "track1", Name: "Kind of Blue"}},
+		checkErr: fmt.Errorf("playlist lookup unavailable"),
+	}
+	searcher := search.NewFuzzySongSearcher(mockSpotify, log.New())
+	seenSongs := make(map[string]bool)
+
+	err := syncSongsToService(
+		[]types.Song{{Artist: "Miles Davis", Title: "Kind of Blue"}},
+		mockSpotify,
+		searcher,
+		types.Playlist{ID: "playlist1", Name: "KMHD"},
+		seenSongs,
+	)
+
+	assert.ErrorContains(t, err, "playlist lookup unavailable")
+	assert.Zero(t, mockSpotify.addCalls)
+	assert.Empty(t, seenSongs)
+}
+
+func TestSyncSongsFailsClosedWhenDuplicateCheckResultIsIncomplete(t *testing.T) {
+	mockSpotify := &MockSpotifyServiceForSync{
+		tracks:   []types.Track{{ID: "track1", Name: "Kind of Blue"}},
+		existing: []bool{},
+	}
+	searcher := search.NewFuzzySongSearcher(mockSpotify, log.New())
+	seenSongs := make(map[string]bool)
+
+	err := syncSongsToService(
+		[]types.Song{{Artist: "Miles Davis", Title: "Kind of Blue"}},
+		mockSpotify,
+		searcher,
+		types.Playlist{ID: "playlist1", Name: "KMHD"},
+		seenSongs,
+	)
+
+	assert.ErrorContains(t, err, "duplicate check returned 0 results for 1 tracks")
+	assert.Zero(t, mockSpotify.addCalls)
+	assert.Empty(t, seenSongs)
+}
+
+func TestSyncSongsMarksConfirmedExistingTrack(t *testing.T) {
+	mockSpotify := &MockSpotifyServiceForSync{
+		tracks:   []types.Track{{ID: "track1", Name: "Kind of Blue"}},
+		existing: []bool{true},
+	}
+	searcher := search.NewFuzzySongSearcher(mockSpotify, log.New())
+	seenSongs := make(map[string]bool)
+
+	err := syncSongsToService(
+		[]types.Song{{Artist: "Miles Davis", Title: "Kind of Blue"}},
+		mockSpotify,
+		searcher,
+		types.Playlist{ID: "playlist1", Name: "KMHD"},
+		seenSongs,
+	)
+
+	assert.NoError(t, err)
+	assert.Zero(t, mockSpotify.addCalls)
+	assert.True(t, seenSongs["Miles Davis - Kind of Blue"])
 }
 
 func TestSyncWithAPIUnavailable(t *testing.T) {
@@ -288,12 +405,9 @@ func TestSyncWithAPIUnavailable(t *testing.T) {
 	targetPlaylist := types.Playlist{ID: "playlist1", Name: "Test Playlist"}
 	seenSongs := make(map[string]bool)
 
-	// Should not panic when API is unavailable
-	assert.NotPanics(t, func() {
-		runSingleSync(mockKMHD, mockSpotify, fuzzySongSearcher, targetPlaylist, seenSongs)
-	})
+	err := runSingleSync(mockKMHD, mockSpotify, fuzzySongSearcher, targetPlaylist, seenSongs)
 
-	// No songs should be processed
+	assert.ErrorContains(t, err, "API unavailable")
 	assert.Equal(t, 0, len(seenSongs))
 }
 
@@ -366,6 +480,10 @@ func (m *MockKMHDScraperWithError) GetCurrentlyPlaying() (*types.Song, error) {
 
 // TestAPIToSpotifyEndToEnd tests the complete flow from API to Spotify integration
 func TestAPIToSpotifyEndToEnd(t *testing.T) {
+	if os.Getenv("KMHD_LIVE_INTEGRATION") != "1" {
+		t.Skip("set KMHD_LIVE_INTEGRATION=1 to run the live KMHD integration test")
+	}
+
 	// Create a real API client with test configuration
 	cfg := config.KMHDConfig{
 		APIEndpoint: "https://www.kmhd.org/pf/api/v3/content/fetch/playlist",
@@ -373,10 +491,28 @@ func TestAPIToSpotifyEndToEnd(t *testing.T) {
 	}
 
 	apiClient := api.NewKMHDAPIClient(cfg)
+	collection, err := apiClient.ScrapePlaylist()
+	if err != nil {
+		t.Fatalf("live KMHD API request failed: %v", err)
+	}
+
+	tracks := make([]types.Track, 0, len(collection.Songs))
+	expectedSongs := make(map[string]bool)
+	for i, song := range collection.Songs {
+		if !song.IsValid() {
+			continue
+		}
+		tracks = append(tracks, types.Track{ID: fmt.Sprintf("track-%d", i), Name: song.Title})
+		expectedSongs[songKey(song)] = true
+	}
+	if len(expectedSongs) == 0 {
+		t.Fatal("live KMHD API returned no valid songs")
+	}
 
 	// Create mock Spotify service
 	mockSpotify := &MockSpotifyServiceForSync{
 		playlists: []types.Playlist{{ID: "test-playlist", Name: "KMHD Test"}},
+		tracks:    tracks,
 	}
 
 	logger := log.New()
@@ -386,19 +522,14 @@ func TestAPIToSpotifyEndToEnd(t *testing.T) {
 	targetPlaylist := types.Playlist{ID: "test-playlist", Name: "KMHD Test"}
 	seenSongs := make(map[string]bool)
 
-	// Test the complete sync flow
-	// Note: This test may fail if the API is unavailable, which is expected
-	assert.NotPanics(t, func() {
-		runSingleSync(apiClient, mockSpotify, fuzzySongSearcher, targetPlaylist, seenSongs)
-	})
-
-	// If the API was available and returned data, verify the integration worked
-	if len(seenSongs) > 0 {
-		t.Logf("Successfully processed %d songs from real API", len(seenSongs))
-
-		// Integration worked successfully
-	} else {
-		t.Log("API was unavailable or returned no songs - this is acceptable for testing")
+	// Use the fetched response as a stable scraper input so the music-service
+	// fixtures correspond exactly to the songs exercised by the sync.
+	liveSnapshot := &MockKMHDScraper{songs: collection.Songs}
+	if err := runSingleSync(liveSnapshot, mockSpotify, fuzzySongSearcher, targetPlaylist, seenSongs); err != nil {
+		t.Fatalf("sync live KMHD snapshot: %v", err)
+	}
+	if len(seenSongs) != len(expectedSongs) {
+		t.Fatalf("confirmed %d live songs, want %d", len(seenSongs), len(expectedSongs))
 	}
 }
 
@@ -429,27 +560,149 @@ func TestHourlySyncTimingAndRandomization(t *testing.T) {
 	assert.False(t, allSame, "Randomization should produce different durations")
 }
 
+// TestRunContinuousSyncStopsOnContextCancellation verifies the continuous loop
+// runs its initial sync and then returns cleanly once the context is cancelled,
+// rather than spinning or blocking on the scheduling timer.
+func TestRunContinuousSyncStopsOnContextCancellation(t *testing.T) {
+	mockKMHD := &MockKMHDScraper{
+		songs: []types.Song{{Artist: "Miles Davis", Title: "Kind of Blue"}},
+	}
+	mockSpotify := &MockSpotifyServiceForSync{
+		playlists: []types.Playlist{{ID: "playlist1", Name: "KMHD"}},
+		tracks:    []types.Track{{ID: "track1", Name: "Kind of Blue"}},
+	}
+	logger := log.New()
+	logger.SetLevel(log.ErrorLevel)
+	searcher := search.NewFuzzySongSearcher(mockSpotify, logger)
+	targetPlaylist := types.Playlist{ID: "playlist1", Name: "KMHD"}
+
+	// Cancel before starting so the loop exits at the first scheduling wait,
+	// even with a long base interval that would otherwise block for an hour.
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	done := make(chan error, 1)
+	go func() {
+		done <- runContinuousSync(ctx, mockKMHD, mockSpotify, searcher, targetPlaylist, "KMHD", time.Now(), time.Hour)
+	}()
+
+	select {
+	case err := <-done:
+		assert.NoError(t, err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("runContinuousSync did not return after context cancellation")
+	}
+
+	// Exactly one sync (the initial run) should have executed; the loop must not
+	// have started an additional cycle after cancellation.
+	assert.Equal(t, 1, mockSpotify.addCalls)
+}
+
+func TestRunContinuousSyncRotatesPlaylistUsingCycleMonth(t *testing.T) {
+	initialTime := time.Date(2026, time.July, 31, 23, 59, 0, 0, time.UTC)
+	augustTime := time.Date(2026, time.August, 1, 0, 1, 0, 0, time.UTC)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	mockKMHD := &MockKMHDScraper{
+		songs: []types.Song{{Artist: "Miles Davis", Title: "Kind of Blue"}},
+	}
+	mockSpotify := &MockSpotifyServiceForSync{
+		playlists: []types.Playlist{
+			{ID: "july", Name: "KMHD-2026-07"},
+			{ID: "august", Name: "KMHD-2026-08"},
+		},
+		tracks:         []types.Track{{ID: "track1", Name: "Kind of Blue"}},
+		playlistErrors: []error{fmt.Errorf("temporary playlist lookup failure"), nil},
+	}
+	mockSpotify.afterAdd = func() {
+		if mockSpotify.addCalls == 2 {
+			cancel()
+		}
+	}
+	searcher := search.NewFuzzySongSearcher(mockSpotify, log.New())
+	nowCalls := 0
+	now := func() time.Time {
+		nowCalls++
+		if nowCalls == 1 {
+			return initialTime
+		}
+		return augustTime
+	}
+
+	err := runContinuousSyncWithSchedule(
+		ctx,
+		mockKMHD,
+		mockSpotify,
+		searcher,
+		types.Playlist{ID: "july", Name: "KMHD-2026-07"},
+		"KMHD",
+		initialTime,
+		time.Hour,
+		now,
+		func(time.Duration) time.Duration { return 0 },
+	)
+
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"july", "august"}, mockSpotify.addedPlaylistIDs)
+	assert.Equal(t, 2, mockSpotify.playlistCalls)
+}
+
+func TestRunContinuousSyncAvoidsStalePlaylistAtInitialMonthBoundary(t *testing.T) {
+	initialTime := time.Date(2026, time.July, 31, 23, 59, 59, 0, time.UTC)
+	augustTime := time.Date(2026, time.August, 1, 0, 0, 1, 0, time.UTC)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	mockKMHD := &MockKMHDScraper{
+		songs: []types.Song{{Artist: "Miles Davis", Title: "Kind of Blue"}},
+	}
+	mockSpotify := &MockSpotifyServiceForSync{
+		playlists: []types.Playlist{
+			{ID: "july", Name: "KMHD-2026-07"},
+			{ID: "august", Name: "KMHD-2026-08"},
+		},
+		tracks:         []types.Track{{ID: "track1", Name: "Kind of Blue"}},
+		playlistErrors: []error{fmt.Errorf("temporary initial playlist lookup failure"), nil},
+	}
+	mockSpotify.afterAdd = cancel
+	searcher := search.NewFuzzySongSearcher(mockSpotify, log.New())
+
+	err := runContinuousSyncWithSchedule(
+		ctx,
+		mockKMHD,
+		mockSpotify,
+		searcher,
+		types.Playlist{ID: "july", Name: "KMHD-2026-07"},
+		"KMHD",
+		initialTime,
+		time.Hour,
+		func() time.Time { return augustTime },
+		func(time.Duration) time.Duration { return 0 },
+	)
+
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"august"}, mockSpotify.addedPlaylistIDs)
+	assert.Equal(t, 2, mockSpotify.playlistCalls)
+}
+
 // TestAPIErrorHandling tests system behavior during API outages
 func TestAPIErrorHandling(t *testing.T) {
 	tests := []struct {
-		name        string
-		mockError   error
-		expectPanic bool
+		name      string
+		mockError error
 	}{
 		{
-			name:        "network timeout",
-			mockError:   fmt.Errorf("context deadline exceeded"),
-			expectPanic: false,
+			name:      "network timeout",
+			mockError: fmt.Errorf("context deadline exceeded"),
 		},
 		{
-			name:        "API server error",
-			mockError:   fmt.Errorf("API returned status 500: Internal Server Error"),
-			expectPanic: false,
+			name:      "API server error",
+			mockError: fmt.Errorf("API returned status 500: Internal Server Error"),
 		},
 		{
-			name:        "JSON parsing error",
-			mockError:   fmt.Errorf("failed to decode JSON response: invalid character"),
-			expectPanic: false,
+			name:      "JSON parsing error",
+			mockError: fmt.Errorf("failed to decode JSON response: invalid character"),
 		},
 	}
 
@@ -470,18 +723,11 @@ func TestAPIErrorHandling(t *testing.T) {
 			targetPlaylist := types.Playlist{ID: "test", Name: "Test"}
 			seenSongs := make(map[string]bool)
 
-			if tt.expectPanic {
-				assert.Panics(t, func() {
-					runSingleSync(mockKMHD, mockSpotify, fuzzySongSearcher, targetPlaylist, seenSongs)
-				})
-			} else {
-				assert.NotPanics(t, func() {
-					runSingleSync(mockKMHD, mockSpotify, fuzzySongSearcher, targetPlaylist, seenSongs)
-				})
+			err := runSingleSync(mockKMHD, mockSpotify, fuzzySongSearcher, targetPlaylist, seenSongs)
+			assert.ErrorContains(t, err, tt.mockError.Error())
 
-				// Should not process any songs when API fails
-				assert.Equal(t, 0, len(seenSongs))
-			}
+			// Should not process any songs when API fails
+			assert.Empty(t, seenSongs)
 		})
 	}
 }

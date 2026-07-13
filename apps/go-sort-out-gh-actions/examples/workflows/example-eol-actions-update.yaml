@@ -18,7 +18,7 @@ jobs:
 
       - name: Check for EOL GitHub Actions and update
         id: check
-        uses: toozej/go-sort-out-gh-actions/eol@main
+        uses: toozej/monogo/apps/go-sort-out-gh-actions/eol@main
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           verbose: true

@@ -1,11 +1,16 @@
 package miniflux
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"net/url"
+	"strconv"
 	"strings"
+	"time"
 
 	"golang.org/x/time/rate"
 
@@ -23,20 +28,40 @@ type Category struct {
 	Title string `json:"title"`
 }
 
-var limiter = rate.NewLimiter(1, 5) // Allow 1 request per second with a burst size of 1
+var limiter = rate.NewLimiter(1, 5) // Allow 1 request per second with a burst size of 5.
+var httpClient = &http.Client{
+	Timeout: 30 * time.Second,
+	CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+		return http.ErrUseLastResponse
+	},
+}
+
+const maxResponseBytes = 10 << 20
+
+func endpoint(apiEndpoint string, segments ...string) (string, error) {
+	base, err := url.ParseRequestURI(apiEndpoint)
+	if err != nil || (base.Scheme != "http" && base.Scheme != "https") || base.Host == "" {
+		return "", fmt.Errorf("invalid miniflux API endpoint")
+	}
+	parts := append([]string{strings.TrimRight(apiEndpoint, "/")}, segments...)
+	return url.JoinPath(parts[0], parts[1:]...)
+}
 
 // GetCategoryID retrieves the category ID for a given category name from Miniflux.
 // Returns the category ID if found, or an error if the category is not found.
 func GetCategoryID(apiEndpoint, apiKey, category string) (int, error) {
-	req, err := http.NewRequest("GET", fmt.Sprintf(`%s/v1/categories`, apiEndpoint), nil)
+	requestURL, err := endpoint(apiEndpoint, "v1", "categories")
+	if err != nil {
+		return 0, err
+	}
+	req, err := http.NewRequest(http.MethodGet, requestURL, nil)
 	if err != nil {
 		return 0, err
 	}
 	req.Header.Set("X-Auth-Token", apiKey)
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{}
-	resp, err := client.Do(req) // #nosec G704 -- apiEndpoint is from config, not user input
+	resp, err := httpClient.Do(req) // #nosec G704 -- validated configured endpoint
 	if err != nil {
 		return 0, err
 	}
@@ -49,7 +74,7 @@ func GetCategoryID(apiEndpoint, apiKey, category string) (int, error) {
 
 	// Parse the JSON response
 	var categories []Category
-	if err := json.NewDecoder(resp.Body).Decode(&categories); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, maxResponseBytes)).Decode(&categories); err != nil {
 		return 0, err
 	}
 
@@ -74,21 +99,28 @@ func SubscribeToFeed(apiEndpoint string, apiKey string, categoryId int, rssFeed 
 		return err
 	}
 
-	req, err := http.NewRequest("POST", fmt.Sprintf(`%s/v1/feeds`, apiEndpoint), strings.NewReader(fmt.Sprintf(`{"feed_url": "%s", "category_id": %d}`, rssFeed, categoryId)))
+	requestURL, err := endpoint(apiEndpoint, "v1", "feeds")
+	if err != nil {
+		return err
+	}
+	body, err := json.Marshal(map[string]any{"feed_url": rssFeed, "category_id": categoryId})
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequest(http.MethodPost, requestURL, bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
 	req.Header.Set("X-Auth-Token", apiKey)
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{}
-	resp, err := client.Do(req) // #nosec G704 -- apiEndpoint and rssFeed are from config, not user input
+	resp, err := httpClient.Do(req) // #nosec G704 -- validated configured endpoint
 	if err != nil {
 		return err
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode >= 400 {
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
 		log.Debugf("Got response %s with response code %d\n", resp.Status, resp.StatusCode)
 		return fmt.Errorf("failed to subscribe, status code: %d", resp.StatusCode)
 	}
@@ -99,10 +131,13 @@ func SubscribeToFeed(apiEndpoint string, apiKey string, categoryId int, rssFeed 
 
 func GetCategoryFeeds(apiEndpoint string, apiKey string, categoryId int) ([]int, error) {
 	// Construct the URL for the request
-	url := fmt.Sprintf("%s/v1/categories/%d/feeds", apiEndpoint, categoryId)
+	requestURL, err := endpoint(apiEndpoint, "v1", "categories", strconv.Itoa(categoryId), "feeds")
+	if err != nil {
+		return nil, err
+	}
 
 	// Create a new GET request
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest(http.MethodGet, requestURL, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -110,8 +145,7 @@ func GetCategoryFeeds(apiEndpoint string, apiKey string, categoryId int) ([]int,
 	req.Header.Set("Content-Type", "application/json")
 
 	// Make the request using an HTTP client
-	client := &http.Client{}
-	resp, err := client.Do(req) // #nosec G704 -- apiEndpoint is from config, not user input
+	resp, err := httpClient.Do(req) // #nosec G704 -- validated configured endpoint
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +159,7 @@ func GetCategoryFeeds(apiEndpoint string, apiKey string, categoryId int) ([]int,
 
 	// Parse the response body
 	var feeds []Feed
-	if err := json.NewDecoder(resp.Body).Decode(&feeds); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, maxResponseBytes)).Decode(&feeds); err != nil {
 		return nil, err
 	}
 
@@ -147,10 +181,13 @@ func DeleteFeed(apiEndpoint string, apiKey string, feedId int) error {
 	}
 
 	// Construct the URL for the DELETE request
-	url := fmt.Sprintf("%s/v1/feeds/%d", apiEndpoint, feedId)
+	requestURL, err := endpoint(apiEndpoint, "v1", "feeds", strconv.Itoa(feedId))
+	if err != nil {
+		return err
+	}
 
 	// Create a new DELETE request
-	req, err := http.NewRequest("DELETE", url, nil)
+	req, err := http.NewRequest(http.MethodDelete, requestURL, nil)
 	if err != nil {
 		return err
 	}
@@ -158,22 +195,18 @@ func DeleteFeed(apiEndpoint string, apiKey string, feedId int) error {
 	req.Header.Set("Content-Type", "application/json")
 
 	// Make the request using an HTTP client
-	client := &http.Client{}
-	resp, err := client.Do(req) // #nosec G704 -- apiEndpoint is from config, not user input
+	resp, err := httpClient.Do(req) // #nosec G704 -- validated configured endpoint
 	if err != nil {
 		return err
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	// Check the response status
-	if resp.StatusCode == http.StatusNoContent {
+	if resp.StatusCode >= http.StatusOK && resp.StatusCode < http.StatusMultipleChoices {
 		// HTTP 204 No Content means successful deletion
 		log.Infof("Successfully deleted feed with ID %d", feedId)
 		return nil
-	} else if resp.StatusCode >= 400 {
-		log.Debugf("Got response %s with response code %d when deleting feed ID %d", resp.Status, resp.StatusCode, feedId)
-		return fmt.Errorf("failed to delete feed, status code: %d", resp.StatusCode)
 	}
-
-	return nil
+	log.Debugf("Got response %s with response code %d when deleting feed ID %d", resp.Status, resp.StatusCode, feedId)
+	return fmt.Errorf("failed to delete feed, status code: %d", resp.StatusCode)
 }

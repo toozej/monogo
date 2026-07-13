@@ -34,12 +34,12 @@ This tool scans your GitHub Actions workflows (`.github/workflows/**/*.yml` and 
 
 ### From GitHub Releases
 
-Download the latest release from [GitHub Releases](https://github.com/toozej/monogo/apps/go-sort-out-gh-actions/releases).
+Download the latest `go-sort-out-gh-actions` release from [the monogo releases page](https://github.com/toozej/monogo/releases).
 
 ### Using Go
 
 ```bash
-go install github.com/toozej/monogo/apps/go-sort-out-gh-actions@latest
+go install github.com/toozej/monogo/apps/go-sort-out-gh-actions@main
 ```
 
 ### Docker
@@ -177,15 +177,15 @@ See [the Configuration Reference](CONFIG.md) for full configuration options
 
 ### GitHub Actions
 
-This repository provides multiple composite actions (similar to [actions/cache](https://github.com/actions/cache)):
+This repository provides multiple container actions. The examples below track `main`. Tagged refs such as `@apps/go-sort-out-gh-actions/vX.Y.Z` pin the action metadata, while the metadata currently runs the latest published container image.
 
 | Action | Description | Example Workflow |
 |--------|-------------|------------------|
-| `toozej/go-sort-out-gh-actions@main` | Check for archived actions (default/root action) | [`example-archived-actions.yaml`](examples/workflows/example-archived-actions.yaml) |
-| `toozej/go-sort-out-gh-actions/check-archived@main` | Check for archived actions with notifications and issue creation | [`example-archived-actions-check.yaml`](examples/workflows/example-archived-actions-check.yaml), [`example-archived-actions-custom-stale.yaml`](examples/workflows/example-archived-actions-custom-stale.yaml) |
-| `toozej/go-sort-out-gh-actions/check-outdated@main` | Check for outdated action versions with optional auto-update | [`example-outdated-actions-check.yaml`](examples/workflows/example-outdated-actions-check.yaml), [`example-auto-update-actions.yaml`](examples/workflows/example-auto-update-actions.yaml), [`example-outdated-actions-semver.yaml`](examples/workflows/example-outdated-actions-semver.yaml) |
-| `toozej/go-sort-out-gh-actions/eol@main` | Check for EOL/stale/deprecated actions | [`example-eol-actions-check.yaml`](examples/workflows/example-eol-actions-check.yaml), [`example-eol-actions-update.yaml`](examples/workflows/example-eol-actions-update.yaml), [`example-eol-actions-custom-stale.yaml`](examples/workflows/example-eol-actions-custom-stale.yaml) |
-| `toozej/go-sort-out-gh-actions/check@main` | Run all checks (archived + EOL + outdated) | [`example-check-all-actions.yaml`](examples/workflows/example-check-all-actions.yaml), [`example-check-all-with-write.yaml`](examples/workflows/example-check-all-with-write.yaml) |
+| `toozej/monogo/apps/go-sort-out-gh-actions@main` | Check for archived actions (default/root action) | [`example-archived-actions.yaml`](examples/workflows/example-archived-actions.yaml) |
+| `toozej/monogo/apps/go-sort-out-gh-actions/check-archived@main` | Check for archived actions with notifications and issue creation | [`example-archived-actions-check.yaml`](examples/workflows/example-archived-actions-check.yaml), [`example-archived-actions-custom-stale.yaml`](examples/workflows/example-archived-actions-custom-stale.yaml) |
+| `toozej/monogo/apps/go-sort-out-gh-actions/check-outdated@main` | Check for outdated action versions with optional auto-update | [`example-outdated-actions-check.yaml`](examples/workflows/example-outdated-actions-check.yaml), [`example-auto-update-actions.yaml`](examples/workflows/example-auto-update-actions.yaml), [`example-outdated-actions-semver.yaml`](examples/workflows/example-outdated-actions-semver.yaml) |
+| `toozej/monogo/apps/go-sort-out-gh-actions/eol@main` | Check for EOL/stale/deprecated actions | [`example-eol-actions-check.yaml`](examples/workflows/example-eol-actions-check.yaml), [`example-eol-actions-update.yaml`](examples/workflows/example-eol-actions-update.yaml), [`example-eol-actions-custom-stale.yaml`](examples/workflows/example-eol-actions-custom-stale.yaml) |
+| `toozej/monogo/apps/go-sort-out-gh-actions/check@main` | Run all checks (archived + EOL + outdated) | [`example-check-all-actions.yaml`](examples/workflows/example-check-all-actions.yaml), [`example-check-all-with-write.yaml`](examples/workflows/example-check-all-with-write.yaml) |
 
 
 ### Pre-commit Hook
@@ -205,7 +205,7 @@ Add to your `.pre-commit-config.yaml`:
 
 ```yaml
 repos:
-- repo: https://github.com/toozej/monogo/apps/go-sort-out-gh-actions
+- repo: https://github.com/toozej/monogo
   rev: main
   hooks:
   # Check for archived GitHub Actions
@@ -229,7 +229,7 @@ Or using the Docker-based hooks (no Go toolchain required):
 
 ```yaml
 repos:
-- repo: https://github.com/toozej/monogo/apps/go-sort-out-gh-actions
+- repo: https://github.com/toozej/monogo
   rev: main
   hooks:
   # Check for archived GitHub Actions (Docker)

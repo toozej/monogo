@@ -123,6 +123,27 @@ func TestLoggingMiddleware_LogRequests(t *testing.T) {
 	}
 }
 
+func TestLoggingMiddleware_DoesNotLogQueryValues(t *testing.T) {
+	var buf bytes.Buffer
+	logger := logging.NewLogger(logging.Config{Level: "debug", Format: "json", Output: "stdout"})
+	logger.SetOutput(&buf)
+	middleware := NewLoggingMiddleware(logger)
+	handler := middleware.LogRequests(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/callback?code=oauth-secret&state=csrf-secret", http.NoBody)
+	handler.ServeHTTP(httptest.NewRecorder(), req)
+
+	output := buf.String()
+	if strings.Contains(output, "oauth-secret") || strings.Contains(output, "csrf-secret") {
+		t.Fatalf("request log exposed OAuth query values: %s", output)
+	}
+	if !strings.Contains(output, `"query_count":2`) {
+		t.Fatalf("request log should retain only the query count: %s", output)
+	}
+}
+
 func TestLoggingMiddleware_LogRequests_WithError(t *testing.T) {
 	var buf bytes.Buffer
 	logger := logging.NewLogger(logging.Config{

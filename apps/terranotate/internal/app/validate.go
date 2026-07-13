@@ -1,8 +1,8 @@
 package app
 
 import (
+	"errors"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -193,13 +193,17 @@ func validateDirectory(fs afero.Fs, dir, schemaFile string) error {
 	p := parser.NewCommentParser(fs, prefixes)
 
 	var allResources []parser.TerraformResource
+	var parseErrors []error
 	for _, file := range tfFiles {
 		resources, err := p.ParseFile(file)
 		if err != nil {
-			log.Printf("Warning: Failed to parse %s: %v", file, err)
+			parseErrors = append(parseErrors, fmt.Errorf("%s: %w", file, err))
 			continue
 		}
 		allResources = append(allResources, resources...)
+	}
+	if err := errors.Join(parseErrors...); err != nil {
+		return fmt.Errorf("failed to parse Terraform files: %w", err)
 	}
 
 	fmt.Printf("Parsed %d total resources\n", len(allResources))
@@ -254,7 +258,10 @@ func ValidateModule(fs afero.Fs, moduleDir, schemaFile string) error {
 	fmt.Println()
 
 	// Validate all files
-	result := validateTerraformFiles(fs, tfFiles, schemaFile)
+	result, err := validateTerraformFiles(fs, tfFiles, schemaFile)
+	if err != nil {
+		return err
+	}
 
 	printModuleValidationResults(result, moduleDir)
 
@@ -296,7 +303,10 @@ func ValidateWorkspace(fs afero.Fs, workspaceDir, schemaFile string) error {
 	fmt.Println()
 
 	// Validate all files
-	result := validateTerraformFiles(fs, tfFiles, schemaFile)
+	result, err := validateTerraformFiles(fs, tfFiles, schemaFile)
+	if err != nil {
+		return err
+	}
 
 	printWorkspaceValidationResults(result, workspaceDir, filesByDir)
 
@@ -414,21 +424,22 @@ func groupFilesByDirectory(files []string, baseDir string) map[string][]string {
 	return result
 }
 
-func validateTerraformFiles(fs afero.Fs, files []string, schemaFile string) validator.ValidationResult {
+func validateTerraformFiles(fs afero.Fs, files []string, schemaFile string) (validator.ValidationResult, error) {
 	aggregatedResult := validator.ValidationResult{Passed: true}
 
 	v, err := validator.NewSchemaValidator(fs, schemaFile)
 	if err != nil {
-		log.Fatalf("Failed to load schema: %v", err)
+		return aggregatedResult, fmt.Errorf("failed to load schema: %w", err)
 	}
 
 	prefixes := []string{"@metadata", "@docs", "@validation", "@config"}
 	p := parser.NewCommentParser(fs, prefixes)
 
+	var parseErrors []error
 	for _, file := range files {
 		resources, err := p.ParseFile(file)
 		if err != nil {
-			log.Printf("Warning: Failed to parse %s: %v", file, err)
+			parseErrors = append(parseErrors, fmt.Errorf("%s: %w", file, err))
 			continue
 		}
 
@@ -451,7 +462,11 @@ func validateTerraformFiles(fs afero.Fs, files []string, schemaFile string) vali
 		}
 	}
 
-	return aggregatedResult
+	if err := errors.Join(parseErrors...); err != nil {
+		aggregatedResult.Passed = false
+		return aggregatedResult, fmt.Errorf("failed to parse Terraform files: %w", err)
+	}
+	return aggregatedResult, nil
 }
 
 func printModuleValidationResults(result validator.ValidationResult, moduleDir string) {

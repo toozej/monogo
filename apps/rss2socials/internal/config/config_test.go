@@ -93,6 +93,7 @@ func TestGetEnvVars(t *testing.T) {
 				"MASTODON_ACCESS_TOKEN":  "token123",
 				"GOTIFY_URL":             "https://gotify.example.com",
 				"GOTIFY_TOKEN":           "gotifytoken456",
+				"FEED_URL":               "https://override.com/rss",
 				"BLUESKY_HANDLE":         "override.bsky.social",
 				"BLUESKY_APPKEY":         "overrideappkey",
 				"THREADS_CLIENT_ID":      "overridethreadsclientid",
@@ -109,7 +110,7 @@ func TestGetEnvVars(t *testing.T) {
 			expectedGotifyURL:            "https://gotify.example.com",
 			expectedGotifyToken:          "gotifytoken456",
 			expectedDebug:                false,
-			expectedFeedURL:              "",
+			expectedFeedURL:              "https://override.com/rss",
 			expectedInterval:             60,
 			expectedBlueskyHandle:        "override.bsky.social",
 			expectedBlueskyAppKey:        "overrideappkey",
@@ -127,6 +128,7 @@ func TestGetEnvVars(t *testing.T) {
 				"MASTODON_ACCESS_TOKEN":  "token123",
 				"GOTIFY_URL":             "https://gotify.example.com",
 				"GOTIFY_TOKEN":           "gotifytoken456",
+				"FEED_URL":               "https://example.com/rss",
 			},
 			expectError:                  false,
 			expectedMastodonURL:          "https://mastodon.example.com",
@@ -136,7 +138,7 @@ func TestGetEnvVars(t *testing.T) {
 			expectedGotifyURL:            "https://gotify.example.com",
 			expectedGotifyToken:          "gotifytoken456",
 			expectedDebug:                false,
-			expectedFeedURL:              "",
+			expectedFeedURL:              "https://example.com/rss",
 			expectedInterval:             60,
 			expectedBlueskyHandle:        "",
 			expectedBlueskyAppKey:        "",
@@ -171,7 +173,7 @@ func TestGetEnvVars(t *testing.T) {
 				}
 			}()
 
-			clearEnvVars := []string{"MASTODON_URL", "MASTODON_CLIENT_KEY", "MASTODON_CLIENT_SECRET", "MASTODON_ACCESS_TOKEN", "GOTIFY_URL", "GOTIFY_TOKEN", "DEBUG", "FEED_URL", "INTERVAL", "BLUESKY_HANDLE", "BLUESKY_APPKEY", "THREADS_CLIENT_ID", "THREADS_CLIENT_SECRET", "THREADS_REDIRECT_URI", "THREADS_ACCESS_TOKEN", "THREADS_USER_ID", "POST_NEW_ENTRIES_ONLY", "SHORT_RUN", "DB_PATH"}
+			clearEnvVars := []string{"MASTODON_URL", "MASTODON_CLIENT_KEY", "MASTODON_CLIENT_SECRET", "MASTODON_ACCESS_TOKEN", "GOTIFY_URL", "GOTIFY_TOKEN", "DEBUG", "FEED_URL", "INTERVAL", "BLUESKY_HANDLE", "BLUESKY_APPKEY", "THREADS_CLIENT_ID", "THREADS_CLIENT_SECRET", "THREADS_REDIRECT_URI", "THREADS_ACCESS_TOKEN", "THREADS_USER_ID", "SOCIAL_SITES", "POST_NEW_ENTRIES_ONLY", "SHORT_RUN", "DB_PATH"}
 			for _, key := range clearEnvVars {
 				_ = os.Unsetenv(key)
 			}

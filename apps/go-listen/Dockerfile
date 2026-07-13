@@ -34,11 +34,14 @@ ARG BUILDER=unknown
 
 RUN LDFLAGS="-s -w -X github.com/toozej/monogo/pkg/version.Version=${VERSION} -X github.com/toozej/monogo/pkg/version.Commit=${COMMIT} -X github.com/toozej/monogo/pkg/version.Branch=${BRANCH} -X github.com/toozej/monogo/pkg/version.BuiltAt=${BUILT_AT} -X github.com/toozej/monogo/pkg/version.Builder=${BUILDER}" && \
     CGO_ENABLED=0 go build -o /out/go-listen -ldflags="${LDFLAGS}" ./apps/go-listen
+RUN mkdir -p /container-root/config && \
+    chown -R 65532:65532 /container-root
 
 # runtime image
 FROM gcr.io/distroless/static-debian13:nonroot
 # Copy our executable.
 COPY --from=build /out/go-listen /go/bin/go-listen
+COPY --from=build --chown=65532:65532 /container-root/config /config
 # Expose port for publishing as web service
 EXPOSE 8080
 # Run the binary.

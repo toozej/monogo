@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -149,6 +150,69 @@ func TestFromSource_URLFetchError(t *testing.T) {
 	_, err := FromSource(context.Background(), Source{URL: "http://localhost:1/unreachable"}, 1*time.Second)
 	if err == nil {
 		t.Error("expected error for unreachable URL")
+	}
+}
+
+func TestFromSourceRejectsAmbiguousSource(t *testing.T) {
+	_, err := FromSource(context.Background(), Source{URL: "https://example.com", FilePath: "article.html"}, time.Second)
+	if err == nil {
+		t.Fatal("expected both URL and file path to be rejected")
+	}
+}
+
+func TestFromSourceRejectsHTTPErrorPage(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte("<html><title>Not found</title></html>"))
+	}))
+	defer srv.Close()
+
+	_, err := FromSource(context.Background(), Source{URL: srv.URL}, time.Second)
+	if err == nil || !strings.Contains(err.Error(), "404") {
+		t.Fatalf("expected HTTP status error, got %v", err)
+	}
+}
+
+func TestFromSourceRejectsNonHTMLSuccess(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"message":"not an article"}`))
+	}))
+	defer srv.Close()
+
+	_, err := FromSource(context.Background(), Source{URL: srv.URL}, time.Second)
+	if err == nil || !strings.Contains(err.Error(), "not HTML") {
+		t.Fatalf("expected non-HTML response error, got %v", err)
+	}
+}
+
+func TestFromSourceEnforcesFetchTimeout(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-r.Context().Done()
+	}))
+	defer srv.Close()
+
+	_, err := FromSource(context.Background(), Source{URL: srv.URL}, 20*time.Millisecond)
+	if err == nil {
+		t.Fatal("expected request timeout")
+	}
+}
+
+func TestFromSourceHonorsCancelledContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := FromSource(ctx, Source{URL: "https://example.com"}, time.Second)
+	if err == nil {
+		t.Fatal("expected cancelled request to fail")
+	}
+}
+
+func TestReadLimitedRejectsOversizedArticle(t *testing.T) {
+	_, err := readLimited(strings.NewReader(strings.Repeat("x", maxArticleBytes+1)))
+	if err == nil {
+		t.Fatal("expected oversized article to be rejected")
 	}
 }
 

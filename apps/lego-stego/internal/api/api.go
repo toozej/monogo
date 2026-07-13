@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"image"
 	"image/png"
+	"io"
 	"os"
 
+	"github.com/toozej/monogo/apps/lego-stego/internal/atomicfile"
 	"github.com/toozej/monogo/apps/lego-stego/internal/steg"
 )
 
@@ -41,14 +43,7 @@ func ExtractQR(in, out string, password string) (string, error) {
 			return "", err
 		}
 
-		// #nosec G304 -- path provided by caller
-		outFile, err := os.Create(out)
-		if err != nil {
-			return "", err
-		}
-		defer func() { _ = outFile.Close() }()
-
-		if err := png.Encode(outFile, qrImg); err != nil {
+		if err := writePNGAtomic(out, qrImg); err != nil {
 			return "", err
 		}
 	}
@@ -62,11 +57,14 @@ func EmbedFile(in, out string, data []byte, password string) error {
 	if err != nil {
 		return err
 	}
-	defer func() { _ = f.Close() }()
 
-	img, _, err := image.Decode(f)
-	if err != nil {
-		return err
+	img, _, decodeErr := image.Decode(f)
+	closeErr := f.Close()
+	if decodeErr != nil {
+		return decodeErr
+	}
+	if closeErr != nil {
+		return closeErr
 	}
 
 	stego, err := steg.Embed(img, data, password)
@@ -74,14 +72,13 @@ func EmbedFile(in, out string, data []byte, password string) error {
 		return err
 	}
 
-	// #nosec G304 -- path provided by caller
-	outF, err := os.Create(out)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = outF.Close() }()
+	return writePNGAtomic(out, stego)
+}
 
-	return png.Encode(outF, stego)
+func writePNGAtomic(path string, img image.Image) error {
+	return atomicfile.Write(path, 0600, func(w io.Writer) error {
+		return png.Encode(w, img)
+	})
 }
 
 func ExtractFile(in string, password string) ([]byte, error) {

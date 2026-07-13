@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"image"
 	"image/png"
+	"io"
 	"os"
 
 	"github.com/makiuchi-d/gozxing"
 	"github.com/makiuchi-d/gozxing/qrcode"
 	goqrcode "github.com/skip2/go-qrcode"
+	"github.com/toozej/monogo/apps/lego-stego/internal/atomicfile"
 )
 
 func EmbedQRCode(url, inputPath, outputPath string) error {
@@ -16,11 +18,14 @@ func EmbedQRCode(url, inputPath, outputPath string) error {
 	if err != nil {
 		return err
 	}
-	defer func() { _ = f.Close() }()
 
-	img, _, err := image.Decode(f)
-	if err != nil {
-		return err
+	img, _, decodeErr := image.Decode(f)
+	closeErr := f.Close()
+	if decodeErr != nil {
+		return decodeErr
+	}
+	if closeErr != nil {
+		return closeErr
 	}
 
 	qrImg, err := GenerateQRCode(url)
@@ -38,13 +43,7 @@ func EmbedQRCode(url, inputPath, outputPath string) error {
 		return err
 	}
 
-	outF, err := os.Create(outputPath) // #nosec G304 -- path provided by user via CLI flag
-	if err != nil {
-		return err
-	}
-	defer func() { _ = outF.Close() }()
-
-	return png.Encode(outF, stego)
+	return writePNGAtomic(outputPath, stego)
 }
 
 func ExtractAndDecode(inputPath, outputPath string) (string, error) {
@@ -52,11 +51,14 @@ func ExtractAndDecode(inputPath, outputPath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer func() { _ = f.Close() }()
 
-	img, _, err := image.Decode(f)
-	if err != nil {
-		return "", err
+	img, _, decodeErr := image.Decode(f)
+	closeErr := f.Close()
+	if decodeErr != nil {
+		return "", decodeErr
+	}
+	if closeErr != nil {
+		return "", closeErr
 	}
 
 	data, err := Extract(img, "")
@@ -75,18 +77,18 @@ func ExtractAndDecode(inputPath, outputPath string) (string, error) {
 			return "", err
 		}
 
-		outF, err := os.Create(outputPath) // #nosec G304 -- path provided by user via CLI flag
-		if err != nil {
-			return "", err
-		}
-		defer func() { _ = outF.Close() }()
-
-		if err := png.Encode(outF, qrImg); err != nil {
+		if err := writePNGAtomic(outputPath, qrImg); err != nil {
 			return "", err
 		}
 	}
 
 	return decoded, nil
+}
+
+func writePNGAtomic(outputPath string, img image.Image) error {
+	return atomicfile.Write(outputPath, 0600, func(w io.Writer) error {
+		return png.Encode(w, img)
+	})
 }
 
 func GenerateQRCode(data string) (image.Image, error) {

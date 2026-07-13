@@ -823,8 +823,8 @@ func TestDetectArchived_APIError(t *testing.T) {
 	}
 
 	result, err := DetectArchived(rc, workflowFiles, allActionRefs)
-	if err != nil {
-		t.Fatalf("DetectArchived() should not return error even on API errors, got %v", err)
+	if err == nil {
+		t.Fatal("DetectArchived() should return an error when the API check fails")
 	}
 	if len(result.ArchivedActions) != 0 {
 		t.Errorf("Expected 0 archived actions on API error, got %d", len(result.ArchivedActions))
@@ -1482,6 +1482,40 @@ func TestRunReposMode_WithReposNoIssues(t *testing.T) {
 
 	if result {
 		t.Error("Expected false when processFunc returns no issues")
+	}
+}
+
+func TestRunReposMode_ParseErrorFailsClosed(t *testing.T) {
+	tmpDir := t.TempDir()
+	repoDir := filepath.Join(tmpDir, "broken-repo")
+	workflowsDir := filepath.Join(repoDir, ".github", "workflows")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatalf("Failed to create workflows dir: %v", err)
+	}
+	// Malformed YAML so GetAllUsesFromRepoWithVersions (via ParseWorkflowFiles)
+	// returns an error and the per-repo scan cannot complete.
+	if err := os.WriteFile(filepath.Join(workflowsDir, "bad.yml"), []byte("jobs: ["), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	server := makeGHServer(nil, nil, nil)
+	defer server.Close()
+
+	rc := newTestRunContext(server)
+
+	var processCalled bool
+	processFunc := func(rc *RunContext, workflowFiles []*workflow.WorkflowFile, allActionRefs []workflow.ActionRef, workDir string) bool {
+		processCalled = true
+		return false
+	}
+
+	result := RunReposMode(rc, tmpDir, processFunc)
+
+	if !result {
+		t.Error("Expected RunReposMode to fail closed (return true) when a workflow file cannot be parsed")
+	}
+	if processCalled {
+		t.Error("Expected processFunc NOT to be called when the repo scan fails")
 	}
 }
 

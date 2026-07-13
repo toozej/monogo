@@ -195,7 +195,8 @@ archives:
       - goos: windows
         formats: ['zip']
     files:
-      - README.md
+      - src: apps/terranotate/README.md
+        dst: README.md
       - LICENSE
       - completions/terranotate.bash
       - completions/terranotate.fish

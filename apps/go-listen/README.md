@@ -28,7 +28,7 @@ A web application that allows users to search for artists and automatically add 
 ### Prerequisites
 
 1. **Spotify Developer Account**: Create an app at [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
-2. **Go 1.21+**: For building from source
+2. **Go 1.26+**: For building from source
 
 ### Installation
 
@@ -50,9 +50,9 @@ mv go-listen-linux-amd64 go-listen
 #### Option 3: Build from Source
 
 ```bash
-git clone https://github.com/toozej/go-listen.git
-cd go-listen
-go build -o go-listen .
+git clone https://github.com/toozej/monogo.git
+cd monogo
+make local-build APP=go-listen
 ```
 
 ### Configuration
@@ -109,15 +109,15 @@ Automatically discover and add artists from web pages:
 
 ```bash
 # Scrape artists from a URL and add to playlist
-go-listen scrape https://example.com/artists --playlist PLAYLIST_ID
+go-listen scrape --url https://example.com/artists --playlist PLAYLIST_ID
 
 # Use a CSS selector to target specific content
-go-listen scrape https://reddit.com/r/music/... \
+go-listen scrape --url https://reddit.com/r/music/... \
   --selector "div[data-test-id='post-content']" \
   --playlist PLAYLIST_ID
 
 # Force add even if duplicates exist
-go-listen scrape https://example.com/artists \
+go-listen scrape --url https://example.com/artists \
   --playlist PLAYLIST_ID \
   --force
 ```
@@ -135,6 +135,7 @@ See REST [API Documentation](docs/api.md)
 | `SPOTIFY_CLIENT_ID` | - | **Required**: Your Spotify app client ID |
 | `SPOTIFY_CLIENT_SECRET` | - | **Required**: Your Spotify app client secret |
 | `SPOTIFY_REDIRECT_URL` | `http://127.0.0.1:8080/callback` | Spotify OAuth redirect URL |
+| `SPOTIFY_TOKEN_FILE` | user config directory | File used to securely persist browser authentication for CLI reuse |
 | `SERVER_HOST` | `localhost` | Server bind address |
 | `SERVER_PORT` | `8080` | Server port |
 | `SCRAPER_TIMEOUT` | `30s` | HTTP timeout for web scraping |
@@ -144,6 +145,9 @@ See REST [API Documentation](docs/api.md)
 | `SCRAPER_MAX_CONTENT_SIZE` | `10485760` | Max content size (10MB) |
 | `SECURITY_RATE_LIMIT_REQUESTS_PER_SECOND` | `10` | Rate limit per IP |
 | `SECURITY_RATE_LIMIT_BURST` | `20` | Rate limit burst capacity |
+| `SECURITY_USERNAME` | - | Basic Auth username; required with `SECURITY_PASSWORD` for non-loopback serving |
+| `SECURITY_PASSWORD` | - | Basic Auth password; required when the server binds beyond loopback |
+| `SECURITY_TRUST_PROXY_HEADERS` | `false` | Trust proxy-supplied client IP headers; enable only behind a trusted proxy |
 | `LOGGING_LEVEL` | `info` | Log level (debug, info, warn, error) |
 | `LOGGING_FORMAT` | `json` | Log format (json, text) |
 | `LOGGING_OUTPUT` | `stdout` | Log output (stdout, stderr, file path) |
@@ -165,6 +169,11 @@ docker run -d \
   -p 8080:8080 \
   -e SPOTIFY_CLIENT_ID=your_client_id \
   -e SPOTIFY_CLIENT_SECRET=your_client_secret \
+  -e SPOTIFY_TOKEN_FILE=/config/spotify-token.json \
+  -e SECURITY_USERNAME=go-listen \
+  -e SECURITY_PASSWORD=choose-a-strong-password \
+  -e SERVER_HOST=0.0.0.0 \
+  -v go-listen-config:/config \
   --restart unless-stopped \
   toozej/go-listen:latest
 ```

@@ -222,3 +222,64 @@ func TestValidateWorkspace(t *testing.T) {
 		t.Errorf("ValidateWorkspace() failed: %v", err)
 	}
 }
+
+func TestDirectoryModesFailWhenAnyTerraformFileCannotBeParsed(t *testing.T) {
+	tests := []struct {
+		name  string
+		setup func(afero.Fs) (string, error)
+		run   func(afero.Fs, string, string) error
+	}{
+		{
+			name: "directory",
+			setup: func(fs afero.Fs) (string, error) {
+				if err := fs.MkdirAll("/dir", 0o755); err != nil {
+					return "", err
+				}
+				if err := afero.WriteFile(fs, "/dir/valid.tf", []byte(`resource "test" "valid" {}`), 0o600); err != nil {
+					return "", err
+				}
+				return "/dir", afero.WriteFile(fs, "/dir/invalid.tf", []byte(`resource "test" "invalid" {`), 0o600)
+			},
+			run: validateDirectory,
+		},
+		{
+			name: "module",
+			setup: func(fs afero.Fs) (string, error) {
+				if err := fs.MkdirAll("/module/modules/sub", 0o755); err != nil {
+					return "", err
+				}
+				if err := afero.WriteFile(fs, "/module/main.tf", []byte(`resource "test" "invalid" {`), 0o600); err != nil {
+					return "", err
+				}
+				return "/module", afero.WriteFile(fs, "/module/modules/sub/main.tf", []byte(`resource "test" "valid" {}`), 0o600)
+			},
+			run: ValidateModule,
+		},
+		{
+			name: "workspace",
+			setup: func(fs afero.Fs) (string, error) {
+				if err := fs.MkdirAll("/workspace/env/prod", 0o755); err != nil {
+					return "", err
+				}
+				return "/workspace", afero.WriteFile(fs, "/workspace/env/prod/main.tf", []byte(`resource "test" "invalid" {`), 0o600)
+			},
+			run: ValidateWorkspace,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fs := afero.NewMemMapFs()
+			if err := afero.WriteFile(fs, "/schema.yaml", []byte(`global: {required_prefixes: []}`), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			path, err := tt.setup(fs)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := tt.run(fs, path, "/schema.yaml"); err == nil {
+				t.Fatal("expected parse failure to fail validation")
+			}
+		})
+	}
+}

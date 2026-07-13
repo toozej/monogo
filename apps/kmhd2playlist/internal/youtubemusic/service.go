@@ -14,23 +14,31 @@ type Service struct {
 }
 
 func NewService(cfg config.YouTubeMusicConfig, logger *logrus.Logger) *Service {
+	service, err := NewServiceWithError(cfg, logger)
+	if err != nil {
+		logger.WithError(err).Error("Failed to create YouTube Music client")
+	}
+	return service
+}
+
+// NewServiceWithError creates a YouTube Music service and reports initialization failures.
+func NewServiceWithError(cfg config.YouTubeMusicConfig, logger *logrus.Logger) (*Service, error) {
 	logger.WithFields(logrus.Fields{
 		"has_cookie": cfg.Cookie != "",
 	}).Debug("Creating YouTube Music service with config")
 
 	client, err := NewClient(cfg, logger)
 	if err != nil {
-		logger.WithError(err).Error("Failed to create YouTube Music client")
 		return &Service{
 			client: nil,
 			logger: logger,
-		}
+		}, err
 	}
 
 	return &Service{
 		client: client,
 		logger: logger,
-	}
+	}, nil
 }
 
 func (s *Service) GetAuthURL() string {

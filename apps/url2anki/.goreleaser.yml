@@ -158,7 +158,8 @@ archives:
       - goos: windows
         formats: ['zip']
     files:
-      - README.md
+      - src: apps/url2anki/README.md
+        dst: README.md
       - LICENSE
       - completions/url2anki.bash
       - completions/url2anki.fish

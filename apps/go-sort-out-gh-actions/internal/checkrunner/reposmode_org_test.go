@@ -353,6 +353,62 @@ func TestRunOrgMode_NoWorkflows(t *testing.T) {
 	}
 }
 
+func TestRunOrgMode_MalformedWorkflowFailsClosed(t *testing.T) {
+	t.Parallel()
+
+	// Serve a workflow file whose contents cannot be parsed as YAML so the
+	// per-repo scan returns an error and org mode fails closed.
+	encoded := base64.StdEncoding.EncodeToString([]byte("jobs: ["))
+
+	orgRepos := []github.RepoEntry{
+		{FullName: "org/broken-repo", Name: "broken-repo", Archived: false, Fork: false},
+	}
+
+	processFunc := func(rc *RunContext, workflowFiles []*workflow.WorkflowFile, allActionRefs []workflow.ActionRef, workDir string) bool {
+		t.Error("processFunc should not be called when the workflow scan fails")
+		return false
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		switch {
+		case strings.HasPrefix(path, "/orgs/testorg/repos"):
+			w.WriteHeader(200)
+			body, _ := json.Marshal(orgRepos)
+			_, _ = w.Write(body)
+		case isWorkflowsDirRequest(path):
+			w.WriteHeader(200)
+			body, _ := json.Marshal([]github.ContentEntry{
+				{Name: "ci.yml", Path: ".github/workflows/ci.yml", Type: "file"},
+			})
+			_, _ = w.Write(body)
+		case isWorkflowFileRequest(path):
+			w.WriteHeader(200)
+			_, _ = fmt.Fprintf(w, `{"content": "%s"}`, encoded)
+		default:
+			w.WriteHeader(404)
+		}
+	}))
+	defer server.Close()
+
+	client := newTestCheckRunnerClient(server)
+	rc := &RunContext{
+		Ctx:          context.Background(),
+		Parser:       workflow.NewParser(),
+		GHClient:     client,
+		OutputWriter: output.NewWriterWithOptionalCSV(output.FormatText, nil),
+	}
+
+	result, err := RunOrgMode(rc, "testorg", false, processFunc)
+
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if !result {
+		t.Error("Expected RunOrgMode to fail closed (return true) when a workflow file cannot be parsed")
+	}
+}
+
 func newTestCheckRunnerClient(server *httptest.Server) *github.Client {
 	return github.NewClientWithHTTP(server.URL, server.Client(), github.WithCache(false, false, 0))
 }

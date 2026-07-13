@@ -197,3 +197,22 @@ func TestWorkflowParser_GetRemoteUsesFromRepo_FetcherError(t *testing.T) {
 		t.Error("Expected error when fetcher returns error")
 	}
 }
+
+func TestWorkflowParser_GetRemoteUsesFromRepo_ParseError(t *testing.T) {
+	parser := NewParser()
+	fetcher := &mockRemoteContentFetcher{contents: map[string]string{
+		".github/workflows/valid.yml": "jobs:\n  test:\n    steps:\n      - uses: actions/checkout@v4\n",
+		".github/workflows/bad.yml":   "jobs: [",
+	}}
+
+	actionRefs, workflows, err := parser.GetRemoteUsesFromRepo(context.Background(), fetcher, "owner/repo", "main")
+	if err == nil {
+		t.Fatal("expected malformed remote workflow to fail the scan")
+	}
+	if actionRefs != nil {
+		t.Fatalf("got action refs from an incomplete scan: %+v", actionRefs)
+	}
+	if len(workflows) != 2 {
+		t.Fatalf("got %d partial workflow results, want 2", len(workflows))
+	}
+}

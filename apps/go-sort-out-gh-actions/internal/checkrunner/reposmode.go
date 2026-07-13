@@ -36,6 +36,7 @@ func RunReposMode(rc *RunContext, reposDir string, processFunc ProcessFunc) bool
 		actionRefs, workflows, err := rc.Parser.GetAllUsesFromRepoWithVersions(repoPath)
 		if err != nil {
 			log.Errorf("Failed to find workflow files in %s: %v", repoPath, err)
+			hasAnyIssues = true
 			continue
 		}
 
@@ -59,7 +60,7 @@ func RunRemoteRepoMode(rc *RunContext, ownerRepo, ref string, processFunc Proces
 	actionRefs, workflows, err := rc.Parser.GetRemoteUsesFromRepo(rc.Ctx, rc.GHClient, ownerRepo, ref)
 	if err != nil {
 		log.Errorf("Failed to get remote workflow contents from %s: %v", ownerRepo, err)
-		return false
+		return true
 	}
 
 	if len(actionRefs) == 0 {
@@ -129,6 +130,9 @@ func runRemoteRepos(rc *RunContext, repos []github.RepoEntry, processFunc Proces
 					"repo":  repo.FullName,
 					"error": err,
 				}).Warn("Failed to fetch remote workflow contents")
+				mu.Lock()
+				hasAnyIssues = true
+				mu.Unlock()
 				return
 			}
 

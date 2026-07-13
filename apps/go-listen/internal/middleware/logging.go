@@ -68,13 +68,13 @@ func (lm *LoggingMiddleware) LogRequests(next http.Handler) http.Handler {
 
 		// Log request start
 		lm.logger.WithContext(ctx).WithFields(map[string]interface{}{
-			"component":  "http",
-			"operation":  "request_start",
-			"method":     r.Method,
-			"path":       r.URL.Path,
-			"query":      r.URL.RawQuery,
-			"client_ip":  getClientIP(r),
-			"user_agent": r.UserAgent(),
+			"component":   "http",
+			"operation":   "request_start",
+			"method":      r.Method,
+			"path":        r.URL.Path,
+			"query_count": len(r.URL.Query()),
+			"client_ip":   getClientIP(r),
+			"user_agent":  r.UserAgent(),
 		}).Debug("HTTP request started")
 
 		// Call the next handler

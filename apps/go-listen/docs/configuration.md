@@ -65,6 +65,7 @@ SCRAPER_MAX_RETRIES=3                  # Maximum retry attempts for failed reque
 SCRAPER_RETRY_BACKOFF=2s               # Initial backoff delay for retries (exponential)
 SCRAPER_USER_AGENT=go-listen/1.0       # User agent string for web requests
 SCRAPER_MAX_CONTENT_SIZE=10485760      # Maximum content size in bytes (10MB)
+SCRAPER_ALLOW_PRIVATE_NETWORK=false    # Permit trusted internal scrape targets
 ```
 
 **Scraper Configuration Details:**
@@ -99,6 +100,11 @@ SCRAPER_MAX_CONTENT_SIZE=10485760      # Maximum content size in bytes (10MB)
 # Rate limiting (optional, defaults shown)
 SECURITY_RATE_LIMIT_REQUESTS_PER_SECOND=10  # Requests per second per IP
 SECURITY_RATE_LIMIT_BURST=20                # Burst capacity per IP
+SECURITY_TRUST_PROXY_HEADERS=false          # Enable only behind a trusted proxy that overwrites client IP headers
+
+# Required whenever SERVER_HOST is not loopback
+SECURITY_USERNAME=go-listen
+SECURITY_PASSWORD=choose-a-strong-password
 ```
 
 #### Logging Configuration

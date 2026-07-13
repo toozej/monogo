@@ -98,9 +98,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 const cellText = cell.textContent.trim();
                 
                 // Special handling for 'completed' column
-                if (column === 'completed' && (value.toLowerCase() === 'true' || value.toLowerCase() === 'yes')) {
+                if (column === 'completed') {
                     const checkbox = cell.querySelector('input[type="checkbox"]');
-                    if (!checkbox || !checkbox.checked) {
+                    const normalizedValue = value.toLowerCase();
+                    const expected = ['true', 'yes', 'completed'].includes(normalizedValue)
+                        ? true
+                        : ['false', 'no', 'incomplete'].includes(normalizedValue)
+                            ? false
+                            : null;
+                    if (!checkbox || expected === null || checkbox.checked !== expected) {
                         matchesFilters = false;
                         break;
                     }
@@ -112,10 +118,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Apply fuzzy search to remaining free text
             const cellTexts = Array.from(row.querySelectorAll('td'))
-                .map(cell => cell.textContent.trim());
+                .map(cell => {
+                    const checkbox = cell.querySelector('input[type="checkbox"]');
+                    if (checkbox) {
+                        return checkbox.checked ? 'completed yes true' : 'incomplete no false';
+                    }
+                    return cell.textContent.trim();
+                });
+            const searchableRowText = cellTexts.join(' ');
             
             const freeTextMatch = freeText === '' || 
-                cellTexts.some(text => fuzzyMatch(freeText, text));
+                fuzzyMatch(freeText, searchableRowText);
 
             // Show row only if both filter and free text conditions are met
             row.style.display = (matchesFilters && freeTextMatch) ? '' : 'none';

@@ -195,7 +195,8 @@ archives:
       - goos: windows
         formats: ['zip']
     files:
-      - README.md
+      - src: apps/files2prompt/README.md
+        dst: README.md
       - LICENSE
       - completions/files2prompt.bash
       - completions/files2prompt.fish
