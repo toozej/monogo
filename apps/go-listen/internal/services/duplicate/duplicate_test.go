@@ -2,12 +2,13 @@ package duplicate
 
 import (
 	"errors"
+	"io"
+	"log/slog"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/toozej/monogo/apps/go-listen/internal/server"
 )
 
@@ -58,7 +59,7 @@ func (m *MockSpotifyService) CompleteAuth(code, state string) error {
 
 func TestNewDuplicateService(t *testing.T) {
 	mockSpotify := &MockSpotifyService{}
-	logger := log.New()
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	service := NewDuplicateService(mockSpotify, logger)
 
@@ -170,8 +171,7 @@ func TestDuplicateService_CheckDuplicates(t *testing.T) {
 				mockSpotify.expectedTrackIDs = trackIDs
 			}
 
-			logger := log.New()
-			logger.SetLevel(log.FatalLevel) // Suppress logs during testing
+			logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 			service := NewDuplicateService(mockSpotify, logger)
 
@@ -364,8 +364,7 @@ func TestDuplicateService_CheckArtistInPlaylist(t *testing.T) {
 				mockSpotify.expectedTrackIDs = trackIDs
 			}
 
-			logger := log.New()
-			logger.SetLevel(log.FatalLevel) // Suppress logs during testing
+			logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 			service := NewDuplicateService(mockSpotify, logger)
 
@@ -438,8 +437,7 @@ func TestDuplicateService_CheckArtistInPlaylist_EdgeCases(t *testing.T) {
 			expectedTrackIDs: []string{"track1"},
 		}
 
-		logger := log.New()
-		logger.SetLevel(log.FatalLevel)
+		logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 		service := NewDuplicateService(mockSpotify, logger)
 

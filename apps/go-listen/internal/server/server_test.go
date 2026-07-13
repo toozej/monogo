@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/toozej/monogo/apps/go-listen/internal/config"
+	"github.com/toozej/monogo/pkg/logging"
 )
 
 func TestServer_Lifecycle(t *testing.T) {
@@ -266,10 +267,9 @@ func TestServer_CallbackAllowsOpaqueOAuthState(t *testing.T) {
 			TokenFile:    filepath.Join(t.TempDir(), "token.json"),
 		},
 	}
-	server := NewServer(cfg)
-	server.setupRoutes()
 	var logs bytes.Buffer
-	server.logger.SetOutput(&logs)
+	server := newServerWithLogger(cfg, logging.NewLoggerWithWriter(&logs, logging.Config{Level: "debug", Format: "json"}))
+	server.setupRoutes()
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/callback?code=abc&state=aa--bb", http.NoBody)

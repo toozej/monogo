@@ -1,7 +1,7 @@
 // Package main provides the entry point for the golang-starter application.
 //
 // This application serves as a template for Go projects, demonstrating
-// best practices for CLI applications using cobra, logrus, and environment
+// best practices for CLI applications using cobra, slog, and environment
 // configuration management.
 package main
 

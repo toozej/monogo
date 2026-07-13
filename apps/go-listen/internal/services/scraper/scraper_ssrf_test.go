@@ -3,13 +3,13 @@ package scraper
 import (
 	"context"
 	"errors"
+	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/sirupsen/logrus"
 )
 
 type testRoundTripFunc func(*http.Request) (*http.Response, error)
@@ -91,7 +91,7 @@ func TestFetchWithRetryDoesNotRetryInvalidURL(t *testing.T) {
 	cfg := DefaultScraperConfig()
 	cfg.MaxRetries = 1
 	cfg.RetryBackoff = 200 * time.Millisecond
-	w := &WebScraper{config: cfg, logger: logrus.New()}
+	w := &WebScraper{config: cfg, logger: slog.New(slog.NewJSONHandler(io.Discard, nil))}
 
 	started := time.Now()
 	_, err := w.fetchWithRetry("ftp://example.com/feed")

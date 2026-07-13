@@ -20,13 +20,14 @@ package cmd
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/toozej/monogo/apps/go-listen/internal/config"
 	"github.com/toozej/monogo/pkg/avatar"
+	"github.com/toozej/monogo/pkg/logging"
 	"github.com/toozej/monogo/pkg/man"
 	"github.com/toozej/monogo/pkg/version"
 )
@@ -36,7 +37,7 @@ import (
 var (
 	conf config.Config
 	// debug controls the logging level for the application.
-	// When true, debug-level logging is enabled through logrus.
+	// When true, debug-level logging is enabled through slog.
 	debug bool
 )
 
@@ -65,7 +66,7 @@ var rootCmd = &cobra.Command{
 func rootCmdRun(cmd *cobra.Command, args []string) {
 	// Show help when no subcommand is provided
 	if err := cmd.Help(); err != nil {
-		log.WithError(err).Error("Failed to show help")
+		slog.Error("Failed to show help", "error", err)
 	}
 }
 
@@ -74,15 +75,17 @@ func rootCmdRun(cmd *cobra.Command, args []string) {
 //
 // It configures the logging level based on the debug flag and loads the
 // application configuration from environment variables. When debug mode
-// is enabled, logrus is set to DebugLevel for detailed logging output.
+// is enabled, slog is set to debug level for detailed logging output.
 //
 // Parameters:
 //   - cmd: The cobra command being executed
 //   - args: Command-line arguments
 func rootCmdPreRun(cmd *cobra.Command, args []string) error {
+	level := "info"
 	if debug {
-		log.SetLevel(log.DebugLevel)
+		level = "debug"
 	}
+	slog.SetDefault(logging.NewLogger(logging.Config{Level: level, Format: "json", Output: "stdout"}))
 
 	// Load configuration
 	loaded, err := config.Load()

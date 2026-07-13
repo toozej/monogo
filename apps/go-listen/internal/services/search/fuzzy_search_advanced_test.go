@@ -3,12 +3,13 @@ package search
 import (
 	"errors"
 	"fmt"
+	"io"
+	"log/slog"
 	"runtime"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/toozej/monogo/apps/go-listen/internal/types"
 )
 
@@ -54,8 +55,7 @@ func TestFuzzyArtistSearcher_AdvancedScenarios(t *testing.T) {
 }
 
 func testComplexFuzzyMatching(t *testing.T) {
-	logger := logrus.New()
-	logger.SetLevel(logrus.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	tests := []struct {
 		query         string
@@ -127,8 +127,7 @@ func testComplexFuzzyMatching(t *testing.T) {
 }
 
 func testPerformanceBenchmarks(t *testing.T) {
-	logger := logrus.New()
-	logger.SetLevel(logrus.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	mockSpotify := &MockSpotifyService{
 		searchArtistFunc: func(query string) (*types.Artist, error) {
@@ -183,8 +182,7 @@ func testPerformanceBenchmarks(t *testing.T) {
 }
 
 func testUnicodeAndSpecialChars(t *testing.T) {
-	logger := logrus.New()
-	logger.SetLevel(logrus.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	tests := []struct {
 		query      string
@@ -256,8 +254,7 @@ func testUnicodeAndSpecialChars(t *testing.T) {
 }
 
 func testConfidenceScoreAccuracy(t *testing.T) {
-	logger := logrus.New()
-	logger.SetLevel(logrus.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	mockSpotify := &MockSpotifyService{}
 	searcher := NewFuzzyArtistSearcher(mockSpotify, logger)
@@ -305,8 +302,7 @@ func testConfidenceScoreAccuracy(t *testing.T) {
 }
 
 func testEdgeCaseInputs(t *testing.T) {
-	logger := logrus.New()
-	logger.SetLevel(logrus.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	mockSpotify := &MockSpotifyService{
 		searchArtistFunc: func(query string) (*types.Artist, error) {
@@ -396,8 +392,7 @@ func testEdgeCaseInputs(t *testing.T) {
 
 // TestFuzzyArtistSearcher_ConcurrentAccess tests concurrent access to the searcher
 func TestFuzzyArtistSearcher_ConcurrentAccess(t *testing.T) {
-	logger := logrus.New()
-	logger.SetLevel(logrus.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	mockSpotify := &MockSpotifyService{
 		searchArtistFunc: func(query string) (*types.Artist, error) {
@@ -456,8 +451,7 @@ func TestFuzzyArtistSearcher_ConcurrentAccess(t *testing.T) {
 
 // TestFuzzyArtistSearcher_ErrorHandling tests various error scenarios
 func TestFuzzyArtistSearcher_ErrorHandling(t *testing.T) {
-	logger := logrus.New()
-	logger.SetLevel(logrus.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	tests := []struct {
 		name         string
@@ -522,8 +516,7 @@ func TestFuzzyArtistSearcher_ErrorHandling(t *testing.T) {
 
 // TestFuzzyArtistSearcher_MemoryUsage tests memory efficiency
 func TestFuzzyArtistSearcher_MemoryUsage(t *testing.T) {
-	logger := logrus.New()
-	logger.SetLevel(logrus.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	mockSpotify := &MockSpotifyService{
 		searchArtistFunc: func(query string) (*types.Artist, error) {

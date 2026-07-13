@@ -6,11 +6,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/toozej/monogo/apps/go-listen/internal/config"
 	"github.com/toozej/monogo/apps/go-listen/internal/middleware"
 	"github.com/toozej/monogo/apps/go-listen/internal/services/playlist"
@@ -36,7 +36,7 @@ type Server struct {
 	playlist           types.PlaylistManager
 	scraper            ScraperService
 	config             *config.Config
-	logger             *logging.Logger
+	logger             *slog.Logger
 	rateLimiter        *middleware.RateLimiter
 	securityMiddleware *middleware.SecurityMiddleware
 	loggingMiddleware  *middleware.LoggingMiddleware
@@ -68,13 +68,22 @@ func NewServer(cfg *config.Config) *Server {
 		Format: loggingCfg.Format,
 		Output: loggingCfg.Output,
 	})
-	logger.WithComponent("server").Info("Initializing server components")
+
+	return newServerWithLogger(cfg, logger)
+}
+
+// newServerWithLogger wires a server around an already-constructed logger. It is
+// separated from NewServer so tests can inject a logger that writes to a buffer;
+// slog.Logger has no post-construction SetOutput, so the logger must be chosen
+// before the middleware (which share it) are created.
+func newServerWithLogger(cfg *config.Config, logger *slog.Logger) *Server {
+	logging.WithComponent(logger, "server").Info("Initializing server components")
 
 	// Initialize Spotify service (core business logic)
-	spotifyService := spotify.NewService(cfg.Spotify, logger.Logger)
+	spotifyService := spotify.NewService(cfg.Spotify, logger)
 
 	// Initialize playlist manager (depends on Spotify service)
-	playlistManager := playlist.NewService(spotifyService, logger.Logger)
+	playlistManager := playlist.NewService(spotifyService, logger)
 
 	// Initialize rate limiter with default values if not configured
 	requestsPerSecond := cfg.Security.RateLimit.RequestsPerSecond
@@ -90,18 +99,22 @@ func NewServer(cfg *config.Config) *Server {
 	rateLimiter := middleware.NewRateLimiter(requestsPerSecond, burst)
 
 	// Initialize security middleware (depends on rate limiter)
-	securityMiddleware := middleware.NewSecurityMiddleware(logger.Logger, rateLimiter, cfg.Security.TrustProxyHeaders)
+	securityMiddleware := middleware.NewSecurityMiddleware(logger, rateLimiter, cfg.Security.TrustProxyHeaders)
 
 	// Initialize logging middleware (depends on logger)
 	loggingMiddleware := middleware.NewLoggingMiddleware(logger)
 
-	logger.WithComponent("server").WithFields(logrus.Fields{
-		"spotify_configured": cfg.Spotify.ClientID != "",
-		"rate_limit_rps":     requestsPerSecond,
-		"rate_limit_burst":   burst,
-		"logging_level":      loggingCfg.Level,
-		"http_logging":       loggingCfg.EnableHTTP,
-	}).Info("Server components initialized successfully")
+	loggingLevel := cfg.Logging.Level
+	if loggingLevel == "" {
+		loggingLevel = "info"
+	}
+	logging.WithComponent(logger, "server").Info("Server components initialized successfully",
+		"spotify_configured", cfg.Spotify.ClientID != "",
+		"rate_limit_rps", requestsPerSecond,
+		"rate_limit_burst", burst,
+		"logging_level", loggingLevel,
+		"http_logging", cfg.Logging.EnableHTTP,
+	)
 
 	return &Server{
 		router:             http.NewServeMux(),
@@ -127,18 +140,18 @@ func (s *Server) Start() error {
 		IdleTimeout:  time.Duration(s.config.Server.IdleTimeout) * time.Second,
 	}
 
-	s.logger.WithComponent("server").WithFields(logrus.Fields{
-		"address":       s.config.Server.Address(),
-		"read_timeout":  s.config.Server.ReadTimeout,
-		"write_timeout": s.config.Server.WriteTimeout,
-		"idle_timeout":  s.config.Server.IdleTimeout,
-	}).Info("Starting HTTP server")
+	logging.WithComponent(s.logger, "server").Info("Starting HTTP server",
+		"address", s.config.Server.Address(),
+		"read_timeout", s.config.Server.ReadTimeout,
+		"write_timeout", s.config.Server.WriteTimeout,
+		"idle_timeout", s.config.Server.IdleTimeout,
+	)
 	return s.server.ListenAndServe()
 }
 
 // Stop gracefully stops the HTTP server
 func (s *Server) Stop(ctx context.Context) error {
-	s.logger.WithComponent("server").Info("Shutting down HTTP server")
+	logging.WithComponent(s.logger, "server").Info("Shutting down HTTP server")
 	return s.server.Shutdown(ctx)
 }
 
@@ -254,7 +267,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	// Serve the embedded index.html file
 	indexHTML, err := staticFiles.ReadFile("static/index.html")
 	if err != nil {
-		s.logger.WithContext(r.Context()).WithField("component", "server").WithError(err).Error("Failed to read index.html")
+		s.logger.ErrorContext(r.Context(), "Failed to read index.html", "component", "server", "error", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
@@ -263,7 +276,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	// nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter.no-direct-write-to-responsewriter
 	if _, err := w.Write(indexHTML); err != nil {
-		s.logger.WithContext(r.Context()).WithField("component", "server").WithError(err).Error("Failed to write index.html response")
+		s.logger.ErrorContext(r.Context(), "Failed to write index.html response", "component", "server", "error", err)
 	}
 }
 
@@ -274,10 +287,10 @@ func (s *Server) handleGetPlaylists(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.logger.WithContext(r.Context()).WithFields(logrus.Fields{
-		"component": "server",
-		"operation": "get_playlists",
-	}).Debug("Handling playlist retrieval request")
+	s.logger.DebugContext(r.Context(), "Handling playlist retrieval request",
+		"component", "server",
+		"operation", "get_playlists",
+	)
 
 	// Get playlists from the playlist manager
 	playlists, err := s.playlist.GetIncomingPlaylists()
@@ -285,7 +298,7 @@ func (s *Server) handleGetPlaylists(w http.ResponseWriter, r *http.Request) {
 		if s.handleReauthIfNeeded(w, r, err) {
 			return
 		}
-		s.logger.WithContext(r.Context()).WithField("component", "server").WithError(err).Error("Failed to retrieve playlists")
+		s.logger.ErrorContext(r.Context(), "Failed to retrieve playlists", "component", "server", "error", err)
 		s.writeJSONError(w, "Failed to retrieve playlists: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -294,11 +307,11 @@ func (s *Server) handleGetPlaylists(w http.ResponseWriter, r *http.Request) {
 	searchTerm := r.URL.Query().Get("search")
 	if searchTerm != "" {
 		playlists = s.playlist.FilterPlaylistsBySearch(playlists, searchTerm)
-		s.logger.WithContext(r.Context()).WithFields(logrus.Fields{
-			"component":      "server",
-			"search_term":    searchTerm,
-			"filtered_count": len(playlists),
-		}).Debug("Filtered playlists by search term")
+		s.logger.DebugContext(r.Context(), "Filtered playlists by search term",
+			"component", "server",
+			"search_term", searchTerm,
+			"filtered_count", len(playlists),
+		)
 	}
 
 	// Generate embed URLs for each playlist (create a copy to avoid data races)
@@ -325,28 +338,29 @@ func (s *Server) handleAddArtist(w http.ResponseWriter, r *http.Request) {
 
 	var req types.AddArtistRequest
 	if err := s.parseJSONRequest(r, &req); err != nil {
-		s.logger.WithContext(r.Context()).WithField("component", "server").WithError(err).Warn("Invalid JSON request")
+		s.logger.WarnContext(r.Context(), "Invalid JSON request", "component", "server", "error", err)
 		s.writeJSONError(w, "Invalid request format", http.StatusBadRequest)
 		return
 	}
 
 	// Validate request
 	if err := s.validateAddArtistRequest(&req); err != nil {
-		s.logger.WithContext(r.Context()).WithError(err).WithFields(logrus.Fields{
-			"component":   "server",
-			"artist_name": req.ArtistName,
-			"playlist_id": req.PlaylistID,
-		}).Warn("Invalid add artist request")
+		s.logger.WarnContext(r.Context(), "Invalid add artist request",
+			"error", err,
+			"component", "server",
+			"artist_name", req.ArtistName,
+			"playlist_id", req.PlaylistID,
+		)
 		s.writeJSONError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	s.logger.WithContext(r.Context()).WithFields(logrus.Fields{
-		"component":   "server",
-		"artist_name": req.ArtistName,
-		"playlist_id": req.PlaylistID,
-		"force":       req.Force,
-	}).Info("Processing add artist request")
+	s.logger.InfoContext(r.Context(), "Processing add artist request",
+		"component", "server",
+		"artist_name", req.ArtistName,
+		"playlist_id", req.PlaylistID,
+		"force", req.Force,
+	)
 
 	// Add artist to playlist
 	result, err := s.playlist.AddArtistToPlaylist(req.ArtistName, req.PlaylistID, req.Force)
@@ -354,7 +368,7 @@ func (s *Server) handleAddArtist(w http.ResponseWriter, r *http.Request) {
 		if s.handleReauthIfNeeded(w, r, err) {
 			return
 		}
-		s.logger.WithContext(r.Context()).WithField("component", "server").WithError(err).Error("Failed to add artist to playlist")
+		s.logger.ErrorContext(r.Context(), "Failed to add artist to playlist", "component", "server", "error", err)
 		s.writeJSONError(w, "Failed to add artist: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -390,37 +404,38 @@ func (s *Server) handleScrapeArtists(w http.ResponseWriter, r *http.Request) {
 
 	// Check if scraper service is available
 	if s.scraper == nil {
-		s.logger.WithContext(r.Context()).WithField("component", "server").Error("Scraper service not initialized")
+		s.logger.ErrorContext(r.Context(), "Scraper service not initialized", "component", "server")
 		s.writeJSONError(w, "Scraper service not available", http.StatusServiceUnavailable)
 		return
 	}
 
 	var req types.ScrapeArtistsRequest
 	if err := s.parseJSONRequest(r, &req); err != nil {
-		s.logger.WithContext(r.Context()).WithField("component", "server").WithError(err).Warn("Invalid JSON request")
+		s.logger.WarnContext(r.Context(), "Invalid JSON request", "component", "server", "error", err)
 		s.writeJSONError(w, "Invalid request format", http.StatusBadRequest)
 		return
 	}
 
 	// Validate request
 	if err := s.validateScrapeArtistsRequest(&req); err != nil {
-		s.logger.WithContext(r.Context()).WithError(err).WithFields(logrus.Fields{
-			"component":    "server",
-			"url":          req.URL,
-			"css_selector": req.CSSSelector,
-			"playlist_id":  req.PlaylistID,
-		}).Warn("Invalid scrape artists request")
+		s.logger.WarnContext(r.Context(), "Invalid scrape artists request",
+			"error", err,
+			"component", "server",
+			"url", req.URL,
+			"css_selector", req.CSSSelector,
+			"playlist_id", req.PlaylistID,
+		)
 		s.writeJSONError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	s.logger.WithContext(r.Context()).WithFields(logrus.Fields{
-		"component":    "server",
-		"url":          req.URL,
-		"css_selector": req.CSSSelector,
-		"playlist_id":  req.PlaylistID,
-		"force":        req.Force,
-	}).Info("Processing scrape artists request")
+	s.logger.InfoContext(r.Context(), "Processing scrape artists request",
+		"component", "server",
+		"url", req.URL,
+		"css_selector", req.CSSSelector,
+		"playlist_id", req.PlaylistID,
+		"force", req.Force,
+	)
 
 	// Perform scraping operation
 	result, err := s.scraper.ScrapeAndAddToPlaylist(req.URL, req.CSSSelector, req.PlaylistID, req.Force)
@@ -428,7 +443,7 @@ func (s *Server) handleScrapeArtists(w http.ResponseWriter, r *http.Request) {
 		if s.handleReauthIfNeeded(w, r, err) {
 			return
 		}
-		s.logger.WithContext(r.Context()).WithField("component", "server").WithError(err).Error("Failed to scrape artists")
+		s.logger.ErrorContext(r.Context(), "Failed to scrape artists", "component", "server", "error", err)
 		s.writeJSONError(w, "Failed to scrape artists: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -510,12 +525,12 @@ func (s *Server) handleReauthIfNeeded(w http.ResponseWriter, r *http.Request, er
 	if !errors.Is(err, types.ErrReauthenticationRequired) {
 		return false
 	}
-	s.logger.WithContext(r.Context()).WithField("component", "server").WithError(err).Warn("Spotify reauthorization required; client must sign in again")
+	s.logger.WarnContext(r.Context(), "Spotify reauthorization required; client must sign in again", "component", "server", "error", err)
 	authURL := s.spotify.GetAuthURL()
 	response := types.APIResponse{
 		Success: false,
 		Error:   "Spotify reauthorization required",
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"reauth_required": true,
 			"auth_url":        authURL,
 		},
@@ -530,7 +545,7 @@ func (s *Server) writeJSONResponse(w http.ResponseWriter, data interface{}, stat
 	w.WriteHeader(statusCode)
 
 	if err := json.NewEncoder(w).Encode(data); err != nil {
-		s.logger.WithField("component", "server").WithError(err).Error("Failed to encode JSON response")
+		s.logger.Error("Failed to encode JSON response", "component", "server", "error", err)
 	}
 }
 
@@ -556,10 +571,10 @@ func (s *Server) handleAuth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.logger.WithContext(r.Context()).WithFields(logrus.Fields{
-		"component": "server",
-		"operation": "auth_redirect",
-	}).Info("Redirecting to Spotify authentication")
+	s.logger.InfoContext(r.Context(), "Redirecting to Spotify authentication",
+		"component", "server",
+		"operation", "auth_redirect",
+	)
 
 	http.Redirect(w, r, authURL, http.StatusTemporaryRedirect)
 }
@@ -576,29 +591,29 @@ func (s *Server) handleCallback(w http.ResponseWriter, r *http.Request) {
 	errorParam := r.URL.Query().Get("error")
 
 	if errorParam != "" {
-		s.logger.WithContext(r.Context()).WithFields(logrus.Fields{
-			"component": "server",
-			"operation": "auth_callback",
-			"error":     errorParam,
-		}).Error("Spotify authentication error")
+		s.logger.ErrorContext(r.Context(), "Spotify authentication error",
+			"component", "server",
+			"operation", "auth_callback",
+			"error", errorParam,
+		)
 		http.Error(w, "Authentication failed: "+errorParam, http.StatusBadRequest)
 		return
 	}
 
 	if code == "" || state == "" {
-		s.logger.WithContext(r.Context()).WithField("component", "server").Error("Missing code or state in callback")
+		s.logger.ErrorContext(r.Context(), "Missing code or state in callback", "component", "server")
 		http.Error(w, "Invalid callback parameters", http.StatusBadRequest)
 		return
 	}
 
-	s.logger.WithContext(r.Context()).WithFields(logrus.Fields{
-		"component": "server",
-		"operation": "auth_callback",
-	}).Info("Processing Spotify authentication callback")
+	s.logger.InfoContext(r.Context(), "Processing Spotify authentication callback",
+		"component", "server",
+		"operation", "auth_callback",
+	)
 
 	err := s.spotify.CompleteAuth(code, state)
 	if err != nil {
-		s.logger.WithContext(r.Context()).WithField("component", "server").WithError(err).Error("Failed to complete authentication")
+		s.logger.ErrorContext(r.Context(), "Failed to complete authentication", "component", "server", "error", err)
 		if errors.Is(err, spotify.ErrInvalidOAuthState) {
 			http.Error(w, "Invalid callback state", http.StatusBadRequest)
 			return
@@ -607,7 +622,7 @@ func (s *Server) handleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.logger.WithContext(r.Context()).WithField("component", "server").Info("Spotify authentication completed successfully")
+	s.logger.InfoContext(r.Context(), "Spotify authentication completed successfully", "component", "server")
 
 	// Redirect to main page with success message
 	w.Header().Set("Content-Type", "text/html")
@@ -630,7 +645,7 @@ func (s *Server) handleCallback(w http.ResponseWriter, r *http.Request) {
 		</body>
 		</html>
 	`)); err != nil {
-		s.logger.WithContext(r.Context()).WithField("component", "server").WithError(err).Error("Failed to write authentication success response")
+		s.logger.ErrorContext(r.Context(), "Failed to write authentication success response", "component", "server", "error", err)
 	}
 }
 
@@ -649,7 +664,7 @@ func (s *Server) handleAuthStatus(w http.ResponseWriter, r *http.Request) {
 
 	response := types.APIResponse{
 		Success: true,
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"authenticated": isAuthenticated,
 			"auth_url":      authURL,
 		},

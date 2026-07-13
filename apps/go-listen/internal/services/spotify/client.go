@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -15,7 +16,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/toozej/monogo/apps/go-listen/internal/config"
 	"github.com/toozej/monogo/apps/go-listen/internal/types"
 	"github.com/zmb3/spotify/v2"
@@ -59,7 +59,7 @@ var ErrInvalidOAuthState = errors.New("invalid OAuth state")
 type Client struct {
 	client     *spotify.Client
 	config     config.SpotifyConfig
-	logger     *logrus.Logger
+	logger     *slog.Logger
 	token      *oauth2.Token
 	tokenMu    sync.RWMutex
 	ctx        context.Context
@@ -70,7 +70,7 @@ type Client struct {
 }
 
 // NewClient creates a new Spotify client with user authentication flow
-func NewClient(cfg config.SpotifyConfig, logger *logrus.Logger) (*Client, error) {
+func NewClient(cfg config.SpotifyConfig, logger *slog.Logger) (*Client, error) {
 	if cfg.ClientID == "" || cfg.ClientSecret == "" {
 		return nil, fmt.Errorf("spotify client ID and secret are required")
 	}
@@ -93,10 +93,10 @@ func NewClient(cfg config.SpotifyConfig, logger *logrus.Logger) (*Client, error)
 		spotifyauth.WithClientSecret(cfg.ClientSecret),
 	)
 
-	logger.WithFields(logrus.Fields{
-		"client_id":    cfg.ClientID,
-		"redirect_url": cfg.RedirectURL,
-	}).Info("Initialized Spotify OAuth client")
+	logger.Info("Initialized Spotify OAuth client",
+		"client_id", cfg.ClientID,
+		"redirect_url", cfg.RedirectURL,
+	)
 
 	client := &Client{
 		client:     nil, // Will be set after authentication
@@ -115,7 +115,7 @@ func NewClient(cfg config.SpotifyConfig, logger *logrus.Logger) (*Client, error)
 		client.isUserAuth = true
 		logger.Info("Loaded persisted Spotify authentication")
 	} else if !errors.Is(err, os.ErrNotExist) {
-		logger.WithError(err).Warn("Ignoring unusable persisted Spotify token")
+		logger.Warn("Ignoring unusable persisted Spotify token", "error", err)
 	}
 
 	logger.Info("Spotify client initialized")
@@ -127,7 +127,7 @@ func NewClient(cfg config.SpotifyConfig, logger *logrus.Logger) (*Client, error)
 func (c *Client) GetAuthURL() string {
 	stateBytes := make([]byte, 32)
 	if _, err := rand.Read(stateBytes); err != nil {
-		c.logger.WithError(err).Error("Failed to generate Spotify OAuth state")
+		c.logger.Error("Failed to generate Spotify OAuth state", "error", err)
 		return ""
 	}
 	state := base64.RawURLEncoding.EncodeToString(stateBytes)
@@ -176,7 +176,7 @@ func (c *Client) CompleteAuth(code, state string) error {
 	// Test the authentication by fetching current user info
 	user, err := spotifyClient.CurrentUser(c.ctx)
 	if err != nil {
-		c.logger.WithError(err).Error("Failed to verify authentication by getting current user")
+		c.logger.Error("Failed to verify authentication by getting current user", "error", err)
 		return fmt.Errorf("authentication verification failed: %w", err)
 	}
 	if err := c.persistToken(token); err != nil {
@@ -190,10 +190,10 @@ func (c *Client) CompleteAuth(code, state string) error {
 	c.tokenMu.Unlock()
 	c.logger.Info("Spotify user authentication completed successfully")
 
-	c.logger.WithFields(logrus.Fields{
-		"user_id":           user.ID,
-		"user_display_name": user.DisplayName,
-	}).Info("Authentication verified successfully")
+	c.logger.Info("Authentication verified successfully",
+		"user_id", user.ID,
+		"user_display_name", user.DisplayName,
+	)
 
 	return nil
 }
@@ -235,10 +235,10 @@ func (c *Client) RefreshToken() error {
 		// returns invalid_grant; discard the stored credentials first so the
 		// user is forced to reauthorize rather than retrying with a bad token.
 		if isInvalidGrantError(err) {
-			c.logger.WithError(err).Warn("Spotify refresh token is no longer valid; discarding stored token and requiring reauthorization")
+			c.logger.Warn("Spotify refresh token is no longer valid; discarding stored token and requiring reauthorization", "error", err)
 			c.discardAuthLocked()
 			if removeErr := os.Remove(c.tokenFile); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
-				c.logger.WithError(removeErr).Warn("Failed to remove invalid Spotify token file")
+				c.logger.Warn("Failed to remove invalid Spotify token file", "error", removeErr)
 			}
 			return fmt.Errorf("%w: %v", types.ErrReauthenticationRequired, err)
 		}
@@ -314,7 +314,7 @@ func (c *Client) persistToken(token *oauth2.Token) error {
 	tempName := temp.Name()
 	defer func() {
 		if removeErr := os.Remove(tempName); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
-			c.logger.WithError(removeErr).Warn("Failed to remove temporary Spotify token file")
+			c.logger.Warn("Failed to remove temporary Spotify token file", "error", removeErr)
 		}
 	}()
 	closeTemp := func(writeErr error) error {
@@ -370,18 +370,18 @@ func (c *Client) SearchArtist(query string) (*Artist, error) {
 		return nil, fmt.Errorf("failed to refresh token: %w", err)
 	}
 
-	c.logger.WithField("query", query).Debug("Searching for artist using Spotify library")
+	c.logger.Debug("Searching for artist using Spotify library", "query", query)
 
 	// Use the library's Search method following the examples
 	spotifyClient := c.authenticatedClient()
 	results, err := spotifyClient.Search(c.ctx, query, spotify.SearchTypeArtist)
 	if err != nil {
-		c.logger.WithError(err).WithField("query", query).Error("Failed to search for artist")
+		c.logger.Error("Failed to search for artist", "error", err, "query", query)
 		return nil, fmt.Errorf("failed to search for artist: %w", err)
 	}
 
 	if results.Artists == nil || len(results.Artists.Artists) == 0 {
-		c.logger.WithField("query", query).Warn("No artists found")
+		c.logger.Warn("No artists found", "query", query)
 		return nil, fmt.Errorf("no artists found for query: %s", query)
 	}
 
@@ -395,12 +395,12 @@ func (c *Client) SearchArtist(query string) (*Artist, error) {
 		Genres: spotifyArtist.Genres,
 	}
 
-	c.logger.WithFields(logrus.Fields{
-		"query":       query,
-		"artist_id":   artist.ID,
-		"artist_name": artist.Name,
-		"genres":      artist.Genres,
-	}).Info("Artist found using Spotify library")
+	c.logger.Info("Artist found using Spotify library",
+		"query", query,
+		"artist_id", artist.ID,
+		"artist_name", artist.Name,
+		"genres", artist.Genres,
+	)
 
 	return artist, nil
 }
@@ -415,18 +415,18 @@ func (c *Client) GetArtistTopTracks(artistID string) ([]Track, error) {
 		return nil, fmt.Errorf("failed to refresh token: %w", err)
 	}
 
-	c.logger.WithField("artist_id", artistID).Debug("Getting artist top tracks using Spotify library")
+	c.logger.Debug("Getting artist top tracks using Spotify library", "artist_id", artistID)
 
 	// Get top tracks for the artist using library method with market parameter
 	spotifyClient := c.authenticatedClient()
 	topTracks, err := spotifyClient.GetArtistsTopTracks(c.ctx, spotify.ID(artistID), spotify.CountryUSA)
 	if err != nil {
-		c.logger.WithError(err).WithField("artist_id", artistID).Error("Failed to get artist top tracks")
+		c.logger.Error("Failed to get artist top tracks", "error", err, "artist_id", artistID)
 		return nil, fmt.Errorf("failed to get top tracks for artist %s: %w", artistID, err)
 	}
 
 	if len(topTracks) == 0 {
-		c.logger.WithField("artist_id", artistID).Warn("No top tracks found for artist")
+		c.logger.Warn("No top tracks found for artist", "artist_id", artistID)
 		return []Track{}, nil
 	}
 
@@ -462,11 +462,11 @@ func (c *Client) GetArtistTopTracks(artistID string) ([]Track, error) {
 		trackNames[i] = spotifyTrack.Name
 	}
 
-	c.logger.WithFields(logrus.Fields{
-		"artist_id":    artistID,
-		"tracks_found": len(tracks),
-		"track_names":  trackNames,
-	}).Info("Retrieved artist top tracks using Spotify library")
+	c.logger.Info("Retrieved artist top tracks using Spotify library",
+		"artist_id", artistID,
+		"tracks_found", len(tracks),
+		"track_names", trackNames,
+	)
 
 	return tracks, nil
 }
@@ -481,25 +481,25 @@ func (c *Client) GetUserPlaylists(folderName string) ([]Playlist, error) {
 		return nil, fmt.Errorf("failed to refresh token: %w", err)
 	}
 
-	c.logger.WithField("folder_name", folderName).Debug("Getting user playlists using Spotify library")
+	c.logger.Debug("Getting user playlists using Spotify library", "folder_name", folderName)
 
 	// Get current user first to validate authentication and for filtering
 	spotifyClient := c.authenticatedClient()
 	currentUser, err := spotifyClient.CurrentUser(c.ctx)
 	if err != nil {
-		c.logger.WithError(err).Error("Failed to get current user - authentication may have failed")
+		c.logger.Error("Failed to get current user - authentication may have failed", "error", err)
 		return nil, fmt.Errorf("failed to get current user: %w", err)
 	}
 
-	c.logger.WithFields(logrus.Fields{
-		"user_id":           currentUser.ID,
-		"user_display_name": currentUser.DisplayName,
-	}).Info("Successfully validated user authentication")
+	c.logger.Info("Successfully validated user authentication",
+		"user_id", currentUser.ID,
+		"user_display_name", currentUser.DisplayName,
+	)
 
 	// Get all user playlists using the library method
 	playlistPage, err := spotifyClient.CurrentUsersPlaylists(c.ctx)
 	if err != nil {
-		c.logger.WithError(err).WithField("folder_name", folderName).Error("Failed to get user playlists")
+		c.logger.Error("Failed to get user playlists", "error", err, "folder_name", folderName)
 		return nil, fmt.Errorf("failed to get user playlists: %w", err)
 	}
 
@@ -515,10 +515,10 @@ func (c *Client) GetUserPlaylists(folderName string) ([]Playlist, error) {
 		}
 	}
 
-	c.logger.WithFields(logrus.Fields{
-		"total_playlists": len(allPlaylists),
-		"folder_name":     folderName,
-	}).Info("Retrieved all user playlists using Spotify library")
+	c.logger.Info("Retrieved all user playlists using Spotify library",
+		"total_playlists", len(allPlaylists),
+		"folder_name", folderName,
+	)
 
 	// Log playlist names for debugging
 	playlistNames := make([]string, len(allPlaylists))
@@ -526,9 +526,9 @@ func (c *Client) GetUserPlaylists(folderName string) ([]Playlist, error) {
 		pl := &allPlaylists[i]
 		playlistNames[i] = pl.Name
 	}
-	c.logger.WithFields(logrus.Fields{
-		"playlist_names": playlistNames,
-	}).Debug("Available playlists")
+	c.logger.Debug("Available playlists",
+		"playlist_names", playlistNames,
+	)
 
 	var filteredPlaylists []Playlist
 	for i := range allPlaylists {
@@ -571,16 +571,16 @@ func (c *Client) GetUserPlaylists(folderName string) ([]Playlist, error) {
 		}
 	}
 
-	c.logger.WithFields(logrus.Fields{
-		"folder_name":     folderName,
-		"filtered_count":  len(filteredPlaylists),
-		"total_playlists": len(allPlaylists),
-	}).Info("Filtered user playlists")
+	c.logger.Info("Filtered user playlists",
+		"folder_name", folderName,
+		"filtered_count", len(filteredPlaylists),
+		"total_playlists", len(allPlaylists),
+	)
 
 	// If no playlists match the folder filter but we have playlists,
 	// return all user playlists as a fallback
 	if len(filteredPlaylists) == 0 && len(allPlaylists) > 0 && folderName != "" {
-		c.logger.WithField("folder_name", folderName).Warn("No playlists found matching folder name, returning all user playlists")
+		c.logger.Warn("No playlists found matching folder name, returning all user playlists", "folder_name", folderName)
 
 		for i := range allPlaylists {
 			spotifyPlaylist := &allPlaylists[i]
@@ -617,11 +617,11 @@ func (c *Client) AddTracksToPlaylist(playlistID string, trackIDs []string) error
 		return fmt.Errorf("failed to refresh token: %w", err)
 	}
 
-	c.logger.WithFields(logrus.Fields{
-		"playlist_id": playlistID,
-		"track_count": len(trackIDs),
-		"track_ids":   trackIDs,
-	}).Debug("Adding tracks to playlist using Spotify library")
+	c.logger.Debug("Adding tracks to playlist using Spotify library",
+		"playlist_id", playlistID,
+		"track_count", len(trackIDs),
+		"track_ids", trackIDs,
+	)
 
 	// Convert string IDs to Spotify IDs following library patterns
 	spotifyIDs := make([]spotify.ID, len(trackIDs))
@@ -633,19 +633,20 @@ func (c *Client) AddTracksToPlaylist(playlistID string, trackIDs []string) error
 	spotifyClient := c.authenticatedClient()
 	_, err := spotifyClient.AddTracksToPlaylist(c.ctx, spotify.ID(playlistID), spotifyIDs...)
 	if err != nil {
-		c.logger.WithError(err).WithFields(logrus.Fields{
-			"playlist_id": playlistID,
-			"track_count": len(trackIDs),
-			"track_ids":   trackIDs,
-		}).Error("Failed to add tracks to playlist")
+		c.logger.Error("Failed to add tracks to playlist",
+			"error", err,
+			"playlist_id", playlistID,
+			"track_count", len(trackIDs),
+			"track_ids", trackIDs,
+		)
 		return fmt.Errorf("failed to add tracks to playlist %s: %w", playlistID, err)
 	}
 
-	c.logger.WithFields(logrus.Fields{
-		"playlist_id": playlistID,
-		"track_count": len(trackIDs),
-		"track_ids":   trackIDs,
-	}).Info("Successfully added tracks to playlist using Spotify library")
+	c.logger.Info("Successfully added tracks to playlist using Spotify library",
+		"playlist_id", playlistID,
+		"track_count", len(trackIDs),
+		"track_ids", trackIDs,
+	)
 
 	return nil
 }
@@ -664,17 +665,17 @@ func (c *Client) CheckTracksInPlaylist(playlistID string, trackIDs []string) ([]
 		return nil, fmt.Errorf("failed to refresh token: %w", err)
 	}
 
-	c.logger.WithFields(logrus.Fields{
-		"playlist_id": playlistID,
-		"track_count": len(trackIDs),
-		"track_ids":   trackIDs,
-	}).Debug("Checking tracks in playlist using Spotify library")
+	c.logger.Debug("Checking tracks in playlist using Spotify library",
+		"playlist_id", playlistID,
+		"track_count", len(trackIDs),
+		"track_ids", trackIDs,
+	)
 
 	// Get all tracks from the playlist using library method
 	spotifyClient := c.authenticatedClient()
 	items, err := spotifyClient.GetPlaylistItems(c.ctx, spotify.ID(playlistID))
 	if err != nil {
-		c.logger.WithError(err).WithField("playlist_id", playlistID).Error("Failed to get playlist items")
+		c.logger.Error("Failed to get playlist items", "error", err, "playlist_id", playlistID)
 		return nil, fmt.Errorf("failed to get playlist items: %w", err)
 	}
 
@@ -700,11 +701,11 @@ func (c *Client) CheckTracksInPlaylist(playlistID string, trackIDs []string) ([]
 		}
 	}
 
-	c.logger.WithFields(logrus.Fields{
-		"playlist_id":          playlistID,
-		"existing_track_count": len(existingTracks),
-		"existing_track_names": existingTrackNames,
-	}).Debug("Retrieved existing tracks from playlist")
+	c.logger.Debug("Retrieved existing tracks from playlist",
+		"playlist_id", playlistID,
+		"existing_track_count", len(existingTracks),
+		"existing_track_names", existingTrackNames,
+	)
 
 	// Check each provided track ID
 	results := make([]bool, len(trackIDs))
@@ -719,11 +720,11 @@ func (c *Client) CheckTracksInPlaylist(playlistID string, trackIDs []string) ([]
 		}
 	}
 
-	c.logger.WithFields(logrus.Fields{
-		"playlist_id":     playlistID,
-		"track_count":     len(trackIDs),
-		"duplicate_count": duplicateCount,
-	}).Info("Checked tracks in playlist using Spotify library")
+	c.logger.Info("Checked tracks in playlist using Spotify library",
+		"playlist_id", playlistID,
+		"track_count", len(trackIDs),
+		"duplicate_count", duplicateCount,
+	)
 
 	return results, nil
 }

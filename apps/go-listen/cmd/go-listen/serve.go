@@ -3,13 +3,13 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/toozej/monogo/apps/go-listen/internal/config"
 	"github.com/toozej/monogo/apps/go-listen/internal/server"
@@ -29,10 +29,7 @@ func runServeCommand(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	// Initialize logger
-	logger := log.New()
-	if debug {
-		logger.SetLevel(log.DebugLevel)
-	}
+	logger := slog.Default()
 
 	// Create server instance
 	srv := server.NewServer(&conf)
@@ -80,7 +77,7 @@ func runServeCommand(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	log.Info("Shutting down server...")
+	logger.Info("Shutting down server...")
 
 	// Create a deadline for shutdown
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -91,7 +88,7 @@ func runServeCommand(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("stopping server: %w", err)
 	}
 
-	log.Info("Server exited")
+	logger.Info("Server exited")
 	return nil
 }
 

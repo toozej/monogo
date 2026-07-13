@@ -2,21 +2,21 @@ package search
 
 import (
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/sahilm/fuzzy"
-	"github.com/sirupsen/logrus"
 	"github.com/toozej/monogo/apps/go-listen/internal/types"
 )
 
 // FuzzyArtistSearcher implements fuzzy matching for artist search
 type FuzzyArtistSearcher struct {
 	spotify types.SpotifyService
-	logger  *logrus.Logger
+	logger  *slog.Logger
 }
 
 // NewFuzzyArtistSearcher creates a new fuzzy artist searcher
-func NewFuzzyArtistSearcher(spotifyService types.SpotifyService, logger *logrus.Logger) *FuzzyArtistSearcher {
+func NewFuzzyArtistSearcher(spotifyService types.SpotifyService, logger *slog.Logger) *FuzzyArtistSearcher {
 	return &FuzzyArtistSearcher{
 		spotify: spotifyService,
 		logger:  logger,
@@ -29,23 +29,23 @@ func (f *FuzzyArtistSearcher) FindBestMatch(query string) (*types.Artist, float6
 		return nil, 0.0, fmt.Errorf("search query cannot be empty")
 	}
 
-	f.logger.WithField("query", query).Debug("Starting fuzzy artist search")
+	f.logger.Debug("Starting fuzzy artist search", "query", query)
 
 	// First, try direct search through Spotify
 	artist, err := f.spotify.SearchArtist(query)
 	if err != nil {
-		f.logger.WithError(err).WithField("query", query).Error("Failed to search for artist")
+		f.logger.Error("Failed to search for artist", "error", err, "query", query)
 		return nil, 0.0, fmt.Errorf("failed to search for artist: %w", err)
 	}
 
 	// Calculate fuzzy match confidence score
 	confidence := f.calculateMatchConfidence(query, artist.Name)
 
-	f.logger.WithFields(logrus.Fields{
-		"query":       query,
-		"artist_name": artist.Name,
-		"confidence":  confidence,
-	}).Info("Found artist match")
+	f.logger.Info("Found artist match",
+		"query", query,
+		"artist_name", artist.Name,
+		"confidence", confidence,
+	)
 
 	return artist, confidence, nil
 }
@@ -105,14 +105,14 @@ func (f *FuzzyArtistSearcher) SearchMultipleArtists(queries []string) ([]ArtistM
 		return []ArtistMatch{}, nil
 	}
 
-	f.logger.WithField("query_count", len(queries)).Debug("Searching for multiple artists")
+	f.logger.Debug("Searching for multiple artists", "query_count", len(queries))
 
 	results := make([]ArtistMatch, 0, len(queries))
 
 	for _, query := range queries {
 		artist, confidence, err := f.FindBestMatch(query)
 		if err != nil {
-			f.logger.WithError(err).WithField("query", query).Warn("Failed to find artist match")
+			f.logger.Warn("Failed to find artist match", "error", err, "query", query)
 			continue
 		}
 
@@ -123,10 +123,10 @@ func (f *FuzzyArtistSearcher) SearchMultipleArtists(queries []string) ([]ArtistM
 		})
 	}
 
-	f.logger.WithFields(logrus.Fields{
-		"queries_processed": len(queries),
-		"matches_found":     len(results),
-	}).Info("Completed multiple artist search")
+	f.logger.Info("Completed multiple artist search",
+		"queries_processed", len(queries),
+		"matches_found", len(results),
+	)
 
 	return results, nil
 }

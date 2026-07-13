@@ -2,9 +2,10 @@ package duplicate
 
 import (
 	"errors"
+	"io"
+	"log/slog"
 	"testing"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/toozej/monogo/apps/go-listen/internal/server"
 )
 
@@ -105,8 +106,7 @@ func TestOverrideScenarios(t *testing.T) {
 			}
 			mockSpotify.expectedTrackIDs = trackIDs
 
-			logger := log.New()
-			logger.SetLevel(log.FatalLevel) // Suppress logs during testing
+			logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 			service := NewDuplicateService(mockSpotify, logger)
 
@@ -195,8 +195,7 @@ func TestOverrideErrorHandling(t *testing.T) {
 				mockSpotify.expectedTrackIDs = trackIDs
 			}
 
-			logger := log.New()
-			logger.SetLevel(log.FatalLevel)
+			logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 			service := NewDuplicateService(mockSpotify, logger)
 
@@ -250,8 +249,7 @@ func TestOverrideMessageFormatting(t *testing.T) {
 		expectedTrackIDs: []string{"track1", "track2"},
 	}
 
-	logger := log.New()
-	logger.SetLevel(log.FatalLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	service := NewDuplicateService(mockSpotify, logger)
 

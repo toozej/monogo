@@ -1,15 +1,15 @@
 package spotify
 
 import (
+	"io"
+	"log/slog"
 	"testing"
 
-	"github.com/sirupsen/logrus"
 	"github.com/toozej/monogo/apps/go-listen/internal/config"
 )
 
 func TestService_GetArtistTopTracks(t *testing.T) {
-	logger := logrus.New()
-	logger.SetLevel(logrus.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	tests := []struct {
 		name         string
@@ -62,8 +62,7 @@ func TestService_GetArtistTopTracks(t *testing.T) {
 func TestService_GetArtistTopTracks_Integration(t *testing.T) {
 	// This test would require valid Spotify credentials
 	// For now, we'll test the structure and error handling
-	logger := logrus.New()
-	logger.SetLevel(logrus.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	cfg := config.SpotifyConfig{
 		ClientID:     "test-id",
@@ -82,8 +81,7 @@ func TestService_GetArtistTopTracks_Integration(t *testing.T) {
 }
 
 func TestService_SearchArtist(t *testing.T) {
-	logger := logrus.New()
-	logger.SetLevel(logrus.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	cfg := config.SpotifyConfig{
 		ClientID:     "invalid-id",
@@ -112,8 +110,7 @@ func TestService_SearchArtist(t *testing.T) {
 }
 
 func TestService_GetUserPlaylists(t *testing.T) {
-	logger := logrus.New()
-	logger.SetLevel(logrus.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	cfg := config.SpotifyConfig{
 		ClientID:     "invalid-id",
@@ -142,8 +139,7 @@ func TestService_GetUserPlaylists(t *testing.T) {
 }
 
 func TestService_AddTracksToPlaylist(t *testing.T) {
-	logger := logrus.New()
-	logger.SetLevel(logrus.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	cfg := config.SpotifyConfig{
 		ClientID:     "invalid-id",
@@ -174,8 +170,7 @@ func TestService_AddTracksToPlaylist(t *testing.T) {
 }
 
 func TestService_CheckTracksInPlaylist(t *testing.T) {
-	logger := logrus.New()
-	logger.SetLevel(logrus.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	cfg := config.SpotifyConfig{
 		ClientID:     "invalid-id",
@@ -257,8 +252,7 @@ func TestTop5TracksLimitation(t *testing.T) {
 }
 
 func TestNewService(t *testing.T) {
-	logger := logrus.New()
-	logger.SetLevel(logrus.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	tests := []struct {
 		name    string

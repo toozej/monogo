@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/toozej/monogo/apps/go-listen/internal/config"
 	"github.com/toozej/monogo/apps/go-listen/internal/middleware"
 	"github.com/toozej/monogo/apps/go-listen/internal/types"
@@ -89,14 +88,12 @@ func createTestServer() (*Server, *mockPlaylistManager) {
 		},
 	}
 
-	logrusLogger := log.New()
-	logrusLogger.SetLevel(log.ErrorLevel) // Reduce noise in tests
-
-	logger := &logging.Logger{Logger: logrusLogger}
+	// Reduce noise in tests by logging at error level
+	logger := logging.NewLogger(logging.Config{Level: "error", Format: "json"})
 
 	// Initialize middleware components like in NewServer
 	rateLimiter := middleware.NewRateLimiter(cfg.Security.RateLimit.RequestsPerSecond, cfg.Security.RateLimit.Burst)
-	securityMiddleware := middleware.NewSecurityMiddleware(logger.Logger, rateLimiter)
+	securityMiddleware := middleware.NewSecurityMiddleware(logger, rateLimiter)
 	loggingMiddleware := middleware.NewLoggingMiddleware(logger)
 
 	mockPlaylist := &mockPlaylistManager{}
@@ -286,7 +283,7 @@ func TestHandleGetPlaylists(t *testing.T) {
 
 				// Verify embed URLs are generated for playlists
 				if len(playlists) > 0 {
-					firstPlaylist := playlists[0].(map[string]interface{})
+					firstPlaylist := playlists[0].(map[string]any)
 					embedURL, exists := firstPlaylist["embed_url"]
 					if !exists {
 						t.Error("Expected embed_url field in playlist response")
@@ -622,7 +619,7 @@ func TestAPIIntegration(t *testing.T) {
 	}
 
 	// Extract playlist ID for next test
-	firstPlaylist := playlists[0].(map[string]interface{})
+	firstPlaylist := playlists[0].(map[string]any)
 	playlistID := firstPlaylist["id"].(string)
 
 	// Test 2: Add artist to the retrieved playlist

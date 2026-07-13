@@ -31,12 +31,10 @@ func TestNewLoggingMiddleware(t *testing.T) {
 
 func TestLoggingMiddleware_LogRequests(t *testing.T) {
 	var buf bytes.Buffer
-	logger := logging.NewLogger(logging.Config{
+	logger := logging.NewLoggerWithWriter(&buf, logging.Config{
 		Level:  "debug",
 		Format: "json",
-		Output: "stdout",
 	})
-	logger.SetOutput(&buf)
 
 	middleware := NewLoggingMiddleware(logger)
 
@@ -86,13 +84,13 @@ func TestLoggingMiddleware_LogRequests(t *testing.T) {
 	}
 
 	// Check the request completion log (last entry)
-	var completionLogEntry map[string]interface{}
+	var completionLogEntry map[string]any
 	if err := json.Unmarshal([]byte(logLines[len(logLines)-1]), &completionLogEntry); err != nil {
 		t.Fatalf("Failed to parse completion log entry as JSON: %v", err)
 	}
 
 	// Verify completion log fields
-	expectedFields := map[string]interface{}{
+	expectedFields := map[string]any{
 		"component":   "http",
 		"operation":   "api_request",
 		"method":      "GET",
@@ -125,8 +123,7 @@ func TestLoggingMiddleware_LogRequests(t *testing.T) {
 
 func TestLoggingMiddleware_DoesNotLogQueryValues(t *testing.T) {
 	var buf bytes.Buffer
-	logger := logging.NewLogger(logging.Config{Level: "debug", Format: "json", Output: "stdout"})
-	logger.SetOutput(&buf)
+	logger := logging.NewLoggerWithWriter(&buf, logging.Config{Level: "debug", Format: "json"})
 	middleware := NewLoggingMiddleware(logger)
 	handler := middleware.LogRequests(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -146,12 +143,10 @@ func TestLoggingMiddleware_DoesNotLogQueryValues(t *testing.T) {
 
 func TestLoggingMiddleware_LogRequests_WithError(t *testing.T) {
 	var buf bytes.Buffer
-	logger := logging.NewLogger(logging.Config{
+	logger := logging.NewLoggerWithWriter(&buf, logging.Config{
 		Level:  "debug",
 		Format: "json",
-		Output: "stdout",
 	})
-	logger.SetOutput(&buf)
 
 	middleware := NewLoggingMiddleware(logger)
 
@@ -176,7 +171,7 @@ func TestLoggingMiddleware_LogRequests_WithError(t *testing.T) {
 	logLines := strings.Split(strings.TrimSpace(logOutput), "\n")
 
 	// Check the completion log entry
-	var completionLogEntry map[string]interface{}
+	var completionLogEntry map[string]any
 	if err := json.Unmarshal([]byte(logLines[len(logLines)-1]), &completionLogEntry); err != nil {
 		t.Fatalf("Failed to parse completion log entry as JSON: %v", err)
 	}
@@ -193,12 +188,10 @@ func TestLoggingMiddleware_LogRequests_WithError(t *testing.T) {
 
 func TestLoggingMiddleware_LogRequests_WithClientError(t *testing.T) {
 	var buf bytes.Buffer
-	logger := logging.NewLogger(logging.Config{
+	logger := logging.NewLoggerWithWriter(&buf, logging.Config{
 		Level:  "debug",
 		Format: "json",
-		Output: "stdout",
 	})
-	logger.SetOutput(&buf)
 
 	middleware := NewLoggingMiddleware(logger)
 
@@ -223,14 +216,14 @@ func TestLoggingMiddleware_LogRequests_WithClientError(t *testing.T) {
 	logLines := strings.Split(strings.TrimSpace(logOutput), "\n")
 
 	// Check the completion log entry
-	var completionLogEntry map[string]interface{}
+	var completionLogEntry map[string]any
 	if err := json.Unmarshal([]byte(logLines[len(logLines)-1]), &completionLogEntry); err != nil {
 		t.Fatalf("Failed to parse completion log entry as JSON: %v", err)
 	}
 
 	// Verify warning-level logging for 400 status
-	if completionLogEntry["level"] != "warning" {
-		t.Errorf("Expected warning level for 400 status, got %v", completionLogEntry["level"])
+	if completionLogEntry["level"] != "warn" {
+		t.Errorf("Expected warn level for 400 status, got %v", completionLogEntry["level"])
 	}
 
 	if completionLogEntry["status_code"] != float64(400) {

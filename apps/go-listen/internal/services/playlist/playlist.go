@@ -1,9 +1,9 @@
 package playlist
 
 import (
+	"log/slog"
 	"strings"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/toozej/monogo/apps/go-listen/internal/types"
 )
 
@@ -11,11 +11,11 @@ import (
 type PlaylistService struct {
 	spotify   types.SpotifyService
 	duplicate types.DuplicateDetector
-	logger    *log.Logger
+	logger    *slog.Logger
 }
 
 // NewPlaylistService creates a new playlist service
-func NewPlaylistService(spotify types.SpotifyService, duplicate types.DuplicateDetector, logger *log.Logger) *PlaylistService {
+func NewPlaylistService(spotify types.SpotifyService, duplicate types.DuplicateDetector, logger *slog.Logger) *PlaylistService {
 	return &PlaylistService{
 		spotify:   spotify,
 		duplicate: duplicate,
@@ -24,7 +24,7 @@ func NewPlaylistService(spotify types.SpotifyService, duplicate types.DuplicateD
 }
 
 // NewService creates a new playlist service (alias for NewPlaylistService)
-func NewService(spotify types.SpotifyService, logger *log.Logger) *PlaylistService {
+func NewService(spotify types.SpotifyService, logger *slog.Logger) *PlaylistService {
 	return &PlaylistService{
 		spotify: spotify,
 		logger:  logger,
@@ -33,22 +33,23 @@ func NewService(spotify types.SpotifyService, logger *log.Logger) *PlaylistServi
 
 // AddArtistToPlaylist adds an artist's top tracks to a playlist
 func (p *PlaylistService) AddArtistToPlaylist(artistName, playlistID string, force bool) (*types.AddResult, error) {
-	p.logger.WithFields(log.Fields{
-		"component":   "playlist_service",
-		"operation":   "add_artist",
-		"artist_name": artistName,
-		"playlist_id": playlistID,
-		"force":       force,
-	}).Info("Starting to add artist to playlist")
+	p.logger.Info("Starting to add artist to playlist",
+		"component", "playlist_service",
+		"operation", "add_artist",
+		"artist_name", artistName,
+		"playlist_id", playlistID,
+		"force", force,
+	)
 
 	// Search for the artist
 	artist, err := p.spotify.SearchArtist(artistName)
 	if err != nil {
-		p.logger.WithError(err).WithFields(log.Fields{
-			"component":   "playlist_service",
-			"operation":   "add_artist",
-			"artist_name": artistName,
-		}).Error("Failed to search for artist")
+		p.logger.Error("Failed to search for artist",
+			"error", err,
+			"component", "playlist_service",
+			"operation", "add_artist",
+			"artist_name", artistName,
+		)
 		return &types.AddResult{
 			Success: false,
 			Message: "Failed to find artist: " + err.Error(),
@@ -58,12 +59,13 @@ func (p *PlaylistService) AddArtistToPlaylist(artistName, playlistID string, for
 	// Get the artist's top 5 tracks
 	tracks, err := p.spotify.GetArtistTopTracks(artist.ID)
 	if err != nil {
-		p.logger.WithError(err).WithFields(log.Fields{
-			"component":   "playlist_service",
-			"operation":   "add_artist",
-			"artist_id":   artist.ID,
-			"artist_name": artist.Name,
-		}).Error("Failed to get artist top tracks")
+		p.logger.Error("Failed to get artist top tracks",
+			"error", err,
+			"component", "playlist_service",
+			"operation", "add_artist",
+			"artist_id", artist.ID,
+			"artist_name", artist.Name,
+		)
 		return &types.AddResult{
 			Success: false,
 			Artist:  *artist,
@@ -72,12 +74,12 @@ func (p *PlaylistService) AddArtistToPlaylist(artistName, playlistID string, for
 	}
 
 	if len(tracks) == 0 {
-		p.logger.WithFields(log.Fields{
-			"component":   "playlist_service",
-			"operation":   "add_artist",
-			"artist_id":   artist.ID,
-			"artist_name": artist.Name,
-		}).Warn("Artist has no tracks available")
+		p.logger.Warn("Artist has no tracks available",
+			"component", "playlist_service",
+			"operation", "add_artist",
+			"artist_id", artist.ID,
+			"artist_name", artist.Name,
+		)
 		return &types.AddResult{
 			Success: false,
 			Artist:  *artist,
@@ -90,22 +92,23 @@ func (p *PlaylistService) AddArtistToPlaylist(artistName, playlistID string, for
 	if !force && p.duplicate != nil {
 		duplicateResult, err := p.duplicate.CheckArtistInPlaylist(playlistID, artist.ID)
 		if err != nil {
-			p.logger.WithError(err).WithFields(log.Fields{
-				"component":   "playlist_service",
-				"operation":   "duplicate_check",
-				"artist_id":   artist.ID,
-				"playlist_id": playlistID,
-			}).Warn("Failed to check for duplicates, proceeding anyway")
+			p.logger.Warn("Failed to check for duplicates, proceeding anyway",
+				"error", err,
+				"component", "playlist_service",
+				"operation", "duplicate_check",
+				"artist_id", artist.ID,
+				"playlist_id", playlistID,
+			)
 		} else if duplicateResult != nil && duplicateResult.HasDuplicates {
-			p.logger.WithFields(log.Fields{
-				"component":      "playlist_service",
-				"operation":      "duplicate_check",
-				"artist_id":      artist.ID,
-				"artist_name":    artist.Name,
-				"playlist_id":    playlistID,
-				"last_added":     duplicateResult.LastAdded,
-				"has_duplicates": true,
-			}).Info("Artist tracks already exist in playlist")
+			p.logger.Info("Artist tracks already exist in playlist",
+				"component", "playlist_service",
+				"operation", "duplicate_check",
+				"artist_id", artist.ID,
+				"artist_name", artist.Name,
+				"playlist_id", playlistID,
+				"last_added", duplicateResult.LastAdded,
+				"has_duplicates", true,
+			)
 
 			return &types.AddResult{
 				Success:      false,
@@ -127,24 +130,25 @@ func (p *PlaylistService) AddArtistToPlaylist(artistName, playlistID string, for
 	// Add tracks to playlist in batch with error handling
 	err = p.spotify.AddTracksToPlaylist(playlistID, trackIDs)
 	if err != nil {
-		p.logger.WithError(err).WithFields(log.Fields{
-			"component":   "playlist_service",
-			"operation":   "add_tracks",
-			"playlist_id": playlistID,
-			"track_count": len(trackIDs),
-			"artist_name": artist.Name,
-		}).Error("Failed to add tracks to playlist")
+		p.logger.Error("Failed to add tracks to playlist",
+			"error", err,
+			"component", "playlist_service",
+			"operation", "add_tracks",
+			"playlist_id", playlistID,
+			"track_count", len(trackIDs),
+			"artist_name", artist.Name,
+		)
 
 		// Check if it's a rate limiting error and provide appropriate message
 		errorMessage := "Failed to add tracks to playlist: " + err.Error()
 		if strings.Contains(strings.ToLower(err.Error()), "rate limit") ||
 			strings.Contains(strings.ToLower(err.Error()), "429") {
 			errorMessage = "Rate limited by Spotify API. Please try again later."
-			p.logger.WithFields(log.Fields{
-				"component": "playlist_service",
-				"operation": "add_tracks",
-				"event":     "rate_limit_hit",
-			}).Warn("Spotify API rate limit encountered")
+			p.logger.Warn("Spotify API rate limit encountered",
+				"component", "playlist_service",
+				"operation", "add_tracks",
+				"event", "rate_limit_hit",
+			)
 		}
 
 		return &types.AddResult{
@@ -156,14 +160,14 @@ func (p *PlaylistService) AddArtistToPlaylist(artistName, playlistID string, for
 		}, err
 	}
 
-	p.logger.WithFields(log.Fields{
-		"component":   "playlist_service",
-		"operation":   "add_tracks",
-		"artist_name": artist.Name,
-		"playlist_id": playlistID,
-		"track_count": len(tracks),
-		"track_names": trackNames,
-	}).Info("Successfully added artist tracks to playlist")
+	p.logger.Info("Successfully added artist tracks to playlist",
+		"component", "playlist_service",
+		"operation", "add_tracks",
+		"artist_name", artist.Name,
+		"playlist_id", playlistID,
+		"track_count", len(tracks),
+		"track_names", trackNames,
+	)
 
 	return &types.AddResult{
 		Success:      true,
@@ -176,19 +180,20 @@ func (p *PlaylistService) AddArtistToPlaylist(artistName, playlistID string, for
 
 // GetIncomingPlaylists gets playlists from the "Incoming" folder
 func (p *PlaylistService) GetIncomingPlaylists() ([]types.Playlist, error) {
-	p.logger.WithFields(log.Fields{
-		"component":   "playlist_service",
-		"operation":   "get_incoming_playlists",
-		"folder_name": "Incoming",
-	}).Debug("Fetching playlists from 'Incoming' folder")
+	p.logger.Debug("Fetching playlists from 'Incoming' folder",
+		"component", "playlist_service",
+		"operation", "get_incoming_playlists",
+		"folder_name", "Incoming",
+	)
 
 	playlists, err := p.spotify.GetUserPlaylists("Incoming")
 	if err != nil {
-		p.logger.WithError(err).WithFields(log.Fields{
-			"component":   "playlist_service",
-			"operation":   "get_incoming_playlists",
-			"folder_name": "Incoming",
-		}).Error("Failed to fetch playlists from Incoming folder")
+		p.logger.Error("Failed to fetch playlists from Incoming folder",
+			"error", err,
+			"component", "playlist_service",
+			"operation", "get_incoming_playlists",
+			"folder_name", "Incoming",
+		)
 		return nil, err
 	}
 
@@ -197,91 +202,94 @@ func (p *PlaylistService) GetIncomingPlaylists() ([]types.Playlist, error) {
 		playlistNames[i] = playlist.Name
 	}
 
-	p.logger.WithFields(log.Fields{
-		"component":      "playlist_service",
-		"operation":      "get_incoming_playlists",
-		"folder_name":    "Incoming",
-		"playlist_count": len(playlists),
-		"playlist_names": playlistNames,
-	}).Info("Successfully fetched Incoming playlists")
+	p.logger.Info("Successfully fetched Incoming playlists",
+		"component", "playlist_service",
+		"operation", "get_incoming_playlists",
+		"folder_name", "Incoming",
+		"playlist_count", len(playlists),
+		"playlist_names", playlistNames,
+	)
 	return playlists, nil
 }
 
 // GetTop5Tracks gets the top 5 tracks for an artist
 func (p *PlaylistService) GetTop5Tracks(artistID string) ([]types.Track, error) {
-	p.logger.WithFields(log.Fields{
-		"component": "playlist_service",
-		"operation": "get_top5_tracks",
-		"artist_id": artistID,
-	}).Debug("Getting top 5 tracks for artist")
+	p.logger.Debug("Getting top 5 tracks for artist",
+		"component", "playlist_service",
+		"operation", "get_top5_tracks",
+		"artist_id", artistID,
+	)
 
 	tracks, err := p.spotify.GetArtistTopTracks(artistID)
 	if err != nil {
-		p.logger.WithError(err).WithFields(log.Fields{
-			"component": "playlist_service",
-			"operation": "get_top5_tracks",
-			"artist_id": artistID,
-		}).Error("Failed to get artist top tracks")
+		p.logger.Error("Failed to get artist top tracks",
+			"error", err,
+			"component", "playlist_service",
+			"operation", "get_top5_tracks",
+			"artist_id", artistID,
+		)
 		return nil, err
 	}
 
-	p.logger.WithFields(log.Fields{
-		"component":   "playlist_service",
-		"operation":   "get_top5_tracks",
-		"artist_id":   artistID,
-		"track_count": len(tracks),
-	}).Info("Successfully retrieved artist top tracks")
+	p.logger.Info("Successfully retrieved artist top tracks",
+		"component", "playlist_service",
+		"operation", "get_top5_tracks",
+		"artist_id", artistID,
+		"track_count", len(tracks),
+	)
 
 	return tracks, nil
 }
 
 // AddTracksToPlaylist adds tracks to a playlist
 func (p *PlaylistService) AddTracksToPlaylist(playlistID string, trackIDs []string) error {
-	p.logger.WithFields(log.Fields{
-		"component":   "playlist_service",
-		"operation":   "add_tracks_to_playlist",
-		"playlist_id": playlistID,
-		"track_count": len(trackIDs),
-	}).Debug("Adding tracks to playlist")
+	p.logger.Debug("Adding tracks to playlist",
+		"component", "playlist_service",
+		"operation", "add_tracks_to_playlist",
+		"playlist_id", playlistID,
+		"track_count", len(trackIDs),
+	)
 
 	err := p.spotify.AddTracksToPlaylist(playlistID, trackIDs)
 	if err != nil {
-		p.logger.WithError(err).WithFields(log.Fields{
-			"component":   "playlist_service",
-			"operation":   "add_tracks_to_playlist",
-			"playlist_id": playlistID,
-			"track_count": len(trackIDs),
-		}).Error("Failed to add tracks to playlist")
+		p.logger.Error("Failed to add tracks to playlist",
+			"error", err,
+			"component", "playlist_service",
+			"operation", "add_tracks_to_playlist",
+			"playlist_id", playlistID,
+			"track_count", len(trackIDs),
+		)
 		return err
 	}
 
-	p.logger.WithFields(log.Fields{
-		"component":   "playlist_service",
-		"operation":   "add_tracks_to_playlist",
-		"playlist_id": playlistID,
-		"track_count": len(trackIDs),
-	}).Info("Successfully added tracks to playlist")
+	p.logger.Info("Successfully added tracks to playlist",
+		"component", "playlist_service",
+		"operation", "add_tracks_to_playlist",
+		"playlist_id", playlistID,
+		"track_count", len(trackIDs),
+	)
 
 	return nil
 }
 
 // CheckForDuplicates checks if tracks already exist in a playlist
 func (p *PlaylistService) CheckForDuplicates(playlistID string, trackIDs []string) (*types.DuplicateResult, error) {
-	p.logger.WithFields(log.Fields{
-		"component":   "playlist_service",
-		"operation":   "check_duplicates",
-		"playlist_id": playlistID,
-		"track_count": len(trackIDs),
-	}).Debug("Checking for duplicate tracks in playlist")
+	p.logger.Debug("Checking for duplicate tracks in playlist",
+		"component", "playlist_service",
+		"operation", "check_duplicates",
+		"playlist_id", playlistID,
+		"track_count", len(trackIDs),
+	)
 
 	duplicateFlags, err := p.spotify.CheckTracksInPlaylist(playlistID, trackIDs)
 	if err != nil {
-		p.logger.WithError(err).WithFields(log.Fields{
-			"component":   "playlist_service",
-			"operation":   "check_duplicates",
-			"playlist_id": playlistID,
-			"track_count": len(trackIDs),
-		}).Error("Failed to check for duplicate tracks")
+		p.logger.Error("Failed to check for duplicate tracks",
+			"error", err,
+			"component", "playlist_service",
+			"operation", "check_duplicates",
+			"playlist_id", playlistID,
+			"track_count", len(trackIDs),
+		)
 		return nil, err
 	}
 
@@ -304,14 +312,14 @@ func (p *PlaylistService) CheckForDuplicates(playlistID string, trackIDs []strin
 		Message:       message,
 	}
 
-	p.logger.WithFields(log.Fields{
-		"component":       "playlist_service",
-		"operation":       "check_duplicates",
-		"playlist_id":     playlistID,
-		"track_count":     len(trackIDs),
-		"duplicate_count": duplicateCount,
-		"has_duplicates":  hasDuplicates,
-	}).Info("Completed duplicate check")
+	p.logger.Info("Completed duplicate check",
+		"component", "playlist_service",
+		"operation", "check_duplicates",
+		"playlist_id", playlistID,
+		"track_count", len(trackIDs),
+		"duplicate_count", duplicateCount,
+		"has_duplicates", hasDuplicates,
+	)
 
 	return result, nil
 }
@@ -322,11 +330,11 @@ func (p *PlaylistService) FilterPlaylistsBySearch(playlists []types.Playlist, se
 		return playlists
 	}
 
-	p.logger.WithFields(log.Fields{
-		"component":   "playlist_service",
-		"operation":   "filter_playlists",
-		"search_term": searchTerm,
-	}).Debug("Filtering playlists by search term")
+	p.logger.Debug("Filtering playlists by search term",
+		"component", "playlist_service",
+		"operation", "filter_playlists",
+		"search_term", searchTerm,
+	)
 
 	filtered := make([]types.Playlist, 0)
 	searchLower := strings.ToLower(searchTerm)
@@ -337,13 +345,13 @@ func (p *PlaylistService) FilterPlaylistsBySearch(playlists []types.Playlist, se
 		}
 	}
 
-	p.logger.WithFields(log.Fields{
-		"component":      "playlist_service",
-		"operation":      "filter_playlists",
-		"search_term":    searchTerm,
-		"original_count": len(playlists),
-		"filtered_count": len(filtered),
-	}).Debug("Playlist filtering completed")
+	p.logger.Debug("Playlist filtering completed",
+		"component", "playlist_service",
+		"operation", "filter_playlists",
+		"search_term", searchTerm,
+		"original_count", len(playlists),
+		"filtered_count", len(filtered),
+	)
 
 	return filtered
 }

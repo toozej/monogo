@@ -10,13 +10,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/sirupsen/logrus"
 	"github.com/toozej/monogo/apps/go-listen/internal/types"
 	"github.com/toozej/monogo/pkg/urlsafe"
 )
@@ -38,7 +38,7 @@ type WebScraper struct {
 	extractor        ArtistExtractor
 	searcher         types.ArtistSearcher
 	playlist         types.PlaylistManager
-	logger           *logrus.Logger
+	logger           *slog.Logger
 	config           ScraperConfig
 	duplicateChecker DuplicateChecker
 	trackAdder       TrackAdder
@@ -82,7 +82,7 @@ func NewWebScraper(
 	extractor ArtistExtractor,
 	searcher types.ArtistSearcher,
 	playlist types.PlaylistManager,
-	logger *logrus.Logger,
+	logger *slog.Logger,
 ) *WebScraper {
 	httpClient := newHTTPClient(config)
 
@@ -168,47 +168,47 @@ const MinConfidenceThreshold = 0.5
 
 // ScrapeArtists fetches a URL and extracts potential artist names.
 func (w *WebScraper) ScrapeArtists(url, cssSelector string) ([]string, error) {
-	w.logger.WithFields(logrus.Fields{
-		"component":    "scraper",
-		"operation":    "scrape_start",
-		"url":          url,
-		"css_selector": cssSelector,
-	}).Info("Starting web scraping operation")
+	w.logger.Info("Starting web scraping operation",
+		"component", "scraper",
+		"operation", "scrape_start",
+		"url", url,
+		"css_selector", cssSelector,
+	)
 
 	// Fetch HTML content with retry logic
 	htmlContent, err := w.fetchWithRetry(url)
 	if err != nil {
-		w.logger.WithError(err).WithField("url", url).Error("Failed to fetch URL")
+		w.logger.Error("Failed to fetch URL", "error", err, "url", url)
 		return nil, fmt.Errorf("failed to fetch URL: %w", err)
 	}
 
 	// Parse HTML content
 	doc, err := w.parser.Parse(htmlContent)
 	if err != nil {
-		w.logger.WithError(err).Error("Failed to parse HTML content")
+		w.logger.Error("Failed to parse HTML content", "error", err)
 		return nil, fmt.Errorf("failed to parse HTML: %w", err)
 	}
 
 	// Extract text using CSS selector
 	text, err := w.parser.ExtractText(doc, cssSelector)
 	if err != nil {
-		w.logger.WithError(err).WithField("css_selector", cssSelector).Error("Failed to extract text")
+		w.logger.Error("Failed to extract text", "error", err, "css_selector", cssSelector)
 		return nil, fmt.Errorf("failed to extract text: %w", err)
 	}
 
 	// Extract artist names from text
 	artists, err := w.extractor.ExtractArtists(text)
 	if err != nil {
-		w.logger.WithError(err).Error("Failed to extract artists")
+		w.logger.Error("Failed to extract artists", "error", err)
 		return nil, fmt.Errorf("failed to extract artists: %w", err)
 	}
 
-	w.logger.WithFields(logrus.Fields{
-		"component":     "scraper",
-		"operation":     "extract_artists",
-		"artists_found": len(artists),
-		"artists":       artists,
-	}).Info("Artists extracted from content")
+	w.logger.Info("Artists extracted from content",
+		"component", "scraper",
+		"operation", "extract_artists",
+		"artists_found", len(artists),
+		"artists", artists,
+	)
 
 	return artists, nil
 }
@@ -217,14 +217,14 @@ func (w *WebScraper) ScrapeArtists(url, cssSelector string) ([]string, error) {
 func (w *WebScraper) ScrapeAndAddToPlaylist(url, cssSelector, playlistID string, force bool) (*ScrapeResult, error) {
 	startTime := time.Now()
 
-	w.logger.WithFields(logrus.Fields{
-		"component":    "scraper",
-		"operation":    "scrape_and_add_start",
-		"url":          url,
-		"css_selector": cssSelector,
-		"playlist_id":  playlistID,
-		"force":        force,
-	}).Info("Starting complete scraping workflow")
+	w.logger.Info("Starting complete scraping workflow",
+		"component", "scraper",
+		"operation", "scrape_and_add_start",
+		"url", url,
+		"css_selector", cssSelector,
+		"playlist_id", playlistID,
+		"force", force,
+	)
 
 	result := &ScrapeResult{
 		URL:         url,
@@ -278,28 +278,30 @@ func (w *WebScraper) ScrapeAndAddToPlaylist(url, cssSelector, playlistID string,
 			dupResult, err := w.duplicateChecker(playlistID, matchResult.Artist.ID)
 			if err != nil {
 				if errors.Is(err, types.ErrReauthenticationRequired) {
-					w.logger.WithError(err).WithFields(logrus.Fields{
-						"artist_id":   matchResult.Artist.ID,
-						"artist_name": matchResult.Artist.Name,
-						"playlist_id": playlistID,
-					}).Warn("Spotify reauthorization required during duplicate check; aborting scrape")
+					w.logger.Warn("Spotify reauthorization required during duplicate check; aborting scrape",
+						"error", err,
+						"artist_id", matchResult.Artist.ID,
+						"artist_name", matchResult.Artist.Name,
+						"playlist_id", playlistID,
+					)
 					result.Errors = append(result.Errors, err.Error())
 					return result, err
 				}
-				w.logger.WithError(err).WithFields(logrus.Fields{
-					"artist_id":   matchResult.Artist.ID,
-					"artist_name": matchResult.Artist.Name,
-				}).Warn("Failed to check for duplicates, continuing anyway")
+				w.logger.Warn("Failed to check for duplicates, continuing anyway",
+					"error", err,
+					"artist_id", matchResult.Artist.ID,
+					"artist_name", matchResult.Artist.Name,
+				)
 			} else if dupResult != nil && dupResult.HasDuplicates {
 				// Mark as duplicate and skip
 				matchResult.WasDuplicate = true
 				matchResult.Error = "Artist already in playlist"
 				result.DuplicateCount++
-				w.logger.WithFields(logrus.Fields{
-					"artist_id":   matchResult.Artist.ID,
-					"artist_name": matchResult.Artist.Name,
-					"playlist_id": playlistID,
-				}).Info("Skipping duplicate artist")
+				w.logger.Info("Skipping duplicate artist",
+					"artist_id", matchResult.Artist.ID,
+					"artist_name", matchResult.Artist.Name,
+					"playlist_id", playlistID,
+				)
 				continue
 			}
 		}
@@ -308,7 +310,7 @@ func (w *WebScraper) ScrapeAndAddToPlaylist(url, cssSelector, playlistID string,
 		tracks, err := w.playlist.GetTop5Tracks(matchResult.Artist.ID)
 		if err != nil {
 			if errors.Is(err, types.ErrReauthenticationRequired) {
-				w.logger.WithError(err).WithField("artist_id", matchResult.Artist.ID).Warn("Spotify reauthorization required while fetching top tracks; aborting scrape")
+				w.logger.Warn("Spotify reauthorization required while fetching top tracks; aborting scrape", "error", err, "artist_id", matchResult.Artist.ID)
 				matchResult.Error = err.Error()
 				result.Errors = append(result.Errors, fmt.Sprintf("Artist %s: %v", matchResult.Artist.Name, err))
 				return result, err
@@ -316,7 +318,7 @@ func (w *WebScraper) ScrapeAndAddToPlaylist(url, cssSelector, playlistID string,
 			matchResult.Error = fmt.Sprintf("Failed to get tracks: %v", err)
 			result.FailureCount++
 			result.Errors = append(result.Errors, fmt.Sprintf("Artist %s: %v", matchResult.Artist.Name, err))
-			w.logger.WithError(err).WithField("artist_id", matchResult.Artist.ID).Error("Failed to get top tracks")
+			w.logger.Error("Failed to get top tracks", "error", err, "artist_id", matchResult.Artist.ID)
 			continue
 		}
 
@@ -329,10 +331,11 @@ func (w *WebScraper) ScrapeAndAddToPlaylist(url, cssSelector, playlistID string,
 		err = w.trackAdder(playlistID, trackIDs)
 		if err != nil {
 			if errors.Is(err, types.ErrReauthenticationRequired) {
-				w.logger.WithError(err).WithFields(logrus.Fields{
-					"artist_id":   matchResult.Artist.ID,
-					"playlist_id": playlistID,
-				}).Warn("Spotify reauthorization required while adding tracks; aborting scrape")
+				w.logger.Warn("Spotify reauthorization required while adding tracks; aborting scrape",
+					"error", err,
+					"artist_id", matchResult.Artist.ID,
+					"playlist_id", playlistID,
+				)
 				matchResult.Error = err.Error()
 				result.Errors = append(result.Errors, fmt.Sprintf("Artist %s: %v", matchResult.Artist.Name, err))
 				return result, err
@@ -340,10 +343,11 @@ func (w *WebScraper) ScrapeAndAddToPlaylist(url, cssSelector, playlistID string,
 			matchResult.Error = fmt.Sprintf("Failed to add tracks: %v", err)
 			result.FailureCount++
 			result.Errors = append(result.Errors, fmt.Sprintf("Artist %s: %v", matchResult.Artist.Name, err))
-			w.logger.WithError(err).WithFields(logrus.Fields{
-				"artist_id":   matchResult.Artist.ID,
-				"playlist_id": playlistID,
-			}).Error("Failed to add tracks to playlist")
+			w.logger.Error("Failed to add tracks to playlist",
+				"error", err,
+				"artist_id", matchResult.Artist.ID,
+				"playlist_id", playlistID,
+			)
 			continue
 		}
 
@@ -352,12 +356,12 @@ func (w *WebScraper) ScrapeAndAddToPlaylist(url, cssSelector, playlistID string,
 		result.SuccessCount++
 		result.TotalTracksAdded += len(tracks)
 
-		w.logger.WithFields(logrus.Fields{
-			"artist_id":    matchResult.Artist.ID,
-			"artist_name":  matchResult.Artist.Name,
-			"tracks_added": len(tracks),
-			"playlist_id":  playlistID,
-		}).Info("Successfully added artist tracks to playlist")
+		w.logger.Info("Successfully added artist tracks to playlist",
+			"artist_id", matchResult.Artist.ID,
+			"artist_name", matchResult.Artist.Name,
+			"tracks_added", len(tracks),
+			"playlist_id", playlistID,
+		)
 	}
 
 	// Build summary message
@@ -365,17 +369,17 @@ func (w *WebScraper) ScrapeAndAddToPlaylist(url, cssSelector, playlistID string,
 	result.Message = fmt.Sprintf("Scraping complete: %d artists found, %d matched, %d added, %d duplicates, %d failed",
 		len(result.ArtistsFound), w.countMatched(result.MatchResults), result.SuccessCount, result.DuplicateCount, result.FailureCount)
 
-	w.logger.WithFields(logrus.Fields{
-		"component":       "scraper",
-		"operation":       "scrape_complete",
-		"url":             url,
-		"artists_found":   len(result.ArtistsFound),
-		"success_count":   result.SuccessCount,
-		"failure_count":   result.FailureCount,
-		"duplicate_count": result.DuplicateCount,
-		"total_tracks":    result.TotalTracksAdded,
-		"duration_ms":     duration.Milliseconds(),
-	}).Info("Web scraping operation completed")
+	w.logger.Info("Web scraping operation completed",
+		"component", "scraper",
+		"operation", "scrape_complete",
+		"url", url,
+		"artists_found", len(result.ArtistsFound),
+		"success_count", result.SuccessCount,
+		"failure_count", result.FailureCount,
+		"duplicate_count", result.DuplicateCount,
+		"total_tracks", result.TotalTracksAdded,
+		"duration_ms", duration.Milliseconds(),
+	)
 
 	return result, nil
 }
@@ -387,11 +391,11 @@ func (w *WebScraper) fetchWithRetry(url string) (string, error) {
 
 	for attempt := 0; attempt <= w.config.MaxRetries; attempt++ {
 		if attempt > 0 {
-			w.logger.WithFields(logrus.Fields{
-				"attempt": attempt,
-				"backoff": backoff,
-				"url":     url,
-			}).Info("Retrying HTTP request")
+			w.logger.Info("Retrying HTTP request",
+				"attempt", attempt,
+				"backoff", backoff,
+				"url", url,
+			)
 			time.Sleep(backoff)
 			backoff *= 2 // Exponential backoff
 		}
@@ -405,11 +409,12 @@ func (w *WebScraper) fetchWithRetry(url string) (string, error) {
 		}
 
 		lastErr = err
-		w.logger.WithError(err).WithFields(logrus.Fields{
-			"attempt": attempt + 1,
-			"max":     w.config.MaxRetries + 1,
-			"url":     url,
-		}).Warn("HTTP request failed")
+		w.logger.Warn("HTTP request failed",
+			"error", err,
+			"attempt", attempt+1,
+			"max", w.config.MaxRetries+1,
+			"url", url,
+		)
 	}
 
 	return "", fmt.Errorf("failed after %d attempts: %w", w.config.MaxRetries+1, lastErr)
@@ -442,14 +447,14 @@ func (w *WebScraper) fetchURL(url string) (string, error) {
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	w.logger.WithFields(logrus.Fields{
-		"component":      "scraper",
-		"operation":      "http_fetch",
-		"url":            url,
-		"status_code":    resp.StatusCode,
-		"content_length": resp.ContentLength,
-		"duration_ms":    duration.Milliseconds(),
-	}).Info("HTML content fetched")
+	w.logger.Info("HTML content fetched",
+		"component", "scraper",
+		"operation", "http_fetch",
+		"url", url,
+		"status_code", resp.StatusCode,
+		"content_length", resp.ContentLength,
+		"duration_ms", duration.Milliseconds(),
+	)
 
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("HTTP request returned status %d", resp.StatusCode)
@@ -488,10 +493,11 @@ func (w *WebScraper) checkDuplicateDefault(playlistID, artistID string) (*types.
 	// Use the playlist manager to check for duplicates
 	duplicateResult, err := w.playlist.CheckForDuplicates(playlistID, trackIDs)
 	if err != nil {
-		w.logger.WithError(err).WithFields(logrus.Fields{
-			"playlist_id": playlistID,
-			"artist_id":   artistID,
-		}).Warn("Failed to check for duplicates, assuming no duplicates")
+		w.logger.Warn("Failed to check for duplicates, assuming no duplicates",
+			"error", err,
+			"playlist_id", playlistID,
+			"artist_id", artistID,
+		)
 
 		// If we can't check, assume no duplicates to allow the operation to continue
 		return &types.DuplicateResult{
@@ -511,19 +517,20 @@ func (w *WebScraper) addTracksToPlaylistDefault(playlistID string, trackIDs []st
 	// Use the playlist manager to add tracks to the playlist
 	err := w.playlist.AddTracksToPlaylist(playlistID, trackIDs)
 	if err != nil {
-		w.logger.WithError(err).WithFields(logrus.Fields{
-			"playlist_id": playlistID,
-			"track_count": len(trackIDs),
-			"track_ids":   trackIDs,
-		}).Error("Failed to add tracks to playlist via playlist manager")
+		w.logger.Error("Failed to add tracks to playlist via playlist manager",
+			"error", err,
+			"playlist_id", playlistID,
+			"track_count", len(trackIDs),
+			"track_ids", trackIDs,
+		)
 		return fmt.Errorf("failed to add tracks to playlist: %w", err)
 	}
 
-	w.logger.WithFields(logrus.Fields{
-		"playlist_id": playlistID,
-		"track_count": len(trackIDs),
-		"track_ids":   trackIDs,
-	}).Info("Successfully added tracks to playlist via playlist manager")
+	w.logger.Info("Successfully added tracks to playlist via playlist manager",
+		"playlist_id", playlistID,
+		"track_count", len(trackIDs),
+		"track_ids", trackIDs,
+	)
 
 	return nil
 }
@@ -541,7 +548,7 @@ func (w *WebScraper) matchArtists(artistNames []string) ([]ArtistMatchResult, er
 		return []ArtistMatchResult{}, nil
 	}
 
-	w.logger.WithField("artist_count", len(artistNames)).Info("Starting batch artist matching")
+	w.logger.Info("Starting batch artist matching", "artist_count", len(artistNames))
 
 	results := make([]ArtistMatchResult, 0, len(artistNames))
 
@@ -555,12 +562,12 @@ func (w *WebScraper) matchArtists(artistNames []string) ([]ArtistMatchResult, er
 		results = append(results, result)
 	}
 
-	w.logger.WithFields(logrus.Fields{
-		"total_queries":  len(artistNames),
-		"matched":        w.countMatched(results),
-		"low_confidence": w.countLowConfidence(results),
-		"failed":         w.countFailed(results),
-	}).Info("Completed batch artist matching")
+	w.logger.Info("Completed batch artist matching",
+		"total_queries", len(artistNames),
+		"matched", w.countMatched(results),
+		"low_confidence", w.countLowConfidence(results),
+		"failed", w.countFailed(results),
+	)
 
 	return results, nil
 }
@@ -582,10 +589,10 @@ func (w *WebScraper) matchSingleArtist(query string) (ArtistMatchResult, error) 
 		// A reauth error means the user must sign in again; surface it so the
 		// batch aborts instead of failing every artist individually.
 		if errors.Is(err, types.ErrReauthenticationRequired) {
-			w.logger.WithError(err).WithField("query", query).Warn("Spotify reauthorization required during artist search; aborting batch match")
+			w.logger.Warn("Spotify reauthorization required during artist search; aborting batch match", "error", err, "query", query)
 			return result, err
 		}
-		w.logger.WithError(err).WithField("query", query).Warn("Failed to find artist match")
+		w.logger.Warn("Failed to find artist match", "error", err, "query", query)
 		result.Error = err.Error()
 		return result, nil
 	}
@@ -595,26 +602,26 @@ func (w *WebScraper) matchSingleArtist(query string) (ArtistMatchResult, error) 
 
 	// Apply confidence threshold filtering
 	if confidence < MinConfidenceThreshold {
-		w.logger.WithFields(logrus.Fields{
-			"component":  "scraper",
-			"operation":  "skip_low_confidence",
-			"query":      query,
-			"artist":     artist.Name,
-			"confidence": confidence,
-			"threshold":  MinConfidenceThreshold,
-		}).Warn("Skipping artist due to low confidence match")
+		w.logger.Warn("Skipping artist due to low confidence match",
+			"component", "scraper",
+			"operation", "skip_low_confidence",
+			"query", query,
+			"artist", artist.Name,
+			"confidence", confidence,
+			"threshold", MinConfidenceThreshold,
+		)
 		result.Error = fmt.Sprintf("confidence %.2f below threshold %.2f", confidence, MinConfidenceThreshold)
 		return result, nil
 	}
 
 	// Log successful match
-	w.logger.WithFields(logrus.Fields{
-		"component":  "scraper",
-		"operation":  "fuzzy_match",
-		"query":      query,
-		"artist":     artist.Name,
-		"confidence": confidence,
-	}).Info("Artist matched")
+	w.logger.Info("Artist matched",
+		"component", "scraper",
+		"operation", "fuzzy_match",
+		"query", query,
+		"artist", artist.Name,
+		"confidence", confidence,
+	)
 
 	result.Matched = true
 	return result, nil
@@ -700,7 +707,7 @@ type ArtistExtractor interface {
 
 // PatternArtistExtractor implements the ArtistExtractor interface using multiple extraction strategies.
 type PatternArtistExtractor struct {
-	logger     *logrus.Logger
+	logger     *slog.Logger
 	strategies []ExtractionStrategy
 }
 
@@ -710,7 +717,7 @@ type ExtractionStrategy interface {
 }
 
 // NewPatternArtistExtractor creates a new PatternArtistExtractor with all strategies.
-func NewPatternArtistExtractor(logger *logrus.Logger) *PatternArtistExtractor {
+func NewPatternArtistExtractor(logger *slog.Logger) *PatternArtistExtractor {
 	return &PatternArtistExtractor{
 		logger: logger,
 		strategies: []ExtractionStrategy{
@@ -748,11 +755,11 @@ func (p *PatternArtistExtractor) ExtractArtists(text string) ([]string, error) {
 		uniqueArtists = append(uniqueArtists, artist)
 	}
 
-	p.logger.WithFields(logrus.Fields{
-		"text_length":   len(text),
-		"artists_found": len(uniqueArtists),
-		"artists":       uniqueArtists,
-	}).Debug("Extracted artists from text")
+	p.logger.Debug("Extracted artists from text",
+		"text_length", len(text),
+		"artists_found", len(uniqueArtists),
+		"artists", uniqueArtists,
+	)
 
 	return uniqueArtists, nil
 }
@@ -913,11 +920,11 @@ func (b *BulletListStrategy) Extract(text string) []string {
 
 // GoqueryParser implements the HTMLParser interface using goquery.
 type GoqueryParser struct {
-	logger *logrus.Logger
+	logger *slog.Logger
 }
 
 // NewGoqueryParser creates a new GoqueryParser instance.
-func NewGoqueryParser(logger *logrus.Logger) *GoqueryParser {
+func NewGoqueryParser(logger *slog.Logger) *GoqueryParser {
 	return &GoqueryParser{
 		logger: logger,
 	}
@@ -931,7 +938,7 @@ func (g *GoqueryParser) Parse(htmlContent string) (*ParsedDocument, error) {
 
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlContent))
 	if err != nil {
-		g.logger.WithError(err).Error("Failed to parse HTML content")
+		g.logger.Error("Failed to parse HTML content", "error", err)
 		return nil, fmt.Errorf("failed to parse HTML: %w", err)
 	}
 
@@ -951,7 +958,7 @@ func (g *GoqueryParser) ExtractText(doc *ParsedDocument, cssSelector string) (st
 	// If no selector provided, extract from entire body
 	if cssSelector == "" {
 		text := doc.Document.Find("body").Text()
-		g.logger.WithField("text_length", len(text)).Debug("Extracted text from entire body")
+		g.logger.Debug("Extracted text from entire body", "text_length", len(text))
 		return text, nil
 	}
 
@@ -965,7 +972,7 @@ func (g *GoqueryParser) ExtractText(doc *ParsedDocument, cssSelector string) (st
 
 	// Check if selector matched any elements
 	if selection.Length() == 0 {
-		g.logger.WithField("selector", cssSelector).Warn("CSS selector matched no elements")
+		g.logger.Warn("CSS selector matched no elements", "selector", cssSelector)
 		return "", fmt.Errorf("CSS selector '%s' matched no elements", cssSelector)
 	}
 
@@ -979,11 +986,11 @@ func (g *GoqueryParser) ExtractText(doc *ParsedDocument, cssSelector string) (st
 	})
 
 	combinedText := strings.Join(textParts, "\n")
-	g.logger.WithFields(logrus.Fields{
-		"selector":       cssSelector,
-		"elements_found": selection.Length(),
-		"text_length":    len(combinedText),
-	}).Debug("Extracted text from CSS selector")
+	g.logger.Debug("Extracted text from CSS selector",
+		"selector", cssSelector,
+		"elements_found", selection.Length(),
+		"text_length", len(combinedText),
+	)
 
 	return combinedText, nil
 }
@@ -1005,10 +1012,10 @@ func (g *GoqueryParser) ValidateSelector(cssSelector string) error {
 	// Attempt to use the selector - if it's invalid, goquery will panic or return error
 	defer func() {
 		if r := recover(); r != nil {
-			g.logger.WithFields(logrus.Fields{
-				"selector": cssSelector,
-				"panic":    r,
-			}).Error("CSS selector caused panic")
+			g.logger.Error("CSS selector caused panic",
+				"selector", cssSelector,
+				"panic", r,
+			)
 		}
 	}()
 
@@ -1018,6 +1025,6 @@ func (g *GoqueryParser) ValidateSelector(cssSelector string) error {
 		return fmt.Errorf("invalid CSS selector: '%s'", cssSelector)
 	}
 
-	g.logger.WithField("selector", cssSelector).Debug("CSS selector is valid")
+	g.logger.Debug("CSS selector is valid", "selector", cssSelector)
 	return nil
 }

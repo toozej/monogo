@@ -1,17 +1,18 @@
 package spotify
 
 import (
+	"io"
+	"log/slog"
 	"testing"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/toozej/monogo/apps/go-listen/internal/config"
+	"github.com/toozej/monogo/pkg/logging"
 )
 
 // TestSpotifyService_Integration tests the complete integration flow with mocked responses
 func TestSpotifyService_Integration(t *testing.T) {
-	logger := logrus.New()
-	logger.SetLevel(logrus.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	tests := []struct {
 		name        string
@@ -163,8 +164,7 @@ func testRateLimitingScenarios(t *testing.T, service *Service) {
 
 // TestSpotifyService_DataTransformation tests data transformation between client and service layers
 func TestSpotifyService_DataTransformation(t *testing.T) {
-	logger := logrus.New()
-	logger.SetLevel(logrus.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	cfg := config.SpotifyConfig{
 		ClientID:     "test-id",
@@ -209,12 +209,9 @@ func TestSpotifyService_DataTransformation(t *testing.T) {
 
 // TestSpotifyService_LoggingBehavior tests that proper logging occurs
 func TestSpotifyService_LoggingBehavior(t *testing.T) {
-	logger := logrus.New()
-	logger.SetLevel(logrus.DebugLevel)
-
 	// Capture log output
 	var logOutput []byte
-	logger.SetOutput(&testLogWriter{output: &logOutput})
+	logger := logging.NewLoggerWithWriter(&testLogWriter{output: &logOutput}, logging.Config{Level: "debug", Format: "json"})
 
 	cfg := config.SpotifyConfig{
 		ClientID:     "test-id",
@@ -249,8 +246,7 @@ func (w *testLogWriter) Write(p []byte) (n int, err error) {
 
 // TestSpotifyService_ConfigurationHandling tests various configuration scenarios
 func TestSpotifyService_ConfigurationHandling(t *testing.T) {
-	logger := logrus.New()
-	logger.SetLevel(logrus.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	tests := []struct {
 		name            string
@@ -307,8 +303,7 @@ func TestSpotifyService_TypeConversions(t *testing.T) {
 	// This test would verify type conversions if we had mock data
 	// For now, we test the structure and error handling
 
-	logger := logrus.New()
-	logger.SetLevel(logrus.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	cfg := config.SpotifyConfig{
 		ClientID:     "test-id",
@@ -355,8 +350,7 @@ func TestSpotifyService_TypeConversions(t *testing.T) {
 
 // TestSpotifyService_ConcurrentAccess tests concurrent access to service methods
 func TestSpotifyService_ConcurrentAccess(t *testing.T) {
-	logger := logrus.New()
-	logger.SetLevel(logrus.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	cfg := config.SpotifyConfig{
 		ClientID:     "test-id",
@@ -398,8 +392,7 @@ func TestSpotifyService_ConcurrentAccess(t *testing.T) {
 
 // TestSpotifyService_EdgeCases tests edge cases and boundary conditions
 func TestSpotifyService_EdgeCases(t *testing.T) {
-	logger := logrus.New()
-	logger.SetLevel(logrus.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	cfg := config.SpotifyConfig{
 		ClientID:     "test-id",

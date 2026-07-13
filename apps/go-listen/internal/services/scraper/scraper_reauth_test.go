@@ -3,12 +3,13 @@ package scraper
 import (
 	"errors"
 	"fmt"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
-	"github.com/sirupsen/logrus"
 	"github.com/toozej/monogo/apps/go-listen/internal/types"
 )
 
@@ -66,8 +67,7 @@ func (s *stubExtractor) CleanArtistName(name string) string           { return n
 // and returns a wrapped types.ErrReauthenticationRequired as soon as the
 // searcher surfaces a reauth error, instead of recording it per-artist.
 func TestMatchArtists_AbortsOnReauth(t *testing.T) {
-	logger := logrus.New()
-	logger.SetLevel(logrus.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	reauthErr := fmt.Errorf("search failed: %w", types.ErrReauthenticationRequired)
 	w := &WebScraper{
@@ -91,8 +91,7 @@ func TestMatchArtists_AbortsOnReauth(t *testing.T) {
 // TestMatchArtists_RecordsOrdinaryFailure verifies non-reauth search failures
 // are still recorded per-artist and do not abort the batch.
 func TestMatchArtists_RecordsOrdinaryFailure(t *testing.T) {
-	logger := logrus.New()
-	logger.SetLevel(logrus.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	w := &WebScraper{
 		logger:   logger,
@@ -115,8 +114,7 @@ func TestMatchArtists_RecordsOrdinaryFailure(t *testing.T) {
 // workflow aborts and returns the typed reauth error when GetTop5Tracks fails
 // with reauth, instead of continuing to fail every remaining artist.
 func TestScrapeAndAddToPlaylist_AbortsOnReauthDuringAdd(t *testing.T) {
-	logger := logrus.New()
-	logger.SetLevel(logrus.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	// Serve minimal HTML so ScrapeArtists can fetch and parse successfully.
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -158,8 +156,7 @@ func TestScrapeAndAddToPlaylist_AbortsOnReauthDuringAdd(t *testing.T) {
 // TestScrapeAndAddToPlaylist_AbortsOnReauthDuringMatch verifies the workflow
 // aborts when the match phase itself hits a reauth error.
 func TestScrapeAndAddToPlaylist_AbortsOnReauthDuringMatch(t *testing.T) {
-	logger := logrus.New()
-	logger.SetLevel(logrus.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")

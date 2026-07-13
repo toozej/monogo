@@ -2,18 +2,19 @@ package middleware
 
 import (
 	"bytes"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/toozej/monogo/pkg/logging"
 )
 
 func TestSecurityHeaders(t *testing.T) {
-	logger := log.New()
-	logger.SetLevel(log.ErrorLevel) // Reduce noise in tests
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 	rateLimiter := NewRateLimiter(10, 20)
 	sm := NewSecurityMiddleware(logger, rateLimiter)
 
@@ -48,8 +49,7 @@ func TestSecurityHeaders(t *testing.T) {
 }
 
 func TestRateLimit(t *testing.T) {
-	logger := log.New()
-	logger.SetLevel(log.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 	rateLimiter := NewRateLimiter(2, 2) // Very low limits for testing
 	sm := NewSecurityMiddleware(logger, rateLimiter)
 
@@ -87,8 +87,7 @@ func TestRateLimit(t *testing.T) {
 }
 
 func TestInputValidation(t *testing.T) {
-	logger := log.New()
-	logger.SetLevel(log.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 	rateLimiter := NewRateLimiter(10, 20)
 	sm := NewSecurityMiddleware(logger, rateLimiter)
 
@@ -155,8 +154,7 @@ func TestInputValidation(t *testing.T) {
 
 func TestInputValidationDoesNotLogRejectedQueryValue(t *testing.T) {
 	var logs bytes.Buffer
-	logger := log.New()
-	logger.SetOutput(&logs)
+	logger := logging.NewLoggerWithWriter(&logs, logging.Config{Level: "debug", Format: "json"})
 	sm := NewSecurityMiddleware(logger, NewRateLimiter(10, 20))
 	handler := sm.InputValidation(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -172,8 +170,7 @@ func TestInputValidationDoesNotLogRejectedQueryValue(t *testing.T) {
 }
 
 func TestCSRFProtection(t *testing.T) {
-	logger := log.New()
-	logger.SetLevel(log.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 	rateLimiter := NewRateLimiter(10, 20)
 	sm := NewSecurityMiddleware(logger, rateLimiter)
 
@@ -226,8 +223,7 @@ func TestCSRFProtection(t *testing.T) {
 }
 
 func TestCSRFTokenGeneration(t *testing.T) {
-	logger := log.New()
-	logger.SetLevel(log.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 	rateLimiter := NewRateLimiter(10, 20)
 	sm := NewSecurityMiddleware(logger, rateLimiter)
 
@@ -311,7 +307,7 @@ func TestGetClientIP(t *testing.T) {
 }
 
 func TestTrustedProxyClientIP(t *testing.T) {
-	sm := NewSecurityMiddleware(log.New(), NewRateLimiter(1, 1), true)
+	sm := NewSecurityMiddleware(slog.New(slog.NewJSONHandler(io.Discard, nil)), NewRateLimiter(1, 1), true)
 	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	req.RemoteAddr = "10.0.0.1:12345"
 	req.Header.Set("X-Forwarded-For", "203.0.113.1, 10.0.0.1")
@@ -321,7 +317,7 @@ func TestTrustedProxyClientIP(t *testing.T) {
 }
 
 func TestBasicAuth(t *testing.T) {
-	sm := NewSecurityMiddleware(log.New(), NewRateLimiter(10, 10))
+	sm := NewSecurityMiddleware(slog.New(slog.NewJSONHandler(io.Discard, nil)), NewRateLimiter(10, 10))
 	handler := sm.BasicAuth(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	}), "user", "secret")

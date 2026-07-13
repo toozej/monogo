@@ -4,20 +4,19 @@ import (
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/base64"
+	"log/slog"
 	"net"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
-
-	log "github.com/sirupsen/logrus"
 )
 
 const maxFormSize = 1 << 20 // 1 MB
 
 // SecurityMiddleware provides various security protections
 type SecurityMiddleware struct {
-	logger            *log.Logger
+	logger            *slog.Logger
 	rateLimiter       *RateLimiter
 	csrfTokens        map[string]time.Time
 	csrfMutex         sync.RWMutex
@@ -25,7 +24,7 @@ type SecurityMiddleware struct {
 }
 
 // NewSecurityMiddleware creates a new security middleware instance
-func NewSecurityMiddleware(logger *log.Logger, rateLimiter *RateLimiter, trustProxyHeaders ...bool) *SecurityMiddleware {
+func NewSecurityMiddleware(logger *slog.Logger, rateLimiter *RateLimiter, trustProxyHeaders ...bool) *SecurityMiddleware {
 	trustProxy := len(trustProxyHeaders) > 0 && trustProxyHeaders[0]
 	sm := &SecurityMiddleware{
 		logger:            logger,
@@ -83,15 +82,15 @@ func (sm *SecurityMiddleware) RateLimit(next http.Handler) http.Handler {
 		clientIP := sm.clientIP(r)
 
 		if !sm.rateLimiter.Allow(clientIP) {
-			sm.logger.WithFields(log.Fields{
-				"component":  "security",
-				"operation":  "rate_limit",
-				"event_type": "rate_limit_exceeded",
-				"client_ip":  clientIP,
-				"method":     r.Method,
-				"path":       r.URL.Path,
-				"user_agent": r.UserAgent(),
-			}).Warn("Rate limit exceeded")
+			sm.logger.Warn("Rate limit exceeded",
+				"component", "security",
+				"operation", "rate_limit",
+				"event_type", "rate_limit_exceeded",
+				"client_ip", clientIP,
+				"method", r.Method,
+				"path", r.URL.Path,
+				"user_agent", r.UserAgent(),
+			)
 
 			w.Header().Set("Retry-After", "60")
 			http.Error(w, "Rate limit exceeded. Please try again later.", http.StatusTooManyRequests)
@@ -107,15 +106,15 @@ func (sm *SecurityMiddleware) InputValidation(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Check for suspicious patterns in URL path
 		if containsSuspiciousPatterns(r.URL.Path) {
-			sm.logger.WithFields(log.Fields{
-				"component":  "security",
-				"operation":  "input_validation",
-				"event_type": "suspicious_path",
-				"client_ip":  sm.clientIP(r),
-				"path":       r.URL.Path,
-				"user_agent": r.UserAgent(),
-				"method":     r.Method,
-			}).Warn("Suspicious path detected")
+			sm.logger.Warn("Suspicious path detected",
+				"component", "security",
+				"operation", "input_validation",
+				"event_type", "suspicious_path",
+				"client_ip", sm.clientIP(r),
+				"path", r.URL.Path,
+				"user_agent", r.UserAgent(),
+				"method", r.Method,
+			)
 
 			http.Error(w, "Invalid request", http.StatusBadRequest)
 			return
@@ -125,16 +124,16 @@ func (sm *SecurityMiddleware) InputValidation(next http.Handler) http.Handler {
 		for key, values := range r.URL.Query() {
 			for _, value := range values {
 				if containsSuspiciousPatterns(key) || containsSuspiciousPatterns(value) {
-					sm.logger.WithFields(log.Fields{
-						"component":  "security",
-						"operation":  "input_validation",
-						"event_type": "suspicious_parameter",
-						"client_ip":  sm.clientIP(r),
-						"param":      key,
-						"user_agent": r.UserAgent(),
-						"method":     r.Method,
-						"path":       r.URL.Path,
-					}).Warn("Suspicious query parameter detected")
+					sm.logger.Warn("Suspicious query parameter detected",
+						"component", "security",
+						"operation", "input_validation",
+						"event_type", "suspicious_parameter",
+						"client_ip", sm.clientIP(r),
+						"param", key,
+						"user_agent", r.UserAgent(),
+						"method", r.Method,
+						"path", r.URL.Path,
+					)
 
 					http.Error(w, "Invalid request parameters", http.StatusBadRequest)
 					return
@@ -169,16 +168,16 @@ func (sm *SecurityMiddleware) CSRFProtection(next http.Handler) http.Handler {
 			}
 
 			if !sm.validateCSRFToken(token) {
-				sm.logger.WithFields(log.Fields{
-					"component":  "security",
-					"operation":  "csrf_protection",
-					"event_type": "invalid_csrf_token",
-					"client_ip":  sm.clientIP(r),
-					"method":     r.Method,
-					"path":       r.URL.Path,
-					"user_agent": r.UserAgent(),
-					"has_token":  token != "",
-				}).Warn("Invalid or missing CSRF token")
+				sm.logger.Warn("Invalid or missing CSRF token",
+					"component", "security",
+					"operation", "csrf_protection",
+					"event_type", "invalid_csrf_token",
+					"client_ip", sm.clientIP(r),
+					"method", r.Method,
+					"path", r.URL.Path,
+					"user_agent", r.UserAgent(),
+					"has_token", token != "",
+				)
 
 				http.Error(w, "Invalid or missing CSRF token", http.StatusForbidden)
 				return
@@ -193,10 +192,11 @@ func (sm *SecurityMiddleware) CSRFProtection(next http.Handler) http.Handler {
 func (sm *SecurityMiddleware) GenerateCSRFToken() string {
 	bytes := make([]byte, 32)
 	if _, err := rand.Read(bytes); err != nil {
-		sm.logger.WithError(err).WithFields(log.Fields{
-			"component": "security",
-			"operation": "csrf_token_generation",
-		}).Error("Failed to generate CSRF token")
+		sm.logger.Error("Failed to generate CSRF token",
+			"error", err,
+			"component", "security",
+			"operation", "csrf_token_generation",
+		)
 		return ""
 	}
 

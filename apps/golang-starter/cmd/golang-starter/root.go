@@ -21,14 +21,15 @@ package cmd
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/toozej/monogo/apps/golang-starter/internal/config"
 	"github.com/toozej/monogo/apps/golang-starter/internal/starter"
 	"github.com/toozej/monogo/pkg/avatar"
+	"github.com/toozej/monogo/pkg/logging"
 	"github.com/toozej/monogo/pkg/man"
 	"github.com/toozej/monogo/pkg/version"
 )
@@ -58,7 +59,7 @@ func newRootCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:           "golang-starter",
 		Short:         "golang-starter starter template",
-		Long:          `Golang starter template using cobra, logrus, dotenv and env modules`,
+		Long:          `Golang starter template using cobra, slog, dotenv and env modules`,
 		Args:          cobra.ExactArgs(0),
 		SilenceErrors: true,
 		SilenceUsage:  true,
@@ -101,15 +102,18 @@ func rootCmdRun(cmd *cobra.Command, args []string, username string) error {
 // rootCmdPreRun performs setup operations before executing the root command.
 // This function is called before both the root command and any subcommands.
 //
-// It configures the logging level based on the debug flag. When debug mode
-// is enabled, logrus is set to DebugLevel for detailed logging output.
+// It configures the default slog logger based on the debug flag. When debug
+// mode is enabled, the logger is set to debug level for detailed logging
+// output; otherwise it logs at info level.
 //
 // Parameters:
 //   - debug: Whether debug logging was requested for this command tree
 func rootCmdPreRun(debug bool) {
+	level := "info"
 	if debug {
-		log.SetLevel(log.DebugLevel)
+		level = "debug"
 	}
+	slog.SetDefault(logging.NewLogger(logging.Config{Level: level, Format: "json", Output: "stdout"}))
 }
 
 // Execute starts the command-line interface execution.
