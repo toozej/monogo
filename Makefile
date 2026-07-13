@@ -58,7 +58,7 @@ IMAGE_TAG = latest
 COSIGN_IDENTITY_REGEXP := '^https://github.com/toozej/monogo/.github/workflows/(release|weekly-docker-refresh).yaml@refs/(tags/.*|heads/main)$$'
 COSIGN_OIDC_ISSUER := 'https://token.actions.githubusercontent.com'
 
-.PHONY: all list-apps import new-app delete-app migrate-internal-package app-check common-generate app-generate generate generate-all app-templates-check templates-check vet test build release delete-release re-release verify verify-docker verify-docker-all-registries run up down docker-vet docker-test docker-build distroless-build distroless-run install local local-all local-update-deps local-vet local-vendor local-test local-cover local-build local-run local-kill local-iterate release-test local-install docker-login pre-commit-install pre-commit-run pre-commit pre-reqs licenses licenses-all update-golang-version upload-secrets-to-gh upload-secrets-envfile-to-1pass docs diagrams mutation-test test-changed watch-test profile-cpu profile-mem profile-all benchmark demo clean clean-all help
+.PHONY: all list-apps import new-app delete-app migrate-internal-package app-check common-generate app-generate generate generate-all app-templates-check templates-check vet test build release release-all delete-release re-release verify verify-docker verify-docker-all-registries run up down docker-vet docker-test docker-build distroless-build distroless-run install local local-all local-update-deps local-vet local-vendor local-test local-cover local-build local-run local-kill local-iterate release-test local-install docker-login pre-commit-install pre-commit-run pre-commit pre-reqs licenses licenses-all update-golang-version upload-secrets-to-gh upload-secrets-envfile-to-1pass docs diagrams mutation-test test-changed watch-test profile-cpu profile-mem profile-all benchmark demo clean clean-all help
 .PHONY: common-generate-no-prereqs app-generate-no-prereqs app-templates-check-no-generate docker-vet-no-generate docker-test-no-generate docker-build-no-generate release-test-no-generate pre-commit-install-no-prereqs pre-commit-run-no-generate
 
 all: generate-all ## Run default workflow for every app using Docker where available
@@ -193,6 +193,21 @@ delete-release: ## Delete a release: its GitHub release plus the apps/APP/VERSIO
 
 re-release: delete-release release ## Delete and re-release APP at VERSION; usage: make re-release APP=<app-name> VERSION=<vX.Y.Z>
 	@echo "Re-release complete."
+
+release-all: ## Release all apps with previous releases using TYPE=<major|minor|patch>
+	@set -euo pipefail; \
+	if [ -z "$(TYPE)" ]; then \
+		echo "TYPE is required, e.g. make release-all TYPE=patch"; \
+		exit 1; \
+	fi; \
+	case "$(TYPE)" in major|minor|patch) ;; *) echo "TYPE must be major, minor, or patch (got '$(TYPE)')."; exit 1 ;; esac; \
+	echo "Finding all apps with previous releases..."; \
+	for app in $(APPS); do \
+		if git tag --list "apps/$$app/v*" 2>/dev/null | grep -qE '^apps/$$app/v[0-9]+\.[0-9]+\.[0-9]+$$'; then \
+			echo "=== Releasing $$app with TYPE=$(TYPE) ==="; \
+			$(MAKE) release APP=$$app TYPE=$(TYPE); \
+		fi; \
+	done
 
 verify: app-check ## Verify APP Docker image with Cosign (keyless)
 	cosign verify \
