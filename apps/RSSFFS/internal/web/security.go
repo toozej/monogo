@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 )
@@ -102,22 +101,9 @@ func (rl *RateLimiter) cleanupOldRequests() {
 
 // getClientIP extracts the client IP from the request
 func getClientIP(r *http.Request) string {
-	// Check X-Forwarded-For header, which can be a comma-separated list.
-	// The first IP in the list is the original client IP.
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		ips := strings.Split(xff, ",")
-		if len(ips) > 0 {
-			return strings.TrimSpace(ips[0])
-		}
-	}
-
-	// Check X-Real-IP header, which is typically a single IP.
-	if xri := r.Header.Get("X-Real-IP"); xri != "" {
-		return strings.TrimSpace(xri)
-	}
-
-	// Fall back to RemoteAddr, which might be an IP:port combination.
-	// We only want the IP part.
+	// Forwarded headers are intentionally ignored unless trusted-proxy support
+	// is explicitly configured in the future; accepting them from direct clients
+	// makes rate limits trivial to bypass.
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err == nil {
 		return host

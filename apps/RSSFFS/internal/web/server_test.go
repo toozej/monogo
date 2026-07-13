@@ -105,13 +105,12 @@ func TestWithMiddleware(t *testing.T) {
 
 	// Check that security headers are set
 	expectedHeaders := map[string]string{
-		"X-Content-Type-Options":      "nosniff",
-		"X-Frame-Options":             "DENY",
-		"X-XSS-Protection":            "1; mode=block",
-		"Referrer-Policy":             "strict-origin-when-cross-origin",
-		"Content-Security-Policy":     "default-src 'self';",
-		"Permissions-Policy":          "geolocation=(), microphone=(), camera=()",
-		"Access-Control-Allow-Origin": "*",
+		"X-Content-Type-Options":  "nosniff",
+		"X-Frame-Options":         "DENY",
+		"X-XSS-Protection":        "1; mode=block",
+		"Referrer-Policy":         "strict-origin-when-cross-origin",
+		"Content-Security-Policy": "default-src 'self';",
+		"Permissions-Policy":      "geolocation=(), microphone=(), camera=()",
 	}
 
 	for header, expectedValue := range expectedHeaders {
@@ -119,6 +118,71 @@ func TestWithMiddleware(t *testing.T) {
 		if !strings.Contains(actualValue, expectedValue) {
 			t.Errorf("Expected header %s to contain %s, got %s", header, expectedValue, actualValue)
 		}
+	}
+}
+
+func TestWithMiddlewareRequiresConfiguredBasicAuth(t *testing.T) {
+	server := NewServer(config.Config{WebUsername: "owner", WebPassword: "secret"}, false)
+	handler := server.withMiddleware(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+
+	for _, tc := range []struct {
+		name       string
+		username   string
+		password   string
+		wantStatus int
+	}{
+		{name: "missing", wantStatus: http.StatusUnauthorized},
+		{name: "wrong", username: "owner", password: "wrong", wantStatus: http.StatusUnauthorized},
+		{name: "valid", username: "owner", password: "secret", wantStatus: http.StatusNoContent},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			if tc.username != "" {
+				req.SetBasicAuth(tc.username, tc.password)
+			}
+			w := httptest.NewRecorder()
+			handler(w, req)
+			if w.Code != tc.wantStatus {
+				t.Fatalf("got %d, want %d", w.Code, tc.wantStatus)
+			}
+			if got := w.Header().Get("Access-Control-Allow-Origin"); got != "" {
+				t.Fatalf("unexpected permissive CORS header %q", got)
+			}
+			if got := w.Header().Get("X-Content-Type-Options"); got != "nosniff" {
+				t.Fatalf("security header = %q, want nosniff", got)
+			}
+		})
+	}
+}
+
+func TestValidateBindAuthentication(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		host    string
+		conf    config.Config
+		wantErr bool
+	}{
+		{name: "loopback without auth", host: "127.0.0.1"},
+		{name: "IPv6 loopback without auth", host: "::1"},
+		{name: "public without auth", host: "0.0.0.0", wantErr: true},
+		{name: "public with auth", host: "0.0.0.0", conf: config.Config{WebUsername: "owner", WebPassword: "secret"}},
+		{name: "partial auth", host: "127.0.0.1", conf: config.Config{WebUsername: "owner"}, wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			server := NewServer(tc.conf, false)
+			err := server.validateBindAuthentication(tc.host)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("validateBindAuthentication() error = %v, wantErr %t", err, tc.wantErr)
+			}
+		})
+	}
+}
+
+func TestSubmissionTimeoutFitsServerWriteDeadline(t *testing.T) {
+	if submissionTimeout >= serverWriteTimeout {
+		t.Fatalf("submission timeout %s must be shorter than server write timeout %s", submissionTimeout, serverWriteTimeout)
 	}
 }
 
@@ -179,8 +243,8 @@ func TestWithMiddlewareOptionsRequest(t *testing.T) {
 
 	wrappedHandler(w, req)
 
-	if handlerCalled {
-		t.Error("Expected handler not to be called for OPTIONS request")
+	if !handlerCalled {
+		t.Error("Expected handler to receive OPTIONS request without cross-origin middleware")
 	}
 
 	if w.Code != http.StatusOK {

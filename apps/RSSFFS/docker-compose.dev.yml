@@ -10,10 +10,10 @@ services:
     security_opt:
       - no-new-privileges:true
     read_only: true
-    command: ["serve"]
+    command: ["serve", "--host", "0.0.0.0"]
     env_file: .env
     ports:
-      - 8080:8080
+      - 127.0.0.1:8080:8080
     labels:
       - "traefik.enable=false"
       # labels below for publishing as web service

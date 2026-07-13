@@ -9,6 +9,8 @@ package cmd
 import (
 	"fmt"
 	"net"
+	"strconv"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -60,6 +62,9 @@ func (s *ServeCommand) runServer(cmd *cobra.Command, args []string) error {
 	if s.Port < 1 || s.Port > 65535 {
 		return fmt.Errorf("invalid port number: %d (must be between 1 and 65535)", s.Port)
 	}
+	if !isLoopbackHost(s.Host) && (conf.WebUsername == "" || conf.WebPassword == "") {
+		return fmt.Errorf("WEB_USERNAME and WEB_PASSWORD are required when binding the web server to non-loopback host %q", s.Host)
+	}
 
 	// Check if port is available
 	if err := s.checkPortAvailability(); err != nil {
@@ -86,9 +91,18 @@ func (s *ServeCommand) runServer(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+func isLoopbackHost(host string) bool {
+	host = strings.TrimSuffix(strings.ToLower(host), ".")
+	if host == "localhost" {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
+
 // checkPortAvailability verifies that the specified port is available for binding
 func (s *ServeCommand) checkPortAvailability() error {
-	addr := fmt.Sprintf("%s:%d", s.Host, s.Port)
+	addr := bindAddress(s.Host, s.Port)
 
 	// Try to listen on the address to check availability
 	listener, err := net.Listen("tcp", addr)
@@ -98,4 +112,8 @@ func (s *ServeCommand) checkPortAvailability() error {
 
 	// Close the listener immediately since we're just checking availability
 	return listener.Close()
+}
+
+func bindAddress(host string, port int) string {
+	return net.JoinHostPort(host, strconv.Itoa(port))
 }

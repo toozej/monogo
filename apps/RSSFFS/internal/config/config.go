@@ -73,6 +73,11 @@ type Config struct {
 	// defaults to 8080 (applied in setDefaults).
 	WebPort int `env:"WEB_PORT" yaml:"web_port"`
 
+	// WebUsername and WebPassword enable HTTP Basic authentication for the web
+	// interface. They are required when binding to a non-loopback address.
+	WebUsername string `env:"WEB_USERNAME" yaml:"web_username"`
+	WebPassword string `env:"WEB_PASSWORD" yaml:"web_password"`
+
 	// SingleURLMode specifies whether to use single URL mode for RSS feed discovery.
 	// When enabled, only checks for RSS feeds on the provided URL's domain
 	// without traversing to other domains found on the webpage. It is loaded from

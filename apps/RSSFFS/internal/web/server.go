@@ -2,10 +2,13 @@ package web
 
 import (
 	"context"
+	"crypto/subtle"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -23,6 +26,8 @@ type Server struct {
 	rateLimiter *RateLimiter
 	logHook     *WebUIHook
 }
+
+const serverWriteTimeout = 3 * time.Minute
 
 // NewServer creates a new Server instance with the provided configuration
 func NewServer(conf config.Config, debug bool) *Server {
@@ -63,6 +68,14 @@ func (s *Server) SetupRoutes() *http.ServeMux {
 // withMiddleware applies logging, security headers, rate limiting, and CORS middleware
 func (s *Server) withMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// Apply defensive headers to every response, including authentication and
+		// rate-limit failures that return before reaching the route handler.
+		s.setSecurityHeaders(w)
+		if !s.isAuthorized(r) {
+			w.Header().Set("WWW-Authenticate", `Basic realm="RSSFFS", charset="UTF-8"`)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
 		// Log request
 		start := time.Now()
 		if s.debug {
@@ -79,20 +92,6 @@ func (s *Server) withMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			}
 		}
 
-		// Comprehensive security headers
-		s.setSecurityHeaders(w)
-
-		// CORS headers for local development (restrict in production)
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-CSRF-Token")
-
-		// Handle preflight requests
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
 		// Call the actual handler
 		next(w, r)
 
@@ -101,6 +100,19 @@ func (s *Server) withMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			log.Debugf("Response: %s %s completed in %v", r.Method, r.URL.Path, time.Since(start))
 		}
 	}
+}
+
+func (s *Server) isAuthorized(r *http.Request) bool {
+	if s.config.WebUsername == "" && s.config.WebPassword == "" {
+		return true
+	}
+	username, password, ok := r.BasicAuth()
+	if !ok {
+		return false
+	}
+	usernameOK := subtle.ConstantTimeCompare([]byte(username), []byte(s.config.WebUsername)) == 1
+	passwordOK := subtle.ConstantTimeCompare([]byte(password), []byte(s.config.WebPassword)) == 1
+	return usernameOK && passwordOK
 }
 
 // setSecurityHeaders sets comprehensive security headers
@@ -239,13 +251,16 @@ func (s *Server) handleDirectAsset(w http.ResponseWriter, r *http.Request) {
 
 // Start starts the HTTP server on the specified host and port
 func (s *Server) Start(host string, port int) error {
-	addr := fmt.Sprintf("%s:%d", host, port)
+	if err := s.validateBindAuthentication(host); err != nil {
+		return err
+	}
+	addr := net.JoinHostPort(host, strconv.Itoa(port))
 
 	s.server = &http.Server{
 		Addr:         addr,
 		Handler:      s.SetupRoutes(),
 		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
+		WriteTimeout: serverWriteTimeout,
 		IdleTimeout:  60 * time.Second,
 	}
 
@@ -260,6 +275,21 @@ func (s *Server) Start(host string, port int) error {
 
 	// Wait for interrupt signal to gracefully shutdown the server
 	return s.waitForShutdown()
+}
+
+func (s *Server) validateBindAuthentication(host string) error {
+	hasUsername := s.config.WebUsername != ""
+	hasPassword := s.config.WebPassword != ""
+	if hasUsername != hasPassword {
+		return fmt.Errorf("both WEB_USERNAME and WEB_PASSWORD must be configured together")
+	}
+	normalizedHost := strings.TrimSuffix(strings.ToLower(host), ".")
+	ip := net.ParseIP(normalizedHost)
+	isLoopback := normalizedHost == "localhost" || (ip != nil && ip.IsLoopback())
+	if !isLoopback && !hasUsername {
+		return fmt.Errorf("WEB_USERNAME and WEB_PASSWORD are required when binding the web server to non-loopback host %q", host)
+	}
+	return nil
 }
 
 // waitForShutdown waits for interrupt signal and gracefully shuts down the server
