@@ -556,6 +556,26 @@ func TestRunLoadsGitignoreOncePerRepository(t *testing.T) {
 	assert.Equal(t, 1, loads)
 }
 
+func TestGitignoreSupportsNestedWorktreeGitFiles(t *testing.T) {
+	root := t.TempDir()
+	assert.NoError(t, os.Mkdir(filepath.Join(root, ".git"), 0o755))
+	worktree := filepath.Join(root, ".claude", "worktrees", "linked")
+	assert.NoError(t, os.MkdirAll(worktree, 0o755))
+	assert.NoError(t, os.WriteFile(filepath.Join(worktree, ".git"), []byte("gitdir: /tmp/example\n"), 0o600))
+	assert.NoError(t, os.WriteFile(filepath.Join(root, ".gitignore"), []byte("ignored.txt\n"), 0o600))
+	assert.NoError(t, os.WriteFile(filepath.Join(root, "ignored.txt"), []byte("IGNORED"), 0o600))
+	assert.NoError(t, os.WriteFile(filepath.Join(root, "visible.txt"), []byte("VISIBLE"), 0o600))
+
+	var output bytes.Buffer
+	originalStdout := osStdout
+	osStdout = &output
+	t.Cleanup(func() { osStdout = originalStdout })
+
+	assert.NoError(t, Run(config.Config{Paths: []string{root}}))
+	assert.NotContains(t, output.String(), "IGNORED")
+	assert.Contains(t, output.String(), "VISIBLE")
+}
+
 func TestUnreadableGitignoreFailsClosed(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Unix file modes are required")
