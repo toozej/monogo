@@ -1,11 +1,15 @@
 package search
 
 import (
+	"context"
 	"errors"
 	"io"
 	"net/http"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/PuerkitoBio/goquery"
 )
 
 // fakeRoundTripper serves the age-verification GET with a canned body and makes
@@ -13,6 +17,141 @@ import (
 type fakeRoundTripper struct {
 	getBody string
 	postErr error
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
+
+func response(req *http.Request, status int, body string) *http.Response {
+	return &http.Response{
+		StatusCode: status, Status: http.StatusText(status),
+		Body: io.NopCloser(strings.NewReader(body)), Header: make(http.Header), Request: req,
+	}
+}
+
+func TestSearchItemHonorsContextOnEveryRequest(t *testing.T) {
+	requestCount := 0
+	searcher := &Searcher{
+		client: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			requestCount++
+			if requestCount < 3 {
+				return response(req, http.StatusOK, "<html></html>"), nil
+			}
+			<-req.Context().Done()
+			return nil, req.Context().Err()
+		})},
+		userAgent: "test-agent",
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	if _, err := searcher.SearchItem(ctx, "item", "97201", 10); err == nil {
+		t.Fatal("SearchItem() error = nil, want context deadline error")
+	}
+	if requestCount != 3 {
+		t.Fatalf("request count = %d, want 3", requestCount)
+	}
+}
+
+func TestSearchItemRejectsInvalidInputsBeforeNetworkCall(t *testing.T) {
+	requestCount := 0
+	searcher := &Searcher{
+		client: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			requestCount++
+			return response(req, http.StatusOK, "<html></html>"), nil
+		})},
+		userAgent: "test-agent",
+	}
+	tests := []struct {
+		name     string
+		item     string
+		zipcode  string
+		distance int
+	}{
+		{name: "blank item", item: " ", zipcode: "97201", distance: 10},
+		{name: "blank zipcode", item: "item", zipcode: "\t", distance: 10},
+		{name: "zero distance", item: "item", zipcode: "97201", distance: 0},
+		{name: "negative distance", item: "item", zipcode: "97201", distance: -1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if _, err := searcher.SearchItem(context.Background(), tt.item, tt.zipcode, tt.distance); err == nil {
+				t.Fatal("SearchItem() error = nil")
+			}
+		})
+	}
+	if requestCount != 0 {
+		t.Fatalf("request count = %d, want no requests for invalid inputs", requestCount)
+	}
+}
+
+func TestSearchItemRejectsBadStatusAndOversizedBody(t *testing.T) {
+	tests := []struct {
+		name   string
+		status int
+		body   string
+	}{
+		{name: "bad status", status: http.StatusBadGateway, body: "error"},
+		{name: "oversized", status: http.StatusOK, body: strings.Repeat("x", maxHTMLBytes+1)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			requestCount := 0
+			searcher := &Searcher{
+				client: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+					requestCount++
+					if requestCount < 3 {
+						return response(req, http.StatusOK, "<html></html>"), nil
+					}
+					return response(req, tt.status, tt.body), nil
+				})},
+				userAgent: "test-agent",
+			}
+			if _, err := searcher.SearchItem(context.Background(), "item", "97201", 10); err == nil {
+				t.Fatal("SearchItem() error = nil")
+			}
+		})
+	}
+}
+
+func TestAgeVerificationRejectsBadStatusAndOversizedBody(t *testing.T) {
+	tests := []struct {
+		name   string
+		status int
+		body   string
+	}{
+		{name: "bad status", status: http.StatusInternalServerError, body: "error"},
+		{name: "oversized", status: http.StatusOK, body: strings.Repeat("x", maxHTMLBytes+1)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			searcher := &Searcher{client: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				return response(req, tt.status, tt.body), nil
+			})}, userAgent: "test-agent"}
+			if err := searcher.AgeVerificationContext(context.Background()); err == nil {
+				t.Fatal("AgeVerificationContext() error = nil")
+			}
+		})
+	}
+}
+
+func TestExtractResultsRequiresPositiveIntegerQuantity(t *testing.T) {
+	html := `<table>
+	<tr class="row"><td><span class="link">1</span></td><td>Portland</td><td></td><td></td><td></td><td></td><td class="qty"></td></tr>
+	<tr class="row"><td><span class="link">2</span></td><td>Salem</td><td></td><td></td><td></td><td></td><td class="qty">unknown</td></tr>
+	<tr class="row"><td><span class="link">3</span></td><td>Eugene</td><td></td><td></td><td></td><td></td><td class="qty">0</td></tr>
+	<tr class="row"><td><span class="link">4</span></td><td>Bend</td><td></td><td></td><td></td><td></td><td class="qty">2</td></tr>
+	</table>`
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := extractResults(doc, ProductInfo{Name: "Whiskey", ItemCode: "123", BottlePrice: "$10"})
+	if len(got) != 1 || got[0].Store != "4 - Bend" {
+		t.Fatalf("extractResults() = %+v, want only positive integer quantity", got)
+	}
 }
 
 func (f fakeRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {

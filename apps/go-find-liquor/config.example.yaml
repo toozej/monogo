@@ -48,7 +48,7 @@ users:
         condense: false # Send separate notification for each item found
         credential:
           token: "USER1_SLACK_TOKEN"
-          channel_id: "https://exampleorg.slack.com/archives/XXXXXXXXXXXXXXXXXXXXXXXX"
+          channel_id: "C0123456789"
 
   # User 2 - Condensed notifications
   - name: "user2"
@@ -71,7 +71,7 @@ users:
         condense: true
         credential:
           token: "USER2_DISCORD_BOT_TOKEN"
-          channel_id: "https://discord.com/channels/000000000000000000/XXXXXXXXXXXXXXXXXXXXX"
+          channel_id: "123456789012345678"
 
 # Additional notification examples for reference:
 #
@@ -80,7 +80,7 @@ users:
 #   condense: false  # or true for condensed notifications
 #   credential:
 #     token: "YOUR_PUSHOVER_TOKEN"
-#     receipient_id: "XXXXXXXXXXXXX"
+#     recipient_id: "XXXXXXXXXXXXX"
 #
 # Pushbullet example:
 # - type: pushbullet

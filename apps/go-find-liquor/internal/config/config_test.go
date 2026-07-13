@@ -52,6 +52,31 @@ users:
 	}
 }
 
+func TestGetConfigYAMLDefaultsUserDistance(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	for _, key := range []string{"GFL_INTERVAL", "GFL_USER_AGENT", "GFL_VERBOSE", "GFL_ITEMS", "GFL_ZIPCODE", "GFL_DISTANCE"} {
+		_ = os.Unsetenv(key)
+		t.Cleanup(func() { _ = os.Unsetenv(key) })
+	}
+	yamlBody := `interval: 6h
+users:
+  - name: alice
+    items: ["Blanton's"]
+    zipcode: "97201"
+`
+	if err := os.WriteFile(filepath.Join(dir, "config.yaml"), []byte(yamlBody), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	conf, err := GetConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if conf.Users[0].Distance != 10 {
+		t.Fatalf("distance = %d, want 10", conf.Users[0].Distance)
+	}
+}
+
 func TestIsLegacyConfig(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -189,6 +214,7 @@ func TestValidateConfig(t *testing.T) {
 		{
 			name: "Valid config",
 			config: Config{
+				Interval: time.Hour,
 				Users: []UserConfig{
 					{
 						Name:     "user1",
@@ -304,6 +330,55 @@ func TestNotificationConfigCondenseField(t *testing.T) {
 
 	if defaultNotification.Condense {
 		t.Errorf("Expected default Condense to be false, got true")
+	}
+}
+
+func TestSetDefaultsAppliesMultiUserDistance(t *testing.T) {
+	conf := Config{Users: []UserConfig{{Name: "alice"}}}
+	setDefaults(&conf)
+	if conf.Users[0].Distance != 10 {
+		t.Fatalf("user distance = %d, want 10", conf.Users[0].Distance)
+	}
+}
+
+func TestValidateConfigRejectsUnsafeRunnerInputs(t *testing.T) {
+	base := Config{
+		Interval: time.Hour,
+		Users:    []UserConfig{{Name: "alice", Items: []string{"item"}, Zipcode: "97201", Distance: 10}},
+	}
+	tests := []struct {
+		name string
+		edit func(*Config)
+	}{
+		{name: "negative interval", edit: func(c *Config) { c.Interval = -time.Second }},
+		{name: "duplicate names", edit: func(c *Config) { c.Users = append(c.Users, c.Users[0]) }},
+		{name: "blank name", edit: func(c *Config) { c.Users[0].Name = " " }},
+		{name: "empty item", edit: func(c *Config) { c.Users[0].Items = []string{" "} }},
+		{name: "blank zipcode", edit: func(c *Config) { c.Users[0].Zipcode = "\t" }},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			conf := base
+			conf.Users = append([]UserConfig(nil), base.Users...)
+			tt.edit(&conf)
+			if err := validateConfig(conf); err == nil {
+				t.Fatal("validateConfig() error = nil")
+			}
+		})
+	}
+}
+
+func TestMigrateLegacyConfigPreservesCommonItems(t *testing.T) {
+	conf := Config{
+		Interval: time.Hour, Items: []string{"item"}, Zipcode: "97201", Distance: 10,
+		CommonItems: []CommonItem{{Code: "123"}},
+	}
+	got, err := migrateLegacyConfig(conf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.CommonItems) != 1 || got.CommonItems[0].Code != "123" {
+		t.Fatalf("CommonItems = %+v, want preserved", got.CommonItems)
 	}
 }
 

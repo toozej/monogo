@@ -4,10 +4,12 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"io"
 	"math/big"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -19,6 +21,7 @@ const (
 	baseURL       = "https://www.oregonliquorsearch.com/"
 	searchURL     = "https://www.oregonliquorsearch.com/servlet/FrontController"
 	ageBtnFormURL = "https://www.oregonliquorsearch.com/servlet/WelcomeController"
+	maxHTMLBytes  = 5 << 20
 )
 
 // DefaultCommonItems are items that are typically always in stock at OLCC stores,
@@ -91,12 +94,9 @@ func NewSearcher(userAgent string) *Searcher {
 		Timeout: 30 * time.Second,
 	}
 
-	bigLenUserAgents := new(big.Int)
-	bigLenUserAgents.SetInt64(int64(len(userAgents))) // Convert int to int64 first
-	randUserAgent, _ := rand.Int(rand.Reader, bigLenUserAgents)
 	cycleAgent := userAgent == ""
 	if cycleAgent {
-		userAgent = userAgents[randUserAgent.Int64()]
+		userAgent = userAgents[randomIndex(len(userAgents))]
 	}
 
 	return &Searcher{
@@ -109,18 +109,27 @@ func NewSearcher(userAgent string) *Searcher {
 // updateUserAgent sets a new random user agent if cycling is enabled
 func (s *Searcher) updateUserAgent() {
 	if s.cycleAgent {
-		bigLenUserAgents := new(big.Int)
-		bigLenUserAgents.SetInt64(int64(len(userAgents))) // Convert int to int64 first
-		randUserAgent, _ := rand.Int(rand.Reader, bigLenUserAgents)
-		s.userAgent = userAgents[randUserAgent.Int64()]
+		s.userAgent = userAgents[randomIndex(len(userAgents))]
 		log.Debugf("Using user agent: %s", s.userAgent)
 	}
 }
 
+func randomIndex(length int) int {
+	index, err := rand.Int(rand.Reader, big.NewInt(int64(length)))
+	if err != nil {
+		return 0
+	}
+	return int(index.Int64())
+}
+
 // AgeVerification performs the age verification
 func (s *Searcher) AgeVerification() error {
+	return s.AgeVerificationContext(context.Background())
+}
+
+func (s *Searcher) AgeVerificationContext(ctx context.Context) error {
 	// First get the page to get session cookies
-	req, err := http.NewRequest("GET", baseURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
@@ -131,15 +140,22 @@ func (s *Searcher) AgeVerification() error {
 	if err != nil {
 		return fmt.Errorf("failed to get page: %w", err)
 	}
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		_ = resp.Body.Close()
+		return fmt.Errorf("age verification page returned status: %s", resp.Status)
+	}
 
 	// Parse the form for the age verification, then close this response before
 	// issuing the POST below. Closing explicitly (rather than via defer) avoids
 	// a deferred closure capturing the reused `resp` variable: when the POST's
 	// Do returned (nil, err), the still-registered first defer dereferenced the
 	// now-nil `resp` and panicked instead of returning the error.
-	_, err = goquery.NewDocumentFromReader(resp.Body)
+	body, readErr := readBoundedHTML(resp.Body)
 	_ = resp.Body.Close()
-	if err != nil {
+	if readErr != nil {
+		return fmt.Errorf("failed to read age verification page: %w", readErr)
+	}
+	if _, err = goquery.NewDocumentFromReader(strings.NewReader(string(body))); err != nil {
 		return fmt.Errorf("failed to parse page: %w", err)
 	}
 
@@ -150,7 +166,7 @@ func (s *Searcher) AgeVerification() error {
 
 	// Submit the form
 	log.Debugf("AgeVerification() POSTing %v\n", formData)
-	req, err = http.NewRequest("POST", ageBtnFormURL, strings.NewReader(formData.Encode()))
+	req, err = http.NewRequestWithContext(ctx, http.MethodPost, ageBtnFormURL, strings.NewReader(formData.Encode()))
 	if err != nil {
 		return fmt.Errorf("failed to create form submission request: %w", err)
 	}
@@ -174,10 +190,19 @@ func (s *Searcher) AgeVerification() error {
 
 // SearchItem searches for a specific liquor item by name or code
 func (s *Searcher) SearchItem(ctx context.Context, item string, zipcode string, distance int) ([]LiquorItem, error) {
+	if strings.TrimSpace(item) == "" {
+		return nil, fmt.Errorf("item must not be empty")
+	}
+	if strings.TrimSpace(zipcode) == "" {
+		return nil, fmt.Errorf("zipcode must not be empty")
+	}
+	if distance <= 0 {
+		return nil, fmt.Errorf("distance must be positive")
+	}
 	s.updateUserAgent()
 
 	// Perform age verification before search
-	if err := s.AgeVerification(); err != nil {
+	if err := s.AgeVerificationContext(ctx); err != nil {
 		return nil, fmt.Errorf("age verification failed: %w", err)
 	}
 
@@ -192,7 +217,7 @@ func (s *Searcher) SearchItem(ctx context.Context, item string, zipcode string, 
 
 	// Submit search form
 	log.Debugf("SearchItem() POSTing formData %v\n", formData)
-	req, err := http.NewRequest("POST", searchURL, strings.NewReader(formData.Encode()))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, searchURL, strings.NewReader(formData.Encode()))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create search request: %w", err)
 	}
@@ -213,7 +238,11 @@ func (s *Searcher) SearchItem(ctx context.Context, item string, zipcode string, 
 	}
 
 	// Generate goquery document from response
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	body, err := readBoundedHTML(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read search response: %w", err)
+	}
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(body)))
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate goquery document from search query response: %w", err)
 	}
@@ -227,6 +256,17 @@ func (s *Searcher) SearchItem(ctx context.Context, item string, zipcode string, 
 	return results, nil
 }
 
+func readBoundedHTML(reader io.Reader) ([]byte, error) {
+	body, err := io.ReadAll(io.LimitReader(reader, maxHTMLBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(body) > maxHTMLBytes {
+		return nil, fmt.Errorf("response exceeds %d-byte limit", maxHTMLBytes)
+	}
+	return body, nil
+}
+
 // extractResults extracts found products from the table and creates a list of found liquor item results
 func extractResults(doc *goquery.Document, product ProductInfo) []LiquorItem {
 	var results []LiquorItem
@@ -234,7 +274,8 @@ func extractResults(doc *goquery.Document, product ProductInfo) []LiquorItem {
 	doc.Find("tr.row, tr.alt-row").Each(func(i int, s *goquery.Selection) {
 		// Check if the store has stock
 		qtyText := strings.TrimSpace(s.Find("td.qty").Text())
-		if qtyText == "0" {
+		quantity, err := strconv.Atoi(qtyText)
+		if err != nil || quantity <= 0 {
 			return // Skip stores with no stock
 		}
 

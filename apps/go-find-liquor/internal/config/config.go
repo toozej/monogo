@@ -50,6 +50,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	sharedconfig "github.com/toozej/monogo/pkg/config"
@@ -166,6 +167,11 @@ func setDefaults(conf *Config) {
 	if conf.Distance == 0 {
 		conf.Distance = 10
 	}
+	for i := range conf.Users {
+		if conf.Users[i].Distance == 0 {
+			conf.Users[i].Distance = 10
+		}
+	}
 }
 
 // isLegacyConfig detects if the configuration is in the old format
@@ -201,10 +207,11 @@ func migrateLegacyConfig(config Config) (Config, error) {
 
 	// Create new config with migrated user
 	newConfig := Config{
-		Interval:  config.Interval,
-		UserAgent: config.UserAgent,
-		Verbose:   config.Verbose,
-		Users:     []UserConfig{user},
+		Interval:    config.Interval,
+		UserAgent:   config.UserAgent,
+		Verbose:     config.Verbose,
+		CommonItems: config.CommonItems,
+		Users:       []UserConfig{user},
 	}
 
 	fmt.Printf("Migrated legacy configuration to multi-user format with user '%s'\n", user.Name)
@@ -218,22 +225,36 @@ func validateConfig(config Config) error {
 		return fmt.Errorf("at least one user must be configured")
 	}
 
+	seenNames := make(map[string]struct{}, len(config.Users))
 	for i, user := range config.Users {
-		if user.Name == "" {
+		if strings.TrimSpace(user.Name) == "" {
 			return fmt.Errorf("user %d must have a name", i)
 		}
+		if _, exists := seenNames[user.Name]; exists {
+			return fmt.Errorf("duplicate user name %q", user.Name)
+		}
+		seenNames[user.Name] = struct{}{}
 
 		if len(user.Items) == 0 {
 			return fmt.Errorf("user '%s' must have at least one item to search for", user.Name)
 		}
 
-		if user.Zipcode == "" {
+		if strings.TrimSpace(user.Zipcode) == "" {
 			return fmt.Errorf("user '%s' must have a zipcode specified", user.Name)
 		}
 
 		if user.Distance <= 0 {
 			return fmt.Errorf("user '%s' must have a positive distance", user.Name)
 		}
+
+		for itemIndex, item := range user.Items {
+			if strings.TrimSpace(item) == "" {
+				return fmt.Errorf("user '%s' item %d must not be empty", user.Name, itemIndex)
+			}
+		}
+	}
+	if config.Interval <= 0 {
+		return fmt.Errorf("interval must be positive")
 	}
 
 	return nil

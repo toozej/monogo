@@ -2,6 +2,9 @@ package notification
 
 import (
 	"context"
+	"errors"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -13,6 +16,126 @@ import (
 // MockNotifier implements the Notifier interface for testing
 type MockNotifier struct {
 	notifications []NotificationCall
+	err           error
+}
+
+func TestNotificationManagerHonorsPerProviderCondense(t *testing.T) {
+	condensed := &MockNotifier{}
+	individual := &MockNotifier{}
+	manager := &NotificationManager{
+		notifiers: []Notifier{condensed, individual},
+		targets: []notificationTarget{
+			{notifier: condensed, condense: true},
+			{notifier: individual, condense: false},
+		},
+	}
+	items := []search.LiquorItem{
+		{Name: "One", Store: "A", Date: time.Now(), Price: "$1"},
+		{Name: "Two", Store: "B", Date: time.Now(), Price: "$2"},
+	}
+	if err := manager.NotifyFoundItems(context.Background(), items); err != nil {
+		t.Fatal(err)
+	}
+	if len(condensed.GetNotifications()) != 1 {
+		t.Fatalf("condensed notifications = %d, want 1", len(condensed.GetNotifications()))
+	}
+	if len(individual.GetNotifications()) != 2 {
+		t.Fatalf("individual notifications = %d, want 2", len(individual.GetNotifications()))
+	}
+}
+
+func TestNewNotificationManagerPreservesPerProviderCondense(t *testing.T) {
+	manager, err := NewNotificationManager([]config.NotificationConfig{
+		{Type: "gotify", Endpoint: "https://one.example", Condense: true, Credential: map[string]string{"token": "one"}},
+		{Type: "gotify", Endpoint: "https://two.example", Condense: false, Credential: map[string]string{"token": "two"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(manager.targets) != 2 || !manager.targets[0].condense || manager.targets[1].condense {
+		t.Fatalf("targets = %+v, want condensed then individual", manager.targets)
+	}
+}
+
+func TestDiscordNotifierIsInitializedAndHonorsContext(t *testing.T) {
+	notifier, err := NewDiscordNotifier("token", "123456789012345678")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if notifier.session.Client == nil || notifier.session.Ratelimiter == nil {
+		t.Fatal("Discord session is missing required client or rate limiter")
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	err = notifier.Notify(ctx, "subject", "message")
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("Notify() error = %v, want context cancellation", err)
+	}
+}
+
+func TestNewNotificationManagerRejectsMalformedCredentials(t *testing.T) {
+	tests := []struct {
+		name   string
+		config config.NotificationConfig
+	}{
+		{name: "partial Telegram chat ID", config: config.NotificationConfig{
+			Type: "telegram", Credential: map[string]string{"token": "123:secret", "chat_id": "456junk"},
+		}},
+		{name: "Discord channel URL", config: config.NotificationConfig{
+			Type: "discord", Credential: map[string]string{"token": "token", "channel_id": "https://discord.com/channels/1/2"},
+		}},
+		{name: "blank Pushover recipient", config: config.NotificationConfig{
+			Type: "pushover", Credential: map[string]string{"token": "token", "recipient_id": " "},
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if _, err := NewNotificationManager([]config.NotificationConfig{tt.config}); err == nil {
+				t.Fatal("NewNotificationManager() error = nil")
+			}
+		})
+	}
+}
+
+func TestNotificationManagerAggregatesProviderErrors(t *testing.T) {
+	firstErr := errors.New("first provider failed")
+	secondErr := errors.New("second provider failed")
+	first := &MockNotifier{err: firstErr}
+	second := &MockNotifier{err: secondErr}
+	manager := &NotificationManager{notifiers: []Notifier{first, second}}
+
+	err := manager.NotifyHeartbeat(context.Background(), "", false)
+	if !errors.Is(err, firstErr) || !errors.Is(err, secondErr) {
+		t.Fatalf("NotifyHeartbeat() error = %v, want both provider errors", err)
+	}
+	if len(first.notifications) != 1 || len(second.notifications) != 1 {
+		t.Fatalf("provider calls = %d, %d; want both providers attempted", len(first.notifications), len(second.notifications))
+	}
+}
+
+func TestGotifyNotifierEscapesToken(t *testing.T) {
+	const token = "a+b&c#d"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.URL.Query().Get("token"); got != token {
+			t.Errorf("token = %q, want %q", got, token)
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	if err := NewGotifyNotifier(server.URL, token).Notify(context.Background(), "subject", "message"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestNewNotificationManagerRejectsInvalidTelegramTokenWithoutPanic(t *testing.T) {
+	_, err := NewNotificationManager([]config.NotificationConfig{{
+		Type: "telegram", Credential: map[string]string{"token": "invalid", "chat_id": "123"},
+	}})
+	if err == nil {
+		t.Fatal("NewNotificationManager() error = nil")
+	}
 }
 
 type NotificationCall struct {
@@ -25,7 +148,7 @@ func (m *MockNotifier) Notify(ctx context.Context, subject, message string) erro
 		Subject: subject,
 		Message: message,
 	})
-	return nil
+	return m.err
 }
 
 func (m *MockNotifier) GetNotifications() []NotificationCall {

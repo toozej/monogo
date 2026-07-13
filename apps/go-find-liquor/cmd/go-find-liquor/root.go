@@ -66,7 +66,7 @@ func rootCmdRun(cmd *cobra.Command, args []string) error {
 	// Get configuration
 	conf, err := config.GetConfig()
 	if err != nil {
-		log.Fatalf("Failed to load configuration: %v", err)
+		return fmt.Errorf("load configuration: %w", err)
 	}
 
 	// Log configuration summary for multi-user scenarios
@@ -75,23 +75,10 @@ func rootCmdRun(cmd *cobra.Command, args []string) error {
 	// Create runner (supports both single and multi-user configurations)
 	r, err := runner.NewRunner(conf)
 	if err != nil {
-		log.Fatalf("Failed to create runner: %v", err)
+		return fmt.Errorf("create runner: %w", err)
 	}
 
-	// Create context with signal handling
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	// Setup signal handling
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
-
-	go func() {
-		<-sigCh
-		log.Info("Received termination signal, shutting down...")
-		r.Stop()
-		cancel()
-	}()
+	ctx := cmd.Context()
 
 	// Run once or continuously
 	if once {
@@ -174,8 +161,11 @@ func rootCmdPreRun(cmd *cobra.Command, args []string) {
 }
 
 func Execute() error {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	rootCmd.SetContext(ctx)
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err.Error())
+		fmt.Fprintln(os.Stderr, err.Error())
 		return err
 	}
 	return nil
