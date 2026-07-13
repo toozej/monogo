@@ -10,7 +10,6 @@ import (
 	"sync"
 	"testing"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/toozej/monogo/apps/go-listen/internal/config"
 	"github.com/toozej/monogo/apps/go-listen/internal/middleware"
 	"github.com/toozej/monogo/apps/go-listen/internal/types"
@@ -78,13 +77,11 @@ func createIntegrationTestServer() (*Server, *enhancedMockPlaylistManager) {
 		},
 	}
 
-	logrusLogger := log.New()
-	logrusLogger.SetLevel(log.ErrorLevel)
-	logger := &logging.Logger{Logger: logrusLogger}
+	logger := logging.NewLogger(logging.Config{Level: "error", Format: "json"})
 
 	// Initialize middleware components
 	rateLimiter := middleware.NewRateLimiter(cfg.Security.RateLimit.RequestsPerSecond, cfg.Security.RateLimit.Burst)
-	securityMiddleware := middleware.NewSecurityMiddleware(logger.Logger, rateLimiter)
+	securityMiddleware := middleware.NewSecurityMiddleware(logger, rateLimiter)
 	loggingMiddleware := middleware.NewLoggingMiddleware(logger)
 
 	// Create enhanced mock playlist manager for integration tests

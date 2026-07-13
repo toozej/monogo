@@ -2,12 +2,13 @@ package duplicate
 
 import (
 	"errors"
+	"io"
+	"log/slog"
 	"runtime"
 	"strings"
 	"testing"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/toozej/monogo/apps/go-listen/internal/types"
 )
 
@@ -73,8 +74,7 @@ func testLargeTrackLists(t *testing.T) {
 		expectedTrackIDs: trackIDs,
 	}
 
-	logger := log.New()
-	logger.SetLevel(log.FatalLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	service := NewDuplicateService(mockSpotify, logger)
 
@@ -112,8 +112,7 @@ func testConcurrentAccess(t *testing.T) {
 		checkResults: []bool{true, false},
 	}
 
-	logger := log.New()
-	logger.SetLevel(log.FatalLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	service := NewDuplicateService(mockSpotify, logger)
 
@@ -157,8 +156,7 @@ func testMemoryEfficiency(t *testing.T) {
 		checkResults: []bool{true},
 	}
 
-	logger := log.New()
-	logger.SetLevel(log.FatalLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	service := NewDuplicateService(mockSpotify, logger)
 
@@ -197,8 +195,7 @@ func testUnicodeHandling(t *testing.T) {
 		expectedTrackIDs: []string{"track1", "track2", "track3", "track4"},
 	}
 
-	logger := log.New()
-	logger.SetLevel(log.FatalLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	service := NewDuplicateService(mockSpotify, logger)
 
@@ -229,8 +226,7 @@ func testTimestampAccuracy(t *testing.T) {
 		checkResults: []bool{true},
 	}
 
-	logger := log.New()
-	logger.SetLevel(log.FatalLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	service := NewDuplicateService(mockSpotify, logger)
 
@@ -299,8 +295,7 @@ func TestDuplicateService_ErrorRecovery(t *testing.T) {
 				checkError: tt.mockError,
 			}
 
-			logger := log.New()
-			logger.SetLevel(log.FatalLevel)
+			logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 			service := NewDuplicateService(mockSpotify, logger)
 
@@ -386,8 +381,7 @@ func TestDuplicateService_MessageFormatting(t *testing.T) {
 				expectedTrackIDs: trackIDs,
 			}
 
-			logger := log.New()
-			logger.SetLevel(log.FatalLevel)
+			logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 			service := NewDuplicateService(mockSpotify, logger)
 
@@ -440,8 +434,7 @@ func TestDuplicateService_PerformanceMetrics(t *testing.T) {
 				expectedTrackIDs: trackIDs,
 			}
 
-			logger := log.New()
-			logger.SetLevel(log.FatalLevel)
+			logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 			service := NewDuplicateService(mockSpotify, logger)
 

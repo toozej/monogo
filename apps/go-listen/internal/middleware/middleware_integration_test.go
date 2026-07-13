@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -11,7 +13,6 @@ import (
 	"testing"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/toozej/monogo/pkg/logging"
 )
 
@@ -19,16 +20,14 @@ import (
 func TestMiddlewareIntegration(t *testing.T) {
 	// Set up logger with buffer to capture output
 	var logBuffer bytes.Buffer
-	logger := logging.NewLogger(logging.Config{
+	logger := logging.NewLoggerWithWriter(&logBuffer, logging.Config{
 		Level:  "debug",
 		Format: "json",
-		Output: "stdout",
 	})
-	logger.SetOutput(&logBuffer)
 
 	// Set up middleware components
 	rateLimiter := NewRateLimiter(5, 10) // 5 requests per second, burst of 10
-	securityMiddleware := NewSecurityMiddleware(logger.Logger, rateLimiter)
+	securityMiddleware := NewSecurityMiddleware(logger, rateLimiter)
 	loggingMiddleware := NewLoggingMiddleware(logger)
 
 	// Create a test handler
@@ -149,7 +148,7 @@ func TestMiddlewareIntegration(t *testing.T) {
 
 				// Check that logs contain expected fields
 				for _, line := range logLines {
-					var logEntry map[string]interface{}
+					var logEntry map[string]any
 					if err := json.Unmarshal([]byte(line), &logEntry); err != nil {
 						continue // Skip non-JSON lines
 					}
@@ -169,8 +168,7 @@ func TestMiddlewareIntegration(t *testing.T) {
 
 // TestMiddlewareRateLimitingIntegration tests rate limiting across multiple requests
 func TestMiddlewareRateLimitingIntegration(t *testing.T) {
-	logger := log.New()
-	logger.SetLevel(log.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	// Very restrictive rate limiting for testing
 	rateLimiter := NewRateLimiter(2, 2)
@@ -221,12 +219,11 @@ func TestMiddlewareRateLimitingIntegration(t *testing.T) {
 
 // TestMiddlewareConcurrentAccess tests middleware behavior under concurrent load
 func TestMiddlewareConcurrentAccess(t *testing.T) {
-	logger := log.New()
-	logger.SetLevel(log.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	rateLimiter := NewRateLimiter(100, 200) // Higher limits for concurrent testing
 	securityMiddleware := NewSecurityMiddleware(logger, rateLimiter)
-	loggingMiddleware := NewLoggingMiddleware(&logging.Logger{Logger: logger})
+	loggingMiddleware := NewLoggingMiddleware(logger)
 
 	handler := loggingMiddleware.LogRequests(
 		securityMiddleware.SecurityHeaders(
@@ -288,8 +285,7 @@ func TestMiddlewareConcurrentAccess(t *testing.T) {
 
 // TestMiddlewareSecurityScenarios tests various security attack scenarios
 func TestMiddlewareSecurityScenarios(t *testing.T) {
-	logger := log.New()
-	logger.SetLevel(log.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	rateLimiter := NewRateLimiter(10, 20)
 	securityMiddleware := NewSecurityMiddleware(logger, rateLimiter)
@@ -367,8 +363,7 @@ func TestMiddlewareSecurityScenarios(t *testing.T) {
 
 // TestMiddlewareCSRFIntegration tests CSRF protection integration
 func TestMiddlewareCSRFIntegration(t *testing.T) {
-	logger := log.New()
-	logger.SetLevel(log.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	rateLimiter := NewRateLimiter(10, 20)
 	securityMiddleware := NewSecurityMiddleware(logger, rateLimiter)
@@ -455,15 +450,13 @@ func TestMiddlewareCSRFIntegration(t *testing.T) {
 // TestMiddlewareLoggingIntegration tests logging integration across middleware
 func TestMiddlewareLoggingIntegration(t *testing.T) {
 	var logBuffer bytes.Buffer
-	logger := logging.NewLogger(logging.Config{
+	logger := logging.NewLoggerWithWriter(&logBuffer, logging.Config{
 		Level:  "debug",
 		Format: "json",
-		Output: "stdout",
 	})
-	logger.SetOutput(&logBuffer)
 
 	rateLimiter := NewRateLimiter(10, 20)
-	securityMiddleware := NewSecurityMiddleware(logger.Logger, rateLimiter)
+	securityMiddleware := NewSecurityMiddleware(logger, rateLimiter)
 	loggingMiddleware := NewLoggingMiddleware(logger)
 
 	handler := loggingMiddleware.LogRequests(
@@ -471,7 +464,7 @@ func TestMiddlewareLoggingIntegration(t *testing.T) {
 			securityMiddleware.InputValidation(
 				http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					// Log something from the handler
-					logger.WithField("handler", "test").Info("Handler executed")
+					logger.Info("Handler executed", "handler", "test")
 					w.WriteHeader(http.StatusOK)
 				}),
 			),
@@ -529,15 +522,13 @@ func TestMiddlewareLoggingIntegration(t *testing.T) {
 // TestMiddlewareErrorHandling tests error handling across middleware chain
 func TestMiddlewareErrorHandling(t *testing.T) {
 	var logBuffer bytes.Buffer
-	logger := logging.NewLogger(logging.Config{
+	logger := logging.NewLoggerWithWriter(&logBuffer, logging.Config{
 		Level:  "debug",
 		Format: "json",
-		Output: "stdout",
 	})
-	logger.SetOutput(&logBuffer)
 
 	rateLimiter := NewRateLimiter(10, 20)
-	securityMiddleware := NewSecurityMiddleware(logger.Logger, rateLimiter)
+	securityMiddleware := NewSecurityMiddleware(logger, rateLimiter)
 	loggingMiddleware := NewLoggingMiddleware(logger)
 
 	// Handler that panics

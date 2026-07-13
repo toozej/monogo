@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -12,7 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/toozej/monogo/apps/go-listen/internal/config"
 	"github.com/toozej/monogo/apps/go-listen/internal/types"
 	spotifyapi "github.com/zmb3/spotify/v2"
@@ -108,7 +108,7 @@ func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 
 func TestOAuthStateIsRandomAndSingleUse(t *testing.T) {
 	client := &Client{
-		logger: logrus.New(),
+		logger: slog.New(slog.NewJSONHandler(io.Discard, nil)),
 		auth:   &fakeAuth{},
 		states: make(map[string]time.Time),
 	}
@@ -129,7 +129,7 @@ func TestOAuthStateIsRandomAndSingleUse(t *testing.T) {
 
 func TestOAuthStateExpires(t *testing.T) {
 	client := &Client{
-		logger: logrus.New(),
+		logger: slog.New(slog.NewJSONHandler(io.Discard, nil)),
 		auth:   &fakeAuth{},
 		states: map[string]time.Time{"expired": time.Now().Add(-time.Second)},
 	}
@@ -152,7 +152,7 @@ func TestCompleteAuthPersistsOnlyVerifiedToken(t *testing.T) {
 		}, nil
 	})}
 	client := &Client{
-		logger:    logrus.New(),
+		logger:    slog.New(slog.NewJSONHandler(io.Discard, nil)),
 		ctx:       context.Background(),
 		auth:      &fakeAuth{exchangeToken: token, httpClient: httpClient},
 		states:    make(map[string]time.Time),
@@ -185,7 +185,7 @@ func TestNewClientLoadsPersistedTokenForCLIReuse(t *testing.T) {
 		ClientSecret: "secret",
 		RedirectURL:  "http://localhost/callback",
 		TokenFile:    tokenFile,
-	}, logrus.New())
+	}, slog.New(slog.NewJSONHandler(io.Discard, nil)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -206,7 +206,7 @@ func TestCheckTracksInPlaylistReadsEveryPage(t *testing.T) {
 	})}
 	client := &Client{
 		client:     spotifyapi.New(httpClient),
-		logger:     logrus.New(),
+		logger:     slog.New(slog.NewJSONHandler(io.Discard, nil)),
 		token:      &oauth2.Token{AccessToken: "access", Expiry: time.Now().Add(time.Hour)},
 		ctx:        context.Background(),
 		isUserAuth: true,
@@ -236,7 +236,7 @@ func TestGetUserPlaylistsReadsEveryPage(t *testing.T) {
 	})}
 	client := &Client{
 		client:     spotifyapi.New(httpClient),
-		logger:     logrus.New(),
+		logger:     slog.New(slog.NewJSONHandler(io.Discard, nil)),
 		token:      &oauth2.Token{AccessToken: "access", Expiry: time.Now().Add(time.Hour)},
 		ctx:        context.Background(),
 		isUserAuth: true,
@@ -257,8 +257,7 @@ func TestGetUserPlaylistsReadsEveryPage(t *testing.T) {
 // an error wrapping types.ErrReauthenticationRequired so callers can redirect
 // the user to sign in again.
 func TestRefreshToken_InvalidGrantDiscardsToken(t *testing.T) {
-	logger := logrus.New()
-	logger.SetLevel(logrus.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	cfg := config.SpotifyConfig{
 		ClientID:     "test-id",
@@ -308,8 +307,7 @@ func TestRefreshToken_InvalidGrantDiscardsToken(t *testing.T) {
 // refresh failure the client keeps its auth state so the operation can be
 // retried later (the discard rule applies specifically to invalid grants).
 func TestRefreshToken_TransientErrorKeepsToken(t *testing.T) {
-	logger := logrus.New()
-	logger.SetLevel(logrus.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	cfg := config.SpotifyConfig{
 		ClientID:     "test-id",
@@ -351,8 +349,7 @@ func TestRefreshToken_TransientErrorKeepsToken(t *testing.T) {
 }
 
 func TestNewClient(t *testing.T) {
-	logger := logrus.New()
-	logger.SetLevel(logrus.ErrorLevel) // Reduce noise in tests
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	tests := []struct {
 		name      string
@@ -416,8 +413,7 @@ func TestNewClient(t *testing.T) {
 }
 
 func TestClient_RefreshToken(t *testing.T) {
-	logger := logrus.New()
-	logger.SetLevel(logrus.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	// Test with invalid credentials to test error handling
 	cfg := config.SpotifyConfig{
@@ -439,8 +435,7 @@ func TestClient_RefreshToken(t *testing.T) {
 }
 
 func TestClient_RefreshToken_NotNeeded(t *testing.T) {
-	logger := logrus.New()
-	logger.SetLevel(logrus.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	cfg := config.SpotifyConfig{
 		ClientID:     "test-id",
@@ -469,8 +464,7 @@ func TestClient_RefreshToken_NotNeeded(t *testing.T) {
 }
 
 func TestClient_SearchArtist_NoToken(t *testing.T) {
-	logger := logrus.New()
-	logger.SetLevel(logrus.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	cfg := config.SpotifyConfig{
 		ClientID:     "test-id",
@@ -491,8 +485,7 @@ func TestClient_SearchArtist_NoToken(t *testing.T) {
 }
 
 func TestClient_GetArtistTopTracks_NoToken(t *testing.T) {
-	logger := logrus.New()
-	logger.SetLevel(logrus.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	cfg := config.SpotifyConfig{
 		ClientID:     "test-id",
@@ -513,8 +506,7 @@ func TestClient_GetArtistTopTracks_NoToken(t *testing.T) {
 }
 
 func TestClient_GetUserPlaylists_NoToken(t *testing.T) {
-	logger := logrus.New()
-	logger.SetLevel(logrus.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	cfg := config.SpotifyConfig{
 		ClientID:     "test-id",
@@ -535,8 +527,7 @@ func TestClient_GetUserPlaylists_NoToken(t *testing.T) {
 }
 
 func TestClient_AddTracksToPlaylist_NoTracks(t *testing.T) {
-	logger := logrus.New()
-	logger.SetLevel(logrus.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	cfg := config.SpotifyConfig{
 		ClientID:     "test-id",
@@ -561,8 +552,7 @@ func TestClient_AddTracksToPlaylist_NoTracks(t *testing.T) {
 }
 
 func TestClient_CheckTracksInPlaylist_NoTracks(t *testing.T) {
-	logger := logrus.New()
-	logger.SetLevel(logrus.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	cfg := config.SpotifyConfig{
 		ClientID:     "test-id",

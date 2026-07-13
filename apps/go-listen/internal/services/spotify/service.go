@@ -2,8 +2,8 @@ package spotify
 
 import (
 	"errors"
+	"log/slog"
 
-	"github.com/sirupsen/logrus"
 	"github.com/toozej/monogo/apps/go-listen/internal/config"
 	"github.com/toozej/monogo/apps/go-listen/internal/types"
 )
@@ -11,7 +11,7 @@ import (
 // Service implements the types.SpotifyService interface
 type Service struct {
 	client *Client
-	logger *logrus.Logger
+	logger *slog.Logger
 }
 
 // GetAuthURL returns the URL for user authentication
@@ -39,16 +39,16 @@ func (s *Service) CompleteAuth(code, state string) error {
 }
 
 // NewService creates a new Spotify service that implements types.SpotifyService
-func NewService(cfg config.SpotifyConfig, logger *logrus.Logger) *Service {
-	logger.WithFields(logrus.Fields{
-		"client_id":     cfg.ClientID,
-		"client_secret": cfg.ClientSecret != "",
-		"redirect_url":  cfg.RedirectURL,
-	}).Debug("Creating Spotify service with config")
+func NewService(cfg config.SpotifyConfig, logger *slog.Logger) *Service {
+	logger.Debug("Creating Spotify service with config",
+		"client_id", cfg.ClientID,
+		"client_secret", cfg.ClientSecret != "",
+		"redirect_url", cfg.RedirectURL,
+	)
 
 	client, err := NewClient(cfg, logger)
 	if err != nil {
-		logger.WithError(err).Error("Failed to create Spotify client")
+		logger.Error("Failed to create Spotify client", "error", err)
 		// Return service with nil client for now - will be handled in actual implementation
 		return &Service{
 			client: nil,
@@ -68,29 +68,30 @@ func (s *Service) SearchArtist(query string) (*types.Artist, error) {
 		return nil, errors.New("spotify client not available")
 	}
 
-	s.logger.WithFields(logrus.Fields{
-		"component": "spotify_service",
-		"operation": "search_artist",
-		"query":     query,
-	}).Debug("Searching for artist")
+	s.logger.Debug("Searching for artist",
+		"component", "spotify_service",
+		"operation", "search_artist",
+		"query", query,
+	)
 
 	artist, err := s.client.SearchArtist(query)
 	if err != nil {
-		s.logger.WithFields(logrus.Fields{
-			"component": "spotify_service",
-			"operation": "search_artist",
-			"query":     query,
-		}).WithError(err).Error("Failed to search for artist")
+		s.logger.Error("Failed to search for artist",
+			"error", err,
+			"component", "spotify_service",
+			"operation", "search_artist",
+			"query", query,
+		)
 		return nil, err
 	}
 
-	s.logger.WithFields(logrus.Fields{
-		"component":      "spotify_service",
-		"operation":      "search_artist",
-		"query":          query,
-		"matched_artist": artist.Name,
-		"artist_id":      artist.ID,
-	}).Info("Artist search completed successfully")
+	s.logger.Info("Artist search completed successfully",
+		"component", "spotify_service",
+		"operation", "search_artist",
+		"query", query,
+		"matched_artist", artist.Name,
+		"artist_id", artist.ID,
+	)
 
 	return &types.Artist{
 		ID:     artist.ID,
@@ -106,19 +107,20 @@ func (s *Service) GetArtistTopTracks(artistID string) ([]types.Track, error) {
 		return nil, errors.New("spotify client not available")
 	}
 
-	s.logger.WithFields(logrus.Fields{
-		"component": "spotify_service",
-		"operation": "get_top_tracks",
-		"artist_id": artistID,
-	}).Debug("Retrieving artist top tracks")
+	s.logger.Debug("Retrieving artist top tracks",
+		"component", "spotify_service",
+		"operation", "get_top_tracks",
+		"artist_id", artistID,
+	)
 
 	tracks, err := s.client.GetArtistTopTracks(artistID)
 	if err != nil {
-		s.logger.WithFields(logrus.Fields{
-			"component": "spotify_service",
-			"operation": "get_top_tracks",
-			"artist_id": artistID,
-		}).WithError(err).Error("Failed to retrieve artist top tracks")
+		s.logger.Error("Failed to retrieve artist top tracks",
+			"error", err,
+			"component", "spotify_service",
+			"operation", "get_top_tracks",
+			"artist_id", artistID,
+		)
 		return nil, err
 	}
 
@@ -146,13 +148,13 @@ func (s *Service) GetArtistTopTracks(artistID string) ([]types.Track, error) {
 		trackNames[i] = track.Name
 	}
 
-	s.logger.WithFields(logrus.Fields{
-		"component":   "spotify_service",
-		"operation":   "get_top_tracks",
-		"artist_id":   artistID,
-		"track_count": len(serverTracks),
-		"track_names": trackNames,
-	}).Info("Retrieved artist top tracks successfully")
+	s.logger.Info("Retrieved artist top tracks successfully",
+		"component", "spotify_service",
+		"operation", "get_top_tracks",
+		"artist_id", artistID,
+		"track_count", len(serverTracks),
+		"track_names", trackNames,
+	)
 
 	return serverTracks, nil
 }
@@ -163,19 +165,20 @@ func (s *Service) GetUserPlaylists(folderName string) ([]types.Playlist, error) 
 		return nil, errors.New("spotify client not available")
 	}
 
-	s.logger.WithFields(logrus.Fields{
-		"component":   "spotify_service",
-		"operation":   "get_playlists",
-		"folder_name": folderName,
-	}).Debug("Retrieving user playlists")
+	s.logger.Debug("Retrieving user playlists",
+		"component", "spotify_service",
+		"operation", "get_playlists",
+		"folder_name", folderName,
+	)
 
 	playlists, err := s.client.GetUserPlaylists(folderName)
 	if err != nil {
-		s.logger.WithFields(logrus.Fields{
-			"component":   "spotify_service",
-			"operation":   "get_playlists",
-			"folder_name": folderName,
-		}).WithError(err).Error("Failed to retrieve user playlists")
+		s.logger.Error("Failed to retrieve user playlists",
+			"error", err,
+			"component", "spotify_service",
+			"operation", "get_playlists",
+			"folder_name", folderName,
+		)
 		return nil, err
 	}
 
@@ -193,13 +196,13 @@ func (s *Service) GetUserPlaylists(folderName string) ([]types.Playlist, error) 
 		playlistNames[i] = playlist.Name
 	}
 
-	s.logger.WithFields(logrus.Fields{
-		"component":      "spotify_service",
-		"operation":      "get_playlists",
-		"folder_name":    folderName,
-		"playlist_count": len(serverPlaylists),
-		"playlist_names": playlistNames,
-	}).Info("Retrieved user playlists successfully")
+	s.logger.Info("Retrieved user playlists successfully",
+		"component", "spotify_service",
+		"operation", "get_playlists",
+		"folder_name", folderName,
+		"playlist_count", len(serverPlaylists),
+		"playlist_names", playlistNames,
+	)
 
 	return serverPlaylists, nil
 }
@@ -210,31 +213,32 @@ func (s *Service) AddTracksToPlaylist(playlistID string, trackIDs []string) erro
 		return errors.New("spotify client not available")
 	}
 
-	s.logger.WithFields(logrus.Fields{
-		"component":   "spotify_service",
-		"operation":   "add_tracks",
-		"playlist_id": playlistID,
-		"track_count": len(trackIDs),
-		"track_ids":   trackIDs,
-	}).Debug("Adding tracks to playlist")
+	s.logger.Debug("Adding tracks to playlist",
+		"component", "spotify_service",
+		"operation", "add_tracks",
+		"playlist_id", playlistID,
+		"track_count", len(trackIDs),
+		"track_ids", trackIDs,
+	)
 
 	err := s.client.AddTracksToPlaylist(playlistID, trackIDs)
 	if err != nil {
-		s.logger.WithFields(logrus.Fields{
-			"component":   "spotify_service",
-			"operation":   "add_tracks",
-			"playlist_id": playlistID,
-			"track_count": len(trackIDs),
-		}).WithError(err).Error("Failed to add tracks to playlist")
+		s.logger.Error("Failed to add tracks to playlist",
+			"error", err,
+			"component", "spotify_service",
+			"operation", "add_tracks",
+			"playlist_id", playlistID,
+			"track_count", len(trackIDs),
+		)
 		return err
 	}
 
-	s.logger.WithFields(logrus.Fields{
-		"component":   "spotify_service",
-		"operation":   "add_tracks",
-		"playlist_id": playlistID,
-		"track_count": len(trackIDs),
-	}).Info("Successfully added tracks to playlist")
+	s.logger.Info("Successfully added tracks to playlist",
+		"component", "spotify_service",
+		"operation", "add_tracks",
+		"playlist_id", playlistID,
+		"track_count", len(trackIDs),
+	)
 
 	return nil
 }
@@ -245,21 +249,22 @@ func (s *Service) CheckTracksInPlaylist(playlistID string, trackIDs []string) ([
 		return nil, errors.New("spotify client not available")
 	}
 
-	s.logger.WithFields(logrus.Fields{
-		"component":   "spotify_service",
-		"operation":   "check_tracks",
-		"playlist_id": playlistID,
-		"track_count": len(trackIDs),
-	}).Debug("Checking for duplicate tracks in playlist")
+	s.logger.Debug("Checking for duplicate tracks in playlist",
+		"component", "spotify_service",
+		"operation", "check_tracks",
+		"playlist_id", playlistID,
+		"track_count", len(trackIDs),
+	)
 
 	results, err := s.client.CheckTracksInPlaylist(playlistID, trackIDs)
 	if err != nil {
-		s.logger.WithFields(logrus.Fields{
-			"component":   "spotify_service",
-			"operation":   "check_tracks",
-			"playlist_id": playlistID,
-			"track_count": len(trackIDs),
-		}).WithError(err).Error("Failed to check tracks in playlist")
+		s.logger.Error("Failed to check tracks in playlist",
+			"error", err,
+			"component", "spotify_service",
+			"operation", "check_tracks",
+			"playlist_id", playlistID,
+			"track_count", len(trackIDs),
+		)
 		return nil, err
 	}
 
@@ -270,13 +275,13 @@ func (s *Service) CheckTracksInPlaylist(playlistID string, trackIDs []string) ([
 		}
 	}
 
-	s.logger.WithFields(logrus.Fields{
-		"component":       "spotify_service",
-		"operation":       "check_tracks",
-		"playlist_id":     playlistID,
-		"track_count":     len(trackIDs),
-		"duplicate_count": duplicateCount,
-	}).Info("Completed duplicate track check")
+	s.logger.Info("Completed duplicate track check",
+		"component", "spotify_service",
+		"operation", "check_tracks",
+		"playlist_id", playlistID,
+		"track_count", len(trackIDs),
+		"duplicate_count", duplicateCount,
+	)
 
 	return results, nil
 }

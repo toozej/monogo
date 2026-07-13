@@ -2,23 +2,24 @@ package cmd
 
 import (
 	"bytes"
+	"context"
+	"log/slog"
 	"os"
 	"os/exec"
 	"strings"
 	"testing"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
 func useFreshRootCommand(t *testing.T) {
 	t.Helper()
 	originalCmd := rootCmd
-	originalLogLevel := log.GetLevel()
+	originalLogger := slog.Default()
 	rootCmd = newRootCommand()
 	t.Cleanup(func() {
 		rootCmd = originalCmd
-		log.SetLevel(originalLogLevel)
+		slog.SetDefault(originalLogger)
 	})
 }
 
@@ -29,8 +30,8 @@ func TestRootCmdStructure(t *testing.T) {
 	if rootCmd.Short != "golang-starter starter template" {
 		t.Errorf("expected Short='golang-starter starter template', got '%s'", rootCmd.Short)
 	}
-	if rootCmd.Long != "Golang starter template using cobra, logrus, dotenv and env modules" {
-		t.Errorf("expected Long='Golang starter template using cobra, logrus, dotenv and env modules', got '%s'", rootCmd.Long)
+	if rootCmd.Long != "Golang starter template using cobra, slog, dotenv and env modules" {
+		t.Errorf("expected Long='Golang starter template using cobra, slog, dotenv and env modules', got '%s'", rootCmd.Long)
 	}
 	if rootCmd.PersistentPreRun == nil {
 		t.Error("expected PersistentPreRun to be set, got nil")
@@ -203,28 +204,22 @@ func TestNewRootCommandsDoNotShareFlagState(t *testing.T) {
 }
 
 func TestRootCmdPreRun_DebugFalse(t *testing.T) {
-	origLevel := log.GetLevel()
-	log.SetLevel(log.InfoLevel)
-	defer func() {
-		log.SetLevel(origLevel)
-	}()
+	original := slog.Default()
+	defer slog.SetDefault(original)
 
 	rootCmdPreRun(false)
-	if got := log.GetLevel(); got != log.InfoLevel {
-		t.Errorf("log level = %s, want %s", got, log.InfoLevel)
+	if slog.Default().Enabled(context.Background(), slog.LevelDebug) {
+		t.Error("debug logging enabled at info level, want disabled")
 	}
 }
 
 func TestRootCmdPreRun_DebugTrue(t *testing.T) {
-	origLevel := log.GetLevel()
-	log.SetLevel(log.InfoLevel)
-	defer func() {
-		log.SetLevel(origLevel)
-	}()
+	original := slog.Default()
+	defer slog.SetDefault(original)
 
 	rootCmdPreRun(true)
-	if got := log.GetLevel(); got != log.DebugLevel {
-		t.Errorf("log level = %s, want %s", got, log.DebugLevel)
+	if !slog.Default().Enabled(context.Background(), slog.LevelDebug) {
+		t.Error("debug logging disabled, want enabled")
 	}
 }
 

@@ -2,8 +2,8 @@ package cmd
 
 import (
 	"fmt"
+	"log/slog"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/toozej/monogo/apps/go-listen/internal/services/playlist"
 	"github.com/toozej/monogo/apps/go-listen/internal/services/scraper"
@@ -47,10 +47,7 @@ func runScrapeCommand(cmd *cobra.Command, args []string) error {
 	}
 
 	// Initialize logger
-	logger := log.New()
-	if debug {
-		logger.SetLevel(log.DebugLevel)
-	}
+	logger := slog.Default()
 
 	// Initialize Spotify service
 	spotifyService := spotify.NewService(conf.Spotify, logger)
@@ -82,16 +79,16 @@ func runScrapeCommand(cmd *cobra.Command, args []string) error {
 	)
 
 	// Perform scraping operation
-	logger.WithFields(log.Fields{
-		"url":          scrapeURL,
-		"css_selector": cssSelector,
-		"playlist_id":  playlistID,
-		"force":        forceAdd,
-	}).Info("Starting scraping operation")
+	logger.Info("Starting scraping operation",
+		"url", scrapeURL,
+		"css_selector", cssSelector,
+		"playlist_id", playlistID,
+		"force", forceAdd,
+	)
 
 	result, err := scraperService.ScrapeAndAddToPlaylist(scrapeURL, cssSelector, playlistID, forceAdd)
 	if err != nil {
-		logger.WithError(err).Error("Scraping operation failed")
+		logger.Error("Scraping operation failed", "error", err)
 		return fmt.Errorf("scraping operation failed: %w", err)
 	}
 

@@ -4,443 +4,198 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
-
-	"github.com/sirupsen/logrus"
 )
+
+// parseLine decodes a single JSON log line into a map for assertions.
+func parseLine(t *testing.T, b []byte) map[string]any {
+	t.Helper()
+	var entry map[string]any
+	if err := json.Unmarshal(bytes.TrimSpace(b), &entry); err != nil {
+		t.Fatalf("failed to parse log output as JSON: %v (output: %q)", err, string(b))
+	}
+	return entry
+}
 
 func TestNewLogger(t *testing.T) {
 	tests := []struct {
-		name     string
-		config   Config
-		wantJSON bool
+		name   string
+		config Config
 	}{
-		{
-			name: "JSON format configuration",
-			config: Config{
-				Level:  "info",
-				Format: "json",
-				Output: "stdout",
-			},
-			wantJSON: true,
-		},
-		{
-			name: "Text format configuration",
-			config: Config{
-				Level:  "debug",
-				Format: "text",
-				Output: "stderr",
-			},
-			wantJSON: false,
-		},
-		{
-			name: "Default configuration",
-			config: Config{
-				Level:  "",
-				Format: "",
-				Output: "",
-			},
-			wantJSON: true, // Default is JSON
-		},
+		{name: "JSON format", config: Config{Level: "info", Format: "json", Output: "stdout"}},
+		{name: "Text format", config: Config{Level: "debug", Format: "text", Output: "stderr"}},
+		{name: "Default (empty) config", config: Config{}},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			logger := NewLogger(tt.config)
-
-			if logger == nil {
+			if logger := NewLogger(tt.config); logger == nil {
 				t.Fatal("NewLogger returned nil")
 			}
-
-			// Test that the logger is properly configured
-			if logger.Logger == nil {
-				t.Fatal("Logger.Logger is nil")
-			}
-
-			// Check formatter type
-			isJSON := false
-			isText := false
-			switch logger.Formatter.(type) {
-			case *logrus.JSONFormatter:
-				isJSON = true
-			case *logrus.TextFormatter:
-				isText = true
-			}
-
-			if tt.wantJSON && !isJSON {
-				t.Error("Expected JSON formatter but got different type")
-			}
-			if !tt.wantJSON && !isText {
-				t.Error("Expected Text formatter but got different type")
-			}
 		})
 	}
 }
 
-func TestLogger_WithCorrelationID(t *testing.T) {
-	logger := NewLogger(Config{
-		Level:  "info",
-		Format: "json",
-		Output: "stdout",
-	})
-
-	correlationID := "test-correlation-id"
-	entry := logger.WithCorrelationID(correlationID)
-
-	if entry.Data["correlation_id"] != correlationID {
-		t.Errorf("Expected correlation_id %s, got %v", correlationID, entry.Data["correlation_id"])
-	}
-}
-
-func TestLogger_WithContext(t *testing.T) {
-	logger := NewLogger(Config{
-		Level:  "info",
-		Format: "json",
-		Output: "stdout",
-	})
-
-	tests := []struct {
-		name              string
-		ctx               context.Context
-		wantCorrelationID string
-	}{
-		{
-			name:              "Context with correlation ID",
-			ctx:               context.WithValue(context.Background(), CorrelationIDKey, "test-id"),
-			wantCorrelationID: "test-id",
-		},
-		{
-			name:              "Context without correlation ID",
-			ctx:               context.Background(),
-			wantCorrelationID: "",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			entry := logger.WithContext(tt.ctx)
-
-			correlationID, exists := entry.Data["correlation_id"]
-			if tt.wantCorrelationID != "" {
-				if !exists {
-					t.Error("Expected correlation_id in entry data but not found")
-				}
-				if correlationID != tt.wantCorrelationID {
-					t.Errorf("Expected correlation_id %s, got %v", tt.wantCorrelationID, correlationID)
-				}
-			} else if exists && correlationID != "" {
-				t.Errorf("Expected no correlation_id but got %v", correlationID)
-			}
-		})
-	}
-}
-
-func TestLogger_WithComponent(t *testing.T) {
-	logger := NewLogger(Config{
-		Level:  "info",
-		Format: "json",
-		Output: "stdout",
-	})
-
-	component := "test-component"
-	entry := logger.WithComponent(component)
-
-	if entry.Data["component"] != component {
-		t.Errorf("Expected component %s, got %v", component, entry.Data["component"])
-	}
-}
-
-func TestLogger_WithOperation(t *testing.T) {
-	logger := NewLogger(Config{
-		Level:  "info",
-		Format: "json",
-		Output: "stdout",
-	})
-
-	operation := "test-operation"
-	entry := logger.WithOperation(operation)
-
-	if entry.Data["operation"] != operation {
-		t.Errorf("Expected operation %s, got %v", operation, entry.Data["operation"])
-	}
-}
-
-func TestLogger_LogArtistSearch(t *testing.T) {
+func TestNewLogger_JSONSchema(t *testing.T) {
 	var buf bytes.Buffer
-	logger := NewLogger(Config{
-		Level:  "info",
-		Format: "json",
-		Output: "stdout",
-	})
-	logger.SetOutput(&buf)
+	logger := NewLoggerWithWriter(&buf, Config{Level: "info", Format: "json"})
 
-	ctx := context.WithValue(context.Background(), CorrelationIDKey, "test-correlation")
-	searchTerm := "test artist"
-	matchedArtist := "Test Artist"
-	matchScore := 0.95
+	logger.Info("hello", "component", "test", "count", 3)
 
-	logger.LogArtistSearch(ctx, searchTerm, matchedArtist, matchScore)
-
-	// Parse the logged JSON
-	var logEntry map[string]interface{}
-	if err := json.Unmarshal(buf.Bytes(), &logEntry); err != nil {
-		t.Fatalf("Failed to parse log output as JSON: %v", err)
+	entry := parseLine(t, buf.Bytes())
+	if entry["message"] != "hello" {
+		t.Errorf("expected message 'hello', got %v", entry["message"])
 	}
-
-	// Verify log fields
-	expectedFields := map[string]interface{}{
-		"correlation_id": "test-correlation",
-		"component":      "artist_search",
-		"operation":      "search",
-		"search_term":    searchTerm,
-		"matched_artist": matchedArtist,
-		"match_score":    matchScore,
-		"level":          "info",
-		"message":        "Artist search performed",
+	if entry["level"] != "info" {
+		t.Errorf("expected lower-case level 'info', got %v", entry["level"])
 	}
-
-	for key, expectedValue := range expectedFields {
-		if logEntry[key] != expectedValue {
-			t.Errorf("Expected %s to be %v, got %v", key, expectedValue, logEntry[key])
-		}
+	if _, ok := entry["timestamp"]; !ok {
+		t.Error("expected a 'timestamp' key")
+	}
+	if entry["component"] != "test" {
+		t.Errorf("expected component 'test', got %v", entry["component"])
+	}
+	if entry["count"] != float64(3) {
+		t.Errorf("expected count 3, got %v", entry["count"])
 	}
 }
 
-func TestLogger_LogTrackAddition(t *testing.T) {
+func TestNewLogger_LevelFiltering(t *testing.T) {
 	var buf bytes.Buffer
-	logger := NewLogger(Config{
-		Level:  "info",
-		Format: "json",
-		Output: "stdout",
-	})
-	logger.SetOutput(&buf)
+	logger := NewLoggerWithWriter(&buf, Config{Level: "warn", Format: "json"})
 
-	ctx := context.WithValue(context.Background(), CorrelationIDKey, "test-correlation")
-	artistName := "Test Artist"
-	playlistName := "Test Playlist"
-	trackCount := 3
-	trackNames := []string{"Track 1", "Track 2", "Track 3"}
-
-	logger.LogTrackAddition(ctx, artistName, playlistName, trackCount, trackNames)
-
-	// Parse the logged JSON
-	var logEntry map[string]interface{}
-	if err := json.Unmarshal(buf.Bytes(), &logEntry); err != nil {
-		t.Fatalf("Failed to parse log output as JSON: %v", err)
+	logger.Info("suppressed")
+	if buf.Len() != 0 {
+		t.Errorf("expected info to be filtered at warn level, got %q", buf.String())
 	}
 
-	// Verify log fields
-	if logEntry["correlation_id"] != "test-correlation" {
-		t.Errorf("Expected correlation_id to be test-correlation, got %v", logEntry["correlation_id"])
+	logger.Warn("emitted")
+	entry := parseLine(t, buf.Bytes())
+	if entry["level"] != "warn" {
+		t.Errorf("expected level 'warn', got %v", entry["level"])
 	}
-	if logEntry["component"] != "playlist" {
-		t.Errorf("Expected component to be playlist, got %v", logEntry["component"])
-	}
-	if logEntry["operation"] != "add_tracks" {
-		t.Errorf("Expected operation to be add_tracks, got %v", logEntry["operation"])
-	}
-	if logEntry["artist_name"] != artistName {
-		t.Errorf("Expected artist_name to be %s, got %v", artistName, logEntry["artist_name"])
-	}
-	if logEntry["playlist_name"] != playlistName {
-		t.Errorf("Expected playlist_name to be %s, got %v", playlistName, logEntry["playlist_name"])
-	}
-	if logEntry["track_count"] != float64(trackCount) { // JSON numbers are float64
-		t.Errorf("Expected track_count to be %d, got %v", trackCount, logEntry["track_count"])
+	if entry["message"] != "emitted" {
+		t.Errorf("expected message 'emitted', got %v", entry["message"])
 	}
 }
 
-func TestLogger_LogDuplicateDetection(t *testing.T) {
-	tests := []struct {
-		name          string
-		hasDuplicates bool
-		overrideUsed  bool
-		expectedLevel string
-	}{
-		{
-			name:          "No duplicates",
-			hasDuplicates: false,
-			overrideUsed:  false,
-			expectedLevel: "debug",
-		},
-		{
-			name:          "Duplicates with override",
-			hasDuplicates: true,
-			overrideUsed:  true,
-			expectedLevel: "warning",
-		},
-		{
-			name:          "Duplicates without override",
-			hasDuplicates: true,
-			overrideUsed:  false,
-			expectedLevel: "info",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var buf bytes.Buffer
-			logger := NewLogger(Config{
-				Level:  "debug", // Set to debug to capture all levels
-				Format: "json",
-				Output: "stdout",
-			})
-			logger.SetOutput(&buf)
-
-			ctx := context.WithValue(context.Background(), CorrelationIDKey, "test-correlation")
-			artistName := "Test Artist"
-			playlistName := "Test Playlist"
-
-			logger.LogDuplicateDetection(ctx, artistName, playlistName, tt.hasDuplicates, tt.overrideUsed)
-
-			// Parse the logged JSON
-			var logEntry map[string]interface{}
-			if err := json.Unmarshal(buf.Bytes(), &logEntry); err != nil {
-				t.Fatalf("Failed to parse log output as JSON: %v", err)
-			}
-
-			// Verify log fields
-			if logEntry["level"] != tt.expectedLevel {
-				t.Errorf("Expected level to be %s, got %v", tt.expectedLevel, logEntry["level"])
-			}
-			if logEntry["component"] != "duplicate_detection" {
-				t.Errorf("Expected component to be duplicate_detection, got %v", logEntry["component"])
-			}
-			if logEntry["has_duplicates"] != tt.hasDuplicates {
-				t.Errorf("Expected has_duplicates to be %v, got %v", tt.hasDuplicates, logEntry["has_duplicates"])
-			}
-			if logEntry["override_used"] != tt.overrideUsed {
-				t.Errorf("Expected override_used to be %v, got %v", tt.overrideUsed, logEntry["override_used"])
-			}
-		})
-	}
-}
-
-func TestLogger_LogSecurityEvent(t *testing.T) {
+func TestNewLogger_InvalidLevelDefaultsToInfo(t *testing.T) {
 	var buf bytes.Buffer
-	logger := NewLogger(Config{
-		Level:  "info",
-		Format: "json",
-		Output: "stdout",
-	})
-	logger.SetOutput(&buf)
+	logger := NewLoggerWithWriter(&buf, Config{Level: "not-a-level", Format: "json"})
 
-	ctx := context.WithValue(context.Background(), CorrelationIDKey, "test-correlation")
-	eventType := "rate_limit_exceeded"
-	clientIP := "192.168.1.1"
-	userAgent := "test-agent"
-	details := "Too many requests"
-
-	logger.LogSecurityEvent(ctx, eventType, clientIP, userAgent, details)
-
-	// Parse the logged JSON
-	var logEntry map[string]interface{}
-	if err := json.Unmarshal(buf.Bytes(), &logEntry); err != nil {
-		t.Fatalf("Failed to parse log output as JSON: %v", err)
+	logger.Debug("suppressed")
+	if buf.Len() != 0 {
+		t.Errorf("expected debug to be filtered at default info level, got %q", buf.String())
 	}
-
-	// Verify log fields
-	expectedFields := map[string]interface{}{
-		"correlation_id": "test-correlation",
-		"component":      "security",
-		"operation":      "security_event",
-		"event_type":     eventType,
-		"client_ip":      clientIP,
-		"user_agent":     userAgent,
-		"details":        details,
-		"level":          "warning",
-	}
-
-	for key, expectedValue := range expectedFields {
-		if logEntry[key] != expectedValue {
-			t.Errorf("Expected %s to be %v, got %v", key, expectedValue, logEntry[key])
-		}
-	}
-}
-
-func TestLogger_LogAPIRequest(t *testing.T) {
-	tests := []struct {
-		name          string
-		statusCode    int
-		expectedLevel string
-	}{
-		{
-			name:          "Successful request",
-			statusCode:    200,
-			expectedLevel: "info",
-		},
-		{
-			name:          "Client error",
-			statusCode:    400,
-			expectedLevel: "warning",
-		},
-		{
-			name:          "Server error",
-			statusCode:    500,
-			expectedLevel: "error",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var buf bytes.Buffer
-			logger := NewLogger(Config{
-				Level:  "info",
-				Format: "json",
-				Output: "stdout",
-			})
-			logger.SetOutput(&buf)
-
-			ctx := context.WithValue(context.Background(), CorrelationIDKey, "test-correlation")
-			method := "POST"
-			path := "/api/test"
-			clientIP := "192.168.1.1"
-			userAgent := "test-agent"
-			duration := int64(150)
-
-			logger.LogAPIRequest(ctx, method, path, clientIP, userAgent, tt.statusCode, duration)
-
-			// Parse the logged JSON
-			var logEntry map[string]interface{}
-			if err := json.Unmarshal(buf.Bytes(), &logEntry); err != nil {
-				t.Fatalf("Failed to parse log output as JSON: %v", err)
-			}
-
-			// Verify log fields
-			if logEntry["level"] != tt.expectedLevel {
-				t.Errorf("Expected level to be %s, got %v", tt.expectedLevel, logEntry["level"])
-			}
-			if logEntry["component"] != "http" {
-				t.Errorf("Expected component to be http, got %v", logEntry["component"])
-			}
-			if logEntry["status_code"] != float64(tt.statusCode) {
-				t.Errorf("Expected status_code to be %d, got %v", tt.statusCode, logEntry["status_code"])
-			}
-			if logEntry["duration_ms"] != float64(duration) {
-				t.Errorf("Expected duration_ms to be %d, got %v", duration, logEntry["duration_ms"])
-			}
-		})
-	}
-}
-
-func TestLogger_SetOutput(t *testing.T) {
-	logger := NewLogger(Config{
-		Level:  "info",
-		Format: "json",
-		Output: "stdout",
-	})
-
-	var buf bytes.Buffer
-	logger.SetOutput(&buf)
-
-	logger.Info("test message")
-
+	logger.Info("emitted")
 	if buf.Len() == 0 {
-		t.Error("Expected log output but buffer is empty")
+		t.Error("expected info to be emitted at default level")
+	}
+}
+
+func TestContextWithCorrelationID(t *testing.T) {
+	var buf bytes.Buffer
+	logger := NewLoggerWithWriter(&buf, Config{Level: "info", Format: "json"})
+
+	ctx := ContextWithCorrelationID(context.Background(), "corr-123")
+	logger.InfoContext(ctx, "with correlation")
+
+	entry := parseLine(t, buf.Bytes())
+	if entry["correlation_id"] != "corr-123" {
+		t.Errorf("expected correlation_id 'corr-123', got %v", entry["correlation_id"])
+	}
+}
+
+func TestContextWithoutCorrelationID(t *testing.T) {
+	var buf bytes.Buffer
+	logger := NewLoggerWithWriter(&buf, Config{Level: "info", Format: "json"})
+
+	logger.InfoContext(context.Background(), "no correlation")
+
+	entry := parseLine(t, buf.Bytes())
+	if _, ok := entry["correlation_id"]; ok {
+		t.Errorf("expected no correlation_id, got %v", entry["correlation_id"])
+	}
+}
+
+func TestWithComponent(t *testing.T) {
+	var buf bytes.Buffer
+	logger := WithComponent(NewLoggerWithWriter(&buf, Config{Level: "info", Format: "json"}), "server")
+
+	// The correlation-ID handler must survive a With* derivation.
+	ctx := ContextWithCorrelationID(context.Background(), "corr-xyz")
+	logger.InfoContext(ctx, "component message")
+
+	entry := parseLine(t, buf.Bytes())
+	if entry["component"] != "server" {
+		t.Errorf("expected component 'server', got %v", entry["component"])
+	}
+	if entry["correlation_id"] != "corr-xyz" {
+		t.Errorf("expected correlation_id to survive With(), got %v", entry["correlation_id"])
+	}
+}
+
+func TestReplaceAttr_ErrorRenderedAsString(t *testing.T) {
+	var buf bytes.Buffer
+	logger := NewLoggerWithWriter(&buf, Config{Level: "info", Format: "json"})
+
+	logger.Error("failed", "error", errors.New("boom"))
+
+	entry := parseLine(t, buf.Bytes())
+	if entry["error"] != "boom" {
+		t.Errorf("expected error rendered as 'boom', got %v", entry["error"])
+	}
+	if entry["level"] != "error" {
+		t.Errorf("expected level 'error', got %v", entry["level"])
+	}
+}
+
+func TestReplaceAttr_ReservedFieldsCannotShadowSchema(t *testing.T) {
+	var buf bytes.Buffer
+	logger := NewLoggerWithWriter(&buf, Config{Level: "info", Format: "json"})
+
+	logger.Info("real message",
+		"timestamp", "caller timestamp",
+		"level", "caller level",
+		"message", "caller message",
+	)
+
+	entry := parseLine(t, buf.Bytes())
+	if entry["message"] != "real message" {
+		t.Errorf("expected record message to remain authoritative, got %v", entry["message"])
+	}
+	if entry["level"] != "info" {
+		t.Errorf("expected record level to remain authoritative, got %v", entry["level"])
+	}
+	if entry["timestamp"] == "caller timestamp" {
+		t.Error("expected record timestamp to remain authoritative")
 	}
 
-	if !strings.Contains(buf.String(), "test message") {
-		t.Error("Expected log output to contain 'test message'")
+	expectedCallerFields := map[string]any{
+		"fields.timestamp": "caller timestamp",
+		"fields.level":     "caller level",
+		"fields.message":   "caller message",
+	}
+	for key, want := range expectedCallerFields {
+		if got := entry[key]; got != want {
+			t.Errorf("expected %s=%q, got %v", key, want, got)
+		}
+	}
+}
+
+func TestNewLogger_TextFormat(t *testing.T) {
+	var buf bytes.Buffer
+	logger := NewLoggerWithWriter(&buf, Config{Level: "info", Format: "text"})
+
+	logger.Info("text message", "key", "value")
+
+	out := buf.String()
+	if !strings.Contains(out, "text message") {
+		t.Errorf("expected text output to contain the message, got %q", out)
+	}
+	if !strings.Contains(out, "key=value") {
+		t.Errorf("expected text output to contain 'key=value', got %q", out)
 	}
 }

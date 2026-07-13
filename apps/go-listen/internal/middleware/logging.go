@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -12,11 +13,11 @@ import (
 
 // LoggingMiddleware provides HTTP request logging with correlation IDs
 type LoggingMiddleware struct {
-	logger *logging.Logger
+	logger *slog.Logger
 }
 
 // NewLoggingMiddleware creates a new logging middleware instance
-func NewLoggingMiddleware(logger *logging.Logger) *LoggingMiddleware {
+func NewLoggingMiddleware(logger *slog.Logger) *LoggingMiddleware {
 	return &LoggingMiddleware{
 		logger: logger,
 	}
@@ -54,7 +55,7 @@ func (lm *LoggingMiddleware) LogRequests(next http.Handler) http.Handler {
 		correlationID := generateCorrelationID()
 
 		// Add correlation ID to request context
-		ctx := context.WithValue(r.Context(), logging.CorrelationIDKey, correlationID)
+		ctx := logging.ContextWithCorrelationID(r.Context(), correlationID)
 		r = r.WithContext(ctx)
 
 		// Add correlation ID to response headers for client tracking
@@ -67,15 +68,15 @@ func (lm *LoggingMiddleware) LogRequests(next http.Handler) http.Handler {
 		}
 
 		// Log request start
-		lm.logger.WithContext(ctx).WithFields(map[string]interface{}{
-			"component":   "http",
-			"operation":   "request_start",
-			"method":      r.Method,
-			"path":        r.URL.Path,
-			"query_count": len(r.URL.Query()),
-			"client_ip":   getClientIP(r),
-			"user_agent":  r.UserAgent(),
-		}).Debug("HTTP request started")
+		lm.logger.DebugContext(ctx, "HTTP request started",
+			"component", "http",
+			"operation", "request_start",
+			"method", r.Method,
+			"path", r.URL.Path,
+			"query_count", len(r.URL.Query()),
+			"client_ip", getClientIP(r),
+			"user_agent", r.UserAgent(),
+		)
 
 		// Call the next handler
 		next.ServeHTTP(rw, r)
@@ -84,7 +85,7 @@ func (lm *LoggingMiddleware) LogRequests(next http.Handler) http.Handler {
 		duration := time.Since(start)
 
 		// Log request completion
-		lm.logger.LogAPIRequest(
+		lm.logAPIRequest(
 			ctx,
 			r.Method,
 			r.URL.Path,
@@ -94,6 +95,30 @@ func (lm *LoggingMiddleware) LogRequests(next http.Handler) http.Handler {
 			duration.Milliseconds(),
 		)
 	})
+}
+
+// logAPIRequest logs API request completion, selecting the log level based on
+// the response status code.
+func (lm *LoggingMiddleware) logAPIRequest(ctx context.Context, method, path, clientIP, userAgent string, statusCode int, duration int64) {
+	args := []any{
+		"component", "http",
+		"operation", "api_request",
+		"method", method,
+		"path", path,
+		"client_ip", clientIP,
+		"user_agent", userAgent,
+		"status_code", statusCode,
+		"duration_ms", duration,
+	}
+
+	switch {
+	case statusCode >= 500:
+		lm.logger.ErrorContext(ctx, "API request completed with server error", args...)
+	case statusCode >= 400:
+		lm.logger.WarnContext(ctx, "API request completed with client error", args...)
+	default:
+		lm.logger.InfoContext(ctx, "API request completed successfully", args...)
+	}
 }
 
 // generateCorrelationID generates a random correlation ID

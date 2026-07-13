@@ -3,12 +3,12 @@ package server
 import (
 	"bytes"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/toozej/monogo/apps/go-listen/internal/config"
 	"github.com/toozej/monogo/apps/go-listen/internal/middleware"
 	"github.com/toozej/monogo/pkg/logging"
@@ -27,20 +27,9 @@ func TestLoggingIntegration_HTTPMiddleware(t *testing.T) {
 		EnableHTTP: true,
 	}
 
-	// Create a new logger with the buffer
-	logrusLogger := log.New()
-	logrusLogger.SetOutput(&logBuffer)
-	logrusLogger.SetLevel(log.DebugLevel)
-	logrusLogger.SetFormatter(&log.JSONFormatter{
-		TimestampFormat: "2006-01-02T15:04:05.000Z07:00",
-		FieldMap: log.FieldMap{
-			log.FieldKeyTime:  "timestamp",
-			log.FieldKeyLevel: "level",
-			log.FieldKeyMsg:   "message",
-		},
-	})
-
-	server.logger = &logging.Logger{Logger: logrusLogger}
+	// Create a new logger writing to the buffer
+	logger := logging.NewLoggerWithWriter(&logBuffer, logging.Config{Level: "debug", Format: "json"})
+	setServerLogger(server, logger)
 
 	// Set up routes with logging middleware
 	server.setupRoutes()
@@ -64,22 +53,25 @@ func TestLoggingIntegration_HTTPMiddleware(t *testing.T) {
 		t.Fatal("Expected log entries but got none")
 	}
 
-	// Check for structured logging fields
-	foundStructuredLog := false
+	// Check that the HTTP middleware itself wrote a structured, correlated log.
+	foundHTTPLog := false
 
 	for _, line := range logLines {
 		if line == "" {
 			continue
 		}
 
-		var logEntry map[string]interface{}
+		var logEntry map[string]any
 		if err := json.Unmarshal([]byte(line), &logEntry); err != nil {
 			t.Logf("Failed to parse log line: %s", line)
 			continue
 		}
 
-		// Check for required structured logging fields
-		requiredFields := []string{"timestamp", "level", "message"}
+		if logEntry["component"] != "http" {
+			continue
+		}
+
+		requiredFields := []string{"timestamp", "level", "message", "correlation_id"}
 		hasAllFields := true
 
 		for _, field := range requiredFields {
@@ -90,13 +82,13 @@ func TestLoggingIntegration_HTTPMiddleware(t *testing.T) {
 		}
 
 		if hasAllFields {
-			foundStructuredLog = true
+			foundHTTPLog = true
 			break
 		}
 	}
 
-	if !foundStructuredLog {
-		t.Error("Expected to find structured log entries with required fields")
+	if !foundHTTPLog {
+		t.Error("expected a structured, correlated HTTP middleware log entry")
 	}
 }
 
@@ -111,22 +103,10 @@ func TestLoggingIntegration_SecurityEvents(t *testing.T) {
 
 	// Recreate rate limiter with new settings
 	server.rateLimiter = middleware.NewRateLimiter(1, 1)
-	server.securityMiddleware = middleware.NewSecurityMiddleware(server.logger.Logger, server.rateLimiter)
 
-	// Create a new logger with the buffer
-	logrusLogger := log.New()
-	logrusLogger.SetOutput(&logBuffer)
-	logrusLogger.SetLevel(log.DebugLevel)
-	logrusLogger.SetFormatter(&log.JSONFormatter{
-		TimestampFormat: "2006-01-02T15:04:05.000Z07:00",
-		FieldMap: log.FieldMap{
-			log.FieldKeyTime:  "timestamp",
-			log.FieldKeyLevel: "level",
-			log.FieldKeyMsg:   "message",
-		},
-	})
-
-	server.logger = &logging.Logger{Logger: logrusLogger}
+	// Create a new logger writing to the buffer
+	logger := logging.NewLoggerWithWriter(&logBuffer, logging.Config{Level: "debug", Format: "json"})
+	setServerLogger(server, logger)
 
 	// Set up routes with security middleware
 	server.setupRoutes()
@@ -147,7 +127,7 @@ func TestLoggingIntegration_SecurityEvents(t *testing.T) {
 	// Parse log entries
 	logOutput := logBuffer.String()
 	if logOutput == "" {
-		t.Skip("No log output generated - rate limiting may not have been triggered")
+		t.Fatal("expected a security log after exceeding the rate limit")
 	}
 
 	logLines := strings.Split(strings.TrimSpace(logOutput), "\n")
@@ -160,7 +140,7 @@ func TestLoggingIntegration_SecurityEvents(t *testing.T) {
 			continue
 		}
 
-		var logEntry map[string]interface{}
+		var logEntry map[string]any
 		if err := json.Unmarshal([]byte(line), &logEntry); err != nil {
 			continue
 		}
@@ -181,7 +161,7 @@ func TestLoggingIntegration_SecurityEvents(t *testing.T) {
 	}
 
 	if !foundSecurityEvent {
-		t.Skip("Security events not triggered in test environment - this is expected")
+		t.Error("expected a rate-limit security log entry")
 	}
 }
 
@@ -192,20 +172,9 @@ func TestLoggingIntegration_SuspiciousInput(t *testing.T) {
 	// Create test server
 	server, _ := createTestServer()
 
-	// Create a new logger with the buffer
-	logrusLogger := log.New()
-	logrusLogger.SetOutput(&logBuffer)
-	logrusLogger.SetLevel(log.DebugLevel)
-	logrusLogger.SetFormatter(&log.JSONFormatter{
-		TimestampFormat: "2006-01-02T15:04:05.000Z07:00",
-		FieldMap: log.FieldMap{
-			log.FieldKeyTime:  "timestamp",
-			log.FieldKeyLevel: "level",
-			log.FieldKeyMsg:   "message",
-		},
-	})
-
-	server.logger = &logging.Logger{Logger: logrusLogger}
+	// Create a new logger writing to the buffer
+	logger := logging.NewLoggerWithWriter(&logBuffer, logging.Config{Level: "debug", Format: "json"})
+	setServerLogger(server, logger)
 
 	// Set up routes with security middleware
 	server.setupRoutes()
@@ -217,13 +186,13 @@ func TestLoggingIntegration_SuspiciousInput(t *testing.T) {
 
 	// Check if the request was blocked (should return 400 for suspicious input)
 	if rr.Code != http.StatusBadRequest {
-		t.Skip("Suspicious input not detected - security middleware may not be configured to block this pattern")
+		t.Fatalf("expected suspicious input to return 400, got %d", rr.Code)
 	}
 
 	// Parse log entries
 	logOutput := logBuffer.String()
 	if logOutput == "" {
-		t.Skip("No log output generated")
+		t.Fatal("expected a security log for suspicious input")
 	}
 
 	logLines := strings.Split(strings.TrimSpace(logOutput), "\n")
@@ -236,7 +205,7 @@ func TestLoggingIntegration_SuspiciousInput(t *testing.T) {
 			continue
 		}
 
-		var logEntry map[string]interface{}
+		var logEntry map[string]any
 		if err := json.Unmarshal([]byte(line), &logEntry); err != nil {
 			continue
 		}
@@ -245,8 +214,9 @@ func TestLoggingIntegration_SuspiciousInput(t *testing.T) {
 		if logEntry["component"] == "security" && logEntry["event_type"] == "suspicious_parameter" {
 			foundSuspiciousInput = true
 
-			// Verify required fields
-			suspiciousFields := []string{"param", "value", "client_ip"}
+			// Verify required fields. The suspicious value itself is deliberately
+			// NOT logged (it is attacker-controlled); only the parameter name is.
+			suspiciousFields := []string{"param", "client_ip"}
 			for _, field := range suspiciousFields {
 				if _, exists := logEntry[field]; !exists {
 					t.Errorf("Expected field %s in suspicious input log entry", field)
@@ -257,8 +227,18 @@ func TestLoggingIntegration_SuspiciousInput(t *testing.T) {
 	}
 
 	if !foundSuspiciousInput {
-		t.Skip("Suspicious input detection not triggered - this may be expected in test environment")
+		t.Error("expected a suspicious-parameter security log entry")
 	}
+}
+
+// setServerLogger keeps the server and its already-constructed middleware on
+// the same logger. Replacing only server.logger leaves the middleware writing
+// to the stale logger created by createTestServer, which makes logging tests
+// pass on unrelated handler logs or skip the assertions entirely.
+func setServerLogger(server *Server, logger *slog.Logger) {
+	server.logger = logger
+	server.securityMiddleware = middleware.NewSecurityMiddleware(logger, server.rateLimiter)
+	server.loggingMiddleware = middleware.NewLoggingMiddleware(logger)
 }
 
 func TestLoggingIntegration_ComponentLogging(t *testing.T) {
@@ -268,20 +248,8 @@ func TestLoggingIntegration_ComponentLogging(t *testing.T) {
 	// Create test server
 	server, _ := createTestServer()
 
-	// Create a new logger with the buffer
-	logrusLogger := log.New()
-	logrusLogger.SetOutput(&logBuffer)
-	logrusLogger.SetLevel(log.DebugLevel)
-	logrusLogger.SetFormatter(&log.JSONFormatter{
-		TimestampFormat: "2006-01-02T15:04:05.000Z07:00",
-		FieldMap: log.FieldMap{
-			log.FieldKeyTime:  "timestamp",
-			log.FieldKeyLevel: "level",
-			log.FieldKeyMsg:   "message",
-		},
-	})
-
-	server.logger = &logging.Logger{Logger: logrusLogger}
+	// Create a new logger writing to the buffer
+	server.logger = logging.NewLoggerWithWriter(&logBuffer, logging.Config{Level: "debug", Format: "json"})
 
 	// Set up routes
 	server.setupRoutes()
@@ -303,7 +271,7 @@ func TestLoggingIntegration_ComponentLogging(t *testing.T) {
 			continue
 		}
 
-		var logEntry map[string]interface{}
+		var logEntry map[string]any
 		if err := json.Unmarshal([]byte(line), &logEntry); err != nil {
 			continue
 		}

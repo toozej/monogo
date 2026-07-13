@@ -2,9 +2,10 @@ package search
 
 import (
 	"errors"
+	"io"
+	"log/slog"
 	"testing"
 
-	"github.com/sirupsen/logrus"
 	"github.com/toozej/monogo/apps/go-listen/internal/server"
 )
 
@@ -49,8 +50,7 @@ func (m *MockSpotifyService) CompleteAuth(code, state string) error {
 }
 
 func TestNewFuzzyArtistSearcher(t *testing.T) {
-	logger := logrus.New()
-	logger.SetLevel(logrus.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	mockSpotify := &MockSpotifyService{}
 
@@ -71,8 +71,7 @@ func TestNewFuzzyArtistSearcher(t *testing.T) {
 }
 
 func TestFuzzyArtistSearcher_FindBestMatch(t *testing.T) {
-	logger := logrus.New()
-	logger.SetLevel(logrus.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	tests := []struct {
 		name           string
@@ -217,8 +216,7 @@ func TestFuzzyArtistSearcher_FindBestMatch(t *testing.T) {
 }
 
 func TestFuzzyArtistSearcher_calculateMatchConfidence(t *testing.T) {
-	logger := logrus.New()
-	logger.SetLevel(logrus.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	mockSpotify := &MockSpotifyService{}
 	searcher := NewFuzzyArtistSearcher(mockSpotify, logger)
@@ -284,8 +282,7 @@ func TestFuzzyArtistSearcher_calculateMatchConfidence(t *testing.T) {
 }
 
 func TestFuzzyArtistSearcher_SearchMultipleArtists(t *testing.T) {
-	logger := logrus.New()
-	logger.SetLevel(logrus.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	mockArtists := map[string]*server.Artist{
 		"Taylor Swift": {

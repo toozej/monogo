@@ -2,10 +2,11 @@ package playlist
 
 import (
 	"errors"
+	"io"
+	"log/slog"
 	"reflect"
 	"testing"
 
-	"github.com/sirupsen/logrus"
 	"github.com/toozej/monogo/apps/go-listen/internal/types"
 )
 
@@ -134,8 +135,7 @@ func TestPlaylistService_GetIncomingPlaylists(t *testing.T) {
 				err:       tt.mockError,
 			}
 			mockDuplicate := &MockDuplicateDetector{}
-			logger := logrus.New()
-			logger.SetLevel(logrus.ErrorLevel) // Reduce log noise in tests
+			logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 			// Create service
 			service := NewPlaylistService(mockSpotify, mockDuplicate, logger)
@@ -243,8 +243,7 @@ func TestPlaylistService_FilterPlaylistsBySearch(t *testing.T) {
 			// Setup
 			mockSpotify := &MockSpotifyService{}
 			mockDuplicate := &MockDuplicateDetector{}
-			logger := logrus.New()
-			logger.SetLevel(logrus.ErrorLevel) // Reduce log noise in tests
+			logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 			service := NewPlaylistService(mockSpotify, mockDuplicate, logger)
 
@@ -409,8 +408,7 @@ func TestPlaylistService_AddArtistToPlaylist(t *testing.T) {
 				err:    tt.mockDuplicateError,
 			}
 
-			logger := logrus.New()
-			logger.SetLevel(logrus.ErrorLevel) // Reduce log noise in tests
+			logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 			service := NewPlaylistService(mockSpotify, mockDuplicate, logger)
 
@@ -547,8 +545,7 @@ func TestPlaylistService_AddArtistToPlaylist_RateLimiting(t *testing.T) {
 				err:    nil,
 			}
 
-			logger := logrus.New()
-			logger.SetLevel(logrus.ErrorLevel)
+			logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 			service := NewPlaylistService(mockSpotify, mockDuplicate, logger)
 
@@ -662,8 +659,7 @@ func TestPlaylistService_AddArtistToPlaylist_OverrideScenarios(t *testing.T) {
 				err:    tt.mockDuplicateError,
 			}
 
-			logger := logrus.New()
-			logger.SetLevel(logrus.ErrorLevel)
+			logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 			service := NewPlaylistService(mockSpotify, mockDuplicate, logger)
 
@@ -730,8 +726,7 @@ func TestPlaylistService_OverrideButtonFunctionality(t *testing.T) {
 		err: nil,
 	}
 
-	logger := logrus.New()
-	logger.SetLevel(logrus.ErrorLevel)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	service := NewPlaylistService(mockSpotify, mockDuplicate, logger)
 
@@ -811,8 +806,7 @@ func TestPlaylistService_APIOverrideParameter(t *testing.T) {
 				err: nil,
 			}
 
-			logger := logrus.New()
-			logger.SetLevel(logrus.ErrorLevel)
+			logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 			service := NewPlaylistService(mockSpotify, mockDuplicate, logger)
 
