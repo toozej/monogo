@@ -22,6 +22,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -43,12 +44,13 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:              "url2anki",
-	Short:            "Generate Anki flashcards from a URL",
-	Long:             `Generate Anki-formatted flashcards from a given URL and export them to a file to be imported into Anki`,
-	Args:             cobra.ExactArgs(0),
-	PersistentPreRun: rootCmdPreRun,
-	Run:              rootCmdRun,
+	Use:               "url2anki",
+	Short:             "Generate Anki flashcards from a URL",
+	Long:              `Generate Anki-formatted flashcards from a given URL and export them to a file to be imported into Anki`,
+	Args:              cobra.ExactArgs(0),
+	PersistentPreRun:  rootCmdPreRun,
+	PersistentPreRunE: rootCmdPreRunE,
+	RunE:              rootCmdRun,
 }
 
 // rootCmdRun is the main execution function for the root command.
@@ -57,8 +59,34 @@ var rootCmd = &cobra.Command{
 // Parameters:
 //   - cmd: The cobra command being executed
 //   - args: Command-line arguments (unused, as root command takes no args)
-func rootCmdRun(cmd *cobra.Command, args []string) {
-	url2anki.Run(cmd, args)
+func rootCmdRun(cmd *cobra.Command, args []string) error {
+	return url2anki.Run(cmd, args)
+}
+
+func rootCmdPreRunE(cmd *cobra.Command, args []string) error {
+	rootCmdPreRun(cmd, args)
+	if cmd.Parent() != nil {
+		return nil
+	}
+	if strings.TrimSpace(conf.URL) == "" {
+		return fmt.Errorf("url is required")
+	}
+	if strings.TrimSpace(conf.QuestionSelector) == "" {
+		return fmt.Errorf("question selector is required")
+	}
+	if strings.TrimSpace(conf.AnswerSelector) == "" {
+		return fmt.Errorf("answer selector is required")
+	}
+	if strings.TrimSpace(conf.OutputFile) == "" {
+		return fmt.Errorf("output file is required")
+	}
+	if conf.HTTPTimeout <= 0 {
+		return fmt.Errorf("http timeout must be greater than zero")
+	}
+	if conf.MaxResponseBytes <= 0 {
+		return fmt.Errorf("maximum response size must be greater than zero")
+	}
+	return nil
 }
 
 // rootCmdPreRun performs setup operations before executing the root command.
@@ -125,11 +153,8 @@ func init() {
 	rootCmd.Flags().StringVarP(&conf.AnswerSelector, "answer-selector", "a", conf.AnswerSelector, "The HTML selector for the answers (EX: div.term-definition)")
 	rootCmd.Flags().StringVarP(&conf.OutputFile, "output-file", "o", conf.OutputFile, "The filename (including extension) to export flashcards to")
 	rootCmd.Flags().BoolVarP(&conf.Preview, "preview", "p", conf.Preview, "Preview the flashcards before exporting")
-
-	// Mark required flags
-	_ = cobra.MarkFlagRequired(rootCmd.Flags(), "url")
-	_ = cobra.MarkFlagRequired(rootCmd.Flags(), "question-selector")
-	_ = cobra.MarkFlagRequired(rootCmd.Flags(), "answer-selector")
+	rootCmd.Flags().DurationVar(&conf.HTTPTimeout, "http-timeout", conf.HTTPTimeout, "Timeout for fetching the source URL")
+	rootCmd.Flags().Int64Var(&conf.MaxResponseBytes, "max-response-bytes", conf.MaxResponseBytes, "Maximum source response size")
 
 	// add sub-commands
 	rootCmd.AddCommand(

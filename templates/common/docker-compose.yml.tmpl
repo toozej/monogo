@@ -6,8 +6,10 @@ services:
   [[$app.name]]:
     container_name: [[$app.name]]
     image: toozej/[[ strings.ToLower $app.name ]]:latest
-    restart: unless-stopped
-    security_opt:
+[[ if and $compose (index $compose "user") ]]    user: "[[ index $compose "user" ]]"
+[[ end ]][[ if and $compose (index $compose "restart") ]]    restart: "[[ index $compose "restart" ]]"
+[[ else ]]    restart: unless-stopped
+[[ end ]]    security_opt:
       - no-new-privileges:true
     read_only: true
 [[ if and $compose (index $compose "environment") ]]    environment:

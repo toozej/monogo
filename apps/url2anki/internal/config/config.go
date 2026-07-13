@@ -27,6 +27,8 @@
 package config
 
 import (
+	"time"
+
 	sharedconfig "github.com/toozej/monogo/pkg/config"
 )
 
@@ -68,6 +70,10 @@ type Config struct {
 	// Debug specifies whether to enable debug-level logging.
 	// It is loaded from the URL2ANKI_DEBUG environment variable.
 	Debug bool `env:"URL2ANKI_DEBUG"`
+
+	HTTPTimeout time.Duration `env:"URL2ANKI_HTTP_TIMEOUT" envDefault:"30s"`
+
+	MaxResponseBytes int64 `env:"URL2ANKI_MAX_RESPONSE_BYTES" envDefault:"10485760"`
 }
 
 // GetEnvVars loads and returns the application configuration, terminating the

@@ -24,6 +24,8 @@ the devcontainer build. Run `make app-generate APP=<app>` after editing
 | `runtimeImage` | no | Overrides the runtime base in the non-distroless `Dockerfile`. Defaults to `scratch`, or `debian:trixie-slim` when `cgoEnabled` is `true`. |
 | `port` | no | When set, `EXPOSE <port>` is emitted in the generated Dockerfiles. |
 | `writableDirs` | no | Runtime directories created with ownership for the image's nonroot user. This lets empty named volumes inherit usable permissions. |
+| `compose.user` | no | User or UID/GID used to run the Compose service. Useful for nonroot CLI containers that write to bind mounts. |
+| `compose.restart` | no (default `unless-stopped`) | Docker Compose restart policy. Set to `no` for one-shot CLI apps. |
 | `compose.environment` | no | Environment variables emitted for the app service in `docker-compose.yml`. |
 | `compose.ports` | no | Port mappings emitted for the app service, such as `8080:8080`. |
 | `compose.volumes` | no | Bind mounts or named-volume mappings emitted for the app service. |
