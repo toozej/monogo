@@ -5,11 +5,10 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math/big"
 	"sync"
 	"time"
-
-	log "github.com/sirupsen/logrus"
 
 	"github.com/toozej/monogo/apps/go-find-liquor/internal/config"
 	"github.com/toozej/monogo/apps/go-find-liquor/internal/notification"
@@ -73,7 +72,7 @@ func newUserRunner(userConfig config.UserConfig, interval time.Duration, userAge
 
 // start begins periodic searches for this user (internal method)
 func (ur *userRunner) start(ctx context.Context) error {
-	log.Infof("Starting search runner for user '%s'", ur.userConfig.Name)
+	slog.Info(fmt.Sprintf("Starting search runner for user '%s'", ur.userConfig.Name))
 	runCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -91,7 +90,7 @@ func (ur *userRunner) start(ctx context.Context) error {
 			}()
 
 			if err := ur.runSearch(runCtx, true); err != nil && !errors.Is(err, context.Canceled) {
-				log.Errorf("Search failed for user '%s': %v", ur.userConfig.Name, err)
+				slog.Error(fmt.Sprintf("Search failed for user '%s': %v", ur.userConfig.Name, err))
 			}
 		}()
 		return true
@@ -107,15 +106,15 @@ func (ur *userRunner) start(ctx context.Context) error {
 		select {
 		case <-ticker.C:
 			if !launchSearch() {
-				log.Warnf("Previous search still running for user '%s', skipping", ur.userConfig.Name)
+				slog.Warn(fmt.Sprintf("Previous search still running for user '%s', skipping", ur.userConfig.Name))
 			}
 		case <-ur.stopChan:
-			log.Infof("Stopping search runner for user '%s'", ur.userConfig.Name)
+			slog.Info(fmt.Sprintf("Stopping search runner for user '%s'", ur.userConfig.Name))
 			cancel()
 			ur.searchWG.Wait()
 			return nil
 		case <-ctx.Done():
-			log.Infof("Context cancelled for user '%s'", ur.userConfig.Name)
+			slog.Info(fmt.Sprintf("Context cancelled for user '%s'", ur.userConfig.Name))
 			cancel()
 			ur.searchWG.Wait()
 			return nil
@@ -135,8 +134,8 @@ func (ur *userRunner) runSearch(ctx context.Context, withHealthCheck bool) error
 		return fmt.Errorf("user '%s' has no zipcode configured", ur.userConfig.Name)
 	}
 
-	log.Infof("Starting search for user '%s': %d items within %d miles of %s",
-		ur.userConfig.Name, len(ur.userConfig.Items), ur.userConfig.Distance, ur.userConfig.Zipcode)
+	slog.Info(fmt.Sprintf("Starting search for user '%s': %d items within %d miles of %s",
+		ur.userConfig.Name, len(ur.userConfig.Items), ur.userConfig.Distance, ur.userConfig.Zipcode))
 
 	var allFoundItems []search.LiquorItem
 	var runErr error
@@ -145,18 +144,18 @@ func (ur *userRunner) runSearch(ctx context.Context, withHealthCheck bool) error
 		// Create a context with timeout for this item
 		itemCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 
-		log.Infof("User '%s' searching for item: %s", ur.userConfig.Name, item)
+		slog.Info(fmt.Sprintf("User '%s' searching for item: %s", ur.userConfig.Name, item))
 
 		// Search for the item
 		results, err := ur.searcher.SearchItem(itemCtx, item, ur.userConfig.Zipcode, ur.userConfig.Distance)
 		cancel()
 		if err != nil {
-			log.Errorf("Failed to search for %s for user '%s': %v", item, ur.userConfig.Name, err)
+			slog.Error(fmt.Sprintf("Failed to search for %s for user '%s': %v", item, ur.userConfig.Name, err))
 			runErr = errors.Join(runErr, fmt.Errorf("search item %q for user %q: %w", item, ur.userConfig.Name, err))
 			continue
 		}
 
-		log.Infof("User '%s' found %d results for %s", ur.userConfig.Name, len(results), item)
+		slog.Info(fmt.Sprintf("User '%s' found %d results for %s", ur.userConfig.Name, len(results), item))
 
 		// Collect all found items
 		allFoundItems = append(allFoundItems, results...)
@@ -170,7 +169,7 @@ func (ur *userRunner) runSearch(ctx context.Context, withHealthCheck bool) error
 			if err == nil {
 				waitTime = time.Duration(randTime.Int64()) * time.Second
 			}
-			log.Debugf("User '%s' waiting %s before next search", ur.userConfig.Name, waitTime)
+			slog.Debug(fmt.Sprintf("User '%s' waiting %s before next search", ur.userConfig.Name, waitTime))
 
 			timer := time.NewTimer(waitTime)
 			select {
@@ -186,7 +185,7 @@ func (ur *userRunner) runSearch(ctx context.Context, withHealthCheck bool) error
 	// Send notifications for all found items (condensed or individual based on user config)
 	if len(allFoundItems) > 0 {
 		if err := ur.notifier.NotifyFoundItems(ctx, allFoundItems); err != nil {
-			log.Warnf("Failed to send notifications for user '%s': %v", ur.userConfig.Name, err)
+			slog.Warn(fmt.Sprintf("Failed to send notifications for user '%s': %v", ur.userConfig.Name, err))
 			runErr = errors.Join(runErr, fmt.Errorf("notify findings for user %q: %w", ur.userConfig.Name, err))
 		}
 	}
@@ -198,11 +197,11 @@ func (ur *userRunner) runSearch(ctx context.Context, withHealthCheck bool) error
 		healthCheckItem = search.RandomCommonItem(ur.commonItems)
 		healthCtx, healthCancel := context.WithTimeout(ctx, 2*time.Minute)
 
-		log.Infof("User '%s' running health check search for common item: %s", ur.userConfig.Name, healthCheckItem)
+		slog.Info(fmt.Sprintf("User '%s' running health check search for common item: %s", ur.userConfig.Name, healthCheckItem))
 		healthResults, err := ur.searcher.SearchItem(healthCtx, healthCheckItem, ur.userConfig.Zipcode, ur.userConfig.Distance)
 		healthCancel()
 		if err != nil {
-			log.Warnf("Health check search failed for user '%s': %v", ur.userConfig.Name, err)
+			slog.Warn(fmt.Sprintf("Health check search failed for user '%s': %v", ur.userConfig.Name, err))
 			runErr = errors.Join(runErr, fmt.Errorf("health check for user %q: %w", ur.userConfig.Name, err))
 			healthCheckItem = ""
 		} else {
@@ -210,16 +209,16 @@ func (ur *userRunner) runSearch(ctx context.Context, withHealthCheck bool) error
 			if healthCheckFound {
 				healthCheckItem = healthResults[0].Name
 			}
-			log.Infof("User '%s' health check: searched for '%s', found %d results", ur.userConfig.Name, healthCheckItem, len(healthResults))
+			slog.Info(fmt.Sprintf("User '%s' health check: searched for '%s', found %d results", ur.userConfig.Name, healthCheckItem, len(healthResults)))
 		}
 	}
 
 	if err := ur.notifier.NotifyHeartbeat(ctx, healthCheckItem, healthCheckFound); err != nil {
-		log.Warnf("Failed to send heartbeat notification for user '%s': %v", ur.userConfig.Name, err)
+		slog.Warn(fmt.Sprintf("Failed to send heartbeat notification for user '%s': %v", ur.userConfig.Name, err))
 		runErr = errors.Join(runErr, fmt.Errorf("notify heartbeat for user %q: %w", ur.userConfig.Name, err))
 	}
 
-	log.Infof("Search completed for user '%s', next search in %s", ur.userConfig.Name, ur.interval)
+	slog.Info(fmt.Sprintf("Search completed for user '%s', next search in %s", ur.userConfig.Name, ur.interval))
 	return runErr
 }
 
@@ -291,7 +290,7 @@ func (sr *SearchRunner) Start(ctx context.Context) error {
 	userCount := len(sr.userRunners)
 	sr.mu.RUnlock()
 
-	log.Infof("Starting search runner with %d users", userCount)
+	slog.Info(fmt.Sprintf("Starting search runner with %d users", userCount))
 
 	// Create a context that can be cancelled
 	ctx, cancel := context.WithCancel(ctx)
@@ -304,12 +303,12 @@ func (sr *SearchRunner) Start(ctx context.Context) error {
 	sr.mu.RLock()
 	for userName, ur := range sr.userRunners {
 		go func(name string, runner *userRunner) {
-			log.Infof("Starting user runner for '%s'", name)
+			slog.Info(fmt.Sprintf("Starting user runner for '%s'", name))
 			if err := runner.start(ctx); err != nil {
-				log.Errorf("User runner for '%s' failed: %v", name, err)
+				slog.Error(fmt.Sprintf("User runner for '%s' failed: %v", name, err))
 				errChan <- fmt.Errorf("user '%s': %w", name, err)
 			} else {
-				log.Infof("User runner for '%s' completed", name)
+				slog.Info(fmt.Sprintf("User runner for '%s' completed", name))
 				errChan <- nil
 			}
 		}(userName, ur)
@@ -319,16 +318,16 @@ func (sr *SearchRunner) Start(ctx context.Context) error {
 	// Wait for stop signal or context cancellation
 	select {
 	case <-sr.stopChan:
-		log.Info("SearchRunner received stop signal")
+		slog.Info("SearchRunner received stop signal")
 		cancel() // Cancel context to stop all user runners
 	case <-ctx.Done():
-		log.Info("SearchRunner context cancelled")
+		slog.Info("SearchRunner context cancelled")
 	}
 
 	// Stop all user runners
 	sr.mu.RLock()
 	for userName, ur := range sr.userRunners {
-		log.Infof("Stopping user runner for '%s'", userName)
+		slog.Info(fmt.Sprintf("Stopping user runner for '%s'", userName))
 		ur.stop()
 	}
 	sr.mu.RUnlock()
@@ -339,13 +338,13 @@ func (sr *SearchRunner) Start(ctx context.Context) error {
 	for completedUsers < userCount {
 		err := <-errChan
 		if err != nil {
-			log.Errorf("User runner error: %v", err)
+			slog.Error(fmt.Sprintf("User runner error: %v", err))
 			startErr = errors.Join(startErr, err)
 		}
 		completedUsers++
 	}
 
-	log.Info("All user runners stopped")
+	slog.Info("All user runners stopped")
 	return startErr
 }
 
@@ -360,7 +359,7 @@ func (sr *SearchRunner) RunOnce(ctx context.Context) error {
 	userCount := len(sr.userRunners)
 	sr.mu.RUnlock()
 
-	log.Infof("Running single search for %d users", userCount)
+	slog.Info(fmt.Sprintf("Running single search for %d users", userCount))
 
 	// Channel to collect errors from user runners
 	errChan := make(chan error, userCount)
@@ -369,12 +368,12 @@ func (sr *SearchRunner) RunOnce(ctx context.Context) error {
 	sr.mu.RLock()
 	for userName, ur := range sr.userRunners {
 		go func(name string, runner *userRunner) {
-			log.Infof("Running single search for user '%s'", name)
+			slog.Info(fmt.Sprintf("Running single search for user '%s'", name))
 			if err := runner.runOnce(ctx); err != nil {
-				log.Errorf("Single search failed for user '%s': %v", name, err)
+				slog.Error(fmt.Sprintf("Single search failed for user '%s': %v", name, err))
 				errChan <- fmt.Errorf("user '%s': %w", name, err)
 			} else {
-				log.Infof("Single search completed for user '%s'", name)
+				slog.Info(fmt.Sprintf("Single search completed for user '%s'", name))
 				errChan <- nil
 			}
 		}(userName, ur)
@@ -387,7 +386,7 @@ func (sr *SearchRunner) RunOnce(ctx context.Context) error {
 	for completedUsers < userCount {
 		err := <-errChan
 		if err != nil {
-			log.Errorf("User search error: %v", err)
+			slog.Error(fmt.Sprintf("User search error: %v", err))
 			runErr = errors.Join(runErr, err)
 		}
 		completedUsers++
@@ -396,7 +395,7 @@ func (sr *SearchRunner) RunOnce(ctx context.Context) error {
 		runErr = errors.Join(runErr, ctx.Err())
 	}
 
-	log.Info("All user searches completed")
+	slog.Info("All user searches completed")
 	return runErr
 }
 

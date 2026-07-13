@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -18,7 +19,6 @@ import (
 	"github.com/nikoksr/notify/service/pushbullet"
 	"github.com/nikoksr/notify/service/pushover"
 	"github.com/nikoksr/notify/service/slack"
-	log "github.com/sirupsen/logrus"
 
 	"github.com/toozej/monogo/apps/go-find-liquor/internal/config"
 	"github.com/toozej/monogo/apps/go-find-liquor/internal/search"
@@ -345,12 +345,12 @@ func notifyFound(ctx context.Context, item search.LiquorItem, notifiers []Notifi
 		item.Price,
 	)
 
-	log.Info(message)
+	slog.Info(message)
 
 	var notifyErr error
 	for _, notifier := range notifiers {
 		if err := notifier.Notify(ctx, subject, message); err != nil {
-			log.Errorf("Failed to send notification: %v", err)
+			slog.Error(fmt.Sprintf("Failed to send notification: %v", err))
 			notifyErr = errors.Join(notifyErr, err)
 		}
 	}
@@ -428,12 +428,12 @@ func sendCondensedNotification(ctx context.Context, items []search.LiquorItem, n
 	}
 
 	messageStr := message.String()
-	log.Info(messageStr)
+	slog.Info(messageStr)
 
 	var notifyErr error
 	for _, notifier := range notifiers {
 		if err := notifier.Notify(ctx, subject, messageStr); err != nil {
-			log.Errorf("Failed to send notification: %v", err)
+			slog.Error(fmt.Sprintf("Failed to send notification: %v", err))
 			notifyErr = errors.Join(notifyErr, err)
 		}
 	}
@@ -456,12 +456,12 @@ func (m *NotificationManager) NotifyHeartbeat(ctx context.Context, healthCheckIt
 		}
 	}
 
-	log.Info(message)
+	slog.Info(message)
 
 	var notifyErr error
 	for _, notifier := range m.notifiers {
 		if err := notifier.Notify(ctx, subject, message); err != nil {
-			log.Errorf("Failed to send notification: %v", err)
+			slog.Error(fmt.Sprintf("Failed to send notification: %v", err))
 			notifyErr = errors.Join(notifyErr, err)
 		}
 	}

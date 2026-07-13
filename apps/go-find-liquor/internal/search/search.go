@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"io"
+	"log/slog"
 	"math/big"
 	"net/http"
 	"net/http/cookiejar"
@@ -14,7 +15,6 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -110,7 +110,7 @@ func NewSearcher(userAgent string) *Searcher {
 func (s *Searcher) updateUserAgent() {
 	if s.cycleAgent {
 		s.userAgent = userAgents[randomIndex(len(userAgents))]
-		log.Debugf("Using user agent: %s", s.userAgent)
+		slog.Debug(fmt.Sprintf("Using user agent: %s", s.userAgent))
 	}
 }
 
@@ -165,7 +165,7 @@ func (s *Searcher) AgeVerificationContext(ctx context.Context) error {
 	formData.Set("action", "search")
 
 	// Submit the form
-	log.Debugf("AgeVerification() POSTing %v\n", formData)
+	slog.Debug(fmt.Sprintf("AgeVerification() POSTing %v\n", formData))
 	req, err = http.NewRequestWithContext(ctx, http.MethodPost, ageBtnFormURL, strings.NewReader(formData.Encode()))
 	if err != nil {
 		return fmt.Errorf("failed to create form submission request: %w", err)
@@ -216,7 +216,7 @@ func (s *Searcher) SearchItem(ctx context.Context, item string, zipcode string, 
 	formData.Set("btnSearch", "Search")
 
 	// Submit search form
-	log.Debugf("SearchItem() POSTing formData %v\n", formData)
+	slog.Debug(fmt.Sprintf("SearchItem() POSTing formData %v\n", formData))
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, searchURL, strings.NewReader(formData.Encode()))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create search request: %w", err)
