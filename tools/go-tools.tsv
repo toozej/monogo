@@ -1,7 +1,6 @@
 # name	package	module	version
 air	github.com/air-verse/air	github.com/air-verse/air	v1.65.3
 syft	github.com/anchore/syft/cmd/syft	github.com/anchore/syft	v1.46.0
-checkmake	github.com/checkmake/checkmake/cmd/checkmake	github.com/checkmake/checkmake	v0.3.2
 go-critic	github.com/go-critic/go-critic/cmd/go-critic	github.com/go-critic/go-critic	v0.14.4
 gremlins	github.com/go-gremlins/gremlins/cmd/gremlins	github.com/go-gremlins/gremlins	v0.6.0
 golangci-lint	github.com/golangci/golangci-lint/v2/cmd/golangci-lint	github.com/golangci/golangci-lint/v2	v2.12.2
