@@ -32,10 +32,10 @@ A web application that allows users to search for artists and automatically add 
 
 ### Installation
 
-#### Option 1: Install via Make (recommended)
+#### Option 1: Install via Task (recommended)
 
 ```bash
-make install
+task install
 ```
 
 #### Option 2: Download Binary from GitHub releases
@@ -52,7 +52,7 @@ mv go-listen-linux-amd64 go-listen
 ```bash
 git clone https://github.com/toozej/monogo.git
 cd monogo
-make local-build APP=go-listen
+task local:build APP=go-listen
 ```
 
 ### Configuration

@@ -228,8 +228,8 @@ def build_plan(app: str, remote: str, gh_ok: bool) -> AppPlan:
 
 
 def preflight(app: str) -> bool:
-    print(f"    running preflight: make release-test APP={app}")
-    completed = subprocess.run(["make", "release-test", f"APP={app}"], cwd=ROOT)
+    print(f"    running preflight: task release:test APP={app}")
+    completed = subprocess.run(["task", "release:test", f"APP={app}"], cwd=ROOT)
     return completed.returncode == 0
 
 
@@ -365,7 +365,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--preflight",
         action="store_true",
-        help="Run 'make release-test APP=<app>' before tagging; skip on failure.",
+        help="Run 'task release:test APP=<app>' before tagging; skip on failure.",
     )
     parser.add_argument(
         "--allow-dirty",

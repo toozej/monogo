@@ -3,8 +3,8 @@
 Each app under `apps/<app>` is described by `apps/<app>/app.yaml`. Its values
 drive the per-app config that gomplate renders from `templates/app/*.tmpl` and
 `templates/common/*.tmpl` (the Dockerfiles, `.goreleaser.yml`,
-`docker-compose.yml`, and `.air.toml`), as well as the `make` build targets and
-the devcontainer build. Run `make app-generate APP=<app>` after editing
+`docker-compose.yml`, and `.air.toml`), as well as the Taskfile tasks and the
+devcontainer build. Run `task generate:app APP=<app>` after editing
 `app.yaml` to regenerate the app's files.
 
 ## Fields
@@ -59,7 +59,7 @@ By default apps build with `CGO_ENABLED=0`, producing a static binary that runs
 on `scratch`. Set `cgoEnabled: true` to build with cgo instead. The value
 trickles down to every place a binary is built:
 
-- `make local-build` (via `APP_CGO_ENABLED` in the `Makefile`),
+- `task local:build` (via `APP_CGO_ENABLED` in `Taskfile.yml`),
 - both Dockerfile templates (`templates/app/Dockerfile*.tmpl`),
 - the GoReleaser build env (`templates/app/.goreleaser.yml.tmpl`),
 - the devcontainer build (`.devcontainer/Dockerfile`).
@@ -91,5 +91,5 @@ stable aliases without building a duplicate scratch image.
 
 The cgo/runtime logic is computed in the gomplate templates
 (`templates/app/Dockerfile*.tmpl` and `templates/app/.goreleaser.yml.tmpl`), with
-parallel parsing in the `Makefile` (`APP_CGO_ENABLED`) and
+parallel parsing in `Taskfile.yml` (`APP_CGO_ENABLED`) and
 `.devcontainer/Dockerfile`. Keep those four in sync when changing the schema.

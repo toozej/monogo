@@ -10,7 +10,7 @@
 Generate a GPX file or map on a HTML page from an input directory of image files containing GPS coordinates in their EXIF metadata
 
 ## Usage
-- `make` ;)
+- `task` ;)
 
 ## changes required to update golang version
-- `make update-golang-version`
+- `task go:update-version`

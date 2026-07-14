@@ -1,5 +1,5 @@
 [build]
-cmd = "make local-build local-kill local-run APP=lego-stego"
+cmd = "task local:reload APP=lego-stego"
 
 include_ext = ["go", "tpl", "tmpl", "html"]
 

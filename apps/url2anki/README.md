@@ -43,4 +43,4 @@ the host-owned bind mount. The generated deck is written to
 `./output/anki_cards.csv`.
 
 ## changes required to update golang version
-- `make update-golang-version`
+- `task go:update-version`

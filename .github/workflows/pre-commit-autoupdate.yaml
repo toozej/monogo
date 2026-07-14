@@ -1,5 +1,5 @@
 ---
-name: pre-commit autoupdate
+name: tool and pre-commit autoupdate
 
 on:
   # Stagger after CI (Mondays 01:00 UTC) so the two weekly schedules don't collide.
@@ -37,25 +37,15 @@ jobs:
         with:
           go-version: '^1.26'
           check-latest: true
+      - name: Install Task
+        uses: go-task/setup-task@01a4adf9db2d14c1de7a560f09170b6e0df736aa # v2.1.0
+        with:
+          version: 3.52.0
 
-      - name: Install pre-commit, gomplate, and lint tools
-        # `pre-commit-install-no-prereqs` finishes by running `pre-commit
-        # autoupdate`, which bumps every hook `rev:` in .pre-commit-config.yaml.
-        # Installing the lint tools here (golangci-lint, gosec, staticcheck,
-        # etc.) is also what lets the hooks actually run in the next steps.
-        run: |
-          pip install pre-commit
-          make pre-reqs pre-commit-install-no-prereqs
-
-      - name: Generate all app configs
-        run: make generate-all
-
-      - name: Run pre-commit and vulnerability checks against updated hooks
-        # Validate the freshly-updated hooks. If any hook (or govulncheck) fails,
-        # this step fails, the job stops here, and the "Create pull request" step
-        # below never runs — so no PR is opened for a broken autoupdate. CI re-runs
-        # these same checks on the PR before auto-merge as a second line of defense.
-        run: make pre-commit-run-no-generate
+      - name: Update pinned Go tools and pre-commit hooks
+        # The Task workflow upgrades tools/go-tools.tsv and every hook `rev:`, installs
+        # those exact versions, regenerates configs, and validates the result.
+        run: task pre-commit:update
 
       - name: Ensure dependencies label exists
         env:
@@ -73,16 +63,16 @@ jobs:
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
           token: ${{ steps.app-token.outputs.token }}
-          commit-message: "chore(pre-commit): autoupdate"
-          title: "chore(pre-commit): autoupdate"
+          commit-message: "chore(tools): autoupdate"
+          title: "chore(tools): autoupdate"
           body: |
-            Automated `pre-commit autoupdate`.
+            Automated pinned Go tool and `pre-commit autoupdate` refresh.
 
-            Hook revisions were bumped and then validated with
-            `make pre-commit-run-no-generate` (pre-commit hooks + govulncheck)
-            before this PR was opened. Full CI runs again on this PR and gates
-            auto-merge.
-          branch: "chore/pre-commit-autoupdate"
+            `task pre-commit:update` upgraded `tools/go-tools.tsv` and hook revisions,
+            installed those versions, regenerated app configs, and validated the
+            result before this PR was opened. Full CI runs again on this PR and
+            gates auto-merge.
+          branch: "chore/tools-autoupdate"
           delete-branch: true
           labels: dependencies
 

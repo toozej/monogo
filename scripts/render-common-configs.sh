@@ -13,7 +13,7 @@ if [ ! -f "${APP_CONFIG}" ]; then
 fi
 
 if ! command -v gomplate >/dev/null 2>&1; then
-	echo "gomplate is required. Install it with: make pre-reqs" >&2
+	echo "gomplate is required. Install it with: task prereqs" >&2
 	exit 1
 fi
 

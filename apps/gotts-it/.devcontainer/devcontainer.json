@@ -1,9 +1,15 @@
 {
     "name": "Go Dev Container with LLM Support",
     "build": {
-        "dockerfile": "../Dockerfile",
-        "target": "build"
+        "context": "../../..",
+        "dockerfile": "../../../.devcontainer/Dockerfile",
+        "target": "build",
+        "args": {
+            "APP": "gotts-it"
+        }
     },
+    "workspaceFolder": "/workspace",
+    "workspaceMount": "source=${localWorkspaceFolder}/../..,target=/workspace,type=bind,consistency=cached",
     "remoteEnv": {
         "PATH": "${containerEnv:PATH}:/root/.local/bin/:/go/bin/"
     },
@@ -15,7 +21,7 @@
             "version": "latest"
         }
     },
-    "postCreateCommand": "make pre-commit-install && pip install uv && uv tool install llm && llm install llm-github-models && llm models default github/gpt-4.1",
+    "postCreateCommand": "task pre-commit:install && pip install uv && uv tool install llm && llm install llm-github-models && llm models default github/gpt-4.1",
     "customizations": {
         "vscode": {
             "extensions": [
@@ -23,7 +29,6 @@
                 "ms-azuretools.vscode-docker",
                 "GitHub.vscode-github-actions",
                 "redhat.vscode-yaml",
-                "ms-vscode.makefile-tools",
                 "GitHub.copilot"
             ],
             "settings": {

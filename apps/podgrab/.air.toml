@@ -1,5 +1,5 @@
 [build]
-cmd = "make local-build local-kill local-run APP=podgrab"
+cmd = "task local:reload APP=podgrab"
 
 include_ext = ["go", "tpl", "tmpl", "html"]
 

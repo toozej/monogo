@@ -3,12 +3,12 @@ set -euo pipefail
 
 # Demo for terranotate: exercise parse, validate (passing + failing), generate,
 # and the fix workflow against the bundled examples. Invoked by
-# `make APP=terranotate demo`, which builds the binary and exports BIN (path to
+# `task demo APP=terranotate`, which builds the binary and exports BIN (path to
 # the built binary) and APP_DIR (this app's absolute directory).
 #
 # Note: the `fix` command rewrites files in place and leaves .bak backups, so it
 # runs against a throwaway copy under demo-output/ (gitignored, removed by
-# `make clean`) rather than the tracked examples.
+# `task clean`) rather than the tracked examples.
 
 BIN="${BIN:-out/terranotate}"
 APP_DIR="${APP_DIR:-.}"

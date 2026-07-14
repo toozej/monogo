@@ -4,6 +4,8 @@
 .kilocode
 .gitignore
 .pre-commit-config.yaml
+.task
+.tools
 c.out
 completions
 docs
@@ -13,8 +15,7 @@ vendor
 LICENSE
 CREDITS.md
 README.md
-checkmake.ini
-Makefile
+Taskfile.yml
 Dockerfile*
 docker-compose.yml
 *.key

@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Demo for go-sort-out-gh-actions: run the built binary against a set of example
 # workflows that exercise each detection path. Invoked by
-# `make APP=go-sort-out-gh-actions demo`, which builds the binary and exports
+# `task demo APP=go-sort-out-gh-actions`, which builds the binary and exports
 # BIN (path to the built binary) and APP_DIR (this app's absolute directory).
 
 BIN="${BIN:-out/go-sort-out-gh-actions}"

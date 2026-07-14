@@ -1,6 +1,6 @@
 [[- $app := ds "app" -]]
 [build]
-cmd = "make local-build local-kill local-run APP=[[$app.name]]"
+cmd = "task local:reload APP=[[$app.name]]"
 
 include_ext = ["go", "tpl", "tmpl", "html"]
 

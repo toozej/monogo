@@ -19,28 +19,28 @@
 - 🔐 **OAuth Integration**: Secure Spotify authentication with local callback server
 - 📊 **Detailed Logging**: Comprehensive sync summaries and progress tracking
 - 🐳 **Docker Support**: Run anywhere with Docker or Docker Compose
-- 🛠️ **Make-Driven**: All operations managed through simple `make` commands
+- 🛠️ **Task-Driven**: All operations managed through simple `task` commands
 
 ## 🚀 Quick Start
 
-### Using Make (Recommended)
+### Using Task (Recommended)
 
 ```bash
 # Install from latest release
-make install
+task install
 
 # Or build and run locally
-make local
+task local
 ```
 
 ### Using Docker
 
 ```bash
 # Build and run with Docker
-make build run
+task build docker:run
 
 # Or use Docker Compose
-make up
+task docker:up
 ```
 
 ## ⚙️ Configuration
@@ -142,29 +142,29 @@ kmhd2playlist sync --continuous
 kmhd2playlist sync --continuous --interval 30m
 ```
 
-### Make Commands
+### Task Commands
 
 ```bash
 # 🔧 Development
-make local-build          # Build binary locally
-make local-test           # Run tests
-make local-run            # Run with environment variables
-make local-iterate        # Auto-rebuild on file changes
+task local:build          # Build binary locally
+task local:test           # Run tests
+task local:run            # Run with environment variables
+task local:iterate        # Auto-rebuild on file changes
 
 # 🐳 Docker Operations  
-make build                # Build Docker image
-make run                  # Run Docker container
-make up                   # Start with Docker Compose
-make down                 # Stop Docker Compose
+task build                # Build Docker image
+task docker:run                  # Run Docker container
+task docker:up                   # Start with Docker Compose
+task docker:down                 # Stop Docker Compose
 
 # 🧪 Testing & Quality
-make test                 # Run tests in Docker
-make local-cover          # View coverage report
-make pre-commit           # Run all quality checks
+task test                 # Run tests in Docker
+task local:cover          # View coverage report
+task pre-commit           # Run all quality checks
 
 # 📦 Release & Deploy
-make local-release        # Build release artifacts
-make install              # Install from GitHub releases
+task release:test        # Build release artifacts
+task install              # Install from GitHub releases
 ```
 
 
@@ -175,14 +175,14 @@ make install              # Install from GitHub releases
 
 ```bash
 # Deploy with Docker Compose
-make up
+task docker:up
 ```
 
 ### Standalone Docker
 
 ```bash
 # Build and run
-make build run
+task build docker:run
 
 # Or pull from registry with volume mount for token persistence
 mkdir -p ./data

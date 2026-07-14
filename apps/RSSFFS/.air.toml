@@ -1,5 +1,5 @@
 [build]
-cmd = "make local-build local-kill local-run APP=RSSFFS"
+cmd = "task local:reload APP=RSSFFS"
 
 include_ext = ["go", "tpl", "tmpl", "html"]
 

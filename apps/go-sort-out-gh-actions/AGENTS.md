@@ -13,29 +13,29 @@ CLI tool that scans `.github/workflows/` YAML files and detects archived, outdat
 ### Build & Run
 
 ```bash
-make build                                      # Build binary with ldflags
-make run                                        # Run the built binary
-make local-run                                  # Build and run locally
-make demo                                       # Run with demo workflows
+task build                                      # Build binary with ldflags
+task docker:run                                        # Run the built binary
+task local:run                                  # Build and run locally
+task demo                                       # Run with demo workflows
 ```
 
 ### Test
 
 ```bash
-make test                                       # go test -race -count=1 ./...
-make local-cover                                # Tests with coverage
-make test-changed                               # Tests for changed files only
-make watch-test                                 # Watch and rerun tests on file changes
-make mutation-test                              # Mutation testing
-make benchmark                                  # Run benchmarks
+task test                                       # go test -race -count=1 ./...
+task local:cover                                # Tests with coverage
+task test:changed                               # Tests for changed files only
+task test:watch                                 # Watch and rerun tests on file changes
+task test:mutation                              # Mutation testing
+task benchmark                                  # Run benchmarks
 ```
 
 ### Lint & Vet
 
 ```bash
-make vet                                        # go vet ./...
-make all                                        # Run vet + pre-commit + test
-make pre-commit-run                             # Run all pre-commit hooks
+task vet                                        # go vet ./...
+task all                                        # Run vet + pre-commit + test
+task pre-commit:run                             # Run all pre-commit hooks
 ```
 
 ### Docker
@@ -47,7 +47,7 @@ docker compose up                               # Run via docker-compose
 ### Hot Reload
 
 ```bash
-make local-iterate                              # Hot-reload via air (.air.toml)
+task local:iterate                              # Hot-reload via air (.air.toml)
 ```
 
 ## Repository Structure
@@ -138,9 +138,9 @@ pkg/                              # Public packages (importable)
 - **Style:** Table-driven tests with `t.Parallel()` where appropriate
 - **HTTP Mocking:** `net/http/httptest.NewServer` for mocking GitHub API responses
 - **Test Colocation:** `*_test.go` files colocated with their source files
-- **Run:** `make test` or `go test -race -count=1 ./...`
-- **Coverage:** `make local-cover`
-- **Changed files only:** `make test-changed`
+- **Run:** `task test` or `go test -race -count=1 ./...`
+- **Coverage:** `task local:cover`
+- **Changed files only:** `task test:changed`
 
 ### Test example (follow this pattern)
 
@@ -316,14 +316,14 @@ type Config struct {
 
 ### Update Go version
 
-1. Run `make update-golang-version`
-2. Run `go mod tidy && make test`
+1. Run `task go:update-version`
+2. Run `go mod tidy && task test`
 
 ## Git Workflow
 
 - **Branch:** `main` is the primary development branch
 - **PRs:** Feature branches merged via pull requests
-- **Commits:** Run `make pre-commit-run` before committing to ensure formatting, linting, and tests pass
+- **Commits:** Run `task pre-commit:run` before committing to ensure formatting, linting, and tests pass
 
 ### CI/CD
 
@@ -336,7 +336,7 @@ type Config struct {
 
 ### Release
 
-1. Run `make release APP=go-sort-out-gh-actions TYPE=<major|minor|patch>` (bumps and pushes the next `apps/go-sort-out-gh-actions/vX.Y.Z` tag), or tag and push it by hand
+1. Run `task release APP=go-sort-out-gh-actions TYPE=<major|minor|patch>` (bumps and pushes the next `apps/go-sort-out-gh-actions/vX.Y.Z` tag), or tag and push it by hand
 2. `release.yaml` is tag-driven (no app matrix) and builds, signs, and publishes only the tagged app
 3. Builds for linux/darwin/windows, 386/amd64/arm/arm64
 4. Docker images to DockerHub, GHCR, Quay; GitHub release created with `gh`; Homebrew cask published
@@ -344,6 +344,6 @@ type Config struct {
 
 ## Boundaries
 
-- ✅ **Always do:** Run `make vet` and `make test` before committing, follow code style examples, write table-driven tests, wrap errors with `%w`, use `actioninfo.Emoji()` for emoji output, add package doc comments, put types in `types.go`
+- ✅ **Always do:** Run `task vet` and `task test` before committing, follow code style examples, write table-driven tests, wrap errors with `%w`, use `actioninfo.Emoji()` for emoji output, add package doc comments, put types in `types.go`
 - ⚠️ **Ask first:** Adding new dependencies (check if already available in `go.mod`), modifying CI/CD workflows, changing the `Notifier` interface, modifying `pkg/config/config.go` struct fields
 - 🚫 **Never do:** Commit secrets or API tokens, use `CGO_ENABLED=1`, use raw emoji strings instead of `actioninfo.Emoji()`, skip error wrapping with `%w`, put business logic in `pkg/` (that goes in `internal/`), remove failing tests to make the suite pass

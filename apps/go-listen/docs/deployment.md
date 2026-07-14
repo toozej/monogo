@@ -22,18 +22,18 @@ exposing the service beyond the host.
 
 ### 1. Binary Deployment
 
-#### Build using Make
+#### Build using Task
 
 ```bash
 # Build the binary
-make local-build APP=go-listen
+task local:build APP=go-listen
 
 # Create configuration
 cp .env.sample .env
 # Edit .env with your Spotify credentials
 
 # Run the application
-make local-run
+task local:run
 ```
 
 #### Build from Source
@@ -44,7 +44,7 @@ git clone https://github.com/toozej/monogo.git
 cd monogo
 
 # Build the binary
-make local-build APP=go-listen
+task local:build APP=go-listen
 
 # Create configuration
 cp .env.sample .env

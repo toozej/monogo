@@ -1,25 +1,25 @@
 # Development
 
-## Using the Makefile (Recommended)
+## Using Task (Recommended)
 
-The Makefile provides the primary method for developing and installing the application locally. It includes all necessary tools and checks:
+The root Taskfile provides the primary method for developing and installing the application locally. It includes all necessary tools and checks:
 
 ```bash
 # Install all development dependencies and run the full workflow
-make local
+task local
 
 # Individual commands:
-make local-build          # Build the binary locally
-make local-test           # Run all tests with coverage
-make local-run            # Run the built binary with .env file
-make pre-commit           # Run all code quality checks
-make local-cover          # View test coverage in browser
+task local:build          # Build the binary locally
+task local:test           # Run all tests with coverage
+task local:run            # Run the built binary with .env file
+task pre-commit           # Run all code quality checks
+task local:cover          # View test coverage in browser
 
 # Development iteration (rebuilds and restarts on file changes)
-make local-iterate
+task local:iterate
 
 # Clean up
-make clean
+task clean
 ```
 
 ## Manual Building (Alternative)
@@ -67,7 +67,7 @@ cp configs/development.env .env
 
 ```bash
 # Run all tests
-make local-test
+task local:test
 
 # Run tests with coverage
 go test -cover ./...
@@ -79,7 +79,7 @@ go test ./internal/services/scraper/...
 go test -race ./...
 
 # View coverage in browser
-make local-cover
+task local:cover
 ```
 
 ### Testing Web Scraping
@@ -116,7 +116,7 @@ Test the scraper with a real URL:
 
 ```bash
 # Build and run
-make local-build
+task local:build
 
 # Test scraping (requires valid Spotify credentials)
 ./go-listen scrape https://example.com/artists \
@@ -130,12 +130,12 @@ make local-build
 2. Create a feature branch
 3. Make your changes
 4. Add tests for new functionality
-5. Ensure all tests pass: `make local-test`
-6. Run code quality checks: `make pre-commit`
+5. Ensure all tests pass: `task local:test`
+6. Run code quality checks: `task pre-commit`
 7. Submit a pull request
 
 ## Update Golang Version
 
 ```bash
-make update-golang-version
+task go:update-version
 ```

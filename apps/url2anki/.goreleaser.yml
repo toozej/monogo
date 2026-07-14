@@ -70,7 +70,7 @@ docker_digest:
   name_template: 'digests.txt'
 
 changelog:
-  # Release notes are produced by `gh` (CI) / the Makefile, not GoReleaser,
+  # Release notes are produced by `gh` (CI) / the Taskfile, not GoReleaser,
   # whenever the SCM release is disabled. Skip GoReleaser's own changelog then
   # to avoid noisy GitHub API calls and empty .PreviousTag lookups against the
   # local-only vX.Y.Z tag. Condition mirrors release.disable below.

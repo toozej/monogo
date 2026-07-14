@@ -4,7 +4,7 @@ set -euo pipefail
 # Demo for golang-starter: the starter/template app. It greets a username and reports its
 # build metadata. This is intentionally the smallest possible demo and doubles as
 # a template for new apps scaffolded from golang-starter — copy it to apps/<app>/demo.sh
-# and replace the commands. Invoked by `make APP=golang-starter demo`, which builds the
+# and replace the commands. Invoked by `task demo APP=golang-starter`, which builds the
 # binary and exports BIN (path to the built binary).
 
 BIN="${BIN:-out/golang-starter}"

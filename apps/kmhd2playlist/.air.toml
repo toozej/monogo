@@ -1,5 +1,5 @@
 [build]
-cmd = "make local-build local-kill local-run APP=kmhd2playlist"
+cmd = "task local:reload APP=kmhd2playlist"
 
 include_ext = ["go", "tpl", "tmpl", "html"]
 

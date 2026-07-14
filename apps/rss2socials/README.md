@@ -21,7 +21,7 @@ rss2socials is a CLI tool that monitors an RSS feed for new posts and automatica
 ### Prerequisites
 - Go (version 1.26 or later)
 - SQLite for database management
-- Make
+- Task 3.52+
 
 ### Steps
 1.	Clone the repository:
@@ -31,7 +31,7 @@ cd monogo
 ```
 
 2.	Build the executable:
-`make local-build APP=rss2socials`
+`task local:build APP=rss2socials`
 
 ## Usage
 1.	Set Environment Variables:
@@ -154,4 +154,4 @@ See the [Threads API documentation](https://developers.facebook.com/docs/threads
 - On first startup with `POST_NEW_ENTRIES_ONLY=true`, the first successful feed snapshot is stored transactionally but not posted. Later entries are identified by DB membership rather than publication time, so backdated posts and posts first seen after downtime are still delivered.
 
 ## update golang version
-- `make update-golang-version`
+- `task go:update-version`

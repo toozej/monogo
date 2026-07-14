@@ -8,7 +8,7 @@ Complete guide for setting up a Podgrab development environment.
 
 - **Go**: 1.15 or later
 - **Git**: For version control
-- **Make**: For build automation (optional)
+- **Task 3.52+**: For build automation
 - **Docker**: For containerized development (optional)
 - **Chrome/Chromium**: For E2E tests (optional)
 

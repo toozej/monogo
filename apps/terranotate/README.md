@@ -27,7 +27,7 @@ git clone https://github.com/toozej/monogo.git
 cd monogo
 
 # Build the binary
-make local-build APP=terranotate
+task local:build APP=terranotate
 # (Or use the installed binary if you have it)
 
 # Verify installation
@@ -88,17 +88,17 @@ This project uses a standard Go project layout.
 
 ### Build
 ```bash
-make local-build
+task local:build
 ```
 
 ### Test
 ```bash
-make test
+task test
 ```
 
 ### Lint/Pre-commit
 ```bash
-make pre-commit
+task pre-commit
 ```
 
 ## Use Cases

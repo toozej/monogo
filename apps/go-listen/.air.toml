@@ -1,5 +1,5 @@
 [build]
-cmd = "make local-build local-kill local-run APP=go-listen"
+cmd = "task local:reload APP=go-listen"
 
 include_ext = ["go", "tpl", "tmpl", "html"]
 

@@ -13,6 +13,8 @@
 *.so
 *.dylib
 out/
+.tools/
+.task/
 
 # Test binary, built with `go test -c`
 *.test

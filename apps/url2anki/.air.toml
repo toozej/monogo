@@ -1,5 +1,5 @@
 [build]
-cmd = "make local-build local-kill local-run APP=url2anki"
+cmd = "task local:reload APP=url2anki"
 
 include_ext = ["go", "tpl", "tmpl", "html"]
 

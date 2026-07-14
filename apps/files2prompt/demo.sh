@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Demo for files2prompt: crawl a small generated sample tree and show the
-# filtering and output-format options. Invoked by `make APP=files2prompt demo`,
+# filtering and output-format options. Invoked by `task demo APP=files2prompt`,
 # which builds the binary and exports BIN (path to the built binary) and APP_DIR
 # (this app's absolute directory).
 

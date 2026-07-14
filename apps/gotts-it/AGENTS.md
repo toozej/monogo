@@ -11,46 +11,46 @@ CLI tool that extracts readable article text from a URL or local HTML file and s
 ## Setup commands
 
 - Install Go toolchain: https://go.dev/dl/
-- Install pre-commit hooks and linting tools: `make pre-commit-install`
+- Install pre-commit hooks and linting tools: `task pre-commit:install`
 - Install deps and vendor: `go mod tidy && go mod vendor`
-- Update deps: `make local-update-deps`
-- Install from latest release: `make install`
-- Start Speaches TTS server: `make speaches-up`
-- Run server mode: `make server-up`
+- Update deps: `task deps:update`
+- Install from latest release: `task install`
+- Start a Speaches TTS server separately and configure `OPENAI_BASE_URL`
+- Run server mode: `gotts-it server`
 
 ## Build commands
 
-- Build locally: `make local-build` (outputs binary to `out/`)
-- Build via Docker: `make build`
-- Build distroless Docker image: `make distroless-build`
-- Run locally built binary: `make local-run` (requires `.env` file)
-- Hot-reload on file changes: `make local-iterate` (uses Air)
-- Run via Docker: `make run`
-- Run via Docker Compose: `make up`
+- Build locally: `task local:build` (outputs binary to `out/`)
+- Build via Docker: `task build`
+- Build distroless Docker image: `task docker:distroless-build`
+- Run locally built binary: `task local:run` (requires `.env` file)
+- Hot-reload on file changes: `task local:iterate` (uses Air)
+- Run via Docker: `task docker:run`
+- Run via Docker Compose: `task docker:up`
 
 ## Test commands
 
-- Run all tests locally with race detection and coverage: `make local-test`
-- Run tests in Docker: `make test`
-- View coverage report in browser: `make local-cover`
-- Run tests for changed packages only: `make test-changed`
-- Watch and re-test on changes: `make watch-test`
-- Run mutation tests: `make mutation-test` (requires gremlins)
-- Run benchmarks: `make benchmark`
-- Profile CPU: `make profile-cpu`
-- Profile memory: `make profile-mem`
+- Run all tests locally with race detection and coverage: `task local:test`
+- Run tests in Docker: `task test`
+- View coverage report in browser: `task local:cover`
+- Run tests for changed packages only: `task test:changed`
+- Watch and re-test on changes: `task test:watch`
+- Run mutation tests: `task test:mutation` (requires gremlins)
+- Run benchmarks: `task benchmark`
+- Profile CPU: `task profile:cpu`
+- Profile memory: `task profile:memory`
 
 ## Lint and format commands
 
-- Run all pre-commit hooks: `make pre-commit` (installs + runs)
-- Run pre-commit hooks only: `make pre-commit-run`
-- Run go vet locally: `make local-vet` (also runs `go fmt`)
-- Run go vet in Docker: `make vet`
+- Run all pre-commit hooks: `task pre-commit` (installs + runs)
+- Run pre-commit hooks only: `task pre-commit:run`
+- Run go vet locally: `task local:vet` (also runs `go fmt`)
+- Run go vet in Docker: `task vet`
 - Check Goreleaser config: `goreleaser check`
 - Run govulncheck: `govulncheck ./...`
 - Run go-licenses report: `go-licenses report github.com/toozej/monogo/apps/gotts-it/cmd/gotts-it`
 
-Pre-commit hooks include: golangci-lint, gosec, staticcheck, go-critic, gofmt, goimports, shellcheck, hadolint (Dockerfiles), checkmake (Makefile), actionlint (GitHub Actions), goreleaser-check, semgrep, and private key detection.
+Pre-commit hooks include: golangci-lint, gosec, staticcheck, go-critic, gofmt, goimports, shellcheck, hadolint (Dockerfiles), actionlint (GitHub Actions), goreleaser-check, semgrep, and private key detection.
 
 ## Project structure
 
@@ -154,6 +154,6 @@ func Run(username string) {
 
 ## Boundaries
 
-- ✅ **Always:** Run `make local-test` and `make pre-commit-run` before committing, write tests for new code, follow existing package layout conventions, add godoc comments to exported symbols, vendor dependencies after module changes
+- ✅ **Always:** Run `task local:test` and `task pre-commit:run` before committing, write tests for new code, follow existing package layout conventions, add godoc comments to exported symbols, vendor dependencies after module changes
 - ⚠️ **Ask first:** Adding new dependencies, modifying `.goreleaser.yml`, changing Dockerfile or CI workflows, modifying release or signing configuration
 - 🚫 **Never:** Commit secrets, API keys, or private keys, edit files in `vendor/` directly (use `go mod vendor`), commit `.env` files, remove failing tests without justification, modify `go.mod` without running `go mod tidy`

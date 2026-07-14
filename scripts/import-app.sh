@@ -176,7 +176,7 @@ add_app_to_matrix() {
 }
 
 if [ -z "$SOURCE" ] || [ "$SOURCE" = "golang-starter" ]; then
-	die "usage: make import APP=[vcs-host/]owner/repo [IMPORT_REF=main] [IMPORT_NAME=app-name] [--metadata-only]"
+	die "usage: task app:import APP=[vcs-host/]owner/repo [IMPORT_REF=main] [IMPORT_NAME=app-name] [--metadata-only]"
 fi
 
 require_cmd git
@@ -362,6 +362,7 @@ if [ "$IMPORT_METADATA_ONLY" != "1" ]; then
 		"${APP_DIR}/.pre-commit-config.yaml" \
 		"${APP_DIR}/docker-compose.yml" \
 		"${APP_DIR}/Makefile" \
+		"${APP_DIR}/Taskfile.yml" \
 		"${APP_DIR}"/Dockerfile \
 		"${APP_DIR}"/Dockerfile.*; do
 		[ -e "$original" ] || continue
@@ -519,16 +520,16 @@ if ! grep -q "directory: \"/apps/${APP_NAME}\"" "${ROOT}/.github/dependabot.yml"
 EOF
 fi
 
-make app-generate APP="$APP_NAME"
+task generate:app APP="$APP_NAME"
 
 if [ "$IMPORT_METADATA_ONLY" != "1" ]; then
 	go mod tidy
 fi
 
 if [ "$IMPORT_SKIP_VERIFY" != "1" ]; then
-	make test APP="$APP_NAME"
-	make local-build APP="$APP_NAME"
-	make release-test APP="$APP_NAME"
+	task test APP="$APP_NAME"
+	task local:build APP="$APP_NAME"
+	task release:test APP="$APP_NAME"
 else
 	echo "Skipping verification because IMPORT_SKIP_VERIFY=1"
 fi

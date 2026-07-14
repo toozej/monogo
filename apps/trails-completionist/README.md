@@ -33,7 +33,7 @@ A simple Golang application to parse a list of trails, then display that in a se
 - Combine multiple search criteria
 
 ## 🧑‍💻 Development
-Operations on the trails-completionist application are driven by `make`. See `make help` for more details.
+Operations on the trails-completionist application are driven by Task. See `task --list` for more details.
 
 ## 🏗️ Sub-commands
 The application provides several sub-commands for different operations:
@@ -49,5 +49,4 @@ The application provides several sub-commands for different operations:
 Run `./trails-completionist --help` to see all available sub-commands and their options.
 
 ## 🔄 Changes required to update golang version
-`make update-golang-version`
-
+`task go:update-version`

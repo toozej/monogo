@@ -26,7 +26,7 @@ A command-line tool that helps prepare files for AI prompts by crawling director
 ## Installation
 
 ```bash
-make install
+task install
 ```
 
 ## Usage
@@ -181,9 +181,9 @@ git clone https://github.com/toozej/files2prompt.git
 2. Build the binary:
 ```bash
 cd files2prompt
-make local-build
+task local:build
 ```
 
 
 ## changes required to update golang version
-- `make update-golang-version` 
+- `task go:update-version`

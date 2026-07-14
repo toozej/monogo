@@ -18,8 +18,7 @@ jobs:
   checks:
     # Repo-wide checks (pre-commit, govulncheck) run once rather than once per
     # app; per-app license reports run in the test matrix. Configs are generated
-    # a single time and the `-no-generate`/`-no-prereqs` Make variants avoid
-    # redundant regeneration.
+    # once by the composed Task workflow.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -27,27 +26,24 @@ jobs:
         with:
           go-version: '^1.26'
           check-latest: true
-      - name: Cache gomplate and lint tools
-        id: checks-tools-cache
+      - name: Install Task
+        uses: go-task/setup-task@01a4adf9db2d14c1de7a560f09170b6e0df736aa # v2.1.0
+        with:
+          version: 3.52.0
+      - name: Cache pinned repository tools
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
-            ~/go/bin
+            .tools/bin
             ~/.cache/pip
             ~/.cache/pre-commit
-          key: ${{ runner.os }}-${{ runner.arch }}-checks-tools-${{ hashFiles('Makefile',
-            '.pre-commit-config.yaml', 'go.mod') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-checks-tools-${{ hashFiles('Taskfile.yml',
+            '.pre-commit-config.yaml', 'tools/go-tools.tsv', 'scripts/manage-go-tools.sh')
+            }}
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-checks-tools-
-      - name: Install pre-commit
-        run: pip install pre-commit
-      - name: Install gomplate and lint tools
-        if: steps.checks-tools-cache.outputs.cache-hit != 'true'
-        run: make pre-reqs pre-commit-install-no-prereqs
-      - name: Generate all app configs
-        run: make generate-all
-      - name: Run pre-commit and vulnerability checks
-        run: make pre-commit-run-no-generate
+      - name: Run repository checks
+        run: task ci:checks
 
   test:
     runs-on: ubuntu-latest
@@ -77,10 +73,12 @@ jobs:
         with:
           go-version: '^1.26'
           check-latest: true
-      - name: Run tests
-        run: make test APP=${{ matrix.app }}
-      - name: Report licenses
-        run: make licenses APP=${{ matrix.app }}
+      - name: Install Task
+        uses: go-task/setup-task@01a4adf9db2d14c1de7a560f09170b6e0df736aa # v2.1.0
+        with:
+          version: 3.52.0
+      - name: Run app checks
+        run: task ci:test APP=${{ matrix.app }}
 
   gitleaks:
     name: gitleaks
@@ -108,10 +106,12 @@ jobs:
         with:
           go-version: '^1.26'
           check-latest: true
-      - name: Install gomplate
-        run: make pre-reqs
+      - name: Install Task
+        uses: go-task/setup-task@01a4adf9db2d14c1de7a560f09170b6e0df736aa # v2.1.0
+        with:
+          version: 3.52.0
       - name: Generate app configs
-        run: make generate-all
+        run: task generate-all
       - uses: github/codeql-action/init@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
         with:
           languages: go

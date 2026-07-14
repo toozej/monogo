@@ -13,11 +13,8 @@ CLI tool that extracts readable article text from a URL or local HTML file and s
 
 ## Usage
 
-1. Start the Speaches TTS server:
-   ```
-   make speaches-up
-   ```
-   Wait for the Kokoro model to download on first run.
+1. Start a Speaches TTS server separately and set `OPENAI_BASE_URL` to its
+   OpenAI-compatible endpoint. Wait for the Kokoro model to download on first run.
 
 2. Convert an article URL to speech:
    ```
@@ -51,12 +48,12 @@ CLI tool that extracts readable article text from a URL or local HTML file and s
 
 8. Run the full stack with Docker Compose:
    ```
-   make up
+   task docker:up
    ```
 
 9. Run with Docker and comma-separated URLs:
    ```
-   make run URLS=https://en.wikipedia.org/wiki/Readability,https://en.wikipedia.org/wiki/Go_(programming_language)
+   task docker:run URLS=https://en.wikipedia.org/wiki/Readability,https://en.wikipedia.org/wiki/Go_(programming_language)
    ```
 
 ## Environment variables
@@ -81,10 +78,10 @@ CLI tool that extracts readable article text from a URL or local HTML file and s
 
 ## Development
 
-- Build locally: `make local-build`
-- Run tests: `make local-test`
-- Run linters: `make pre-commit-run`
-- Hot-reload: `make local-iterate`
+- Build locally: `task local:build`
+- Run tests: `task local:test`
+- Run linters: `task pre-commit:run`
+- Hot-reload: `task local:iterate`
 
 ## Features of this project
 - Cobra CLI with flags for all TTS and article extraction options

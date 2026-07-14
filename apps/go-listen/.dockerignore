@@ -13,9 +13,7 @@ vendor
 LICENSE
 CREDITS.md
 README.md
-checkmake.ini
-Makefile
+Taskfile.yml
 Dockerfile*
 docker-compose.yml
 go-listen
-

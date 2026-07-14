@@ -1,0 +1,784 @@
+---
+version: '3'
+
+set: [errexit, nounset, pipefail]
+
+vars:
+  ROOT: '{{.ROOT|default .TASKFILE_DIR}}'
+  APPS:
+    sh: find '{{.ROOT}}/apps' -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort
+  APP: '{{.APP|default "golang-starter"}}'
+  PACKAGE: '{{.PACKAGE|default ""}}'
+  TYPE: '{{.TYPE|default "patch"}}'
+  VERSION: '{{.VERSION|default ""}}'
+  SKIP_TOOL_INSTALL: '{{.SKIP_TOOL_INSTALL|default "0"}}'
+  APP_DIR: 'apps/{{.APP}}'
+  APP_CONFIG: '{{.ROOT}}/{{.APP_DIR}}/app.yaml'
+  APP_BINARY:
+    sh: |
+      awk -F': *' '/^binary:/ {gsub(/"/, "", $2); print $2; exit}' '{{.APP_CONFIG}}' 2>/dev/null
+  APP_NAME:
+    sh: |
+      awk -F': *' '/^name:/ {gsub(/"/, "", $2); print $2; exit}' '{{.APP_CONFIG}}' 2>/dev/null
+  APP_MAIN_PATH:
+    sh: |
+      value="$(awk -F': *' '/^mainPath:/ {gsub(/"/, "", $2); print $2; exit}' '{{.APP_CONFIG}}' 2>/dev/null)"
+      if test -n "$value"; then printf '%s\n' "$value"; else printf '%s\n' '{{.APP_DIR}}'; fi
+  APP_CGO_ENABLED:
+    sh: |
+      value="$(awk -F': *' '/^cgoEnabled:/ {gsub(/"/, "", $2); print $2; exit}' '{{.APP_CONFIG}}' 2>/dev/null)"
+      case "$value" in true|1) printf '1\n' ;; *) printf '0\n' ;; esac
+  APP_PACKAGES: './{{.APP_DIR}}/... ./pkg/...'
+  APP_ENV_FILE: '{{.APP_ENV_FILE|default (printf "%s/.env" .APP_DIR)}}'
+  APP_COSIGN_KEY: '{{.APP_COSIGN_KEY|default (printf "%s/%s.key" .APP_DIR .APP_BINARY)}}'
+  APP_DEMO: '{{.APP_DEMO|default (printf "%s/demo.sh" .APP_DIR)}}'
+  TOOLS_BIN: '{{.ROOT}}/.tools/bin'
+  GO_TOOLS: '{{.ROOT}}/scripts/manage-go-tools.sh'
+  GO_TOOL_MANIFEST: '{{.GO_TOOL_MANIFEST|default (printf "%s/tools/go-tools.tsv" .ROOT)}}'
+  BUILDER:
+    sh: printf '%s@%s\n' "$(whoami)" "$(hostname)"
+  NOW:
+    sh: date -u +'%Y-%m-%dT%H:%M:%SZ'
+  BUILD_VERSION:
+    sh: |
+      tag="$(git -C '{{.ROOT}}' describe --tags --match 'apps/{{.APP}}/v*' --dirty 2>/dev/null || true)"
+      if test -n "$tag"; then basename "$tag"; else printf 'local\n'; fi
+  APP_VERSION_TAG:
+    sh: |
+      tag="$(git -C '{{.ROOT}}' tag --list 'apps/{{.APP}}/v*' 2>/dev/null | grep -E '^apps/{{.APP}}/v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1 || true)"
+      if test -n "$tag"; then basename "$tag"; else printf 'v0.0.0\n'; fi
+  COMMIT:
+    sh: git -C '{{.ROOT}}' rev-parse --short HEAD 2>/dev/null || printf 'unknown\n'
+  BRANCH:
+    sh: |
+      branch="$(git -C '{{.ROOT}}' symbolic-ref --quiet --short HEAD 2>/dev/null || true)"
+      if test -n "$branch"; then printf '%s\n' "$branch"; else printf 'unknown\n'; fi
+  PKG:
+    sh: awk '/^module / {print $2; exit}' '{{.ROOT}}/go.mod'
+  VERSION_PACKAGE: '{{.PKG}}/pkg/version'
+  LDFLAGS: >-
+    -s -w
+    -X {{.VERSION_PACKAGE}}.Version={{.BUILD_VERSION}}
+    -X {{.VERSION_PACKAGE}}.Commit={{.COMMIT}}
+    -X {{.VERSION_PACKAGE}}.Branch={{.BRANCH}}
+    -X {{.VERSION_PACKAGE}}.BuiltAt={{.NOW}}
+    -X {{.VERSION_PACKAGE}}.Builder={{.BUILDER}}
+  IMAGE_AUTHOR: '{{.IMAGE_AUTHOR|default "toozej"}}'
+  IMAGE_NAME:
+    sh: printf '%s\n' '{{.APP_NAME}}' | tr '[:upper:]' '[:lower:]'
+  IMAGE_TAG: '{{.IMAGE_TAG|default "latest"}}'
+  IMAGE_REGISTRY: '{{.IMAGE_REGISTRY|default ""}}'
+  DIST_DIR: '{{.DIST_DIR|default (printf "%s/dist/%s" .ROOT .APP)}}'
+  COSIGN_IDENTITY_REGEXP: '^https://github.com/toozej/monogo/.github/workflows/(release|weekly-docker-refresh).yaml@refs/(tags/.*|heads/main)$'
+  COSIGN_OIDC_ISSUER: 'https://token.actions.githubusercontent.com'
+
+env:
+  PATH: '{{.TOOLS_BIN}}:{{.PATH}}'
+
+tasks:
+  default:
+    desc: List the available tasks.
+    cmds:
+      - '{{.TASK_EXE}} --list'
+    silent: true
+
+  all:
+    desc: Run the full Docker-based workflow for every app.
+    cmds:
+      - task: tools:pre-commit
+      - task: generate-all
+      - task: deps:update
+      - task: deps:vendor
+      - task: _pre-commit-run
+      - task: licenses:all
+      - for: {var: APPS}
+        cmd: '{{.TASK_EXE}} app:workflow APP=''{{.ITEM}}'''
+
+  local:
+    desc: Run the complete local workflow for APP.
+    cmds:
+      - task: tools:pre-commit
+        if: test '{{.SKIP_TOOL_INSTALL}}' != '1'
+      - task: _local-workflow
+
+  local-all:
+    desc: Run the complete local workflow for every app.
+    cmds:
+      - task: tools:pre-commit
+      # A fresh Task process recomputes the APP-derived global variables.
+      - for: {var: APPS}
+        cmd: '{{.TASK_EXE}} local APP=''{{.ITEM}}'' SKIP_TOOL_INSTALL=1'
+
+  app:list:
+    desc: List monorepo apps.
+    cmds:
+      - for: {var: APPS}
+        cmd: printf '%s\n' '{{.ITEM}}'
+    silent: true
+
+  app:import:
+    desc: Import a Go service repository into apps/.
+    cmds:
+      - '{{.ROOT}}/scripts/import-app.sh "{{.APP}}" {{.IMPORT_ARGS}} {{.CLI_ARGS}}'
+    vars:
+      IMPORT_ARGS: '{{.IMPORT_ARGS|default ""}}'
+
+  app:new:
+    desc: Scaffold a new minimal app and generate its build configs.
+    cmds:
+      - '{{.ROOT}}/scripts/create-new-app.py "{{.APP}}"'
+
+  app:delete:
+    desc: Remove APP and clean shared references.
+    cmds:
+      - '{{.ROOT}}/scripts/delete-app.py "{{.APP}}"'
+
+  app:migrate-internal-package:
+    desc: Move apps/APP/internal/PACKAGE to pkg/PACKAGE and verify affected apps.
+    requires:
+      vars: [PACKAGE]
+    cmds:
+      - '{{.ROOT}}/scripts/migrate-internal-package.sh "{{.APP}}" "{{.PACKAGE}}"'
+
+  app:workflow:
+    desc: Run the full Docker-based workflow for APP.
+    cmds:
+      - task: _all-app
+
+  generate:
+    desc: Generate shared and APP configs.
+    cmds:
+      - task: prereqs
+      - task: _generate-common
+      - task: _generate-app
+
+  generate:common:
+    desc: Generate shared root configs.
+    cmds:
+      - task: prereqs
+      - task: _generate-common
+
+  generate:app:
+    desc: Generate Docker, GoReleaser, Compose, and Air configs for APP.
+    cmds:
+      - task: prereqs
+      - task: _generate-app
+
+  generate-all:
+    desc: Generate shared configs and configs for every app.
+    cmds:
+      - task: prereqs
+      - task: _generate-common
+      - for: {var: APPS}
+        cmd: '{{.TASK_EXE}} generate:app APP=''{{.ITEM}}'''
+
+  templates:check:
+    desc: Render and check generated config for APP.
+    cmds:
+      - task: generate:app
+      - task: _tool-install
+        vars: {TOOL: goreleaser}
+      - task: _templates-check
+
+  templates:check-all:
+    desc: Render and check generated config for every app.
+    cmds:
+      - task: prereqs
+      - task: _tool-install
+        vars: {TOOL: goreleaser}
+      - for: {var: APPS}
+        cmd: '{{.TASK_EXE}} templates:check APP=''{{.ITEM}}'''
+
+  release:
+    desc: Test APP, create its next release tag, and push it.
+    cmds:
+      - task: local:test
+      - '{{.ROOT}}/scripts/release-app.sh "{{.APP}}" "{{.TYPE}}" "{{.VERSION}}"'
+
+  release:delete:
+    desc: Delete an APP GitHub release and its local and remote tag.
+    requires:
+      vars: [VERSION]
+    cmds:
+      - task: _app-check
+      - '{{.ROOT}}/scripts/delete-app-release.sh "{{.APP}}" "{{.VERSION}}"'
+
+  release:redo:
+    desc: Delete and recreate APP at VERSION.
+    requires:
+      vars: [VERSION]
+    cmds:
+      - task: release:delete
+      - task: release
+
+  release:all:
+    desc: Release every app that has a previous release.
+    requires:
+      vars:
+        - name: TYPE
+          enum: [major, minor, patch]
+    vars:
+      RELEASED_APPS:
+        sh: |
+          { git -C '{{.ROOT}}' tag --list 'apps/*/v*'; git -C '{{.ROOT}}' ls-remote --tags --refs origin 'apps/*/v*' 2>/dev/null | sed 's#.*refs/tags/##' || true; } \
+            | sed -nE 's#^apps/([^/]+)/v[0-9]+\.[0-9]+\.[0-9]+$#\1#p' | sort -u
+    preconditions:
+      - sh: test -n '{{.RELEASED_APPS}}'
+        msg: No apps with previous releases were found locally or on origin.
+    cmds:
+      - for: {var: APPS}
+        cmd: '{{.TASK_EXE}} release APP=''{{.ITEM}}'' TYPE=''{{.TYPE}}'''
+        if: printf '%s\n' '{{.RELEASED_APPS}}' | grep -Fx '{{.ITEM}}' >/dev/null
+
+  release:test:
+    desc: Check GoReleaser config and build an APP snapshot.
+    cmds:
+      - task: generate:app
+      - task: _tool-install
+        vars: {TOOL: goreleaser}
+      - task: _release-test
+
+  verify:image:
+    desc: Verify an APP Docker image with keyless Cosign.
+    aliases: [verify]
+    cmds:
+      - task: _app-check
+      - task: _tool-install
+        vars: {TOOL: cosign}
+      - >-
+        cosign verify
+        --certificate-identity-regexp '{{.COSIGN_IDENTITY_REGEXP}}'
+        --certificate-oidc-issuer '{{.COSIGN_OIDC_ISSUER}}'
+        '{{.IMAGE_REGISTRY}}{{.IMAGE_AUTHOR}}/{{.IMAGE_NAME}}:{{.IMAGE_TAG}}'
+
+  verify:checksums:
+    desc: Verify APP release checksums with keyless Cosign.
+    cmds:
+      - task: _app-check
+      - task: _tool-install
+        vars: {TOOL: cosign}
+      - >-
+        cosign verify-blob
+        --bundle '{{.DIST_DIR}}/checksums.txt.sigstore.json'
+        --certificate-identity-regexp '{{.COSIGN_IDENTITY_REGEXP}}'
+        --certificate-oidc-issuer '{{.COSIGN_OIDC_ISSUER}}'
+        '{{.DIST_DIR}}/checksums.txt'
+
+  verify:all-registries:
+    desc: Verify APP Docker images on all registries with keyless Cosign.
+    cmds:
+      - task: _app-check
+      - task: _tool-install
+        vars: {TOOL: cosign}
+      - for: ['', 'ghcr.io/', 'quay.io/']
+        cmd: >-
+          cosign verify
+          --certificate-identity-regexp '{{.COSIGN_IDENTITY_REGEXP}}'
+          --certificate-oidc-issuer '{{.COSIGN_OIDC_ISSUER}}'
+          '{{.ITEM}}{{.IMAGE_AUTHOR}}/{{.IMAGE_NAME}}:{{.IMAGE_TAG}}'
+
+  docker:vet:
+    desc: Run go vet for APP in Docker.
+    cmds:
+      - task: generate
+      - task: _docker-vet
+
+  docker:test:
+    desc: Run Go tests for APP in Docker.
+    cmds:
+      - task: generate
+      - task: _docker-test
+
+  docker:build:
+    desc: Build the APP Docker image.
+    aliases: [build]
+    cmds:
+      - task: generate
+      - task: _docker-build
+
+  docker:run:
+    desc: Run the built APP Docker image.
+    cmds:
+      - task: _app-check
+      - '{{.ROOT}}/scripts/run-docker-app.sh "{{.IMAGE_NAME}}" "{{.IMAGE_AUTHOR}}/{{.IMAGE_NAME}}:{{.IMAGE_TAG}}"'
+
+  docker:up:
+    desc: Run the APP Docker Compose project with the built image.
+    cmds:
+      - task: docker:test
+      - task: docker:build
+      - docker compose -f '{{.APP_DIR}}/docker-compose.yml' down --remove-orphans
+      - docker compose -f '{{.APP_DIR}}/docker-compose.yml' up -d
+
+  docker:down:
+    desc: Stop the APP Docker Compose project.
+    cmds:
+      - task: _app-check
+      - docker compose -f '{{.APP_DIR}}/docker-compose.yml' down --remove-orphans
+
+  docker:distroless-build:
+    desc: Build the APP Docker image with a distroless final base.
+    cmds:
+      - task: generate
+      - task: _app-check
+      - >-
+        docker build -f '{{.ROOT}}/{{.APP_DIR}}/Dockerfile.distroless'
+        --build-arg VERSION='{{.BUILD_VERSION}}'
+        --build-arg COMMIT='{{.COMMIT}}'
+        --build-arg BRANCH='{{.BRANCH}}'
+        --build-arg BUILT_AT='{{.NOW}}'
+        --build-arg BUILDER='{{.BUILDER}}'
+        -t '{{.IMAGE_AUTHOR}}/{{.IMAGE_NAME}}:{{.IMAGE_TAG}}-distroless' .
+
+  docker:distroless-run:
+    desc: Run the APP distroless Docker image.
+    cmds:
+      - task: _app-check
+      - docker run --rm --name '{{.IMAGE_NAME}}' -v '{{.ROOT}}/config:/config' '{{.IMAGE_AUTHOR}}/{{.IMAGE_NAME}}:{{.IMAGE_TAG}}-distroless'
+
+  docker:login:
+    desc: Create an isolated Docker config using credentials from .env.
+    cmds:
+      - '{{.ROOT}}/scripts/docker-login.sh'
+
+  install:
+    desc: Install APP from its latest release.
+    cmds:
+      - task: _app-check
+      - '{{.ROOT}}/scripts/install-app.sh "{{.APP}}" "{{.APP_NAME}}" "{{.APP_BINARY}}" "{{.APP_MAIN_PATH}}"'
+
+  deps:update:
+    desc: Update Go module dependencies.
+    cmds:
+      - go get -t -u ./...
+
+  deps:vendor:
+    desc: Tidy and vendor Go module dependencies.
+    cmds:
+      - go mod tidy
+      - go mod vendor
+
+  local:vet:
+    desc: Run goimports and go vet for APP.
+    aliases: [vet]
+    cmds:
+      - task: _tool-install
+        vars: {TOOL: goimports}
+      - task: _local-vet
+
+  local:test:
+    desc: Run APP Go tests with race detection and coverage.
+    aliases: [test]
+    cmds:
+      - task: _app-check
+      - go test -race -coverprofile '{{.APP_DIR}}/c.out' -v {{.APP_PACKAGES}}
+      - cmd: printf '\nStatements missing coverage\n'; grep -e ' 0$' '{{.APP_DIR}}/c.out'
+          || true
+        silent: true
+
+  local:cover:
+    desc: Open the APP coverage report in a browser.
+    cmds:
+      - task: _app-check
+      - go tool cover -html='{{.APP_DIR}}/c.out'
+
+  local:build:
+    desc: Build APP with the local Go toolchain.
+    cmds:
+      - task: _app-check
+      - CGO_ENABLED='{{.APP_CGO_ENABLED}}' go build -o '{{.ROOT}}/out/{{.APP_BINARY}}' -ldflags='{{.LDFLAGS}}'
+        './{{.APP_MAIN_PATH}}'
+
+  local:run:
+    desc: Run the locally built APP binary with .env.
+    cmds:
+      - task: _app-check
+      - '{{.ROOT}}/scripts/run-local-app.sh "{{.APP_BINARY}}"'
+
+  local:kill:
+    desc: Kill a locally built APP binary.
+    cmds:
+      - task: _app-check
+      - cmd: pkill -f '{{.ROOT}}/out/{{.APP_BINARY}}'
+        ignore_error: true
+
+  local:iterate:
+    desc: Rebuild and run APP with Air when files change.
+    cmds:
+      - task: generate:app
+      - task: _tool-install
+        vars: {TOOL: air}
+      - air -c '{{.APP_DIR}}/.air.toml'
+
+  local:reload:
+    desc: Rebuild, stop, and restart APP locally.
+    cmds:
+      - task: local:build
+      - task: local:kill
+      - task: local:run
+
+  local:install:
+    desc: Install the locally compiled APP binary.
+    cmds:
+      - task: local:build
+      - sudo cp '{{.ROOT}}/out/{{.APP_BINARY}}' '/usr/local/bin/{{.APP_BINARY}}'
+      - sudo chmod 0755 '/usr/local/bin/{{.APP_BINARY}}'
+
+  demo:
+    desc: Run the APP demo script against a freshly built binary.
+    cmds:
+      - task: local:build
+      - '{{.ROOT}}/scripts/run-app-demo.sh "{{.APP}}" "{{.APP_DIR}}" "{{.APP_BINARY}}" "{{.APP_DEMO}}"'
+
+  secrets:github:
+    desc: Upload APP secrets to GitHub Actions and Dependabot.
+    cmds:
+      - task: _app-check
+      - '{{.ROOT}}/scripts/upload_secrets_to_github.sh "{{.APP_BINARY}}" "{{.APP_ENV_FILE}}"
+        "{{.APP_COSIGN_KEY}}"'
+
+  secrets:1password:
+    desc: Upload APP secrets and its .env file to 1Password.
+    cmds:
+      - task: _app-check
+      - '{{.ROOT}}/scripts/upload_secrets_to_1password.sh secrets "{{.APP_BINARY}}" "{{.APP_ENV_FILE}}"'
+      - '{{.ROOT}}/scripts/upload_secrets_to_1password.sh envfile "{{.APP_BINARY}}" "{{.APP_ENV_FILE}}"'
+
+  tools:install:
+    desc: Install every Go tool pinned in tools/go-tools.tsv.
+    cmds:
+      - TOOLS_BIN='{{.TOOLS_BIN}}' '{{.GO_TOOLS}}' install
+
+  tools:release:
+    desc: Install pinned release tools.
+    if: test '{{.SKIP_TOOL_INSTALL}}' != '1'
+    cmds:
+      - for: [gomplate, goreleaser, cosign, syft]
+        task: _tool-install
+        vars:
+          TOOL: '{{.ITEM}}'
+
+  tools:system:
+    desc: Install non-Go tools needed by repository checks.
+    cmds:
+      - '{{.ROOT}}/scripts/install-system-tools.sh'
+
+  tools:pre-commit:
+    desc: Install pinned tools and pre-commit hook environments.
+    cmds:
+      - task: tools:install
+      - task: tools:system
+      - pre-commit install-hooks
+
+  prereqs:
+    desc: Install repository generation prerequisites.
+    cmds:
+      - task: _tool-install
+        vars: {TOOL: gomplate}
+
+  pre-commit:
+    desc: Install and run pre-commit hooks.
+    cmds:
+      - task: pre-commit:install
+      - task: pre-commit:run
+
+  pre-commit:install:
+    desc: Install repository tools and the local pre-commit hook.
+    cmds:
+      - task: tools:pre-commit
+      - pre-commit install
+
+  pre-commit:update:
+    desc: Update pinned Go tools and pre-commit hooks, then verify.
+    cmds:
+      - task: tools:system
+      - TOOLS_BIN='{{.TOOLS_BIN}}' '{{.GO_TOOLS}}' update
+      - task: tools:install
+      - pre-commit autoupdate
+      - task: _generate-all
+      - task: _pre-commit-run
+
+  pre-commit:run:
+    desc: Run pre-commit, govulncheck, and license checks against all files.
+    cmds:
+      - task: tools:pre-commit
+      - task: generate-all
+      - task: _pre-commit-run
+      - task: licenses:all
+
+  licenses:app:
+    desc: Report third-party licenses for APP.
+    aliases: [licenses]
+    cmds:
+      - task: _tool-install
+        vars: {TOOL: go-licenses}
+      - task: _licenses
+
+  licenses:all:
+    desc: Report third-party licenses for every app.
+    cmds:
+      - task: _tool-install
+        vars: {TOOL: go-licenses}
+      - for: {var: APPS}
+        cmd: '{{.TASK_EXE}} licenses:app APP=''{{.ITEM}}'''
+
+  go:update-version:
+    desc: Update the Go version across the repository.
+    vars:
+      GO_VERSION:
+        sh: curl -s 'https://go.dev/dl/?mode=json' | jq -r '.[0].version' | sed 's/go//' |
+          cut -d . -f 1,2
+    cmds:
+      - '{{.ROOT}}/scripts/update_golang_version.sh "{{.GO_VERSION}}"'
+
+  ci:release:
+    desc: Build, sign, and publish APP release artifacts in CI.
+    cmds:
+      - task: _app-check
+      - task: tools:release
+      - task: _generate-app
+      - goreleaser release --clean --config '{{.APP_DIR}}/.goreleaser.yml'
+
+  ci:checks:
+    desc: Run repository-wide generation, pre-commit, and vulnerability checks in CI.
+    cmds:
+      - task: tools:pre-commit
+      - task: generate-all
+      - task: _pre-commit-run
+
+  ci:test:
+    desc: Run APP tests, mutation tests, and license reporting in CI.
+    cmds:
+      - task: local:test
+      - task: test:mutation
+      - task: licenses:app
+
+  ci:docker-refresh:
+    desc: Rebuild and publish APP Docker images in CI.
+    cmds:
+      - task: _app-check
+      - task: tools:release
+      - task: _generate-app
+      - goreleaser release --clean --skip=announce,archive,before,homebrew,nfpm,sbom,validate
+        --config '{{.APP_DIR}}/.goreleaser.yml'
+
+  docs:
+    desc: Serve Go documentation for APP.
+    cmds:
+      - task: _app-check
+      - echo '=== Serving Go documentation (browser opens to {{.APP}}) ==='
+      - echo 'Press Ctrl+C to stop the server.'
+      - go doc -http './{{.APP_MAIN_PATH}}'
+
+  diagrams:
+    desc: Generate APP architecture diagram PNGs.
+    cmds:
+      - task: generate:app
+      - echo 'Generating architectural diagrams for {{.APP}}...'
+      - go run './{{.APP_DIR}}/cmd/diagrams'
+      - for: {var: DOT_FILES}
+        cmd: dot -Tpng '{{.ITEM}}' > '{{.ITEM | trimSuffix ".dot"}}.png'
+      - echo 'Diagram PNGs generated in ./docs/diagrams/{{.APP}}/go-diagrams/'
+    vars:
+      DOT_FILES:
+        sh: find './docs/diagrams/{{.APP}}/go-diagrams' -name '*.dot' 2>/dev/null || true
+
+  test:mutation:
+    desc: Run APP mutation tests with go-gremlins.
+    cmds:
+      - task: _app-check
+      - task: _tool-install
+        vars: {TOOL: gremlins}
+      - echo 'Running mutation tests for {{.APP}}...'
+      - gremlins unleash -E vendor/ './{{.APP_DIR}}'
+      - echo 'Mutation testing completed.'
+
+  test:changed:
+    desc: Run tests for packages changed since the previous commit.
+    cmds:
+      - '{{.ROOT}}/scripts/test-changed.sh HEAD~1'
+
+  test:watch:
+    desc: Watch for changes and test changed packages.
+    cmds:
+      - '{{.ROOT}}/scripts/watch-tests.sh'
+
+  profile:cpu:
+    desc: Generate and open an APP CPU profile.
+    cmds:
+      - task: _app-check
+      - mkdir -p '{{.ROOT}}/profiles/{{.APP}}'
+      - go test -bench=. -cpuprofile='{{.ROOT}}/profiles/{{.APP}}/cpu.prof' {{.APP_PACKAGES}}
+      - go tool pprof -http ':0' '{{.ROOT}}/profiles/{{.APP}}/cpu.prof'
+
+  profile:memory:
+    desc: Generate and open an APP memory profile.
+    cmds:
+      - task: _app-check
+      - mkdir -p '{{.ROOT}}/profiles/{{.APP}}'
+      - go test -bench=. -memprofile='{{.ROOT}}/profiles/{{.APP}}/mem.prof' {{.APP_PACKAGES}}
+      - go tool pprof -http ':0' '{{.ROOT}}/profiles/{{.APP}}/mem.prof'
+
+  profile:all:
+    desc: Generate CPU and memory profiles for APP.
+    cmds:
+      - task: profile:cpu
+      - task: profile:memory
+
+  benchmark:
+    desc: Run APP benchmarks.
+    cmds:
+      - task: _app-check
+      - go test -bench=. -benchmem {{.APP_PACKAGES}}
+
+  clean:
+    desc: Remove generated and built artifacts for APP.
+    cmds:
+      - task: _clean
+
+  clean-all:
+    desc: Remove generated and built artifacts for every app.
+    cmds:
+      - for: {var: APPS}
+        cmd: '{{.TASK_EXE}} clean APP=''{{.ITEM}}'''
+      - rm -rf '{{.ROOT}}/dist' '{{.ROOT}}/profiles' '{{.ROOT}}/completions' '{{.ROOT}}/manpages'
+
+  _app-check:
+    internal: true
+    preconditions:
+      - sh: test -n '{{.APP}}'
+        msg: APP is required, for example task test APP=golang-starter.
+      - sh: test -f '{{.APP_CONFIG}}'
+        msg: No app config found at {{.APP_CONFIG}}.
+      - sh: test -n '{{.APP_BINARY}}'
+        msg: No binary configured in {{.APP_CONFIG}}.
+
+  _tool-install:
+    internal: true
+    run: when_changed
+    requires:
+      vars: [TOOL]
+    sources:
+      - '{{.GO_TOOL_MANIFEST}}'
+      - '{{.GO_TOOLS}}'
+    generates:
+      - '{{.TOOLS_BIN}}/{{.TOOL}}'
+    cmds:
+      - TOOLS_BIN='{{.TOOLS_BIN}}' '{{.GO_TOOLS}}' install '{{.TOOL}}'
+
+  _generate-common:
+    internal: true
+    cmds:
+      - task: _app-check
+      - '{{.ROOT}}/scripts/render-common-configs.sh "{{.APP}}"'
+
+  _generate-app:
+    internal: true
+    cmds:
+      - task: _app-check
+      - '{{.ROOT}}/scripts/render-app-configs.sh "{{.APP}}"'
+
+  _generate-all:
+    internal: true
+    cmds:
+      - task: _generate-common
+      - for: {var: APPS}
+        cmd: '{{.TASK_EXE}} generate:app APP=''{{.ITEM}}'''
+
+  _templates-check:
+    internal: true
+    cmds:
+      - task: _app-check
+      - goreleaser check --config '{{.APP_DIR}}/.goreleaser.yml'
+
+  _docker-vet:
+    internal: true
+    cmds:
+      - task: _app-check
+      - docker build --target vet -f '{{.ROOT}}/{{.APP_DIR}}/Dockerfile' -t '{{.IMAGE_AUTHOR}}/{{.IMAGE_NAME}}:{{.IMAGE_TAG}}'
+        .
+
+  _docker-test:
+    internal: true
+    cmds:
+      - task: _app-check
+      - docker build --target test -f '{{.ROOT}}/{{.APP_DIR}}/Dockerfile' -t '{{.IMAGE_AUTHOR}}/{{.IMAGE_NAME}}:{{.IMAGE_TAG}}'
+        .
+
+  _docker-build:
+    internal: true
+    cmds:
+      - task: _app-check
+      - >-
+        docker build -f '{{.ROOT}}/{{.APP_DIR}}/Dockerfile'
+        --build-arg VERSION='{{.BUILD_VERSION}}'
+        --build-arg COMMIT='{{.COMMIT}}'
+        --build-arg BRANCH='{{.BRANCH}}'
+        --build-arg BUILT_AT='{{.NOW}}'
+        --build-arg BUILDER='{{.BUILDER}}'
+        -t '{{.IMAGE_AUTHOR}}/{{.IMAGE_NAME}}:{{.IMAGE_TAG}}' .
+
+  _local-vet:
+    internal: true
+    cmds:
+      - task: _app-check
+      - goimports -w '{{.APP_DIR}}' pkg
+      - go vet {{.APP_PACKAGES}}
+
+  _release-test:
+    internal: true
+    cmds:
+      - task: _templates-check
+      - GORELEASER_CURRENT_TAG='{{.APP_VERSION_TAG}}' goreleaser build --clean --snapshot
+        --config '{{.APP_DIR}}/.goreleaser.yml'
+
+  _pre-commit-run:
+    internal: true
+    cmds:
+      - pre-commit run --all-files
+      - govulncheck ./...
+
+  _licenses:
+    internal: true
+    cmds:
+      - task: _app-check
+      - go-licenses report '{{.PKG}}/apps/{{.APP}}'
+
+  _clean:
+    internal: true
+    cmds:
+      - task: _app-check
+      - echo '=== Cleaning {{.APP}} artifacts ==='
+      - rm -f '{{.ROOT}}/out/{{.APP_BINARY}}'
+      - rm -rf '{{.ROOT}}/profiles/{{.APP}}' '{{.ROOT}}/docs/diagrams/{{.APP}}' '{{.ROOT}}/dist/{{.APP}}'
+        '{{.APP_DIR}}/demo-output' '{{.APP_DIR}}/c.out' '{{.APP_DIR}}'/*.bundle
+      - rm -f '{{.ROOT}}/manpages/{{.APP_BINARY}}.1.gz' '{{.ROOT}}/completions/{{.APP_BINARY}}.bash'
+        '{{.ROOT}}/completions/{{.APP_BINARY}}.fish' '{{.ROOT}}/completions/{{.APP_BINARY}}.zsh'
+      - cmd: docker image rm '{{.IMAGE_AUTHOR}}/{{.IMAGE_NAME}}:{{.IMAGE_TAG}}'
+        ignore_error: true
+
+  _local-workflow:
+    internal: true
+    cmds:
+      - task: _app-check
+      - task: generate
+      - task: deps:update
+      - task: deps:vendor
+      - task: _local-vet
+      - pre-commit install
+      - task: _pre-commit-run
+      - task: _licenses
+      - task: _clean
+      - task: local:test
+      - task: local:build
+      - task: _release-test
+
+  _all-app:
+    internal: true
+    cmds:
+      - task: _app-check
+      - task: _docker-vet
+      - task: _clean
+      - task: _docker-test
+      - task: _docker-build
+      - task: _release-test

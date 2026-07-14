@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Demo for lego-stego: exercise hide, info, reveal, embed, and extract against
-# the freshly built binary. Invoked by `make APP=lego-stego demo`, which builds
+# the freshly built binary. Invoked by `task demo APP=lego-stego`, which builds
 # the binary and exports BIN (path to the built binary) and APP_DIR (this app's
 # absolute directory).
 

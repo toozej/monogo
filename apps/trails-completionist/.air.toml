@@ -1,5 +1,5 @@
 [build]
-cmd = "make local-build local-kill local-run APP=trails-completionist"
+cmd = "task local:reload APP=trails-completionist"
 
 include_ext = ["go", "tpl", "tmpl", "html"]
 

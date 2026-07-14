@@ -37,7 +37,7 @@ Dockerized GFL uses a final image based on [Distroless Debian static](https://gi
 ```bash
 cp config.example.yaml config.yaml
 # edit config.yaml
-make build run APP=go-find-liquor
+task build docker:run APP=go-find-liquor
 ```
 
 ### Docker Compose
@@ -45,7 +45,7 @@ make build run APP=go-find-liquor
 ```bash
 cp config.example.yaml config.yaml
 # edit config.yaml
-make up APP=go-find-liquor
+task docker:up APP=go-find-liquor
 ```
 
 ## Installation
@@ -56,7 +56,7 @@ git clone https://github.com/toozej/monogo.git
 cd monogo
 
 # Build the application
-make local-build APP=go-find-liquor
+task local:build APP=go-find-liquor
 ```
 
 ## Multi-User Setup
@@ -238,9 +238,9 @@ You can then manually edit your config to add additional users or rename the def
 ### Run a single search and exit
 
 ```bash
-make local-run APP=go-find-liquor
+task local:run APP=go-find-liquor
 
-# or alternatively without using the provided Makefile
+# or alternatively without using the root Taskfile
 ./out/go-find-liquor --once
 ```
 
@@ -348,4 +348,4 @@ notifications:
 go-find-liquor, or GFL for short, was built since it is increasingly difficult to find some liquors at Oregon liquor stores due to short supply, mis-management, antiquated technology, etc. GFL was born to make it easier to find just the right bottle. Also, fun fact, GFL's alternative name is "good-fucking-luck", as in good luck finding those rare bottles ;).
 
 ## changes required to update golang version
-- `make update-golang-version`
+- `task go:update-version`

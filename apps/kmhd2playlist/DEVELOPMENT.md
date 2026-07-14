@@ -3,20 +3,20 @@
 ## Prerequisites
 
 - Go 1.25+
-- Make
+- Task 3.52+
 - Docker (optional)
 
 ## Setup Development Environment
 
 ```bash
 # Install development dependencies
-make pre-reqs
+task prereqs
 
 # Set up pre-commit hooks
-make pre-commit-install
+task pre-commit:install
 
 # Run the full development workflow
-make local
+task local
 ```
 
 ## Project Structure
@@ -39,16 +39,16 @@ make local
 
 ```bash
 # Run all tests
-make local-test
+task local:test
 
 # Run tests with coverage
-make local-cover
+task local:cover
 
 # Run mutation tests
-make mutation-test
+task test:mutation
 
 # Watch for changes and test
-make watch-test
+task test:watch
 ```
 
 ## Development Workflow
@@ -56,11 +56,11 @@ make watch-test
 
 ```bash
 # Set up development environment
-make pre-reqs
+task prereqs
 
 # Make changes and test continuously
-make local-iterate
+task local:iterate
 
 # Run full test suite before committing
-make local-test local-cover pre-commit
+task local:test local:cover pre-commit
 ```

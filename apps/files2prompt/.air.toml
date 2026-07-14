@@ -1,5 +1,5 @@
 [build]
-cmd = "make local-build local-kill local-run APP=files2prompt"
+cmd = "task local:reload APP=files2prompt"
 
 include_ext = ["go", "tpl", "tmpl", "html"]
 

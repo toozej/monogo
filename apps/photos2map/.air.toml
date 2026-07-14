@@ -1,5 +1,5 @@
 [build]
-cmd = "make local-build local-kill local-run APP=photos2map"
+cmd = "task local:reload APP=photos2map"
 
 include_ext = ["go", "tpl", "tmpl", "html"]
 

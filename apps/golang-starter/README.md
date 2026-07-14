@@ -17,7 +17,7 @@ Golang starter template
 - Goreleaser to build Docker images and most standard package types across Linux, MacOS and Windows
     - also includes auto-generated manpages and shell autocompletions
     - Docker images are signed with Cosign v3 via GoReleaser `docker_signs` using GitHub Actions OIDC certificates (keyless), and should be verified with `cosign verify` using `--certificate-identity-regexp` and `--certificate-oidc-issuer https://token.actions.githubusercontent.com` (not `--key`)
-- Makefile for easy building, deploying, testing, updating, etc. both Dockerized and using locally installed Golang toolchain
+- Taskfile for easy building, deploying, testing, and updating with Docker or the local Go toolchain
 - docker-compose project for easily hosting built Dockerized Golang project, with optional support for Golang web services
 - scripts to make using the starter template easy, and to update the Golang version when a new one comes out
 - Dev Container with built in Go-related VSCode extensions, and [llm](https://llm.datasette.io/) tool + plugins pre-configured to use GitHub Copilot
@@ -67,4 +67,4 @@ Golang starter template
     - change visibility to public
 
 ## changes required to update golang version
-- `make update-golang-version`
+- `task go:update-version`

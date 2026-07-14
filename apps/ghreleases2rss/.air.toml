@@ -1,5 +1,5 @@
 [build]
-cmd = "make local-build local-kill local-run APP=ghreleases2rss"
+cmd = "task local:reload APP=ghreleases2rss"
 
 include_ext = ["go", "tpl", "tmpl", "html"]
 

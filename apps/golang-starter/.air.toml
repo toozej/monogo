@@ -1,5 +1,5 @@
 [build]
-cmd = "make local-build local-kill local-run APP=golang-starter"
+cmd = "task local:reload APP=golang-starter"
 
 include_ext = ["go", "tpl", "tmpl", "html"]
 

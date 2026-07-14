@@ -3,12 +3,12 @@ set -euo pipefail
 
 # Demo for photos2map: extract GPS coordinates from the EXIF data of the bundled
 # sample photos and render them as both a GPX track and an HTML map. Invoked by
-# `make APP=photos2map demo`, which builds the binary and exports BIN (path to
+# `task demo APP=photos2map`, which builds the binary and exports BIN (path to
 # the built binary), APP_DIR (this app's absolute directory), and REPO_ROOT.
 #
 # Note: photos2map writes to the hardcoded paths out/output.gpx and out/map.html
 # relative to the working directory, so the demo runs from REPO_ROOT and then
-# moves the results into demo-output/ (gitignored, removed by `make clean`).
+# moves the results into demo-output/ (gitignored, removed by `task clean`).
 
 BIN="${BIN:-out/photos2map}"
 APP_DIR="${APP_DIR:-.}"

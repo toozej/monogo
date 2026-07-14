@@ -169,7 +169,7 @@ CREATE_ISSUES=true
 ```
 
 Use the `.env.` configuration file when running go-sort-out-gh-actions by either:
-1. `make local-run` or `make run` Make targets
+1. `task local:run` or `task docker:run` tasks
 2. `source .env` before running `go-sort-out-gh-actions` if running the local binary,
 3. add the `--env-file` flag when using Docker such as `docker run --env-file .env ...`
 
@@ -356,10 +356,10 @@ To quickly see how this tool works, run the demo which checks an example workflo
 
 ```bash
 # Build and run against example workflow (includes outdated checking)
-make demo
+task demo
 
 # Or run manually after building
-make local-build
+task local:build
 ./out/go-sort-out-gh-actions outdated --workflow examples/workflows/example-archived-actions.yaml --verbose
 
 # Run archived check

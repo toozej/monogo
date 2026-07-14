@@ -158,17 +158,17 @@ For development and building from source:
 
 ```bash
 # Full local development workflow
-make local
+task local
 
 # Build binary locally
-make local-build
+task local:build
 
 # Run with config.yaml
-make local-run
+task local:run
 
 # Run tests with coverage
-make local-test
+task local:test
 
 # Live reload development
-make local-iterate
+task local:iterate
 ```

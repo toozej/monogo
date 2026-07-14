@@ -11,10 +11,10 @@ usage: $0 <app-name> <package-name>
 
 Moves apps/<app-name>/internal/<package-name>/ to pkg/<package-name>/,
 rewrites references from the old import path to the new shared import path,
-then runs make test and make local-build for each app whose imports changed.
+then runs task test and task local:build for each app whose imports changed.
 
 Example:
-  make migrate-internal-package APP=monogo PACKAGE=starter
+  task app:migrate-internal-package APP=monogo PACKAGE=starter
 EOF
 }
 
@@ -113,14 +113,14 @@ cleanup_empty_internal_dirs() {
 	fi
 }
 
-run_make_check() {
+run_task_check() {
 	local app="$1"
 	local target="$2"
 	local log_file="$3"
 	local status=0
 
-	printf '  - make %s APP=%s: ' "$target" "$app"
-	if make -C "$ROOT" "$target" APP="$app" >"$log_file" 2>&1; then
+	printf '  - task %s APP=%s: ' "$target" "$app"
+	if task --dir "$ROOT" "$target" APP="$app" >"$log_file" 2>&1; then
 		echo "ok"
 		return 0
 	else
@@ -156,8 +156,8 @@ verify_affected_apps() {
 		[ -n "$app" ] || continue
 		app_failed=0
 		echo "Checking ${app}"
-		run_make_check "$app" test "${LOG_DIR}/${app}-test.log" || app_failed=1
-		run_make_check "$app" local-build "${LOG_DIR}/${app}-local-build.log" || app_failed=1
+		run_task_check "$app" test "${LOG_DIR}/${app}-test.log" || app_failed=1
+		run_task_check "$app" local:build "${LOG_DIR}/${app}-local-build.log" || app_failed=1
 		if [ "$app_failed" -ne 0 ]; then
 			echo "$app" >>"$manual_apps_tmp"
 		fi
@@ -195,7 +195,7 @@ EOF
 	if [ ! -s "$failures_tmp" ]; then
 		if [ -s "$affected_apps_tmp" ]; then
 			echo
-			echo "All affected apps passed make test and make local-build."
+			echo "All affected apps passed task test and task local:build."
 		fi
 		return 0
 	fi
@@ -210,7 +210,7 @@ EOF
 	echo
 	echo "Failed checks:"
 	while IFS=$'\t' read -r app target status log_file; do
-		echo "  - ${app}: make ${target} failed with exit ${status} (${log_file})"
+		echo "  - ${app}: task ${target} failed with exit ${status} (${log_file})"
 	done <"$failures_tmp"
 
 	return 1
@@ -218,7 +218,7 @@ EOF
 
 validate_inputs
 require_cmd gofmt
-require_cmd make
+require_cmd task
 require_cmd perl
 require_cmd rg
 

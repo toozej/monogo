@@ -1,5 +1,5 @@
 [build]
-cmd = "make local-build local-kill local-run APP=rss2socials"
+cmd = "task local:reload APP=rss2socials"
 
 include_ext = ["go", "tpl", "tmpl", "html"]
 

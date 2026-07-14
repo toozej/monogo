@@ -66,7 +66,7 @@ volumes:
 
 ### From Source
 
-**Prerequisites**: Go 1.26+, Make
+**Prerequisites**: Go 1.26+, Task 3.52+
 
 ```bash
 # Clone repository
@@ -74,32 +74,32 @@ git clone https://github.com/toozej/podgrab.git
 cd podgrab
 
 # Install dependencies and build
-make local-update-deps local-vendor local-build
+task deps:update deps:vendor local:build
 
 # Run (requires .env file)
-make local-run
+task local:run
 ```
 
 The compiled binary is output to `out/podgrab`.
 
 Access the web interface at `http://localhost:8080`
 
-### Make Targets
+### Task Commands
 
-The Makefile provides comprehensive build and development commands:
+The root Taskfile provides comprehensive build and development commands:
 
 ```bash
-make help                    # Show all available targets
-make local                   # Full local workflow (deps, vet, test, build, run)
-make local-build             # Build binary to out/podgrab
-make local-test              # Run tests with race detection
-make local-cover             # View coverage report in browser
-make pre-commit              # Install and run pre-commit hooks
-make docker-login            # Login to container registries
-make install                 # Install from latest GitHub release
+task --list                  # Show all available tasks
+task local                   # Full local workflow (deps, vet, test, build, run)
+task local:build             # Build binary to out/podgrab
+task local:test              # Run tests with race detection
+task local:cover             # View coverage report in browser
+task pre-commit              # Install and run pre-commit hooks
+task docker:login            # Login to container registries
+task install                 # Install from latest GitHub release
 ```
 
-For a complete list of targets, run `make help` or see the [Makefile](Makefile).
+For a complete list of tasks, run `task --list` or see the root `Taskfile.yml`.
 
 ## Configuration
 
@@ -131,7 +131,7 @@ Configure via the web UI at `http://localhost:8080/settings`:
 ### Prerequisites
 
 - Go 1.26 or higher
-- Make (build automation)
+- Task 3.52+ (build automation)
 - Chrome/Chromium (for E2E tests)
 - pre-commit (for code quality hooks)
 
@@ -139,13 +139,13 @@ Configure via the web UI at `http://localhost:8080/settings`:
 
 ```bash
 # Install pre-commit hooks and development tools
-make pre-commit
+task pre-commit
 
 # Run all tests
-make local-test
+task local:test
 
 # View coverage report
-make local-cover
+task local:cover
 
 # Run integration tests
 go test ./integration_test/... -v -tags=integration

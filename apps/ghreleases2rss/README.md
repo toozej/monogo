@@ -10,7 +10,7 @@
 Subscribe to GitHub releases feeds from RSS reader
 
 ## usage
-- `make` ;)
+- `task` ;)
 
 ## changes required to update golang version
-- `make update-golang-version`
+- `task go:update-version`

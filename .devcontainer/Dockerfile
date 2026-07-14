@@ -14,6 +14,9 @@ WORKDIR /workspace/
 COPY go.mod* go.sum* ./
 RUN go mod download
 
+ARG TASK_VERSION=v3.52.0
+RUN GOBIN=/usr/local/bin go install github.com/go-task/task/v3/cmd/task@${TASK_VERSION}
+
 COPY . ./
 
 FROM init AS vet

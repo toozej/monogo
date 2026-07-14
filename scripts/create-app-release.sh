@@ -41,7 +41,7 @@ previous_tag="$(git for-each-ref \
 		# Bounded by the tag range, so it is safe to include the shared paths
 		# that affect this app's build.
 		git log --no-merges --pretty='- %s (%h)' "${previous_tag}..${APP_TAG}" \
-			-- "apps/${APP}" pkg templates Makefile .github/workflows || true
+			-- "apps/${APP}" pkg templates Taskfile.yml .github/workflows || true
 	else
 		echo "Initial ${APP} release from ${APP_TAG}."
 		echo

@@ -30,61 +30,82 @@
 
 `golang-starter` is the starter app in this Go monorepo. It keeps shared repository concerns at the root while each app lives under `apps/<app>`.
 
-The root `go.mod`, `go.sum`, `.pre-commit-config.yaml`, `.devcontainer/`, workflows, scripts, Makefile, and `pkg/` packages are shared. App-local Docker and GoReleaser files are generated from `templates/app`; app-local Air and Compose files plus root shared files such as `.env.sample` are generated from `templates/common`.
+The root `go.mod`, `go.sum`, `.pre-commit-config.yaml`, `.devcontainer/`, workflows, scripts, `Taskfile.yml`, and `pkg/` packages are shared. Development-tool versions are isolated in `tools/go-tools.tsv`. App-local Docker and GoReleaser files are generated from `templates/app`; app-local Air and Compose files plus root shared files such as `.env.sample` are generated from `templates/common`.
+
+## Prerequisites
+
+Install Go 1.26 or newer, Docker for container workflows, and Task 3.52 or
+newer. See the [Task installation guide](https://taskfile.dev/docs/installation)
+for package-manager and binary installation options.
 
 ## Common Commands
 
 ```bash
-make list-apps
-make generate-all
-make test APP=golang-starter
-make local-build APP=golang-starter
-make release-test APP=golang-starter
+task app:list
+task generate-all
+task test APP=golang-starter
+task test:mutation APP=golang-starter
+task local:build APP=golang-starter
+task release:test APP=golang-starter
+task pre-commit:install
 ```
 
-`APP` defaults to `golang-starter`, so `make test` and `make local-build` work for the starter app.
+`APP` defaults to `golang-starter`, so `task test` and `task local:build` work for the starter app.
 
 ## Generated Configs
 
 Install prerequisites and regenerate configs:
 
 ```bash
-make pre-reqs
-make generate-all
+task prereqs
+task generate-all
 ```
 
 To add or customize an app:
 
 1. Create `apps/<app>/app.yaml`.
 2. Put the app's Go code under `apps/<app>`.
-3. Run `make app-generate APP=<app>`.
+3. Run `task generate:app APP=<app>`.
 4. Add the app to the GitHub Actions matrices in `.github/workflows/ci.yaml` and `.github/workflows/weekly-docker-refresh.yaml`.
 
-For normal per-app differences, change values in `apps/<app>/app.yaml`. Shared Go packages belong in root `pkg/`; app-private code belongs in `apps/<app>/internal`. For shared build or root tooling behavior, update `templates/app/*.tmpl` or `templates/common/*.tmpl` and run `make generate-all`.
+For normal per-app differences, change values in `apps/<app>/app.yaml`. Shared Go packages belong in root `pkg/`; app-private code belongs in `apps/<app>/internal`. For shared build or root tooling behavior, update `templates/app/*.tmpl` or `templates/common/*.tmpl` and run `task generate-all`.
 
 See [docs/app-configuration.md](docs/app-configuration.md) for the full `app.yaml` field reference, including CGO builds (`cgoEnabled`), runtime image selection (`runtimeImage`), and exposed ports (`port`).
+
+## Repository Tooling
+
+Go-based development tools are declared and version-pinned in
+`tools/go-tools.tsv`. Each tool is installed independently as `package@version`
+into `.tools/bin`, preventing tool dependency graphs from affecting the apps or
+one another. `task pre-commit:install` additionally installs the local Git hook.
+Normal installation never changes dependency pins.
+
+Run `task pre-commit:update` to upgrade the pinned Go tools and pre-commit hook
+revisions, regenerate app configs, and validate the updated toolchain. The
+scheduled tool autoupdate workflow runs the same task and opens a PR only when
+the update produces repository changes.
 
 ## Create a New App
 
 Run the scaffold script to clone the `golang-starter` app into a new app directory and wire it into CI:
 
 ```bash
-make new-app APP=mytool
+task app:new APP=mytool
 ```
 
-The script (`scripts/create-new-app.py`) copies `apps/golang-starter` to `apps/mytool`, renames command packages, rewrites imports, updates `app.yaml`, amends the CI app matrix, and appends the Dependabot Docker entry. It finishes by running `go mod tidy` and `make app-generate APP=mytool` so the generated configs are committed.
+The script (`scripts/create-new-app.py`) copies `apps/golang-starter` to `apps/mytool`, renames command packages, rewrites imports, updates `app.yaml`, amends the CI app matrix, and appends the Dependabot Docker entry. It finishes by running `go mod tidy` and `task generate:app APP=mytool` so the generated configs are committed.
 
 After scaffolding:
 
 1. Edit `apps/mytool/app.yaml` to describe the service and tweak build settings.
 2. Replace `internal/starter` and extend `cmd/mytool` with real functionality.
-3. Run `make test APP=mytool` and `make local-build APP=mytool` to verify everything compiles.
+3. Run `task test APP=mytool` and `task local:build APP=mytool` to verify everything compiles.
 4. Commit the new files; CI and Dependabot already include the app once the script completes.
 
 ### Remove an App
 
 ```bash
-make delete-app APP=mytool
+task app:delete APP=mytool
 ```
 
 The deletion helper (`scripts/delete-app.py`) removes `apps/mytool`, prunes generated artefacts, and updates shared automation like the CI matrix and Dependabot Docker entries before running `go mod tidy`. Review `git status` afterward to ensure any extra references (docs, dashboards, secret stores) are cleaned up.
@@ -94,8 +115,8 @@ The deletion helper (`scripts/delete-app.py`) removes `apps/mytool`, prunes gene
 Import an existing Go service with its Git history. `APP=owner/repo` defaults to `github.com/owner/repo`; include a hostname to import from another VCS host:
 
 ```bash
-make import APP=toozej/go-listen
-make import APP=github.com/toozej/go-listen
+task app:import APP=toozej/go-listen
+task app:import APP=github.com/toozej/go-listen
 ```
 
 The import target:
@@ -115,16 +136,16 @@ The import target:
 Options:
 
 ```bash
-make import APP=toozej/go-listen IMPORT_REF=main
-make import APP=toozej/go-listen IMPORT_NAME=listen
-make import APP=toozej/go-listen IMPORT_RELEASES=assets
-make import APP=toozej/go-listen IMPORT_RELEASES=none
-make import APP=toozej/go-listen IMPORT_ARGS=--metadata-only
-make import APP=toozej/go-listen IMPORT_SKIP_VERIFY=1
-make import APP=github.example.com/owner/repo
+task app:import APP=toozej/go-listen IMPORT_REF=main
+task app:import APP=toozej/go-listen IMPORT_NAME=listen
+task app:import APP=toozej/go-listen IMPORT_RELEASES=assets
+task app:import APP=toozej/go-listen IMPORT_RELEASES=none
+task app:import APP=toozej/go-listen IMPORT_ARGS=--metadata-only
+task app:import APP=toozej/go-listen IMPORT_SKIP_VERIFY=1
+task app:import APP=github.example.com/owner/repo
 ```
 
-`make import` requires a clean, committed starter-app baseline before it runs. GitHub release records are not part of Git history, so the target imports release metadata with `gh`; use `IMPORT_RELEASES=assets` to download release assets too.
+`task app:import` requires a clean, committed starter-app baseline before it runs. GitHub release records are not part of Git history, so the target imports release metadata with `gh`; use `IMPORT_RELEASES=assets` to download release assets too.
 
 Use `IMPORT_ARGS=--metadata-only` when the app code has already been migrated into `apps/<app>` by a separate step and you only want the importer to collect release metadata, import source tags, write `app.yaml`, update the workflow/dependabot entries, and regenerate app-local config.
 
@@ -143,10 +164,10 @@ The Homebrew cask is rendered by that **same** GoReleaser build (with `skip_uplo
 The recommended path computes the next version and pushes the tag for you:
 
 ```bash
-make release APP=url2anki TYPE=patch   # TYPE = major | minor | patch (default: patch)
+task release APP=url2anki TYPE=patch   # TYPE = major | minor | patch (default: patch)
 ```
 
-`make release` runs the app's tests, computes the next `apps/<app>/vX.Y.Z` tag by bumping `TYPE` from the app's latest existing tag (checking both local tags and `origin`), then creates and pushes it. CI builds, signs, and publishes the rest.
+`task release` runs the app's tests, computes the next `apps/<app>/vX.Y.Z` tag by bumping `TYPE` from the app's latest existing tag (checking both local tags and `origin`), then creates and pushes it. CI builds, signs, and publishes the rest.
 
 Equivalently, tag and push by hand:
 
@@ -155,17 +176,17 @@ git tag -a apps/url2anki/v0.1.0 -m "url2anki v0.1.0"
 git push origin apps/url2anki/v0.1.0
 ```
 
-Before releasing, validate the GoReleaser config and build a snapshot locally with `make release-test APP=url2anki`.
+Before releasing, validate the GoReleaser config and build a snapshot locally with `task release:test APP=url2anki`.
 
 ### Delete a bad release
 
 To remove a release that was published in error (wrong version, broken assets, an old checksum-mismatched cask, etc.):
 
 ```bash
-make delete-release APP=url2anki VERSION=v1.6.0
+task release:delete APP=url2anki VERSION=v1.6.0
 ```
 
-This deletes the GitHub release for `apps/<app>/<version>` and removes that tag both **locally and on `origin`**. Each step is guarded and skips cleanly if the release or tag is already gone, and `VERSION` must be passed explicitly as `vX.Y.Z` (it will not fall back to a computed value). Afterward, cut a fresh release with `make release`, or recreate and push the same tag to rebuild that version.
+This deletes the GitHub release for `apps/<app>/<version>` and removes that tag both **locally and on `origin`**. Each step is guarded and skips cleanly if the release or tag is already gone, and `VERSION` must be passed explicitly as `vX.Y.Z` (it will not fall back to a computed value). Afterward, cut a fresh release with `task release`, or recreate and push the same tag to rebuild that version.
 
 ### Weekly Docker refresh
 
@@ -173,11 +194,11 @@ The [Weekly Docker Refresh workflow](.github/workflows/weekly-docker-refresh.yam
 
 ### First-time monorepo cutover
 
-Apps imported from their own repos (via `make import`) still carry only their original-repo tags, which point at pre-monorepo commits. To publish the first monorepo release for every imported app in one pass, use the idempotent helper:
+Apps imported from their own repos (via `task app:import`) still carry only their original-repo tags, which point at pre-monorepo commits. To publish the first monorepo release for every imported app in one pass, use the idempotent helper:
 
 ```bash
 scripts/cutover-release-apps.py            # dry run: print the per-app plan
 scripts/cutover-release-apps.py --execute  # create and push the cutover tags
 ```
 
-For each imported app it computes a **minor version bump above the app's most recent original-repo tag** (e.g. `v1.4.2` → `v1.5.0`; an app with no prior tag starts at `v0.1.0`) and pushes `apps/<app>/v<bumped>` at `HEAD`, which triggers the Release workflow. The in-repo starter (`golang-starter`) is skipped. It is safe to re-run: apps whose target release already exists are skipped, so you can iterate and fix release issues. Use `--retry-failed` to re-trigger apps that were tagged but whose release did not complete, and `--preflight` to run `make release-test APP=<app>` before tagging each app. Run `scripts/cutover-release-apps.py --help` for all options.
+For each imported app it computes a **minor version bump above the app's most recent original-repo tag** (e.g. `v1.4.2` → `v1.5.0`; an app with no prior tag starts at `v0.1.0`) and pushes `apps/<app>/v<bumped>` at `HEAD`, which triggers the Release workflow. The in-repo starter (`golang-starter`) is skipped. It is safe to re-run: apps whose target release already exists are skipped, so you can iterate and fix release issues. Use `--retry-failed` to re-trigger apps that were tagged but whose release did not complete, and `--preflight` to run `task release:test APP=<app>` before tagging each app. Run `scripts/cutover-release-apps.py --help` for all options.

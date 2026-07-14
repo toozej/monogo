@@ -11,7 +11,7 @@ This skill guides the AI agent on how to back-fill scaffolding, build pipelines,
 
 1. **Intelligent Merging, Not Overwriting**: Always inspect diffs carefully. Do not copy files wholesale if the target repository has customized behavior. Merge the template improvements (e.g. version bumps, extra linting checks, newer workflow actions) into the existing files.
 2. **Dockerfile Similarity Matching**: Target repos might have renamed, added, or deleted Dockerfiles. Never rename target Dockerfiles. Identify the closest matching template Dockerfile by content structure, review the differences, and apply template improvements (such as updated Go version tags, nonroot user configurations, or shell flags) without wiping out custom packages, ports, or entrypoints.
-3. **Build and Test Verification**: After applying changes, the project MUST build and pass checks. Validate using `make local` (local Go toolchain checks) and `make all` (Docker-based workflow checks).
+3. **Build and Test Verification**: After applying changes, the project MUST build and pass checks. Validate using `task local` (local Go toolchain checks) and `task all` (Docker-based workflow checks).
 4. **Local Staging and Commit**: Stage the changes (`git add`) and write a clear, descriptive commit message summarizing the backfilled changes. Commit locally but **do NOT push** to the remote.
 
 ---
@@ -41,9 +41,9 @@ For each modified file, carefully apply the diffs:
   - Back-fill new steps, updated action versions (e.g., `actions/checkout@v4`), and optimizations.
   - Preserve target-specific environment variables, secrets, and repository-specific steps.
   - *Note*: Ignore minor cron minute variations (which are randomized to distribute load).
-- **`Makefile`**:
-  - Merge new targets, build arguments, or linter integrations.
-  - Preserve custom target-specific make targets, build tags, or special compiler flags.
+- **`Taskfile.yml`**:
+  - Merge new tasks, build arguments, or linter integrations.
+  - Preserve custom tasks, build tags, or special compiler flags.
 - **`.goreleaser.yml`**:
   - Merge improved release stages, SBOM generation, or signing logic.
   - Preserve project-specific binary names, custom archive formats, or tap configurations.
@@ -67,22 +67,22 @@ For each target Dockerfile matched by the script:
 ---
 
 ### Step 4: Verification
-Verify that the target repository builds, tests, and passes all checks. Run the following targets from the Makefile:
+Verify that the target repository builds, tests, and passes all checks. Run the following tasks from `Taskfile.yml`:
 
 1. **Local Toolchain Verification**:
    ```bash
-   make local
+   task local
    ```
    This will run `go mod tidy`, `go mod vendor`, `go vet`, `pre-commit` hooks, run tests with race detection, generate coverage, build the local binary, and check goreleaser snapshots. Ensure everything compiles and all tests pass.
 
 2. **Docker Workflow Verification**:
    ```bash
-   make all
+   task all
    ```
    This runs Docker-based vet, test, build, image signing verification with Cosign, and launches the container.
    
    > [!NOTE]
-   > Running `make all` locally builds a fresh, unsigned Docker image, which will cause the `cosign verify` step to fail with `Error: no signatures found`. This is expected. As long as the `vet`, `pre-commit`, `test`, and `build` stages of the Docker build complete successfully, the Docker verification is considered successful. You can test running the container manually if needed with:
+   > Running `task all` locally builds a fresh, unsigned Docker image, which will cause the `cosign verify` step to fail with `Error: no signatures found`. This is expected. As long as the `vet`, `pre-commit`, `test`, and `build` stages of the Docker build complete successfully, the Docker verification is considered successful. You can test running the container manually if needed with:
    > `docker run --rm --name <project_name> --env-file .env <owner>/<project_name>:latest`
 
 If any check fails, troubleshoot the build/test issues and refine the backfilled configurations.
@@ -101,7 +101,7 @@ Once everything builds and passes perfectly:
 
 - Bumped Go and base image versions in Dockerfiles
 - Updated GitHub Action workflows to latest versions
-- Applied Makefile improvements and linter updates
+- Applied Taskfile improvements and linter updates
 - Synced pre-commit hooks and goreleaser configuration"
    ```
 3. **DO NOT PUSH** the changes to the remote repository. Leave it staged for manual review and pushing by the developer.
