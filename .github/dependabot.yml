@@ -11,8 +11,9 @@ multi-ecosystem-groups:
       prefix: "chore"
       include: "scope"
 updates:
-  # Go modules: single root module for the whole monorepo (per-app go.mod
-  # files live under apps/*/.monogo/original-module/ and are archived, not built).
+  # Application Go module. The isolated Go tool manifest is updated together with
+  # pre-commit hook revisions by the scheduled tool autoupdate workflow. Per-app
+  # go.mod files under apps/*/.monogo/original-module/ are archived, not built.
   - package-ecosystem: "gomod"
     directory: "/"
     schedule:

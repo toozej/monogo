@@ -18,8 +18,8 @@ jobs:
   checks:
     # Repo-wide checks (pre-commit, govulncheck) run once rather than once per
     # app; per-app license reports run in the test matrix. Configs are generated
-    # a single time and the `-no-generate`/`-no-prereqs` Make variants avoid
-    # redundant regeneration.
+    # a single time and the `-no-generate` Make variant avoids redundant
+    # regeneration.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -27,23 +27,22 @@ jobs:
         with:
           go-version: '^1.26'
           check-latest: true
-      - name: Cache gomplate and lint tools
+      - name: Cache pinned repository tools
         id: checks-tools-cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
-            ~/go/bin
+            .tools/bin
             ~/.cache/pip
             ~/.cache/pre-commit
           key: ${{ runner.os }}-${{ runner.arch }}-checks-tools-${{ hashFiles('Makefile',
-            '.pre-commit-config.yaml', 'go.mod') }}
+            '.pre-commit-config.yaml', 'tools/go-tools.tsv', 'scripts/manage-go-tools.sh')
+            }}
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-checks-tools-
-      - name: Install pre-commit
-        run: pip install pre-commit
-      - name: Install gomplate and lint tools
+      - name: Install pinned repository tools
         if: steps.checks-tools-cache.outputs.cache-hit != 'true'
-        run: make pre-reqs pre-commit-install-no-prereqs
+        run: make pre-commit-tools-install
       - name: Generate all app configs
         run: make generate-all
       - name: Run pre-commit and vulnerability checks
@@ -77,8 +76,22 @@ jobs:
         with:
           go-version: '^1.26'
           check-latest: true
+      - name: Cache pinned repository tools
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .tools/bin
+          key: ${{ runner.os }}-${{ runner.arch }}-test-tools-${{ hashFiles('tools/go-tools.tsv',
+            'scripts/manage-go-tools.sh') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-test-tools-
       - name: Run tests
         run: make test APP=${{ matrix.app }}
+      - name: Run mutation testing
+        # Mutation testing re-runs the full test suite once per generated mutant,
+        # so restrict it to the weekly scheduled run and manual dispatch rather
+        # than every push/PR to keep routine CI fast.
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: make mutation-test APP=${{ matrix.app }}
       - name: Report licenses
         run: make licenses APP=${{ matrix.app }}
 
@@ -108,8 +121,6 @@ jobs:
         with:
           go-version: '^1.26'
           check-latest: true
-      - name: Install gomplate
-        run: make pre-reqs
       - name: Generate app configs
         run: make generate-all
       - uses: github/codeql-action/init@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2

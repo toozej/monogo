@@ -1,0 +1,16 @@
+# name	package	module	version
+air	github.com/air-verse/air	github.com/air-verse/air	v1.65.3
+syft	github.com/anchore/syft/cmd/syft	github.com/anchore/syft	v1.46.0
+checkmake	github.com/checkmake/checkmake/cmd/checkmake	github.com/checkmake/checkmake	v0.3.2
+go-critic	github.com/go-critic/go-critic/cmd/go-critic	github.com/go-critic/go-critic	v0.14.4
+gremlins	github.com/go-gremlins/gremlins/cmd/gremlins	github.com/go-gremlins/gremlins	v0.6.0
+golangci-lint	github.com/golangci/golangci-lint/v2/cmd/golangci-lint	github.com/golangci/golangci-lint/v2	v2.12.2
+go-licenses	github.com/google/go-licenses	github.com/google/go-licenses	v1.6.0
+goreleaser	github.com/goreleaser/goreleaser/v2	github.com/goreleaser/goreleaser/v2	v2.17.0
+gomplate	github.com/hairyhenderson/gomplate/v5/cmd/gomplate	github.com/hairyhenderson/gomplate/v5	v5.2.0
+actionlint	github.com/rhysd/actionlint/cmd/actionlint	github.com/rhysd/actionlint	v1.7.12
+gosec	github.com/securego/gosec/v2/cmd/gosec	github.com/securego/gosec/v2	v2.28.0
+cosign	github.com/sigstore/cosign/v3/cmd/cosign	github.com/sigstore/cosign/v3	v3.1.1
+goimports	golang.org/x/tools/cmd/goimports	golang.org/x/tools	v0.48.0
+govulncheck	golang.org/x/vuln/cmd/govulncheck	golang.org/x/vuln	v1.6.0
+staticcheck	honnef.co/go/tools/cmd/staticcheck	honnef.co/go/tools	v0.7.0

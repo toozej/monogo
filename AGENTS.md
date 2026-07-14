@@ -6,7 +6,7 @@
 - **Apps:** `apps/<app>` contains app code, including `main.go`, `cmd/<app>`, and `internal`.
 - **Shared packages:** root `pkg/` contains public packages shared across apps.
 - **Generated config:** Dockerfiles, `docker-compose.yml`, `.air.toml`, and `.goreleaser.yml` live in each app directory. Docker and GoReleaser files are generated from `templates/app/*.tmpl`; app-local Air and Compose files plus root shared files such as `.env.sample` are generated from `templates/common/*.tmpl`. Keep `.devcontainer/` as checked-in root config.
-- **Shared tooling:** root `Makefile`, `go.mod`, `go.sum`, `.pre-commit-config.yaml`, scripts, and GitHub Actions workflows.
+- **Shared tooling:** root `Makefile`, `.pre-commit-config.yaml`, scripts, and GitHub Actions workflows. Go tool binaries are version-pinned in `tools/go-tools.tsv` and installed independently into `.tools/bin` by Make targets.
 
 ## Build and Test Commands
 
@@ -14,9 +14,11 @@
 - List apps: `make list-apps`
 - Test default app: `make test`
 - Test a specific app: `make test APP=golang-starter`
+- Mutation-test a specific app: `make mutation-test APP=golang-starter`
 - Build a local binary: `make local-build APP=golang-starter`
 - Check GoReleaser config and snapshot build: `make release-test APP=golang-starter`
 - Run pre-commit: `make pre-commit-run`
+- Update pinned Go tools and pre-commit hooks: `make pre-commit-update`
 
 `APP` defaults to `golang-starter`. **Use `golang-starter` to validate any change that affects all apps** — edits to `templates/app/*.tmpl`, `templates/common/*.tmpl`, root `scripts/`, the `Makefile`, or the release workflow. It is the minimal in-repo starter app (no app-specific dependencies, fastest to build), so it is the quickest signal a repo-wide change is safe: exercise it first (e.g. `make release-test APP=golang-starter`, and for packaging/release changes a `goreleaser release --snapshot` build), then apply the change everywhere with `make generate-all`.
 
