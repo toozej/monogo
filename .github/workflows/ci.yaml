@@ -31,6 +31,7 @@ jobs:
         with:
           version: 3.52.0
       - name: Cache pinned repository tools
+        id: checks-tools-cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
@@ -38,12 +39,15 @@ jobs:
             ~/.cache/pip
             ~/.cache/pre-commit
           key: ${{ runner.os }}-${{ runner.arch }}-checks-tools-${{ hashFiles('Taskfile.yml',
-            '.pre-commit-config.yaml', 'tools/go-tools.tsv', 'scripts/manage-go-tools.sh')
-            }}
+            '.pre-commit-config.yaml', 'tools/go-tools.tsv', 'scripts/manage-go-tools.sh',
+            'scripts/install-system-tools.sh') }}
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-checks-tools-
+      - name: Install pinned repository tools
+        if: steps.checks-tools-cache.outputs.cache-hit != 'true'
+        run: task tools:pre-commit
       - name: Run repository checks
-        run: task ci:checks
+        run: task ci:checks SKIP_TOOL_INSTALL=1
 
   test:
     runs-on: ubuntu-latest
@@ -77,8 +81,21 @@ jobs:
         uses: go-task/setup-task@01a4adf9db2d14c1de7a560f09170b6e0df736aa # v2.1.0
         with:
           version: 3.52.0
+      - name: Cache pinned test tools
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .tools/bin
+          key: ${{ runner.os }}-${{ runner.arch }}-test-tools-${{ hashFiles('tools/go-tools.tsv',
+            'scripts/manage-go-tools.sh') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-test-tools-
       - name: Run app checks
         run: task ci:test APP=${{ matrix.app }}
+      - name: Run mutation testing
+        # Mutation testing re-runs the test suite for every generated mutant, so
+        # keep it off routine pushes and pull requests.
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: task test:mutation APP=${{ matrix.app }}
 
   gitleaks:
     name: gitleaks

@@ -26,7 +26,8 @@ install_tools() {
 	done
 
 	mkdir -p "${TOOLS_BIN}"
-	while IFS=$'\t' read -r name package _module version; do
+	# Process a final manifest row even if the file lacks a trailing newline.
+	while IFS=$'\t' read -r name package _module version || [[ -n "${name}" ]]; do
 		if [[ -z "${name}" || "${name}" == \#* ]]; then
 			continue
 		fi
@@ -43,8 +44,17 @@ install_tools() {
 			fi
 		fi
 
+		local stamp="${TOOLS_BIN}/.stamps/${name}"
+		if [[ -x "${TOOLS_BIN}/${name}" && -f "${stamp}" \
+			&& "$(cat "${stamp}")" == "${package}@${version}" ]]; then
+			echo "Skipping ${name} (${package}@${version} already installed)"
+			continue
+		fi
+
 		echo "Installing ${name} (${package}@${version})"
 		GOBIN="${TOOLS_BIN}" go install "${package}@${version}"
+		mkdir -p "${TOOLS_BIN}/.stamps"
+		printf '%s@%s\n' "${package}" "${version}" >"${stamp}"
 	done <"${MANIFEST}"
 }
 
@@ -54,13 +64,16 @@ update_tools() {
 	temp="$(mktemp)"
 	trap 'rm -f "${temp}"' EXIT
 
-	while IFS=$'\t' read -r name package module version; do
+	# Process a final manifest row even if the file lacks a trailing newline.
+	while IFS=$'\t' read -r name package module version || [[ -n "${name}" ]]; do
 		if [[ -z "${name}" || "${name}" == \#* ]]; then
 			printf '%s\t%s\t%s\t%s\n' "${name}" "${package}" "${module}" "${version}" >>"${temp}"
 			continue
 		fi
 
-		latest="$(go list -m -f '{{.Version}}' "${module}@latest")"
+		# A network @latest query must bypass the implicit -mod=vendor mode used
+		# when a vendor directory is present.
+		latest="$(go list -mod=mod -m -f '{{.Version}}' "${module}@latest")"
 		if [[ -z "${latest}" ]]; then
 			echo "could not resolve latest version for ${module}" >&2
 			exit 1

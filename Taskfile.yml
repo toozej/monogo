@@ -19,7 +19,7 @@ vars:
       awk -F': *' '/^binary:/ {gsub(/"/, "", $2); print $2; exit}' '{{.APP_CONFIG}}' 2>/dev/null
   APP_NAME:
     sh: |
-      awk -F': *' '/^name:/ {gsub(/"/, "", $2); print $2; exit}' '{{.APP_CONFIG}}' 2>/dev/null
+      awk '/^name:/ {value=$0; sub(/^name:[[:space:]]*/, "", value); sub(/[[:space:]]*#.*/, "", value); gsub(/["[:space:]]/, "", value); print value; exit}' '{{.APP_CONFIG}}' 2>/dev/null
   APP_MAIN_PATH:
     sh: |
       value="$(awk -F': *' '/^mainPath:/ {gsub(/"/, "", $2); print $2; exit}' '{{.APP_CONFIG}}' 2>/dev/null)"
@@ -82,7 +82,7 @@ tasks:
   all:
     desc: Run the full Docker-based workflow for every app.
     cmds:
-      - task: tools:pre-commit
+      - task: pre-commit:install
       - task: generate-all
       - task: deps:update
       - task: deps:vendor
@@ -94,14 +94,14 @@ tasks:
   local:
     desc: Run the complete local workflow for APP.
     cmds:
-      - task: tools:pre-commit
+      - task: pre-commit:install
         if: test '{{.SKIP_TOOL_INSTALL}}' != '1'
       - task: _local-workflow
 
   local-all:
     desc: Run the complete local workflow for every app.
     cmds:
-      - task: tools:pre-commit
+      - task: pre-commit:install
       # A fresh Task process recomputes the APP-derived global variables.
       - for: {var: APPS}
         cmd: '{{.TASK_EXE}} local APP=''{{.ITEM}}'' SKIP_TOOL_INSTALL=1'
@@ -459,6 +459,15 @@ tasks:
         vars:
           TOOL: '{{.ITEM}}'
 
+  tools:docker-refresh:
+    desc: Install pinned Docker refresh tools, excluding unused Syft.
+    if: test '{{.SKIP_TOOL_INSTALL}}' != '1'
+    cmds:
+      - for: [gomplate, goreleaser, cosign]
+        task: _tool-install
+        vars:
+          TOOL: '{{.ITEM}}'
+
   tools:system:
     desc: Install non-Go tools needed by repository checks.
     cmds:
@@ -487,7 +496,21 @@ tasks:
     desc: Install repository tools and the local pre-commit hook.
     cmds:
       - task: tools:pre-commit
+        if: test '{{.SKIP_TOOL_INSTALL}}' != '1'
       - pre-commit install
+      - |
+        hook="$(git -C '{{.ROOT}}' rev-parse --git-path hooks/pre-commit)"
+        if test -f "$hook" && ! grep -q 'monogo-tools-path' "$hook"; then
+          tmp="$(mktemp)"
+          {
+            head -n 1 "$hook"
+            echo 'export PATH="{{.TOOLS_BIN}}:$PATH"  # monogo-tools-path'
+            tail -n +2 "$hook"
+          } > "$tmp"
+          cat "$tmp" > "$hook"
+          rm -f "$tmp"
+          echo "Prepended {{.TOOLS_BIN}} to PATH in $hook"
+        fi
 
   pre-commit:update:
     desc: Update pinned Go tools and pre-commit hooks, then verify.
@@ -545,6 +568,7 @@ tasks:
     desc: Run repository-wide generation, pre-commit, and vulnerability checks in CI.
     cmds:
       - task: tools:pre-commit
+        if: test '{{.SKIP_TOOL_INSTALL}}' != '1'
       - task: generate-all
       - task: _pre-commit-run
 
@@ -558,7 +582,7 @@ tasks:
     desc: Rebuild and publish APP Docker images in CI.
     cmds:
       - task: _app-check
-      - task: tools:release
+      - task: tools:docker-refresh
       - task: _generate-app
       - PATH='{{.TOOLS_BIN}}':"$PATH" '{{.TOOLS_BIN}}/goreleaser' release --clean --skip=announce,archive,before,homebrew,nfpm,sbom,validate
         --config '{{.APP_DIR}}/.goreleaser.yml'
@@ -592,6 +616,7 @@ tasks:
         vars: {TOOL: gremlins}
       - echo 'Running mutation tests for {{.APP}}...'
       - "'{{.TOOLS_BIN}}/gremlins' unleash -E vendor/ './{{.APP_DIR}}'"
+      - "'{{.TOOLS_BIN}}/gremlins' unleash -E vendor/ './pkg'"
       - echo 'Mutation testing completed.'
 
   test:changed:
@@ -766,7 +791,6 @@ tasks:
       - task: deps:update
       - task: deps:vendor
       - task: _local-vet
-      - pre-commit install
       - task: _pre-commit-run
       - task: _licenses
       - task: _clean
