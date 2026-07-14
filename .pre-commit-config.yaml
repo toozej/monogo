@@ -19,7 +19,7 @@ repos:
         pass_filenames: false
       - id: goreleaser-check-apps
         name: Check generated GoReleaser app configs
-        entry: bash -c 'for app in apps/*; do if [ -f "$app/.goreleaser.yml" ]; then goreleaser
+        entry: bash -c 'for app in apps/*; do if [ -f "$app/.goreleaser.yml" ]; then .tools/bin/goreleaser
           check --config "$app/.goreleaser.yml"; fi; done'
         language: system
         pass_filenames: false

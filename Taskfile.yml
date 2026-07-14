@@ -72,9 +72,6 @@ vars:
   COSIGN_IDENTITY_REGEXP: '^https://github.com/toozej/monogo/.github/workflows/(release|weekly-docker-refresh).yaml@refs/(tags/.*|heads/main)$'
   COSIGN_OIDC_ISSUER: 'https://token.actions.githubusercontent.com'
 
-env:
-  PATH: '{{.TOOLS_BIN}}:{{.PATH}}'
-
 tasks:
   default:
     desc: List the available tasks.
@@ -119,7 +116,11 @@ tasks:
   app:import:
     desc: Import a Go service repository into apps/.
     cmds:
-      - '{{.ROOT}}/scripts/import-app.sh "{{.APP}}" {{.IMPORT_ARGS}} {{.CLI_ARGS}}'
+      - task: prereqs
+      - task: _tool-install
+        vars: {TOOL: goreleaser}
+      - PATH='{{.TOOLS_BIN}}':"$PATH" '{{.ROOT}}/scripts/import-app.sh' "{{.APP}}" {{.IMPORT_ARGS}}
+        {{.CLI_ARGS}}
     vars:
       IMPORT_ARGS: '{{.IMPORT_ARGS|default ""}}'
 
@@ -246,7 +247,7 @@ tasks:
       - task: _tool-install
         vars: {TOOL: cosign}
       - >-
-        cosign verify
+        '{{.TOOLS_BIN}}/cosign' verify
         --certificate-identity-regexp '{{.COSIGN_IDENTITY_REGEXP}}'
         --certificate-oidc-issuer '{{.COSIGN_OIDC_ISSUER}}'
         '{{.IMAGE_REGISTRY}}{{.IMAGE_AUTHOR}}/{{.IMAGE_NAME}}:{{.IMAGE_TAG}}'
@@ -258,7 +259,7 @@ tasks:
       - task: _tool-install
         vars: {TOOL: cosign}
       - >-
-        cosign verify-blob
+        '{{.TOOLS_BIN}}/cosign' verify-blob
         --bundle '{{.DIST_DIR}}/checksums.txt.sigstore.json'
         --certificate-identity-regexp '{{.COSIGN_IDENTITY_REGEXP}}'
         --certificate-oidc-issuer '{{.COSIGN_OIDC_ISSUER}}'
@@ -272,7 +273,7 @@ tasks:
         vars: {TOOL: cosign}
       - for: ['', 'ghcr.io/', 'quay.io/']
         cmd: >-
-          cosign verify
+          '{{.TOOLS_BIN}}/cosign' verify
           --certificate-identity-regexp '{{.COSIGN_IDENTITY_REGEXP}}'
           --certificate-oidc-issuer '{{.COSIGN_OIDC_ISSUER}}'
           '{{.ITEM}}{{.IMAGE_AUTHOR}}/{{.IMAGE_NAME}}:{{.IMAGE_TAG}}'
@@ -408,7 +409,7 @@ tasks:
       - task: generate:app
       - task: _tool-install
         vars: {TOOL: air}
-      - air -c '{{.APP_DIR}}/.air.toml'
+      - "'{{.TOOLS_BIN}}/air' -c '{{.APP_DIR}}/.air.toml'"
 
   local:reload:
     desc: Rebuild, stop, and restart APP locally.
@@ -537,7 +538,8 @@ tasks:
       - task: _app-check
       - task: tools:release
       - task: _generate-app
-      - goreleaser release --clean --config '{{.APP_DIR}}/.goreleaser.yml'
+      - PATH='{{.TOOLS_BIN}}':"$PATH" '{{.TOOLS_BIN}}/goreleaser' release --clean --config
+        '{{.APP_DIR}}/.goreleaser.yml'
 
   ci:checks:
     desc: Run repository-wide generation, pre-commit, and vulnerability checks in CI.
@@ -559,7 +561,7 @@ tasks:
       - task: _app-check
       - task: tools:release
       - task: _generate-app
-      - goreleaser release --clean --skip=announce,archive,before,homebrew,nfpm,sbom,validate
+      - PATH='{{.TOOLS_BIN}}':"$PATH" '{{.TOOLS_BIN}}/goreleaser' release --clean --skip=announce,archive,before,homebrew,nfpm,sbom,validate
         --config '{{.APP_DIR}}/.goreleaser.yml'
 
   docs:
@@ -590,7 +592,7 @@ tasks:
       - task: _tool-install
         vars: {TOOL: gremlins}
       - echo 'Running mutation tests for {{.APP}}...'
-      - gremlins unleash -E vendor/ './{{.APP_DIR}}'
+      - "'{{.TOOLS_BIN}}/gremlins' unleash -E vendor/ './{{.APP_DIR}}'"
       - echo 'Mutation testing completed.'
 
   test:changed:
@@ -670,13 +672,13 @@ tasks:
     internal: true
     cmds:
       - task: _app-check
-      - '{{.ROOT}}/scripts/render-common-configs.sh "{{.APP}}"'
+      - PATH='{{.TOOLS_BIN}}':"$PATH" '{{.ROOT}}/scripts/render-common-configs.sh' "{{.APP}}"
 
   _generate-app:
     internal: true
     cmds:
       - task: _app-check
-      - '{{.ROOT}}/scripts/render-app-configs.sh "{{.APP}}"'
+      - PATH='{{.TOOLS_BIN}}':"$PATH" '{{.ROOT}}/scripts/render-app-configs.sh' "{{.APP}}"
 
   _generate-all:
     internal: true
@@ -689,7 +691,7 @@ tasks:
     internal: true
     cmds:
       - task: _app-check
-      - goreleaser check --config '{{.APP_DIR}}/.goreleaser.yml'
+      - "'{{.TOOLS_BIN}}/goreleaser' check --config '{{.APP_DIR}}/.goreleaser.yml'"
 
   _docker-vet:
     internal: true
@@ -722,27 +724,27 @@ tasks:
     internal: true
     cmds:
       - task: _app-check
-      - goimports -w '{{.APP_DIR}}' pkg
+      - "'{{.TOOLS_BIN}}/goimports' -w '{{.APP_DIR}}' pkg"
       - go vet {{.APP_PACKAGES}}
 
   _release-test:
     internal: true
     cmds:
       - task: _templates-check
-      - GORELEASER_CURRENT_TAG='{{.APP_VERSION_TAG}}' goreleaser build --clean --snapshot
-        --config '{{.APP_DIR}}/.goreleaser.yml'
+      - GORELEASER_CURRENT_TAG='{{.APP_VERSION_TAG}}' PATH='{{.TOOLS_BIN}}':"$PATH" '{{.TOOLS_BIN}}/goreleaser'
+        build --clean --snapshot --config '{{.APP_DIR}}/.goreleaser.yml'
 
   _pre-commit-run:
     internal: true
     cmds:
-      - pre-commit run --all-files
-      - govulncheck ./...
+      - PATH='{{.TOOLS_BIN}}':"$PATH" pre-commit run --all-files
+      - "'{{.TOOLS_BIN}}/govulncheck' ./..."
 
   _licenses:
     internal: true
     cmds:
       - task: _app-check
-      - go-licenses report '{{.PKG}}/apps/{{.APP}}'
+      - "'{{.TOOLS_BIN}}/go-licenses' report '{{.PKG}}/apps/{{.APP}}'"
 
   _clean:
     internal: true
