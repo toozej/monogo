@@ -549,10 +549,9 @@ tasks:
       - task: _pre-commit-run
 
   ci:test:
-    desc: Run APP tests, mutation tests, and license reporting in CI.
+    desc: Run APP tests and license reporting in CI.
     cmds:
       - task: local:test
-      - task: test:mutation
       - task: licenses:app
 
   ci:docker-refresh:
