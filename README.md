@@ -1,4 +1,4 @@
-# golang-starter
+# MonoGo
 
 ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/toozej/monogo)
 ![GitHub Actions CI Workflow Status](https://img.shields.io/github/actions/workflow/status/toozej/monogo/ci.yaml)
@@ -7,6 +7,8 @@
 ![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/toozej/monogo/total)
 
 <img src="img/avatar.png" alt="monogo avatar" style="background-color: #FFFFFF;" />
+
+MonoGo is a [Golang](https://go.dev/) [monorepo](https://en.wikipedia.org/wiki/Monorepo), allowing for a common update, build, test, and release pipeline as well an application scaffold for quickly setting up a new application.
 
 | App | Badges | Description |
 | --- | --- | --- |
@@ -30,7 +32,7 @@
 
 `golang-starter` is the starter app in this Go monorepo. It keeps shared repository concerns at the root while each app lives under `apps/<app>`.
 
-The root `go.mod`, `go.sum`, `.pre-commit-config.yaml`, `.devcontainer/`, workflows, scripts, Makefile, and `pkg/` packages are shared. App-local Docker and GoReleaser files are generated from `templates/app`; app-local Air and Compose files plus root shared files such as `.env.sample` are generated from `templates/common`.
+The root `go.mod`, `go.sum`, `.pre-commit-config.yaml`, `.devcontainer/`, workflows, scripts, Makefile, and `pkg/` packages are shared. Development-tool versions are isolated in `tools/go-tools.tsv`. App-local Docker and GoReleaser files are generated from `templates/app`; app-local Air and Compose files plus root shared files such as `.env.sample` are generated from `templates/common`.
 
 ## Common Commands
 
@@ -38,8 +40,10 @@ The root `go.mod`, `go.sum`, `.pre-commit-config.yaml`, `.devcontainer/`, workfl
 make list-apps
 make generate-all
 make test APP=golang-starter
+make mutation-test APP=golang-starter
 make local-build APP=golang-starter
 make release-test APP=golang-starter
+make pre-commit-install
 ```
 
 `APP` defaults to `golang-starter`, so `make test` and `make local-build` work for the starter app.
@@ -63,6 +67,19 @@ To add or customize an app:
 For normal per-app differences, change values in `apps/<app>/app.yaml`. Shared Go packages belong in root `pkg/`; app-private code belongs in `apps/<app>/internal`. For shared build or root tooling behavior, update `templates/app/*.tmpl` or `templates/common/*.tmpl` and run `make generate-all`.
 
 See [docs/app-configuration.md](docs/app-configuration.md) for the full `app.yaml` field reference, including CGO builds (`cgoEnabled`), runtime image selection (`runtimeImage`), and exposed ports (`port`).
+
+## Repository Tooling
+
+Go-based development tools are declared and version-pinned in
+`tools/go-tools.tsv`. Each tool is installed independently as `package@version`
+into `.tools/bin`, preventing tool dependency graphs from affecting the apps or
+one another. `make pre-commit-install` additionally installs the local Git hook.
+Normal installation never changes dependency pins.
+
+Run `make pre-commit-update` to upgrade the pinned Go tools and pre-commit hook
+revisions, regenerate app configs, and validate the updated toolchain. The
+scheduled tool autoupdate workflow runs the same target and opens a PR only when
+the update produces repository changes.
 
 ## Create a New App
 

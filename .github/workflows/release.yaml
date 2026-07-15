@@ -90,14 +90,16 @@ jobs:
         with:
           go-version: '^1.26'
           check-latest: true
-      - name: Install gomplate
-        run: make pre-reqs
-      - name: Generate app configs
-        run: make app-generate APP=${{ steps.release.outputs.app }}
+      - name: Cache pinned release tools
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .tools/bin
+          key: ${{ runner.os }}-${{ runner.arch }}-release-tools-${{ hashFiles('tools/go-tools.tsv',
+            'scripts/manage-go-tools.sh') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-release-tools-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
-      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
-      - uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
       - name: Login to DockerHub
         uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
         with:
@@ -115,19 +117,14 @@ jobs:
           registry: quay.io
           username: ${{ secrets.QUAY_USERNAME }}
           password: ${{ secrets.QUAY_TOKEN }}
-      - name: Run GoReleaser
+      - name: Run pinned release tools
         # Renders the Homebrew cask into dist/ as part of this single build
         # (the config sets skip_upload, so nothing is pushed to the tap here),
         # which means the cask's SHA-256 is computed from the exact archives
         # this run uploads to the GitHub release. The publish_homebrew_cask job
         # commits that rendered cask to the tap only after those release assets
         # exist, so a failed asset upload can never leave the tap at a 404.
-        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
-        with:
-          distribution: goreleaser
-          version: latest
-          args: release --clean --config apps/${{ steps.release.outputs.app }}/.goreleaser.yml
-          workdir: ${{ github.workspace }}
+        run: make ci-release APP=${{ steps.release.outputs.app }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
@@ -202,20 +199,29 @@ jobs:
     needs: goreleaser
     permissions:
       actions: read
+      contents: read
     steps:
-      - name: Install Cosign
-        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version: '^1.26'
+          check-latest: true
+      - name: Cache pinned release tools
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .tools/bin
+          key: ${{ runner.os }}-${{ runner.arch }}-release-tools-${{ hashFiles('tools/go-tools.tsv',
+            'scripts/manage-go-tools.sh') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-release-tools-
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: goreleaser-${{ needs.goreleaser.outputs.app }}-dist
           path: ./dist/${{ needs.goreleaser.outputs.app }}
       - name: Verify signature of checksums file
-        run: |
-          cosign verify-blob \
-            --bundle ./dist/${{ needs.goreleaser.outputs.app }}/checksums.txt.sigstore.json \
-            --certificate-identity-regexp '^https://github.com/toozej/monogo/.github/workflows/(release|weekly-docker-refresh).yaml@refs/(tags/.*|heads/main)$' \
-            --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
-            ./dist/${{ needs.goreleaser.outputs.app }}/checksums.txt
+        run: make verify-checksums APP=${{ needs.goreleaser.outputs.app }}
 
   trivy-scan-image:
     name: trivy-scan-image
@@ -235,18 +241,33 @@ jobs:
   verify_signed_docker_images:
     runs-on: ubuntu-latest
     needs: [goreleaser, trivy-scan-image]
-    permissions: {}
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
         registry: ['', 'ghcr.io/', 'quay.io/']
         tag: ['latest', 'distroless']
     steps:
-      - name: Install Cosign
-        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version: '^1.26'
+          check-latest: true
+      - name: Cache pinned release tools
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .tools/bin
+          key: ${{ runner.os }}-${{ runner.arch }}-release-tools-${{ hashFiles('tools/go-tools.tsv',
+            'scripts/manage-go-tools.sh') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-release-tools-
       - name: Verify signatures of Docker images
-        run: |
-          cosign verify \
-            --certificate-identity-regexp '^https://github.com/toozej/monogo/.github/workflows/(release|weekly-docker-refresh).yaml@refs/(tags/.*|heads/main)$' \
-            --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
-            ${{ matrix.registry }}toozej/${{ needs.goreleaser.outputs.image }}:${{ matrix.tag }}
+        # Use the comment-stripped image name parsed at release time
+        # (needs.goreleaser.outputs.image) rather than re-deriving it via the
+        # Makefile, which would leak any trailing inline YAML comment on app.yaml's
+        # `name:` into the cosign reference.
+        run: make verify APP=${{ needs.goreleaser.outputs.app }} IMAGE_NAME=${{ needs.goreleaser.outputs.image
+          }} IMAGE_REGISTRY=${{ matrix.registry }} IMAGE_TAG=${{ matrix.tag }}

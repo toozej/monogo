@@ -24,6 +24,23 @@ APP_COSIGN_KEY ?= $(APP_DIR)/$(APP_BINARY).key
 # Per-app demo script run by `make APP=<app> demo`; each app stores its own.
 APP_DEMO ?= $(APP_DIR)/demo.sh
 
+# Go tools are installed as package@version from a single manifest. Each tool
+# therefore gets its own module graph and cannot affect the applications or one
+# another.
+TOOLS_BIN := $(CURDIR)/.tools/bin
+GO_TOOLS := $(CURDIR)/scripts/manage-go-tools.sh
+GO_TOOL_MANIFEST ?= $(CURDIR)/tools/go-tools.tsv
+GO_TOOL_NAMES := $(shell if test -f "$(GO_TOOL_MANIFEST)"; then awk -F '\t' '$$1 !~ /^\#/ && NF { print $$1 }' "$(GO_TOOL_MANIFEST)"; fi)
+GO_TOOL_INSTALL_TARGETS := $(addsuffix -install,$(GO_TOOL_NAMES))
+export PATH := $(TOOLS_BIN):$(PATH)
+
+# Path to the makefile currently being read: the saved wrapper copy when invoked
+# as `make -f <wrapper>` (weekly-docker-refresh copies the current Makefile aside
+# before checking out an older release commit), else this Makefile. GNU make does
+# not propagate `-f` into recursive $(MAKE), so recipes that must keep using the
+# wrapper re-pass it explicitly via `-f "$(THIS_MAKEFILE)"`.
+THIS_MAKEFILE := $(firstword $(MAKEFILE_LIST))
+
 # Build info
 BUILDER = $(shell whoami)@$(shell hostname)
 NOW = $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -54,22 +71,33 @@ IMAGE_AUTHOR = toozej
 # off app.yaml's `name` field.
 IMAGE_NAME = $(shell echo '$(APP_NAME)' | tr '[:upper:]' '[:lower:]')
 IMAGE_TAG = latest
+IMAGE_REGISTRY ?=
+DIST_DIR ?= $(CURDIR)/dist/$(APP)
 
 COSIGN_IDENTITY_REGEXP := '^https://github.com/toozej/monogo/.github/workflows/(release|weekly-docker-refresh).yaml@refs/(tags/.*|heads/main)$$'
 COSIGN_OIDC_ISSUER := 'https://token.actions.githubusercontent.com'
 
-.PHONY: all list-apps import new-app delete-app migrate-internal-package app-check common-generate app-generate generate generate-all app-templates-check templates-check vet test build release release-all delete-release re-release verify verify-docker verify-docker-all-registries run up down docker-vet docker-test docker-build distroless-build distroless-run install local local-all local-update-deps local-vet local-vendor local-test local-cover local-build local-run local-kill local-iterate release-test local-install docker-login pre-commit-install pre-commit-run pre-commit pre-reqs licenses licenses-all update-golang-version upload-secrets-to-gh upload-secrets-envfile-to-1pass docs diagrams mutation-test test-changed watch-test profile-cpu profile-mem profile-all benchmark demo clean clean-all help
-.PHONY: common-generate-no-prereqs app-generate-no-prereqs app-templates-check-no-generate docker-vet-no-generate docker-test-no-generate docker-build-no-generate release-test-no-generate pre-commit-install-no-prereqs pre-commit-run-no-generate
+.PHONY: all list-apps import new-app delete-app migrate-internal-package app-check common-generate app-generate generate generate-all app-templates-check templates-check vet test build release release-all delete-release re-release verify verify-checksums verify-docker verify-docker-all-registries run up down docker-vet docker-test docker-build distroless-build distroless-run install local local-all local-update-deps local-vet local-vendor local-test local-cover local-build local-run local-kill local-iterate release-test local-install docker-login go-tools-install release-tools-install docker-refresh-tools-install ci-release ci-docker-refresh system-tools-install pre-commit-tools-install pre-commit-install pre-commit-update pre-commit-run pre-commit pre-reqs licenses licenses-all update-golang-version upload-secrets-to-gh upload-secrets-envfile-to-1pass docs diagrams mutation-test test-changed watch-test profile-cpu profile-mem profile-all benchmark demo clean clean-all help
+.PHONY: common-generate-no-prereqs app-generate-no-prereqs generate-no-prereqs generate-all-no-prereqs app-templates-check-no-generate docker-vet-no-generate docker-test-no-generate docker-build-no-generate release-test-no-generate local-no-prereqs local-vet-no-prereqs ci-docker-refresh-no-prereqs pre-commit-install-no-prereqs pre-commit-run-no-generate licenses-no-prereqs licenses-all-no-prereqs
+.PHONY: $(GO_TOOL_INSTALL_TARGETS)
 
-all: generate-all ## Run default workflow for every app using Docker where available
+all: pre-commit-tools-install ## Run default workflow for every app using Docker where available
+	$(MAKE) generate-all-no-prereqs local-update-deps local-vendor pre-commit-install-no-prereqs pre-commit-run-no-generate licenses-all-no-prereqs
 	@set -e; \
-	$(MAKE) local-update-deps local-vendor pre-commit-install-no-prereqs pre-commit-run-no-generate licenses-all; \
 	for app in $(APPS); do \
 		$(MAKE) app-check docker-vet-no-generate clean docker-test-no-generate docker-build-no-generate release-test-no-generate APP=$$app; \
 	done
-local: app-check generate local-update-deps local-vendor local-vet pre-commit clean local-test local-build release-test ## Run default workflow for APP using locally installed tools
-local-all: generate-all ## Run local vet, test, build, and release checks for every app
-	@for app in $(APPS); do $(MAKE) local APP=$$app; done
+
+local: app-check pre-commit-tools-install ## Run default workflow for APP using locally installed tools
+	$(MAKE) local-no-prereqs APP=$(APP)
+
+local-no-prereqs: app-check
+	$(MAKE) generate-no-prereqs local-update-deps local-vendor APP=$(APP)
+	$(MAKE) local-vet-no-prereqs pre-commit-install-no-prereqs pre-commit-run-no-generate licenses-no-prereqs APP=$(APP)
+	$(MAKE) clean local-test local-build release-test-no-generate APP=$(APP)
+
+local-all: pre-commit-tools-install ## Run local vet, test, build, and release checks for every app
+	@for app in $(APPS); do $(MAKE) local-no-prereqs APP=$$app; done
 
 list-apps: ## List monorepo apps
 	@printf '%s\n' $(APPS)
@@ -103,25 +131,31 @@ app-generate: pre-reqs ## Generate APP Docker, GoReleaser, Compose, and Air conf
 app-generate-no-prereqs: app-check
 	$(CURDIR)/scripts/render-app-configs.sh $(APP)
 
-generate: common-generate app-generate ## Generate root shared configs and APP configs
+generate: pre-reqs ## Generate root shared configs and APP configs
+	$(MAKE) generate-no-prereqs APP=$(APP)
+
+generate-no-prereqs: common-generate-no-prereqs app-generate-no-prereqs
 
 generate-all: pre-reqs ## Generate root shared configs and configs for every app
+	$(MAKE) generate-all-no-prereqs APP=$(APP)
+
+generate-all-no-prereqs:
 	$(MAKE) common-generate-no-prereqs APP=$(APP)
 	@for app in $(APPS); do $(MAKE) app-generate-no-prereqs APP=$$app; done
 
 
-app-templates-check: app-generate ## Render and check generated config for APP
+app-templates-check: app-generate goreleaser-install ## Render and check generated config for APP
 	$(MAKE) app-templates-check-no-generate APP=$(APP)
 
 app-templates-check-no-generate: app-check
 	goreleaser check --config $(APP_DIR)/.goreleaser.yml
 
-templates-check: pre-reqs ## Render and check generated config for every app
+templates-check: pre-reqs goreleaser-install ## Render and check generated config for every app
 	@for app in $(APPS); do $(MAKE) app-generate-no-prereqs app-templates-check-no-generate APP=$$app; done
 
 vet: local-vet ## Run goimports and go vet for APP
 
-test: local-test ## Run go test for APP
+test: local-test ## Run Go tests for APP
 
 build: docker-build ## Build APP Docker image
 
@@ -215,15 +249,22 @@ release-all: ## Release all apps with previous releases using TYPE=<major|minor|
 		echo "No apps with previous releases were found locally or on origin."; \
 	fi
 
-verify: app-check ## Verify APP Docker image with Cosign (keyless)
+verify: app-check cosign-install ## Verify APP Docker image with Cosign (keyless)
 	cosign verify \
 		--certificate-identity-regexp $(COSIGN_IDENTITY_REGEXP) \
 		--certificate-oidc-issuer $(COSIGN_OIDC_ISSUER) \
-		$(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG)
+		$(IMAGE_REGISTRY)$(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG)
+
+verify-checksums: app-check cosign-install ## Verify APP release checksums with Cosign (keyless)
+	cosign verify-blob \
+		--bundle $(DIST_DIR)/checksums.txt.sigstore.json \
+		--certificate-identity-regexp $(COSIGN_IDENTITY_REGEXP) \
+		--certificate-oidc-issuer $(COSIGN_OIDC_ISSUER) \
+		$(DIST_DIR)/checksums.txt
 
 verify-docker: verify ## Alias for verify
 
-verify-docker-all-registries: app-check ## Verify APP Docker images on all registries with Cosign (keyless)
+verify-docker-all-registries: app-check cosign-install ## Verify APP Docker images on all registries with Cosign (keyless)
 	@for registry in "" "ghcr.io/" "quay.io/"; do \
 		echo "=== Verifying $${registry:-DockerHub} ===" && \
 		cosign verify \
@@ -319,8 +360,10 @@ install: app-check ## Install APP via `go install` from the latest release commi
 local-update-deps: ## Run `go get -t -u ./...` to update Go module dependencies
 	go get -t -u ./...
 
-local-vet: app-check ## Run goimports and go vet for APP
-	command -v goimports >/dev/null 2>&1 || go install golang.org/x/tools/cmd/goimports@latest
+local-vet: goimports-install ## Run goimports and go vet for APP
+	$(MAKE) local-vet-no-prereqs APP=$(APP)
+
+local-vet-no-prereqs: app-check
 	goimports -w $(APP_DIR) pkg
 	go vet $(APP_PACKAGES)
 
@@ -328,7 +371,7 @@ local-vendor: ## Run `go mod tidy & vendor` using locally installed golang toolc
 	go mod tidy
 	go mod vendor
 
-local-test: app-check ## Run go test for APP
+local-test: app-check ## Run Go tests for APP
 	go test -race -coverprofile $(APP_DIR)/c.out -v $(APP_PACKAGES)
 	@echo -e "\nStatements missing coverage"
 	@grep -e " 0$$" $(APP_DIR)/c.out || true
@@ -349,7 +392,7 @@ local-run: app-check ## Run locally built APP binary
 local-kill: app-check ## Kill any currently running locally built APP binary
 	-pkill -f '$(CURDIR)/out/$(APP_BINARY)'
 
-local-iterate: app-check generate ## Run APP local build and run via air when files change
+local-iterate: app-check generate air-install ## Run APP local build and run via air when files change
 	air -c $(APP_DIR)/.air.toml
 
 demo: app-check local-build ## Run APP demo script (apps/APP/demo.sh) against the freshly built binary
@@ -366,7 +409,7 @@ demo: app-check local-build ## Run APP demo script (apps/APP/demo.sh) against th
 		echo "Add an executable bash script there to enable 'make APP=$(APP) demo'."; \
 	fi
 
-release-test: app-generate ## Check GoReleaser config and build APP snapshot
+release-test: app-generate goreleaser-install ## Check GoReleaser config and build APP snapshot
 	$(MAKE) release-test-no-generate APP=$(APP)
 
 release-test-no-generate: app-templates-check-no-generate
@@ -396,15 +439,31 @@ docker-login: ## Login to Docker registries used to publish images to
 		echo "No container registry credentials found, need to add them to ./.env. See README.md for more info"; \
 	fi
 
-pre-reqs: ## Install repository prerequisites
-	command -v gomplate >/dev/null 2>&1 || go install github.com/hairyhenderson/gomplate/v5/cmd/gomplate@latest
+go-tools-install: $(GO_TOOL_INSTALL_TARGETS) ## Install every Go tool pinned in tools/go-tools.tsv
+
+$(GO_TOOL_INSTALL_TARGETS): %-install:
+	TOOLS_BIN="$(TOOLS_BIN)" $(GO_TOOLS) install $*
+
+release-tools-install: gomplate-install goreleaser-install cosign-install syft-install ## Install pinned release tools
+
+docker-refresh-tools-install: gomplate-install goreleaser-install cosign-install ## Install pinned Docker-refresh tools (omits syft; the refresh runs GoReleaser with --skip=sbom)
+
+ci-release: app-check release-tools-install ## Build, sign, and publish APP release artifacts in CI
+	$(MAKE) app-generate-no-prereqs APP=$(APP)
+	goreleaser release --clean --config $(APP_DIR)/.goreleaser.yml
+
+ci-docker-refresh: app-check docker-refresh-tools-install ## Rebuild and publish APP Docker images in CI
+	$(MAKE) ci-docker-refresh-no-prereqs APP=$(APP)
+
+ci-docker-refresh-no-prereqs: app-check
+	$(MAKE) -f "$(THIS_MAKEFILE)" app-generate-no-prereqs APP=$(APP)
+	goreleaser release --clean --skip=announce,archive,before,homebrew,nfpm,sbom,validate --config $(APP_DIR)/.goreleaser.yml
+
+pre-reqs: gomplate-install ## Install repository prerequisites
 
 pre-commit: pre-commit-install pre-commit-run ## Install and run pre-commit hooks
 
-pre-commit-install: pre-reqs ## Install pre-commit hooks and necessary binaries
-	$(MAKE) pre-commit-install-no-prereqs
-
-pre-commit-install-no-prereqs:
+system-tools-install: ## Install non-Go tools needed by repository checks
 	command -v apt >/dev/null 2>&1 && apt-get update || echo "package manager not apt"
 	# uv (Python packaging tool used by Python pre-commit hooks)
 	@if ! command -v uv >/dev/null 2>&1; then \
@@ -416,64 +475,73 @@ pre-commit-install-no-prereqs:
 			python3 -m pip install --break-system-packages --upgrade uv || python3 -m pip install --user --upgrade uv || echo "uv not found; install from https://docs.astral.sh/uv/"; \
 		fi; \
 	fi
-	# golangci-lint
-	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
-	# goimports
-	go install golang.org/x/tools/cmd/goimports@latest
-	# gosec
-	go install github.com/securego/gosec/v2/cmd/gosec@latest
-	# staticcheck
-	go install honnef.co/go/tools/cmd/staticcheck@latest
-	# go-critic
-	go install github.com/go-critic/go-critic/cmd/go-critic@latest
 	# shellcheck
 	command -v shellcheck >/dev/null 2>&1 || brew install shellcheck || apt install -y shellcheck || sudo dnf install -y ShellCheck || sudo apt install -y shellcheck
-	# checkmake
-	go install github.com/checkmake/checkmake/cmd/checkmake@latest
-	# goreleaser
-	go install github.com/goreleaser/goreleaser/v2@latest
-	# actionlint
-	command -v actionlint >/dev/null 2>&1 || brew install actionlint || go install github.com/rhysd/actionlint/cmd/actionlint@latest
-	# syft
-	command -v syft >/dev/null 2>&1 || brew install syft || curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
-	# cosign
-	command -v cosign >/dev/null 2>&1 || brew install cosign || go install github.com/sigstore/cosign/v3/cmd/cosign@latest
-	# go-licenses
-	go install github.com/google/go-licenses@latest
-	# go vuln check
-	go install golang.org/x/vuln/cmd/govulncheck@latest
-	# air
-	go install github.com/air-verse/air@latest
 	# graphviz for dot
 	command -v dot >/dev/null 2>&1 || brew install graphviz || sudo apt install -y graphviz || sudo dnf install -y graphviz
 	# semgrep
 	command -v semgrep >/dev/null 2>&1 || brew install semgrep || python3 -m pip install --break-system-packages --upgrade semgrep
-	# install and update pre-commits
+	# pre-commit CLI
 	grep --silent "VERSION=\"12 (bookworm)\"" /etc/os-release && apt install -y --no-install-recommends python3-pip && python3 -m pip install --break-system-packages --upgrade pre-commit || echo "OS is not Debian 12 bookworm"
 	command -v pre-commit >/dev/null 2>&1 || brew install pre-commit || sudo dnf install -y pre-commit || sudo apt install -y pre-commit
-	pre-commit install
-	pre-commit autoupdate
 
-pre-commit-run: generate-all ## Run pre-commit hooks, govulncheck, and license checks against all files
-	$(MAKE) pre-commit-run-no-generate licenses-all
+pre-commit-tools-install: go-tools-install system-tools-install ## Install pinned tools and hook environments
+	pre-commit install-hooks
+
+pre-commit-install: pre-commit-tools-install ## Install the local Git pre-commit hook
+	$(MAKE) pre-commit-install-no-prereqs
+
+pre-commit-install-no-prereqs:
+	pre-commit install
+	# git runs .git/hooks/pre-commit outside make, where the repo-local pinned
+	# tools in .tools/bin are not on PATH. The tekwizely Go hooks (golangci-lint,
+	# gosec, staticcheck, go-critic, goimports) and the goreleaser-check hook
+	# resolve their binaries from PATH, so prepend .tools/bin to PATH in the
+	# generated hook (pre-commit writes it as a bash script) to keep `git commit`
+	# working. Idempotent via a marker; re-applied each time the hook is installed.
+	@hook="$$(git rev-parse --git-path hooks/pre-commit)"; \
+	if [ -f "$$hook" ] && ! grep -q 'monogo-tools-path' "$$hook"; then \
+		tmp="$$(mktemp)"; \
+		{ head -n 1 "$$hook"; \
+		  echo 'export PATH="$(TOOLS_BIN):$$PATH"  # monogo-tools-path'; \
+		  tail -n +2 "$$hook"; } >"$$tmp"; \
+		cat "$$tmp" >"$$hook"; \
+		rm -f "$$tmp"; \
+		echo "Prepended $(TOOLS_BIN) to PATH in $$hook"; \
+	fi
+
+pre-commit-update: system-tools-install ## Update pinned Go tools and pre-commit hook revisions, then verify
+	TOOLS_BIN="$(TOOLS_BIN)" $(GO_TOOLS) update
+	$(MAKE) go-tools-install
+	pre-commit autoupdate
+	$(MAKE) generate-all-no-prereqs
+	$(MAKE) pre-commit-run-no-generate
+
+pre-commit-run: pre-commit-tools-install generate-all ## Run pre-commit hooks, govulncheck, and license checks against all files
+	$(MAKE) pre-commit-run-no-generate licenses-all-no-prereqs
 
 pre-commit-run-no-generate:
 	pre-commit run --all-files
 	# manually run govulncheck since it has no working pre-commit hook
 	govulncheck ./...
 
-licenses: app-check ## Report third-party licenses for APP
-	command -v go-licenses >/dev/null 2>&1 || go install github.com/google/go-licenses@latest
+licenses: go-licenses-install ## Report third-party licenses for APP
+	$(MAKE) licenses-no-prereqs APP=$(APP)
+
+licenses-no-prereqs: app-check
 	go-licenses report $(PKG)/apps/$(APP)
 
-licenses-all: ## Report third-party licenses for every app
-	@for app in $(APPS); do $(MAKE) licenses APP=$$app; done
+licenses-all: go-licenses-install ## Report third-party licenses for every app
+	$(MAKE) licenses-all-no-prereqs
+
+licenses-all-no-prereqs:
+	@for app in $(APPS); do $(MAKE) licenses-no-prereqs APP=$$app; done
 
 update-golang-version: ## Update to latest Golang version across the repo
 	@VERSION=`curl -s "https://go.dev/dl/?mode=json" | jq -r '.[0].version' | sed 's/go//' | cut -d '.' -f 1,2`; \
 	$(CURDIR)/scripts/update_golang_version.sh $$VERSION
 
-docs: app-check ## Serve Go documentation; browser opens to APP's package, whole module stays browsable
+docs: app-check ## Serve Go documentation
 	@echo "=== Serving Go documentation (browser opens to $(APP)) ==="
 	@echo "go doc -http prints its URL below (e.g. http://localhost:<port>) and opens your browser to"
 	@echo "the ./$(APP_MAIN_PATH) package. Every package in the module stays browsable from there."
@@ -488,7 +556,7 @@ diagrams: app-generate ## Generate APP architectural diagrams using go-diagrams
 	done
 	@echo "Diagram PNGs generated in ./docs/diagrams/$(APP)/go-diagrams/"
 
-mutation-test: app-check ## Run APP mutation testing using go-gremlins
+mutation-test: app-check gremlins-install ## Run APP mutation testing using go-gremlins
 	@echo "Running mutation tests for $(APP)..."
 	gremlins unleash -E "vendor/" $(APP_PACKAGES)
 	@echo "Mutation testing completed"

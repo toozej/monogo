@@ -69,6 +69,30 @@ jobs:
       - name: Fetch all tags
         run: git fetch --force --tags
 
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version: '^1.26'
+          check-latest: true
+
+      - name: Cache pinned release tools
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .tools/bin
+          key: ${{ runner.os }}-${{ runner.arch }}-release-tools-${{ hashFiles('tools/go-tools.tsv',
+            'scripts/manage-go-tools.sh') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-release-tools-
+
+      - name: Install pinned release tools
+        run: |
+          # Save the current workflow wrapper before checking out an older app
+          # release commit, whose Makefile may predate the wrapper target. The
+          # refresh runs GoReleaser with --skip=sbom, so syft is not installed.
+          cp Makefile "$RUNNER_TEMP/monogo.Makefile"
+          make docker-refresh-tools-install
+          echo "$PWD/.tools/bin" >> "$GITHUB_PATH"
+
       - name: Resolve and check out latest release commit
         id: release_tag
         run: |
@@ -121,24 +145,8 @@ jobs:
             echo "version=${version}"
           } >> "${GITHUB_OUTPUT}"
 
-      - name: Set up Go
-        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
-        with:
-          go-version: '^1.26'
-          check-latest: true
-
-      - name: Install gomplate
-        run: make pre-reqs
-
-      - name: Generate app configs
-        run: make app-generate APP=${{ matrix.app }}
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
-
-      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
-
-      - uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
 
       - name: Login to DockerHub
         uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
@@ -161,13 +169,8 @@ jobs:
           password: ${{ secrets.QUAY_TOKEN }}
 
       - name: Run GoReleaser Docker refresh
-        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
-        with:
-          distribution: goreleaser
-          version: latest
-          args: release --clean --skip=announce,archive,before,homebrew,nfpm,sbom,validate
-            --config apps/${{ matrix.app }}/.goreleaser.yml
-          workdir: ${{ github.workspace }}
+        run: make -f "$RUNNER_TEMP/monogo.Makefile" ci-docker-refresh-no-prereqs APP=${{ matrix.app
+          }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
@@ -184,7 +187,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: [resolve-apps, goreleaser-weekly-docker-refresh]
     if: needs.resolve-apps.outputs.apps != '[]'
-    permissions: {}
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -192,13 +196,27 @@ jobs:
         registry: ['', 'ghcr.io/', 'quay.io/']
         tag: ['latest', 'distroless']
     steps:
-      - name: Install Cosign
-        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version: '^1.26'
+          check-latest: true
+      - name: Cache pinned release tools
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .tools/bin
+          key: ${{ runner.os }}-${{ runner.arch }}-release-tools-${{ hashFiles('tools/go-tools.tsv',
+            'scripts/manage-go-tools.sh') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-release-tools-
       - name: Verify signatures of Docker images
         run: |
           app="${{ matrix.app }}"
           image="${app,,}"
-          cosign verify \
-            --certificate-identity-regexp '^https://github.com/toozej/monogo/.github/workflows/(release|weekly-docker-refresh).yaml@refs/(tags/.*|heads/main)$' \
-            --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
-            "${{ matrix.registry }}toozej/${image}:${{ matrix.tag }}"
+          make verify \
+            APP="${{ matrix.app }}" \
+            IMAGE_NAME="${image}" \
+            IMAGE_REGISTRY="${{ matrix.registry }}" \
+            IMAGE_TAG="${{ matrix.tag }}"
