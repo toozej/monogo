@@ -16,7 +16,7 @@ require (
 
 require (
 	github.com/apparentlymart/go-textseg/v17 v17.0.1 // indirect
-	github.com/cyphar/filepath-securejoin v0.6.1 // indirect
+	github.com/cyphar/filepath-securejoin v0.7.0 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
@@ -30,7 +30,7 @@ require (
 	github.com/agext/levenshtein v1.2.3 // indirect
 	github.com/andybalholm/cascadia v1.3.4 // indirect
 	github.com/antchfx/xmlquery v1.5.1
-	github.com/antchfx/xpath v1.3.6 // indirect
+	github.com/antchfx/xpath v1.3.7 // indirect
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
 	github.com/awalterschulze/gographviz v2.0.3+incompatible // indirect
 	github.com/blacktop/go-termimg v0.1.26
@@ -44,7 +44,7 @@ require (
 	github.com/charmbracelet/colorprofile v0.4.3 // indirect
 	github.com/charmbracelet/x/ansi v0.11.7 // indirect
 	github.com/charmbracelet/x/cellbuf v0.0.15 // indirect
-	github.com/charmbracelet/x/mosaic v0.0.0-20260705004817-2cc9a8fe1146 // indirect
+	github.com/charmbracelet/x/mosaic v0.0.0-20260713092006-0d683c34c74b // indirect
 	github.com/charmbracelet/x/term v0.2.2 // indirect
 	github.com/chromedp/cdproto v0.0.0-20250724212937-08a3db8b4327 // indirect
 	github.com/chromedp/chromedp v0.14.2
@@ -120,7 +120,7 @@ require (
 	github.com/lucasb-eyer/go-colorful v1.4.0 // indirect
 	github.com/makeworld-the-better-one/dither/v2 v2.4.0 // indirect
 	github.com/makiuchi-d/gozxing v0.1.1
-	github.com/mattn/go-isatty v0.0.22 // indirect
+	github.com/mattn/go-isatty v0.0.23 // indirect
 	github.com/mattn/go-mastodon v0.0.13
 	github.com/mattn/go-runewidth v0.0.24 // indirect
 	github.com/mattn/go-sixel v0.0.12 // indirect
@@ -141,7 +141,7 @@ require (
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646 // indirect
 	github.com/nikoksr/notify v1.5.0
 	github.com/njayp/ophis v1.1.4
-	github.com/openai/openai-go/v3 v3.41.1
+	github.com/openai/openai-go/v3 v3.43.0
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.4.3 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
@@ -208,7 +208,7 @@ require (
 	modernc.org/libc v1.74.1 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
-	modernc.org/sqlite v1.53.0 // indirect
+	modernc.org/sqlite v1.54.0 // indirect
 )
 
 // github.com/davhofer/indigo (pulled in transitively via rss2socials -> botsky)
