@@ -30,7 +30,9 @@ APP_DEMO ?= $(APP_DIR)/demo.sh
 TOOLS_BIN := $(CURDIR)/.tools/bin
 GO_TOOLS := $(CURDIR)/scripts/manage-go-tools.sh
 GO_TOOL_MANIFEST ?= $(CURDIR)/tools/go-tools.tsv
-GO_TOOL_NAMES := $(shell if test -f "$(GO_TOOL_MANIFEST)"; then awk -F '\t' '$$1 !~ /^\#/ && NF { print $$1 }' "$(GO_TOOL_MANIFEST)"; fi)
+# Use the character code for "#" because GNU awk warns that \# is an unknown
+# regexp escape, while an unescaped # would start a Make comment here.
+GO_TOOL_NAMES := $(shell if test -f "$(GO_TOOL_MANIFEST)"; then awk -F '\t' 'NF && substr($$1, 1, 1) != sprintf("%c", 35) { print $$1 }' "$(GO_TOOL_MANIFEST)"; fi)
 GO_TOOL_INSTALL_TARGETS := $(addsuffix -install,$(GO_TOOL_NAMES))
 export PATH := $(TOOLS_BIN):$(PATH)
 
