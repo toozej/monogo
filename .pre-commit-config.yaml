@@ -70,7 +70,7 @@ repos:
         # same long free-text description and should likewise stay on one line.
         # Both are structured config validated elsewhere (goreleaser check /
         # check-yaml), so leave their formatting alone.
-        exclude: '(^|/)(\.goreleaser\.ya?ml|app\.yaml)$'
+        exclude: '(^|/)(\.goreleaser\.ya?ml|app\.yaml|swagger\.yaml)$'
 
   # Golang formatting, linting, security and static analysis
   - repo: https://github.com/tekwizely/pre-commit-golang

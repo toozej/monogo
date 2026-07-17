@@ -82,7 +82,9 @@ make local-run
 
 The compiled binary is output to `out/podgrab`.
 
-Access the web interface at `http://localhost:8080`
+Access the web interface at `http://localhost:8080`. Interactive Swagger API
+documentation is available at `http://localhost:8080/swagger/index.html` and
+uses the same optional `PASSWORD` authentication as the application.
 
 ### Make Targets
 
@@ -202,7 +204,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
 - **[Contributing](CONTRIBUTING.md)**: How to contribute to Podgrab
 - **[Logging Guide](internal/logger/README.md)**: Structured logging
   documentation
-- **[API Documentation](docs/api/)**: REST API reference
+- **Swagger API Documentation**: Interactive REST API reference at
+  `/swagger/index.html` on a running Podgrab server
 - **[Architecture](docs/architecture/)**: System design and architecture
 
 ## Technology Stack

@@ -1,0 +1,1417 @@
+basePath: /
+definitions:
+  controllers.AddPodcastData:
+    properties:
+      url:
+        type: string
+    required:
+    - url
+    type: object
+  controllers.AddTagData:
+    properties:
+      description:
+        type: string
+      label:
+        type: string
+    required:
+    - label
+    type: object
+  controllers.PatchPodcastItem:
+    properties:
+      isPlayed:
+        type: boolean
+      title:
+        type: string
+    type: object
+  controllers.PodcastItemsResponse:
+    properties:
+      filter:
+        $ref: '#/definitions/model.EpisodesFilter'
+      podcastItems:
+        items:
+          $ref: '#/definitions/db.PodcastItem'
+        type: array
+    type: object
+  controllers.SettingModel:
+    properties:
+      autoDownload:
+        type: boolean
+      baseUrl:
+        type: string
+      darkMode:
+        type: boolean
+      dontDownloadDeletedFromDisk:
+        type: boolean
+      downloadEpisodeImages:
+        type: boolean
+      downloadOnAdd:
+        type: boolean
+      fileNameFormat:
+        type: string
+      generateNFOFile:
+        type: boolean
+      initialDownloadCount:
+        type: integer
+      maxDownloadConcurrency:
+        type: integer
+      maxDownloadKeep:
+        type: integer
+      passthroughPodcastGuid:
+        type: boolean
+      userAgent:
+        type: string
+    type: object
+  db.DownloadStatus:
+    enum:
+    - 0
+    - 1
+    - 2
+    - 3
+    type: integer
+    x-enum-varnames:
+    - NotDownloaded
+    - Downloading
+    - Downloaded
+    - Deleted
+  db.Podcast:
+    properties:
+      allEpisodesCount:
+        type: integer
+      allEpisodesSize:
+        type: integer
+      author:
+        type: string
+      createdAt:
+        type: string
+      deletedAt:
+        type: string
+      downloadedEpisodesCount:
+        type: integer
+      downloadedEpisodesSize:
+        type: integer
+      downloadingEpisodesCount:
+        type: integer
+      downloadingEpisodesSize:
+        type: integer
+      id:
+        type: string
+      image:
+        type: string
+      isPaused:
+        type: boolean
+      lastEpisode:
+        type: string
+      podcastItems:
+        items:
+          $ref: '#/definitions/db.PodcastItem'
+        type: array
+      summary:
+        type: string
+      tags:
+        items:
+          $ref: '#/definitions/db.Tag'
+        type: array
+      title:
+        type: string
+      updatedAt:
+        type: string
+      url:
+        type: string
+    type: object
+  db.PodcastItem:
+    properties:
+      bookmarkDate:
+        type: string
+      createdAt:
+        type: string
+      deletedAt:
+        type: string
+      downloadDate:
+        type: string
+      downloadPath:
+        type: string
+      downloadStatus:
+        $ref: '#/definitions/db.DownloadStatus'
+      duration:
+        type: integer
+      episodeType:
+        type: string
+      fileSize:
+        format: int64
+        type: integer
+      fileURL:
+        type: string
+      guid:
+        type: string
+      id:
+        type: string
+      image:
+        type: string
+      isPlayed:
+        type: boolean
+      localImage:
+        type: string
+      podcast:
+        $ref: '#/definitions/db.Podcast'
+      podcastID:
+        type: string
+      pubDate:
+        type: string
+      summary:
+        type: string
+      title:
+        type: string
+      updatedAt:
+        type: string
+    type: object
+  db.Tag:
+    properties:
+      createdAt:
+        type: string
+      deletedAt:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      label:
+        type: string
+      podcasts:
+        items:
+          $ref: '#/definitions/db.Podcast'
+        type: array
+      updatedAt:
+        type: string
+    type: object
+  main.VersionResponse:
+    properties:
+      branch:
+        type: string
+      builder:
+        type: string
+      builtAt:
+        type: string
+      commit:
+        type: string
+      version:
+        type: string
+    type: object
+  model.CommonSearchResultModel:
+    properties:
+      already_saved:
+        type: boolean
+      categories:
+        items:
+          type: string
+        type: array
+      description:
+        type: string
+      image:
+        type: string
+      title:
+        type: string
+      url:
+        type: string
+    type: object
+  model.EpisodeSort:
+    enum:
+    - release_asc
+    - release_desc
+    - duration_asc
+    - duration_desc
+    type: string
+    x-enum-varnames:
+    - ReleaseAsc
+    - ReleaseDesc
+    - DurationAsc
+    - DurationDesc
+  model.EpisodesFilter:
+    properties:
+      count:
+        default: 20
+        type: integer
+      downloadStatus:
+        type: string
+      episodeType:
+        type: string
+      isPlayed:
+        type: string
+      nextPage:
+        type: integer
+      page:
+        default: 1
+        type: integer
+      podcastIDs:
+        items:
+          type: string
+        type: array
+      previousPage:
+        type: integer
+      q:
+        type: string
+      sorting:
+        $ref: '#/definitions/model.EpisodeSort'
+      tagIDs:
+        items:
+          type: string
+        type: array
+      totalCount:
+        type: integer
+      totalPages:
+        type: integer
+    type: object
+info:
+  contact: {}
+  description: |-
+    API for managing podcasts, episodes, tags, settings, imports, exports, and generated feeds in Podgrab.
+    Set PASSWORD to require HTTP Basic authentication with the username "podgrab".
+  title: Podgrab API
+  version: "1.0"
+paths:
+  /opml:
+    get:
+      parameters:
+      - default: false
+        description: Use Podgrab feed URLs instead of original feed URLs
+        in: query
+        name: usePodgrabLink
+        type: boolean
+      produces:
+      - application/xml
+      responses:
+        "200":
+          description: OPML document
+          schema:
+            type: file
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BasicAuth: []
+      summary: Export podcasts as OPML
+      tags:
+      - imports-exports
+    post:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: OPML document
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BasicAuth: []
+      summary: Import podcasts from OPML
+      tags:
+      - imports-exports
+  /podcastitems:
+    get:
+      description: Returns a filtered, sorted, paginated list of podcast episodes.
+      parameters:
+      - description: Download status
+        in: query
+        name: downloadStatus
+        type: string
+      - description: Episode type
+        in: query
+        name: episodeType
+        type: string
+      - description: Played-state filter
+        in: query
+        name: isPlayed
+        type: string
+      - default: release_desc
+        description: Sort order
+        enum:
+        - release_asc
+        - release_desc
+        - duration_asc
+        - duration_desc
+        in: query
+        name: sorting
+        type: string
+      - description: Text search
+        in: query
+        name: q
+        type: string
+      - collectionFormat: csv
+        description: Tag IDs
+        in: query
+        items:
+          type: string
+        name: tagIds[]
+        type: array
+      - collectionFormat: csv
+        description: Podcast IDs
+        in: query
+        items:
+          type: string
+        name: podcastIDs[]
+        type: array
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Episodes per page
+        in: query
+        name: count
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controllers.PodcastItemsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BasicAuth: []
+      summary: List episodes
+      tags:
+      - episodes
+  /podcastitems/{id}:
+    get:
+      parameters:
+      - description: Episode ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/db.PodcastItem'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BasicAuth: []
+      summary: Get an episode
+      tags:
+      - episodes
+    patch:
+      consumes:
+      - application/json
+      description: Updates an episode's title and played state.
+      parameters:
+      - description: Episode ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Episode changes
+        in: body
+        name: episode
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.PatchPodcastItem'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/db.PodcastItem'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BasicAuth: []
+      summary: Update an episode
+      tags:
+      - episodes
+  /podcastitems/{id}/bookmark:
+    get:
+      parameters:
+      - description: Episode ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: Episode bookmarked
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BasicAuth: []
+      summary: Bookmark an episode
+      tags:
+      - episodes
+  /podcastitems/{id}/delete:
+    get:
+      description: Starts asynchronous deletion of the selected episode's local file.
+      parameters:
+      - description: Episode ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BasicAuth: []
+      summary: Delete an episode file
+      tags:
+      - episodes
+  /podcastitems/{id}/download:
+    get:
+      description: Starts an asynchronous download for the selected episode.
+      parameters:
+      - description: Episode ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BasicAuth: []
+      summary: Queue an episode for download
+      tags:
+      - episodes
+  /podcastitems/{id}/file:
+    get:
+      description: Downloads the local episode file or redirects to its remote audio
+        URL.
+      parameters:
+      - description: Episode ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "302":
+          description: Redirect to remote audio
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BasicAuth: []
+      summary: Get an episode audio file
+      tags:
+      - episodes
+      - media
+  /podcastitems/{id}/image:
+    get:
+      description: Returns the cached episode image or redirects to its remote image.
+      parameters:
+      - description: Episode ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "302":
+          description: Redirect to remote image
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BasicAuth: []
+      summary: Get an episode image
+      tags:
+      - episodes
+      - media
+  /podcastitems/{id}/markPlayed:
+    get:
+      parameters:
+      - description: Episode ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: Episode marked played
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BasicAuth: []
+      summary: Mark an episode played
+      tags:
+      - episodes
+  /podcastitems/{id}/markUnplayed:
+    get:
+      parameters:
+      - description: Episode ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: Episode marked unplayed
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BasicAuth: []
+      summary: Mark an episode unplayed
+      tags:
+      - episodes
+  /podcastitems/{id}/unbookmark:
+    get:
+      parameters:
+      - description: Episode ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: Episode bookmark removed
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BasicAuth: []
+      summary: Remove an episode bookmark
+      tags:
+      - episodes
+  /podcasts:
+    get:
+      description: Returns every saved podcast using the requested sorting.
+      parameters:
+      - default: dateadded
+        description: Sort field
+        enum:
+        - dateadded
+        - name
+        - lastepisode
+        in: query
+        name: sort
+        type: string
+      - default: asc
+        description: Sort order
+        enum:
+        - asc
+        - desc
+        in: query
+        name: order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/db.Podcast'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BasicAuth: []
+      summary: List podcasts
+      tags:
+      - podcasts
+    post:
+      consumes:
+      - application/json
+      description: Saves a podcast from its feed URL and starts an asynchronous feed
+        refresh.
+      parameters:
+      - description: Podcast feed
+        in: body
+        name: podcast
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.AddPodcastData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/db.Podcast'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BasicAuth: []
+      summary: Add a podcast
+      tags:
+      - podcasts
+  /podcasts/{id}:
+    delete:
+      parameters:
+      - description: Podcast ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Podcast and episode files deleted
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BasicAuth: []
+      summary: Delete a podcast and its files
+      tags:
+      - podcasts
+    get:
+      parameters:
+      - description: Podcast ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/db.Podcast'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BasicAuth: []
+      summary: Get a podcast
+      tags:
+      - podcasts
+  /podcasts/{id}/download:
+    get:
+      parameters:
+      - description: Podcast ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BasicAuth: []
+      summary: Queue all episodes for download
+      tags:
+      - podcasts
+      - episodes
+  /podcasts/{id}/image:
+    get:
+      description: Returns the cached podcast image or redirects to its remote image.
+      parameters:
+      - description: Podcast ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "302":
+          description: Redirect to remote image
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BasicAuth: []
+      summary: Get a podcast image
+      tags:
+      - podcasts
+      - media
+  /podcasts/{id}/items:
+    delete:
+      parameters:
+      - description: Podcast ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Episode files deleted
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BasicAuth: []
+      summary: Delete all episode files for a podcast
+      tags:
+      - podcasts
+    get:
+      parameters:
+      - description: Podcast ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/db.PodcastItem'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BasicAuth: []
+      summary: List a podcast's episodes
+      tags:
+      - podcasts
+      - episodes
+  /podcasts/{id}/pause:
+    get:
+      description: Prevents automatic processing for the podcast.
+      parameters:
+      - description: Podcast ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BasicAuth: []
+      summary: Pause a podcast
+      tags:
+      - podcasts
+  /podcasts/{id}/podcast:
+    delete:
+      parameters:
+      - description: Podcast ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Podcast deleted
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BasicAuth: []
+      summary: Delete a podcast but keep its files
+      tags:
+      - podcasts
+  /podcasts/{id}/refresh:
+    get:
+      description: Starts an asynchronous refresh of the selected podcast feed.
+      parameters:
+      - description: Podcast ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BasicAuth: []
+      summary: Refresh one podcast
+      tags:
+      - podcasts
+  /podcasts/{id}/rss:
+    get:
+      parameters:
+      - description: Podcast ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/xml
+      responses:
+        "200":
+          description: RSS XML
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BasicAuth: []
+      summary: Get a podcast RSS feed
+      tags:
+      - podcasts
+      - feeds
+  /podcasts/{id}/tags/{tagID}:
+    delete:
+      parameters:
+      - description: Podcast ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Tag ID
+        in: path
+        name: tagID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BasicAuth: []
+      summary: Remove a tag from a podcast
+      tags:
+      - podcasts
+      - tags
+    post:
+      parameters:
+      - description: Podcast ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Tag ID
+        in: path
+        name: tagID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BasicAuth: []
+      summary: Add a tag to a podcast
+      tags:
+      - podcasts
+      - tags
+  /podcasts/{id}/unpause:
+    get:
+      parameters:
+      - description: Podcast ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BasicAuth: []
+      summary: Unpause a podcast
+      tags:
+      - podcasts
+  /refreshAll:
+    get:
+      description: Starts an asynchronous refresh of every saved podcast feed.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+      security:
+      - BasicAuth: []
+      summary: Refresh all podcasts
+      tags:
+      - podcasts
+  /rss:
+    get:
+      produces:
+      - application/xml
+      responses:
+        "200":
+          description: RSS XML
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BasicAuth: []
+      summary: Get the aggregate RSS feed
+      tags:
+      - feeds
+  /search:
+    get:
+      description: Searches iTunes or Podcast Index for podcasts that can be added
+        to Podgrab.
+      parameters:
+      - description: Search query
+        in: query
+        name: q
+        required: true
+        type: string
+      - description: Search provider
+        enum:
+        - itunes
+        - podcastindex
+        in: query
+        name: searchSource
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.CommonSearchResultModel'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BasicAuth: []
+      summary: Search for podcasts
+      tags:
+      - podcasts
+  /settings:
+    post:
+      consumes:
+      - application/json
+      - application/x-www-form-urlencoded
+      description: Updates Podgrab's runtime settings. maxDownloadConcurrency must
+        be at least 1.
+      parameters:
+      - description: Settings
+        in: body
+        name: settings
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.SettingModel'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BasicAuth: []
+      summary: Update settings
+      tags:
+      - settings
+  /tags:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/db.Tag'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BasicAuth: []
+      summary: List tags
+      tags:
+      - tags
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tag
+        in: body
+        name: tag
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.AddTagData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/db.Tag'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BasicAuth: []
+      summary: Add a tag
+      tags:
+      - tags
+  /tags/{id}:
+    delete:
+      parameters:
+      - description: Tag ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Tag deleted
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BasicAuth: []
+      summary: Delete a tag
+      tags:
+      - tags
+    get:
+      parameters:
+      - description: Tag ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/db.Tag'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BasicAuth: []
+      summary: Get a tag
+      tags:
+      - tags
+  /tags/{id}/rss:
+    get:
+      parameters:
+      - description: Tag ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/xml
+      responses:
+        "200":
+          description: RSS XML
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BasicAuth: []
+      summary: Get a tag RSS feed
+      tags:
+      - tags
+      - feeds
+  /version:
+    get:
+      description: Returns the Podgrab build version, commit, branch, timestamp, and
+        builder.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.VersionResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BasicAuth: []
+      summary: Get version information
+      tags:
+      - system
+schemes:
+- http
+- https
+securityDefinitions:
+  BasicAuth:
+    type: basic
+swagger: "2.0"

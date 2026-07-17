@@ -368,6 +368,16 @@ func AllTagsPage(c *gin.Context) {
 }
 
 // Search handles the search request.
+// @Summary Search for podcasts
+// @Description Searches iTunes or Podcast Index for podcasts that can be added to Podgrab.
+// @Tags podcasts
+// @Produce json
+// @Security BasicAuth
+// @Param q query string true "Search query"
+// @Param searchSource query string true "Search provider" Enums(itunes,podcastindex)
+// @Success 200 {array} model.CommonSearchResultModel
+// @Failure 400 {object} map[string]string
+// @Router /search [get]
 func Search(c *gin.Context) {
 	var searchQuery SearchGPodderData
 	if c.ShouldBindQuery(&searchQuery) == nil {
@@ -394,6 +404,14 @@ func Search(c *gin.Context) {
 }
 
 // GetOmpl handles the get ompl request.
+// @Summary Export podcasts as OPML
+// @Tags imports-exports
+// @Produce application/xml
+// @Security BasicAuth
+// @Param usePodgrabLink query bool false "Use Podgrab feed URLs instead of original feed URLs" default(false)
+// @Success 200 {file} file "OPML document"
+// @Failure 400 {object} map[string]string
+// @Router /opml [get]
 func GetOmpl(c *gin.Context) {
 	usePodgrabLink := c.DefaultQuery("usePodgrabLink", "false") == "true"
 
@@ -407,6 +425,15 @@ func GetOmpl(c *gin.Context) {
 }
 
 // UploadOpml handles the upload opml request.
+// @Summary Import podcasts from OPML
+// @Tags imports-exports
+// @Accept multipart/form-data
+// @Produce json
+// @Security BasicAuth
+// @Param file formData file true "OPML document"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Router /opml [post]
 func UploadOpml(c *gin.Context) {
 	file, _, err := c.Request.FormFile("file")
 	if err != nil {

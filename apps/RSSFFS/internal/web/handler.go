@@ -25,10 +25,11 @@ type SubmitRequest struct {
 
 // SubmitResponse represents the JSON response sent back to the client
 type SubmitResponse struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
-	Count   int    `json:"count,omitempty"`
-	Error   string `json:"error,omitempty"`
+	Success          bool              `json:"success"`
+	Message          string            `json:"message"`
+	Count            int               `json:"count,omitempty"`
+	Error            string            `json:"error,omitempty"`
+	ValidationErrors []ValidationError `json:"validation_errors,omitempty"`
 }
 
 // CategoryResponse represents the JSON response for category list
@@ -64,7 +65,25 @@ func (ve ValidationErrors) Error() string {
 	return ve.Errors[0].Message
 }
 
-// handleSubmit processes form submissions and integrates with RSSFFS core
+// handleSubmit processes form submissions and integrates with RSSFFS core.
+//
+// @Summary Discover and subscribe to RSS feeds
+// @Description Finds RSS feeds from the submitted URL and subscribes to them through the configured RSS reader. X-CSRF-Token must match the csrf_token cookie issued by GET /. Basic authentication is required when web credentials are configured.
+// @Tags feeds
+// @Accept x-www-form-urlencoded
+// @Produce json
+// @Param url formData string true "Page URL to inspect" format(uri)
+// @Param category formData string false "RSS reader category for subscribed feeds" maxlength(100)
+// @Param single_url_mode formData boolean false "Only search the submitted URL's domain" default(false)
+// @Param X-CSRF-Token header string true "CSRF token matching the csrf_token cookie"
+// @Security BasicAuth
+// @Success 200 {object} SubmitResponse
+// @Failure 400 {object} SubmitResponse
+// @Failure 401 {string} string "Unauthorized"
+// @Failure 403 {object} SubmitResponse
+// @Failure 429 {string} string "Rate limit exceeded"
+// @Failure 500 {object} SubmitResponse
+// @Router /submit [post]
 func (s *Server) handleSubmit(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -380,11 +399,11 @@ func (s *Server) sendValidationErrorResponse(w http.ResponseWriter, validationEr
 		message = validationErrors.Errors[0].Message
 	}
 
-	response := map[string]interface{}{
-		"success":           false,
-		"error":             "Validation Error",
-		"message":           message,
-		"validation_errors": validationErrors.Errors,
+	response := SubmitResponse{
+		Success:          false,
+		Error:            "Validation Error",
+		Message:          message,
+		ValidationErrors: validationErrors.Errors,
 	}
 
 	w.WriteHeader(http.StatusBadRequest)
@@ -393,7 +412,16 @@ func (s *Server) sendValidationErrorResponse(w http.ResponseWriter, validationEr
 	}
 }
 
-// handleCategories fetches available categories from the RSS reader
+// handleCategories fetches available categories from the RSS reader.
+//
+// @Summary List RSS reader categories
+// @Description Returns categories from the configured RSS reader. If it cannot be reached, the response contains a fallback category list with ID 0. Basic authentication is required when web credentials are configured.
+// @Tags categories
+// @Produce json
+// @Security BasicAuth
+// @Success 200 {object} CategoryResponse
+// @Failure 401 {string} string "Unauthorized"
+// @Router /categories [get]
 func (s *Server) handleCategories(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)

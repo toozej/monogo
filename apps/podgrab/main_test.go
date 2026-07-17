@@ -12,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/toozej/monogo/apps/podgrab/db"
+	"github.com/toozej/monogo/pkg/swaggertest"
 	"gorm.io/gorm"
 )
 
@@ -80,6 +81,40 @@ func TestWebsocketRouteUsesApplicationAuthentication(t *testing.T) {
 	if recorder.Code != http.StatusUnauthorized {
 		t.Fatalf("unauthenticated websocket status = %d, want %d", recorder.Code, http.StatusUnauthorized)
 	}
+}
+
+func TestSwaggerRouteUsesApplicationAuthentication(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	registerSwaggerRoute(applicationRouter(r, "secret"))
+
+	unauthenticated := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/swagger/index.html", http.NoBody)
+	r.ServeHTTP(unauthenticated, request)
+	if unauthenticated.Code != http.StatusUnauthorized {
+		t.Fatalf("unauthenticated Swagger status = %d, want %d", unauthenticated.Code, http.StatusUnauthorized)
+	}
+
+	authenticated := httptest.NewRecorder()
+	request = httptest.NewRequest(http.MethodGet, "/swagger/index.html", http.NoBody)
+	request.SetBasicAuth("podgrab", "secret")
+	r.ServeHTTP(authenticated, request)
+	if authenticated.Code != http.StatusOK {
+		t.Fatalf("authenticated Swagger status = %d, want %d", authenticated.Code, http.StatusOK)
+	}
+	if contentType := authenticated.Header().Get("Content-Type"); !strings.Contains(contentType, "text/html") {
+		t.Fatalf("authenticated Swagger content type = %q, want HTML", contentType)
+	}
+
+	document := httptest.NewRecorder()
+	request = httptest.NewRequest(http.MethodGet, "/swagger/doc.json", http.NoBody)
+	request.SetBasicAuth("podgrab", "secret")
+	r.ServeHTTP(document, request)
+	if document.Code != http.StatusOK {
+		t.Fatalf("authenticated Swagger document status = %d, want %d: %s", document.Code, http.StatusOK, document.Body.String())
+	}
+	swaggertest.AssertDocument(t, document.Body.Bytes(), "Podgrab API",
+		"/podcasts", "/podcastitems", "/tags", "/settings", "/version")
 }
 
 func TestRunReturnsErrorWhenSQLiteInitFails(t *testing.T) {

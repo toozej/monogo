@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	httpSwagger "github.com/swaggo/http-swagger/v2"
+	_ "github.com/toozej/monogo/apps/go-listen/docs"
 	"github.com/toozej/monogo/apps/go-listen/internal/config"
 	"github.com/toozej/monogo/apps/go-listen/internal/middleware"
 	"github.com/toozej/monogo/apps/go-listen/internal/services/playlist"
@@ -19,6 +21,14 @@ import (
 	"github.com/toozej/monogo/apps/go-listen/internal/types"
 	"github.com/toozej/monogo/pkg/logging"
 )
+
+// @title go-listen API
+// @version 1.0
+// @description Manage Spotify incoming playlists, add artists, and discover artists by scraping web pages.
+// @description When HTTP Basic Auth is configured, it protects the API and Swagger UI. POST operations also require a token from GET /api/csrf-token in the X-CSRF-Token header.
+// @BasePath /
+// @schemes http https
+// @securityDefinitions.basic BasicAuth
 
 //go:embed static/*
 var staticFiles embed.FS
@@ -176,6 +186,13 @@ func (s *Server) setupRoutes() {
 	protectedMux.HandleFunc("/api/auth-status", s.handleAuthStatus)
 	protectedMux.HandleFunc("/api/scrape-artists", s.handleScrapeArtists)
 
+	// Keep the interactive documentation on the same protected surface as the
+	// API. When Basic Auth is configured it therefore protects both the UI and
+	// its generated OpenAPI document.
+	protectedMux.Handle("/swagger/", httpSwagger.Handler(
+		httpSwagger.URL("/swagger/doc.json"),
+	))
+
 	// OAuth routes use GET and carry opaque, provider-issued code/state values
 	// that can legitimately contain byte sequences (for example "--") which the
 	// input-validation suspicious-pattern filter would reject, breaking the
@@ -221,7 +238,18 @@ func (s *Server) setupStaticRoutes(router *http.ServeMux) {
 	router.Handle("/static/", staticHandler)
 }
 
-// handleCSRFToken generates and returns a CSRF token
+// handleCSRFToken generates and returns a CSRF token.
+//
+// @Summary Create a CSRF token
+// @Description Returns a token for the X-CSRF-Token header required by state-changing API operations.
+// @Tags security
+// @Produce json
+// @Success 200 {object} SwaggerCSRFTokenResponse
+// @Failure 401 {string} string "Basic authentication failed"
+// @Failure 429 {string} string "Rate limit exceeded"
+// @Failure 500 {object} types.APIResponse
+// @Security BasicAuth
+// @Router /api/csrf-token [get]
 func (s *Server) handleCSRFToken(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -267,7 +295,19 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// handleGetPlaylists retrieves and filters playlists from the "Incoming" folder
+// handleGetPlaylists retrieves and filters playlists from the "Incoming" folder.
+//
+// @Summary List incoming playlists
+// @Description Retrieves Spotify playlists from the Incoming folder, optionally filtered by name.
+// @Tags playlists
+// @Produce json
+// @Param search query string false "Case-insensitive playlist name filter"
+// @Success 200 {object} SwaggerPlaylistsResponse
+// @Failure 401 {string} string "Basic authentication failed"
+// @Failure 429 {string} string "Rate limit exceeded"
+// @Failure 500 {object} types.APIResponse
+// @Security BasicAuth
+// @Router /api/playlists [get]
 func (s *Server) handleGetPlaylists(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -316,7 +356,23 @@ func (s *Server) handleGetPlaylists(w http.ResponseWriter, r *http.Request) {
 	s.writeJSONResponse(w, response, http.StatusOK)
 }
 
-// handleAddArtist handles adding an artist to a playlist with duplicate checking
+// handleAddArtist handles adding an artist to a playlist with duplicate checking.
+//
+// @Summary Add an artist to a playlist
+// @Description Adds an artist's top tracks to a Spotify playlist. Supply force=true to add tracks despite duplicate detection.
+// @Tags playlists
+// @Accept json
+// @Produce json
+// @Param X-CSRF-Token header string true "Token returned by GET /api/csrf-token"
+// @Param request body types.AddArtistRequest true "Artist and target playlist"
+// @Success 200 {object} SwaggerAddArtistResponse
+// @Failure 400 {object} types.APIResponse
+// @Failure 401 {string} string "Basic authentication failed"
+// @Failure 403 {string} string "Invalid or missing CSRF token"
+// @Failure 429 {string} string "Rate limit exceeded"
+// @Failure 500 {object} types.APIResponse
+// @Security BasicAuth
+// @Router /api/add-artist [post]
 func (s *Server) handleAddArtist(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -381,7 +437,24 @@ func (s *Server) handleAddArtist(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// handleScrapeArtists handles scraping artists from a URL and adding them to a playlist
+// handleScrapeArtists handles scraping artists from a URL and adding them to a playlist.
+//
+// @Summary Scrape and add artists
+// @Description Extracts artist names from a web page, matches them against Spotify, and adds their top tracks to a playlist.
+// @Tags scraping
+// @Accept json
+// @Produce json
+// @Param X-CSRF-Token header string true "Token returned by GET /api/csrf-token"
+// @Param request body types.ScrapeArtistsRequest true "Source page and target playlist"
+// @Success 200 {object} SwaggerScrapeArtistsResponse
+// @Failure 400 {object} types.APIResponse
+// @Failure 401 {string} string "Basic authentication failed"
+// @Failure 403 {string} string "Invalid or missing CSRF token"
+// @Failure 429 {string} string "Rate limit exceeded"
+// @Failure 500 {object} types.APIResponse
+// @Failure 503 {object} types.APIResponse "Scraper service is unavailable"
+// @Security BasicAuth
+// @Router /api/scrape-artists [post]
 func (s *Server) handleScrapeArtists(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -634,7 +707,17 @@ func (s *Server) handleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// handleAuthStatus returns the current authentication status
+// handleAuthStatus returns the current Spotify authentication status.
+//
+// @Summary Get Spotify authentication status
+// @Description Reports whether the server has an authenticated Spotify session and, when needed, returns the Spotify authorization URL.
+// @Tags authentication
+// @Produce json
+// @Success 200 {object} SwaggerAuthStatusResponse
+// @Failure 401 {string} string "Basic authentication failed"
+// @Failure 429 {string} string "Rate limit exceeded"
+// @Security BasicAuth
+// @Router /api/auth-status [get]
 func (s *Server) handleAuthStatus(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)

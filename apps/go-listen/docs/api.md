@@ -11,7 +11,19 @@ http://localhost:8080
 
 ## Authentication
 
-The go-listen API does not require authentication for internal network usage. All endpoints are publicly accessible within your network.
+HTTP Basic Auth is optional when the server listens on a loopback address and
+required when it is exposed on a non-loopback address. When
+`SECURITY_USERNAME` and `SECURITY_PASSWORD` are configured, they protect the
+web interface, API, generated Swagger document, and Swagger UI alike. For
+example, add `--user "$SECURITY_USERNAME:$SECURITY_PASSWORD"` to curl commands.
+
+## Interactive API documentation
+
+After starting the server, open
+[`/swagger/index.html`](http://localhost:8080/swagger/index.html) for the
+interactive Swagger UI. The generated Swagger 2.0 document is available at
+`/swagger/doc.json`. Both routes follow the Basic Auth behavior described
+above.
 
 ## Content Type
 

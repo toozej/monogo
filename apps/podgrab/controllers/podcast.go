@@ -70,7 +70,23 @@ type AddTagData struct {
 	Description string `form:"description" json:"description"`
 }
 
+// PodcastItemsResponse is the paginated podcast episode response.
+type PodcastItemsResponse struct {
+	PodcastItems []db.PodcastItem     `json:"podcastItems"`
+	Filter       model.EpisodesFilter `json:"filter"`
+}
+
 // GetAllPodcasts handles the get all podcasts request.
+// @Summary List podcasts
+// @Description Returns every saved podcast using the requested sorting.
+// @Tags podcasts
+// @Produce json
+// @Security BasicAuth
+// @Param sort query string false "Sort field" Enums(dateadded,name,lastepisode) default(dateadded)
+// @Param order query string false "Sort order" Enums(asc,desc) default(asc)
+// @Success 200 {array} db.Podcast
+// @Failure 400 {object} map[string]string
+// @Router /podcasts [get]
 func GetAllPodcasts(c *gin.Context) {
 	var podcastListQuery PodcastListQuery
 
@@ -115,6 +131,15 @@ func handleEntityByID(c *gin.Context, fetcher entityFetcher, entity interface{},
 }
 
 // GetPodcastByID handles the get podcast by id request.
+// @Summary Get a podcast
+// @Tags podcasts
+// @Produce json
+// @Security BasicAuth
+// @Param id path string true "Podcast ID"
+// @Success 200 {object} db.Podcast
+// @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /podcasts/{id} [get]
 func GetPodcastByID(c *gin.Context) {
 	var podcast db.Podcast
 	handleEntityByID(c, func(id string, entity interface{}) error {
@@ -127,6 +152,15 @@ func GetPodcastByID(c *gin.Context) {
 }
 
 // PausePodcastByID handles the pause podcast by id request.
+// @Summary Pause a podcast
+// @Description Prevents automatic processing for the podcast.
+// @Tags podcasts
+// @Produce json
+// @Security BasicAuth
+// @Param id path string true "Podcast ID"
+// @Success 200 {object} object
+// @Failure 400 {object} map[string]string
+// @Router /podcasts/{id}/pause [get]
 func PausePodcastByID(c *gin.Context) {
 	var searchByIDQuery SearchByIDQuery
 	if c.ShouldBindUri(&searchByIDQuery) == nil {
@@ -142,6 +176,14 @@ func PausePodcastByID(c *gin.Context) {
 }
 
 // UnpausePodcastByID handles the unpause podcast by id request.
+// @Summary Unpause a podcast
+// @Tags podcasts
+// @Produce json
+// @Security BasicAuth
+// @Param id path string true "Podcast ID"
+// @Success 200 {object} object
+// @Failure 400 {object} map[string]string
+// @Router /podcasts/{id}/unpause [get]
 func UnpausePodcastByID(c *gin.Context) {
 	var searchByIDQuery SearchByIDQuery
 	if c.ShouldBindUri(&searchByIDQuery) == nil {
@@ -157,6 +199,15 @@ func UnpausePodcastByID(c *gin.Context) {
 }
 
 // DeletePodcastByID handles the delete podcast by id request.
+// @Summary Delete a podcast and its files
+// @Tags podcasts
+// @Produce json
+// @Security BasicAuth
+// @Param id path string true "Podcast ID"
+// @Success 204 "Podcast and episode files deleted"
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /podcasts/{id} [delete]
 func DeletePodcastByID(c *gin.Context) {
 	var searchByIDQuery SearchByIDQuery
 
@@ -172,6 +223,15 @@ func DeletePodcastByID(c *gin.Context) {
 }
 
 // DeleteOnlyPodcastByID handles the delete only podcast by id request.
+// @Summary Delete a podcast but keep its files
+// @Tags podcasts
+// @Produce json
+// @Security BasicAuth
+// @Param id path string true "Podcast ID"
+// @Success 204 "Podcast deleted"
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /podcasts/{id}/podcast [delete]
 func DeleteOnlyPodcastByID(c *gin.Context) {
 	var searchByIDQuery SearchByIDQuery
 
@@ -187,6 +247,15 @@ func DeleteOnlyPodcastByID(c *gin.Context) {
 }
 
 // DeletePodcastEpisodesByID handles the delete podcast episodes by id request.
+// @Summary Delete all episode files for a podcast
+// @Tags podcasts
+// @Produce json
+// @Security BasicAuth
+// @Param id path string true "Podcast ID"
+// @Success 204 "Episode files deleted"
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /podcasts/{id}/items [delete]
 func DeletePodcastEpisodesByID(c *gin.Context) {
 	var searchByIDQuery SearchByIDQuery
 
@@ -217,6 +286,14 @@ func DeletePodcasDeleteOnlyPodcasttEpisodesByID(c *gin.Context) {
 }
 
 // GetPodcastItemsByPodcastID handles the get podcast items by podcast id request.
+// @Summary List a podcast's episodes
+// @Tags podcasts,episodes
+// @Produce json
+// @Security BasicAuth
+// @Param id path string true "Podcast ID"
+// @Success 200 {array} db.PodcastItem
+// @Failure 400 {object} map[string]string
+// @Router /podcasts/{id}/items [get]
 func GetPodcastItemsByPodcastID(c *gin.Context) {
 	var searchByIDQuery SearchByIDQuery
 
@@ -232,6 +309,14 @@ func GetPodcastItemsByPodcastID(c *gin.Context) {
 }
 
 // DownloadAllEpisodesByPodcastID handles the download all episodes by podcast id request.
+// @Summary Queue all episodes for download
+// @Tags podcasts,episodes
+// @Produce json
+// @Security BasicAuth
+// @Param id path string true "Podcast ID"
+// @Success 200 {object} object
+// @Failure 400 {object} map[string]string
+// @Router /podcasts/{id}/download [get]
 func DownloadAllEpisodesByPodcastID(c *gin.Context) {
 	var searchByIDQuery SearchByIDQuery
 
@@ -252,6 +337,13 @@ func DownloadAllEpisodesByPodcastID(c *gin.Context) {
 }
 
 // RefreshEpisodes handles the refresh all episodes request.
+// @Summary Refresh all podcasts
+// @Description Starts an asynchronous refresh of every saved podcast feed.
+// @Tags podcasts
+// @Produce json
+// @Security BasicAuth
+// @Success 200 {object} object
+// @Router /refreshAll [get]
 func RefreshEpisodes(c *gin.Context) {
 	go func() {
 		if err := service.RefreshEpisodes(); err != nil {
@@ -262,6 +354,15 @@ func RefreshEpisodes(c *gin.Context) {
 }
 
 // RefreshEpisodesByPodcastID handles the refresh episodes by podcast id request.
+// @Summary Refresh one podcast
+// @Description Starts an asynchronous refresh of the selected podcast feed.
+// @Tags podcasts
+// @Produce json
+// @Security BasicAuth
+// @Param id path string true "Podcast ID"
+// @Success 200 {object} object
+// @Failure 400 {object} map[string]string
+// @Router /podcasts/{id}/refresh [get]
 func RefreshEpisodesByPodcastID(c *gin.Context) {
 	var searchByIDQuery SearchByIDQuery
 
@@ -278,6 +379,23 @@ func RefreshEpisodesByPodcastID(c *gin.Context) {
 }
 
 // GetAllPodcastItems handles the get all podcast items request.
+// @Summary List episodes
+// @Description Returns a filtered, sorted, paginated list of podcast episodes.
+// @Tags episodes
+// @Produce json
+// @Security BasicAuth
+// @Param downloadStatus query string false "Download status"
+// @Param episodeType query string false "Episode type"
+// @Param isPlayed query string false "Played-state filter"
+// @Param sorting query string false "Sort order" Enums(release_asc,release_desc,duration_asc,duration_desc) default(release_desc)
+// @Param q query string false "Text search"
+// @Param tagIds[] query []string false "Tag IDs"
+// @Param podcastIDs[] query []string false "Podcast IDs"
+// @Param page query int false "Page number" default(1)
+// @Param count query int false "Episodes per page" default(20)
+// @Success 200 {object} PodcastItemsResponse
+// @Failure 400 {object} map[string]string
+// @Router /podcastitems [get]
 func GetAllPodcastItems(c *gin.Context) {
 	var filter model.EpisodesFilter
 	err := c.ShouldBindQuery(&filter)
@@ -298,6 +416,15 @@ func GetAllPodcastItems(c *gin.Context) {
 }
 
 // GetPodcastItemByID handles the get podcast item by id request.
+// @Summary Get an episode
+// @Tags episodes
+// @Produce json
+// @Security BasicAuth
+// @Param id path string true "Episode ID"
+// @Success 200 {object} db.PodcastItem
+// @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /podcastitems/{id} [get]
 func GetPodcastItemByID(c *gin.Context) {
 	var podcast db.PodcastItem
 	handleEntityByID(c, func(id string, entity interface{}) error {
@@ -310,6 +437,16 @@ func GetPodcastItemByID(c *gin.Context) {
 }
 
 // GetPodcastItemImageByID handles the get podcast item image by id request.
+// @Summary Get an episode image
+// @Description Returns the cached episode image or redirects to its remote image.
+// @Tags episodes,media
+// @Produce application/octet-stream
+// @Security BasicAuth
+// @Param id path string true "Episode ID"
+// @Success 200 {file} binary
+// @Success 302 "Redirect to remote image"
+// @Failure 400 {object} map[string]string
+// @Router /podcastitems/{id}/image [get]
 func GetPodcastItemImageByID(c *gin.Context) {
 	var searchByIDQuery SearchByIDQuery
 
@@ -330,6 +467,16 @@ func GetPodcastItemImageByID(c *gin.Context) {
 }
 
 // GetPodcastImageByID handles the get podcast image by id request.
+// @Summary Get a podcast image
+// @Description Returns the cached podcast image or redirects to its remote image.
+// @Tags podcasts,media
+// @Produce application/octet-stream
+// @Security BasicAuth
+// @Param id path string true "Podcast ID"
+// @Success 200 {file} binary
+// @Success 302 "Redirect to remote image"
+// @Failure 400 {object} map[string]string
+// @Router /podcasts/{id}/image [get]
 func GetPodcastImageByID(c *gin.Context) {
 	var searchByIDQuery SearchByIDQuery
 
@@ -351,6 +498,17 @@ func GetPodcastImageByID(c *gin.Context) {
 }
 
 // GetPodcastItemFileByID handles the get podcast item file by id request.
+// @Summary Get an episode audio file
+// @Description Downloads the local episode file or redirects to its remote audio URL.
+// @Tags episodes,media
+// @Produce application/octet-stream
+// @Security BasicAuth
+// @Param id path string true "Episode ID"
+// @Success 200 {file} binary
+// @Success 302 "Redirect to remote audio"
+// @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /podcastitems/{id}/file [get]
 func GetPodcastItemFileByID(c *gin.Context) {
 	var searchByIDQuery SearchByIDQuery
 
@@ -477,6 +635,14 @@ func GetFileContentType(filePath string) string {
 }
 
 // MarkPodcastItemAsUnplayed handles the mark podcast item as unplayed request.
+// @Summary Mark an episode unplayed
+// @Tags episodes
+// @Security BasicAuth
+// @Param id path string true "Episode ID"
+// @Success 200 "Episode marked unplayed"
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /podcastitems/{id}/markUnplayed [get]
 func MarkPodcastItemAsUnplayed(c *gin.Context) {
 	var searchByIDQuery SearchByIDQuery
 
@@ -491,6 +657,14 @@ func MarkPodcastItemAsUnplayed(c *gin.Context) {
 }
 
 // MarkPodcastItemAsPlayed handles the mark podcast item as played request.
+// @Summary Mark an episode played
+// @Tags episodes
+// @Security BasicAuth
+// @Param id path string true "Episode ID"
+// @Success 200 "Episode marked played"
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /podcastitems/{id}/markPlayed [get]
 func MarkPodcastItemAsPlayed(c *gin.Context) {
 	var searchByIDQuery SearchByIDQuery
 
@@ -505,6 +679,14 @@ func MarkPodcastItemAsPlayed(c *gin.Context) {
 }
 
 // BookmarkPodcastItem handles the bookmark podcast item request.
+// @Summary Bookmark an episode
+// @Tags episodes
+// @Security BasicAuth
+// @Param id path string true "Episode ID"
+// @Success 200 "Episode bookmarked"
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /podcastitems/{id}/bookmark [get]
 func BookmarkPodcastItem(c *gin.Context) {
 	var searchByIDQuery SearchByIDQuery
 
@@ -519,6 +701,14 @@ func BookmarkPodcastItem(c *gin.Context) {
 }
 
 // UnbookmarkPodcastItem handles the unbookmark podcast item request.
+// @Summary Remove an episode bookmark
+// @Tags episodes
+// @Security BasicAuth
+// @Param id path string true "Episode ID"
+// @Success 200 "Episode bookmark removed"
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /podcastitems/{id}/unbookmark [get]
 func UnbookmarkPodcastItem(c *gin.Context) {
 	var searchByIDQuery SearchByIDQuery
 
@@ -533,6 +723,17 @@ func UnbookmarkPodcastItem(c *gin.Context) {
 }
 
 // PatchPodcastItemByID handles the patch podcast item by id request.
+// @Summary Update an episode
+// @Description Updates an episode's title and played state.
+// @Tags episodes
+// @Accept json
+// @Produce json
+// @Security BasicAuth
+// @Param id path string true "Episode ID"
+// @Param episode body PatchPodcastItem true "Episode changes"
+// @Success 200 {object} db.PodcastItem
+// @Failure 400 {object} map[string]string
+// @Router /podcastitems/{id} [patch]
 func PatchPodcastItemByID(c *gin.Context) {
 	var searchByIDQuery SearchByIDQuery
 
@@ -560,6 +761,15 @@ func PatchPodcastItemByID(c *gin.Context) {
 }
 
 // DownloadPodcastItem handles the download podcast item request.
+// @Summary Queue an episode for download
+// @Description Starts an asynchronous download for the selected episode.
+// @Tags episodes
+// @Produce json
+// @Security BasicAuth
+// @Param id path string true "Episode ID"
+// @Success 200 {object} object
+// @Failure 400 {object} map[string]string
+// @Router /podcastitems/{id}/download [get]
 func DownloadPodcastItem(c *gin.Context) {
 	var searchByIDQuery SearchByIDQuery
 
@@ -576,6 +786,15 @@ func DownloadPodcastItem(c *gin.Context) {
 }
 
 // DeletePodcastItem handles the delete podcast item request.
+// @Summary Delete an episode file
+// @Description Starts asynchronous deletion of the selected episode's local file.
+// @Tags episodes
+// @Produce json
+// @Security BasicAuth
+// @Param id path string true "Episode ID"
+// @Success 200 {object} object
+// @Failure 400 {object} map[string]string
+// @Router /podcastitems/{id}/delete [get]
 func DeletePodcastItem(c *gin.Context) {
 	var searchByIDQuery SearchByIDQuery
 
@@ -592,6 +811,17 @@ func DeletePodcastItem(c *gin.Context) {
 }
 
 // AddPodcast handles the add podcast request.
+// @Summary Add a podcast
+// @Description Saves a podcast from its feed URL and starts an asynchronous feed refresh.
+// @Tags podcasts
+// @Accept json
+// @Produce json
+// @Security BasicAuth
+// @Param podcast body AddPodcastData true "Podcast feed"
+// @Success 200 {object} db.Podcast
+// @Failure 400 {object} map[string]string
+// @Failure 409 {object} map[string]string
+// @Router /podcasts [post]
 func AddPodcast(c *gin.Context) {
 	var addPodcastData AddPodcastData
 	err := c.ShouldBindJSON(&addPodcastData)
@@ -619,6 +849,13 @@ func AddPodcast(c *gin.Context) {
 }
 
 // GetAllTags handles the get all tags request.
+// @Summary List tags
+// @Tags tags
+// @Produce json
+// @Security BasicAuth
+// @Success 200 {array} db.Tag
+// @Failure 400 {object} map[string]string
+// @Router /tags [get]
 func GetAllTags(c *gin.Context) {
 	tags, err := db.GetAllTags("")
 	if err != nil {
@@ -629,6 +866,14 @@ func GetAllTags(c *gin.Context) {
 }
 
 // GetTagByID handles the get tag by id request.
+// @Summary Get a tag
+// @Tags tags
+// @Produce json
+// @Security BasicAuth
+// @Param id path string true "Tag ID"
+// @Success 200 {object} db.Tag
+// @Failure 400 {object} map[string]string
+// @Router /tags/{id} [get]
 func GetTagByID(c *gin.Context) {
 	var searchByIDQuery SearchByIDQuery
 	if c.ShouldBindUri(&searchByIDQuery) == nil {
@@ -713,6 +958,14 @@ func createRss(items []db.PodcastItem, title, description, image string, c *gin.
 }
 
 // GetRssForPodcastByID handles the get rss for podcast by id request.
+// @Summary Get a podcast RSS feed
+// @Tags podcasts,feeds
+// @Produce application/xml
+// @Security BasicAuth
+// @Param id path string true "Podcast ID"
+// @Success 200 {string} string "RSS XML"
+// @Failure 400 {object} map[string]string
+// @Router /podcasts/{id}/rss [get]
 func GetRssForPodcastByID(c *gin.Context) {
 	var searchByIDQuery SearchByIDQuery
 	if c.ShouldBindUri(&searchByIDQuery) == nil {
@@ -737,6 +990,14 @@ func GetRssForPodcastByID(c *gin.Context) {
 }
 
 // GetRssForTagByID handles the get rss for tag by id request.
+// @Summary Get a tag RSS feed
+// @Tags tags,feeds
+// @Produce application/xml
+// @Security BasicAuth
+// @Param id path string true "Tag ID"
+// @Success 200 {string} string "RSS XML"
+// @Failure 400 {object} map[string]string
+// @Router /tags/{id}/rss [get]
 func GetRssForTagByID(c *gin.Context) {
 	var searchByIDQuery SearchByIDQuery
 	if c.ShouldBindUri(&searchByIDQuery) == nil {
@@ -759,6 +1020,13 @@ func GetRssForTagByID(c *gin.Context) {
 }
 
 // GetRss handles the get rss request.
+// @Summary Get the aggregate RSS feed
+// @Tags feeds
+// @Produce application/xml
+// @Security BasicAuth
+// @Success 200 {string} string "RSS XML"
+// @Failure 400 {object} map[string]string
+// @Router /rss [get]
 func GetRss(c *gin.Context) {
 	var items []db.PodcastItem
 
@@ -774,6 +1042,14 @@ func GetRss(c *gin.Context) {
 }
 
 // DeleteTagByID handles the delete tag by id request.
+// @Summary Delete a tag
+// @Tags tags
+// @Produce json
+// @Security BasicAuth
+// @Param id path string true "Tag ID"
+// @Success 204 "Tag deleted"
+// @Failure 400 {object} map[string]string
+// @Router /tags/{id} [delete]
 func DeleteTagByID(c *gin.Context) {
 	var searchByIDQuery SearchByIDQuery
 	if c.ShouldBindUri(&searchByIDQuery) == nil {
@@ -787,6 +1063,16 @@ func DeleteTagByID(c *gin.Context) {
 }
 
 // AddTag handles the add tag request.
+// @Summary Add a tag
+// @Tags tags
+// @Accept json
+// @Produce json
+// @Security BasicAuth
+// @Param tag body AddTagData true "Tag"
+// @Success 200 {object} db.Tag
+// @Failure 400 {object} map[string]string
+// @Failure 409 {object} map[string]string
+// @Router /tags [post]
 func AddTag(c *gin.Context) {
 	var addTagData AddTagData
 	err := c.ShouldBindJSON(&addTagData)
@@ -809,6 +1095,15 @@ func AddTag(c *gin.Context) {
 }
 
 // AddTagToPodcast handles the add tag to podcast request.
+// @Summary Add a tag to a podcast
+// @Tags podcasts,tags
+// @Produce json
+// @Security BasicAuth
+// @Param id path string true "Podcast ID"
+// @Param tagID path string true "Tag ID"
+// @Success 200 {object} object
+// @Failure 400 {object} map[string]string
+// @Router /podcasts/{id}/tags/{tagID} [post]
 func AddTagToPodcast(c *gin.Context) {
 	var addRemoveTagQuery AddRemoveTagQuery
 
@@ -823,6 +1118,15 @@ func AddTagToPodcast(c *gin.Context) {
 }
 
 // RemoveTagFromPodcast handles the remove tag from podcast request.
+// @Summary Remove a tag from a podcast
+// @Tags podcasts,tags
+// @Produce json
+// @Security BasicAuth
+// @Param id path string true "Podcast ID"
+// @Param tagID path string true "Tag ID"
+// @Success 200 {object} object
+// @Failure 400 {object} map[string]string
+// @Router /podcasts/{id}/tags/{tagID} [delete]
 func RemoveTagFromPodcast(c *gin.Context) {
 	var addRemoveTagQuery AddRemoveTagQuery
 
@@ -837,6 +1141,17 @@ func RemoveTagFromPodcast(c *gin.Context) {
 }
 
 // UpdateSetting handles the update setting request.
+// @Summary Update settings
+// @Description Updates Podgrab's runtime settings. maxDownloadConcurrency must be at least 1.
+// @Tags settings
+// @Accept json
+// @Accept application/x-www-form-urlencoded
+// @Produce json
+// @Security BasicAuth
+// @Param settings body SettingModel true "Settings"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Router /settings [post]
 func UpdateSetting(c *gin.Context) {
 	var settingModel SettingModel
 	err := c.ShouldBind(&settingModel)

@@ -14,9 +14,20 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	httpSwagger "github.com/swaggo/http-swagger/v2"
+	_ "github.com/toozej/monogo/apps/RSSFFS/docs"
 	"github.com/toozej/monogo/apps/RSSFFS/internal/config"
 	"github.com/toozej/monogo/pkg/version"
 )
+
+// @title RSSFFS API
+// @version 1.0
+// @description HTTP API for discovering RSS feeds, subscribing through the configured RSS reader, listing categories, and viewing application logs. When web credentials are configured, operations require HTTP Basic authentication. Submissions also require an X-CSRF-Token header matching the csrf_token cookie issued by the web interface.
+// @license.name MIT
+// @license.url https://github.com/toozej/monogo/blob/main/apps/RSSFFS/LICENSE
+// @BasePath /
+// @schemes http https
+// @securityDefinitions.basic BasicAuth
 
 // Server represents the HTTP server with configuration and debug settings
 type Server struct {
@@ -56,6 +67,9 @@ func (s *Server) SetupRoutes() *http.ServeMux {
 	mux.HandleFunc("/logs", s.withMiddleware(s.handleLogs))
 	mux.HandleFunc("/logs/stream", s.withMiddleware(s.handleLogsSSE))
 	mux.HandleFunc("/static/", s.withMiddleware(s.handleStatic))
+	mux.Handle("/swagger/", s.withMiddleware(httpSwagger.Handler(
+		httpSwagger.URL("/swagger/doc.json"),
+	).ServeHTTP))
 
 	// Direct routes for common assets (for backward compatibility and convenience)
 	mux.HandleFunc("/style.css", s.withMiddleware(s.handleDirectAsset))

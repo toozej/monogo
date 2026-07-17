@@ -23,6 +23,8 @@ the devcontainer build. Run `make app-generate APP=<app>` after editing
 | `cgoEnabled` | no (default `false`) | Toggles `CGO_ENABLED`. See [CGO apps](#cgo-apps). |
 | `runtimeImage` | no | Overrides the runtime base in the non-distroless `Dockerfile`. Defaults to `scratch`, or `debian:trixie-slim` when `cgoEnabled` is `true`. |
 | `port` | no | When set, `EXPOSE <port>` is emitted in the generated Dockerfiles. |
+| `swaggerEnabled` | no (default `false`) | Generates and serves Swagger 2.0 documentation for an app with a user-facing HTTP API. See [Swagger API documentation](#swagger-api-documentation). |
+| `swaggerGeneralInfo` | when `swaggerEnabled` is `true` | Go source file, relative to the app directory, containing the general Swag annotations. |
 | `writableDirs` | no | Runtime directories created with ownership for the image's nonroot user. This lets empty named volumes inherit usable permissions. |
 | `compose.user` | no | User or UID/GID used to run the Compose service. Useful for nonroot CLI containers that write to bind mounts. |
 | `compose.restart` | no (default `unless-stopped`) | Docker Compose restart policy. Set to `no` for one-shot CLI apps. |
@@ -52,6 +54,25 @@ compose:
     - app-config
     - app-assets
 ```
+
+## Swagger API documentation
+
+Apps with a user-facing HTTP API opt into Swagger generation in `app.yaml`:
+
+```yaml
+swaggerEnabled: true
+swaggerGeneralInfo: internal/server/server.go
+```
+
+Add [Swag declarative comments](https://github.com/swaggo/swag#declarative-comments-format)
+to that general-info file and to each API handler. `make app-generate APP=<app>`
+then writes the generated Go package, JSON specification, and YAML specification
+to `apps/<app>/docs/`. The generated Go package must be imported by the app so
+the runtime Swagger UI can resolve its specification.
+
+Use `make swagger-generate APP=<app>` to regenerate only the Swagger artifacts.
+The command is a no-op for apps that do not opt in. Generated specifications are
+checked in, and the normal generation and pre-commit workflows keep them current.
 
 ## CGO apps
 

@@ -69,6 +69,10 @@ The web interface will be available at `http://localhost:8080` (or your configur
 - **Input validation**: Client-side and server-side URL validation
 - **Loading indicators**: Visual feedback during RSS feed processing
 
+Interactive Swagger API documentation is available at
+`http://localhost:8080/swagger/index.html`. It follows the same HTTP Basic
+authentication configuration as the web interface.
+
 #### Web Server Configuration
 
 The serve command supports the following options:

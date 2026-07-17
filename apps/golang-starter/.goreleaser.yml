@@ -4,6 +4,10 @@ version: 2
 project_name: golang-starter
 dist: dist/golang-starter
 
+retry:
+  attempts: 5
+  delay: 5s
+
 env:
   - GO111MODULE=on
 

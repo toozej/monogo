@@ -17,3 +17,5 @@ cgoEnabled: false
 # runtimeImage: debian:trixie-slim
 # port (optional) is EXPOSEd in the generated Dockerfiles when set.
 port: 8080
+swaggerEnabled: true
+swaggerGeneralInfo: internal/web/server.go
