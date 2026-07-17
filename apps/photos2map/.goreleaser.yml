@@ -147,6 +147,7 @@ dockers_v2:
       "index,manifest:org.opencontainers.image.version": '{{ envOrDefault "MONOGO_APP_VERSION" .Version }}'
     extra_files:
       - scripts/goreleaser_entrypoint.sh
+      - LICENSE
   - id: photos2map-distroless
     images:
       - 'toozej/photos2map'
@@ -187,6 +188,7 @@ dockers_v2:
       "index,manifest:org.opencontainers.image.version": '{{ envOrDefault "MONOGO_APP_VERSION" .Version }}'
     extra_files:
       - scripts/goreleaser_entrypoint.sh
+      - LICENSE
 
 archives:
   - name_template: >-

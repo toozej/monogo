@@ -8,6 +8,8 @@ FROM gcr.io/distroless/static-debian13:nonroot
 # Copy our static executable.
 ARG TARGETPLATFORM
 COPY $TARGETPLATFORM/podgrab /go/bin/podgrab
+# Include the project license in the runtime image.
+COPY LICENSE /usr/share/doc/podgrab/copyright
 COPY --from=filesystem --chown=65532:65532 /container-root/config /config
 COPY --from=filesystem --chown=65532:65532 /container-root/assets /assets
 # Expose port for publishing as web service

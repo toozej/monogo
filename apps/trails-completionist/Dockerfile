@@ -39,6 +39,8 @@ RUN LDFLAGS="-s -w -X github.com/toozej/monogo/pkg/version.Version=${VERSION} -X
 FROM scratch
 # Copy our executable.
 COPY --from=build /out/trails-completionist /go/bin/trails-completionist
+# Include the project license in the runtime image.
+COPY LICENSE /usr/share/doc/trails-completionist/copyright
 # Expose port for publishing as web service
 # EXPOSE 8081
 # Run the binary.

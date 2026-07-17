@@ -39,6 +39,8 @@ RUN mkdir -p /container-root/config /container-root/assets && \
 FROM gcr.io/distroless/static-debian13:nonroot
 # Copy our executable.
 COPY --from=build /out/podgrab /go/bin/podgrab
+# Include the project license in the runtime image.
+COPY LICENSE /usr/share/doc/podgrab/copyright
 COPY --from=build --chown=65532:65532 /container-root/config /config
 COPY --from=build --chown=65532:65532 /container-root/assets /assets
 # Expose port for publishing as web service

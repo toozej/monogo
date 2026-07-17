@@ -39,6 +39,8 @@ RUN LDFLAGS="-s -w -X github.com/toozej/monogo/pkg/version.Version=${VERSION} -X
 FROM gcr.io/distroless/static-debian13:nonroot
 # Copy our executable.
 COPY --from=build /out/go-find-liquor /go/bin/go-find-liquor
+# Include the project license in the runtime image.
+COPY LICENSE /usr/share/doc/go-find-liquor/copyright
 # Expose port for publishing as web service
 # EXPOSE 8081
 # Run the binary.

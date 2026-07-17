@@ -47,6 +47,8 @@ RUN mkdir -p[[ range index $app "writableDirs" ]] /container-root[[.]][[ end ]] 
 FROM [[$distroless]]
 # Copy our executable.
 COPY --from=build /out/[[$app.binary]] /go/bin/[[$app.binary]]
+# Include the project license in the runtime image.
+COPY LICENSE /usr/share/doc/[[$app.binary]]/copyright
 [[- range index $app "writableDirs" ]]
 COPY --from=build --chown=65532:65532 /container-root[[.]] [[.]]
 [[- end ]]

@@ -41,6 +41,8 @@ RUN mkdir -p /container-root/config && \
 FROM gcr.io/distroless/static-debian13:nonroot
 # Copy our executable.
 COPY --from=build /out/go-listen /go/bin/go-listen
+# Include the project license in the runtime image.
+COPY LICENSE /usr/share/doc/go-listen/copyright
 COPY --from=build --chown=65532:65532 /container-root/config /config
 # Expose port for publishing as web service
 EXPOSE 8080

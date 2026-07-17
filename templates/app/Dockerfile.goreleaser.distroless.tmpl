@@ -13,6 +13,8 @@ FROM [[$distroless]]
 # Copy our static executable.
 ARG TARGETPLATFORM
 COPY $TARGETPLATFORM/[[$app.binary]] /go/bin/[[$app.binary]]
+# Include the project license in the runtime image.
+COPY LICENSE /usr/share/doc/[[$app.binary]]/copyright
 [[ range index $app "writableDirs" -]]
 COPY --from=filesystem --chown=65532:65532 /container-root[[.]] [[.]]
 [[ end -]]

@@ -3,6 +3,8 @@ FROM scratch
 # Copy our static executable.
 ARG TARGETPLATFORM
 COPY $TARGETPLATFORM/terranotate /go/bin/terranotate
+# Include the project license in the runtime image.
+COPY LICENSE /usr/share/doc/terranotate/copyright
 # Expose port for publishing as web service
 # EXPOSE 8081
 # Run the binary.
