@@ -124,7 +124,8 @@ go-listen scrape --url https://example.com/artists \
 
 ### REST API
 
-See REST [API Documentation](docs/api.md)
+Open `/swagger/index.html` on the running server for interactive Swagger API
+documentation, or see the detailed REST [API Documentation](docs/api.md).
 
 ## Configuration Options
 

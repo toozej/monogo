@@ -1,6 +1,7 @@
 package web
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -78,6 +79,91 @@ func TestSetupRoutes(t *testing.T) {
 				t.Errorf("Expected status %d, got %d for %s %s", tc.expectedStatus, w.Code, tc.method, tc.path)
 			}
 		})
+	}
+}
+
+func TestSwaggerRoute(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		conf       config.Config
+		username   string
+		password   string
+		wantStatus int
+	}{
+		{
+			name:       "available without configured authentication",
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "protected by configured authentication",
+			conf:       config.Config{WebUsername: "owner", WebPassword: "secret"},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "available with configured authentication",
+			conf:       config.Config{WebUsername: "owner", WebPassword: "secret"},
+			username:   "owner",
+			password:   "secret",
+			wantStatus: http.StatusOK,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/swagger/index.html", nil)
+			if tc.username != "" {
+				req.SetBasicAuth(tc.username, tc.password)
+			}
+			w := httptest.NewRecorder()
+
+			NewServer(tc.conf, false).SetupRoutes().ServeHTTP(w, req)
+
+			if w.Code != tc.wantStatus {
+				t.Fatalf("got status %d, want %d", w.Code, tc.wantStatus)
+			}
+			if tc.wantStatus == http.StatusOK {
+				if got := w.Header().Get("Content-Type"); !strings.Contains(got, "text/html") {
+					t.Fatalf("Content-Type = %q, want HTML", got)
+				}
+				if !strings.Contains(w.Body.String(), "Swagger UI") {
+					t.Fatal("response does not contain Swagger UI")
+				}
+			}
+		})
+	}
+}
+
+func TestSwaggerDocument(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/swagger/doc.json", nil)
+	w := httptest.NewRecorder()
+
+	NewServer(config.Config{}, false).SetupRoutes().ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("got status %d, want %d: %s", w.Code, http.StatusOK, w.Body.String())
+	}
+	var spec struct {
+		Info struct {
+			Title string `json:"title"`
+		} `json:"info"`
+		Paths               map[string]json.RawMessage `json:"paths"`
+		SecurityDefinitions map[string]struct {
+			Type string `json:"type"`
+		} `json:"securityDefinitions"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &spec); err != nil {
+		t.Fatalf("decode Swagger document: %v", err)
+	}
+	if spec.Info.Title != "RSSFFS API" {
+		t.Errorf("Swagger title = %q, want %q", spec.Info.Title, "RSSFFS API")
+	}
+	for _, path := range []string{"/categories", "/logs", "/logs/stream", "/submit"} {
+		if _, ok := spec.Paths[path]; !ok {
+			t.Errorf("Swagger document is missing %s", path)
+		}
+	}
+	if definition, ok := spec.SecurityDefinitions["BasicAuth"]; !ok {
+		t.Error("Swagger document is missing the BasicAuth security definition")
+	} else if definition.Type != "basic" {
+		t.Errorf("BasicAuth type = %q, want %q", definition.Type, "basic")
 	}
 }
 

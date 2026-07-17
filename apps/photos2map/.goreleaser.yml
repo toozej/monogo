@@ -4,6 +4,10 @@ version: 2
 project_name: photos2map
 dist: dist/photos2map
 
+retry:
+  attempts: 5
+  delay: 5s
+
 env:
   - GO111MODULE=on
 

@@ -1,0 +1,397 @@
+basePath: /
+definitions:
+  scraper.ArtistMatchResult:
+    properties:
+      artist:
+        $ref: '#/definitions/types.Artist'
+      confidence:
+        type: number
+      error:
+        type: string
+      matched:
+        type: boolean
+      query:
+        type: string
+      tracks_added:
+        type: integer
+      was_duplicate:
+        type: boolean
+    type: object
+  scraper.ScrapeResult:
+    properties:
+      artists_found:
+        items:
+          type: string
+        type: array
+      css_selector:
+        type: string
+      duplicate_count:
+        type: integer
+      errors:
+        items:
+          type: string
+        type: array
+      failure_count:
+        type: integer
+      match_results:
+        items:
+          $ref: '#/definitions/scraper.ArtistMatchResult'
+        type: array
+      message:
+        type: string
+      success_count:
+        type: integer
+      total_tracks_added:
+        type: integer
+      url:
+        type: string
+    type: object
+  server.SwaggerAddArtistResponse:
+    properties:
+      data:
+        $ref: '#/definitions/types.AddResult'
+      is_duplicate:
+        type: boolean
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+  server.SwaggerAuthStatusData:
+    properties:
+      auth_url:
+        type: string
+      authenticated:
+        type: boolean
+    type: object
+  server.SwaggerAuthStatusResponse:
+    properties:
+      data:
+        $ref: '#/definitions/server.SwaggerAuthStatusData'
+      success:
+        type: boolean
+    type: object
+  server.SwaggerCSRFTokenResponse:
+    properties:
+      csrf_token:
+        type: string
+    type: object
+  server.SwaggerPlaylistsResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/types.Playlist'
+        type: array
+      success:
+        type: boolean
+    type: object
+  server.SwaggerScrapeArtistsResponse:
+    properties:
+      data:
+        $ref: '#/definitions/scraper.ScrapeResult'
+      error:
+        type: string
+      success:
+        type: boolean
+    type: object
+  types.APIResponse:
+    properties:
+      data: {}
+      error:
+        type: string
+      success:
+        type: boolean
+    type: object
+  types.AddArtistRequest:
+    properties:
+      artist_name:
+        maxLength: 100
+        minLength: 1
+        type: string
+      force:
+        type: boolean
+      playlist_id:
+        type: string
+    required:
+    - artist_name
+    - playlist_id
+    type: object
+  types.AddResult:
+    properties:
+      artist:
+        $ref: '#/definitions/types.Artist'
+      message:
+        type: string
+      playlist:
+        $ref: '#/definitions/types.Playlist'
+      success:
+        type: boolean
+      tracks_added:
+        items:
+          $ref: '#/definitions/types.Track'
+        type: array
+      was_duplicate:
+        type: boolean
+    type: object
+  types.Artist:
+    properties:
+      genres:
+        items:
+          type: string
+        type: array
+      id:
+        type: string
+      name:
+        type: string
+      uri:
+        type: string
+    type: object
+  types.Playlist:
+    properties:
+      embed_url:
+        type: string
+      id:
+        type: string
+      is_incoming:
+        type: boolean
+      name:
+        type: string
+      track_count:
+        type: integer
+      uri:
+        type: string
+    type: object
+  types.ScrapeArtistsRequest:
+    properties:
+      css_selector:
+        maxLength: 500
+        type: string
+      force:
+        type: boolean
+      playlist_id:
+        type: string
+      url:
+        type: string
+    required:
+    - playlist_id
+    - url
+    type: object
+  types.Track:
+    properties:
+      artists:
+        items:
+          $ref: '#/definitions/types.Artist'
+        type: array
+      duration_ms:
+        type: integer
+      id:
+        type: string
+      name:
+        type: string
+      uri:
+        type: string
+    type: object
+info:
+  contact: {}
+  description: |-
+    Manage Spotify incoming playlists, add artists, and discover artists by scraping web pages.
+    When HTTP Basic Auth is configured, it protects the API and Swagger UI. POST operations also require a token from GET /api/csrf-token in the X-CSRF-Token header.
+  title: go-listen API
+  version: "1.0"
+paths:
+  /api/add-artist:
+    post:
+      consumes:
+      - application/json
+      description: Adds an artist's top tracks to a Spotify playlist. Supply force=true
+        to add tracks despite duplicate detection.
+      parameters:
+      - description: Token returned by GET /api/csrf-token
+        in: header
+        name: X-CSRF-Token
+        required: true
+        type: string
+      - description: Artist and target playlist
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/types.AddArtistRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/server.SwaggerAddArtistResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.APIResponse'
+        "401":
+          description: Basic authentication failed or Spotify reauthorization required
+          schema:
+            $ref: '#/definitions/types.APIResponse'
+        "403":
+          description: Invalid or missing CSRF token
+          schema:
+            type: string
+        "429":
+          description: Rate limit exceeded
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.APIResponse'
+      security:
+      - BasicAuth: []
+      summary: Add an artist to a playlist
+      tags:
+      - playlists
+  /api/auth-status:
+    get:
+      description: Reports whether the server has an authenticated Spotify session
+        and, when needed, returns the Spotify authorization URL.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/server.SwaggerAuthStatusResponse'
+        "401":
+          description: Basic authentication failed
+          schema:
+            type: string
+        "429":
+          description: Rate limit exceeded
+          schema:
+            type: string
+      security:
+      - BasicAuth: []
+      summary: Get Spotify authentication status
+      tags:
+      - authentication
+  /api/csrf-token:
+    get:
+      description: Returns a token for the X-CSRF-Token header required by state-changing
+        API operations.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/server.SwaggerCSRFTokenResponse'
+        "401":
+          description: Basic authentication failed
+          schema:
+            type: string
+        "429":
+          description: Rate limit exceeded
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.APIResponse'
+      security:
+      - BasicAuth: []
+      summary: Create a CSRF token
+      tags:
+      - security
+  /api/playlists:
+    get:
+      description: Retrieves Spotify playlists from the Incoming folder, optionally
+        filtered by name.
+      parameters:
+      - description: Case-insensitive playlist name filter
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/server.SwaggerPlaylistsResponse'
+        "401":
+          description: Basic authentication failed or Spotify reauthorization required
+          schema:
+            $ref: '#/definitions/types.APIResponse'
+        "429":
+          description: Rate limit exceeded
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.APIResponse'
+      security:
+      - BasicAuth: []
+      summary: List incoming playlists
+      tags:
+      - playlists
+  /api/scrape-artists:
+    post:
+      consumes:
+      - application/json
+      description: Extracts artist names from a web page, matches them against Spotify,
+        and adds their top tracks to a playlist.
+      parameters:
+      - description: Token returned by GET /api/csrf-token
+        in: header
+        name: X-CSRF-Token
+        required: true
+        type: string
+      - description: Source page and target playlist
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/types.ScrapeArtistsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/server.SwaggerScrapeArtistsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.APIResponse'
+        "401":
+          description: Basic authentication failed or Spotify reauthorization required
+          schema:
+            $ref: '#/definitions/types.APIResponse'
+        "403":
+          description: Invalid or missing CSRF token
+          schema:
+            type: string
+        "429":
+          description: Rate limit exceeded
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.APIResponse'
+        "503":
+          description: Scraper service is unavailable
+          schema:
+            $ref: '#/definitions/types.APIResponse'
+      security:
+      - BasicAuth: []
+      summary: Scrape and add artists
+      tags:
+      - scraping
+schemes:
+- http
+- https
+securityDefinitions:
+  BasicAuth:
+    type: basic
+swagger: "2.0"

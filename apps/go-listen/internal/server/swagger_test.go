@@ -1,0 +1,125 @@
+package server
+
+import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/toozej/monogo/apps/go-listen/internal/config"
+)
+
+func newSwaggerTestServer(t *testing.T, username, password string) *Server {
+	t.Helper()
+
+	cfg := &config.Config{
+		Server: config.ServerConfig{Host: "127.0.0.1", Port: 8080},
+		Spotify: config.SpotifyConfig{
+			ClientID:     "test_client_id",
+			ClientSecret: "test_client_secret",
+			RedirectURL:  "http://127.0.0.1:8080/callback",
+			TokenFile:    filepath.Join(t.TempDir(), "token.json"),
+		},
+		Security: config.SecurityConfig{
+			Username: username,
+			Password: password,
+			RateLimit: config.RateLimitConfig{
+				RequestsPerSecond: 100,
+				Burst:             100,
+			},
+		},
+	}
+
+	server := NewServer(cfg)
+	server.setupRoutes()
+	return server
+}
+
+func TestServer_ServesSwaggerUIAndDocument(t *testing.T) {
+	server := newSwaggerTestServer(t, "", "")
+
+	index := httptest.NewRecorder()
+	server.router.ServeHTTP(index, httptest.NewRequest(http.MethodGet, "/swagger/index.html", http.NoBody))
+	if index.Code != http.StatusOK {
+		t.Fatalf("Swagger UI status = %d, want %d", index.Code, http.StatusOK)
+	}
+	if contentType := index.Header().Get("Content-Type"); !strings.Contains(contentType, "text/html") {
+		t.Fatalf("Swagger UI Content-Type = %q, want HTML", contentType)
+	}
+	if body := index.Body.String(); !strings.Contains(body, "/swagger/doc.json") &&
+		!strings.Contains(body, `\/swagger\/doc.json`) {
+		t.Fatalf("Swagger UI does not reference the generated document: %q", body)
+	} else if strings.Contains(body, "cdn.jsdelivr.net") {
+		t.Fatalf("Swagger UI unexpectedly depends on CDN assets")
+	}
+
+	stylesheet := httptest.NewRecorder()
+	server.router.ServeHTTP(stylesheet, httptest.NewRequest(http.MethodGet, "/swagger/swagger-ui.css", http.NoBody))
+	if stylesheet.Code != http.StatusOK {
+		t.Fatalf("Swagger stylesheet status = %d, want %d", stylesheet.Code, http.StatusOK)
+	}
+	if contentType := stylesheet.Header().Get("Content-Type"); !strings.Contains(contentType, "text/css") {
+		t.Fatalf("Swagger stylesheet Content-Type = %q, want CSS", contentType)
+	}
+
+	document := httptest.NewRecorder()
+	server.router.ServeHTTP(document, httptest.NewRequest(http.MethodGet, "/swagger/doc.json", http.NoBody))
+	if document.Code != http.StatusOK {
+		t.Fatalf("Swagger document status = %d, want %d: %s", document.Code, http.StatusOK, document.Body.String())
+	}
+
+	var spec struct {
+		Info struct {
+			Title string `json:"title"`
+		} `json:"info"`
+		Paths               map[string]json.RawMessage `json:"paths"`
+		SecurityDefinitions map[string]struct {
+			Type string `json:"type"`
+		} `json:"securityDefinitions"`
+	}
+	if err := json.Unmarshal(document.Body.Bytes(), &spec); err != nil {
+		t.Fatalf("decode Swagger document: %v", err)
+	}
+	if spec.Info.Title != "go-listen API" {
+		t.Errorf("Swagger title = %q, want %q", spec.Info.Title, "go-listen API")
+	}
+	for _, path := range []string{
+		"/api/add-artist",
+		"/api/auth-status",
+		"/api/csrf-token",
+		"/api/playlists",
+		"/api/scrape-artists",
+	} {
+		if _, ok := spec.Paths[path]; !ok {
+			t.Errorf("Swagger document is missing %s", path)
+		}
+	}
+	if definition, ok := spec.SecurityDefinitions["BasicAuth"]; !ok {
+		t.Error("Swagger document is missing the BasicAuth security definition")
+	} else if definition.Type != "basic" {
+		t.Errorf("BasicAuth type = %q, want %q", definition.Type, "basic")
+	}
+}
+
+func TestServer_SwaggerUsesConfiguredBasicAuth(t *testing.T) {
+	server := newSwaggerTestServer(t, "docs-user", "docs-password")
+
+	unauthorized := httptest.NewRecorder()
+	server.router.ServeHTTP(unauthorized, httptest.NewRequest(http.MethodGet, "/swagger/index.html", http.NoBody))
+	if unauthorized.Code != http.StatusUnauthorized {
+		t.Fatalf("unauthenticated Swagger UI status = %d, want %d", unauthorized.Code, http.StatusUnauthorized)
+	}
+	if challenge := unauthorized.Header().Get("WWW-Authenticate"); !strings.Contains(challenge, "Basic") {
+		t.Fatalf("WWW-Authenticate = %q, want a Basic challenge", challenge)
+	}
+
+	authorized := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/swagger/index.html", http.NoBody)
+	request.SetBasicAuth("docs-user", "docs-password")
+	server.router.ServeHTTP(authorized, request)
+	if authorized.Code != http.StatusOK {
+		t.Fatalf("authenticated Swagger UI status = %d, want %d", authorized.Code, http.StatusOK)
+	}
+}

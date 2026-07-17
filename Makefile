@@ -18,6 +18,8 @@ APP_BINARY = $(shell awk -F': *' '/^binary:/ {gsub(/"/, "", $$2); print $$2; exi
 APP_NAME = $(shell awk -F': *' '/^name:/ {gsub(/"/, "", $$2); print $$2; exit}' $(APP_CONFIG) 2>/dev/null)
 APP_MAIN_PATH = $(shell v=$$(awk -F': *' '/^mainPath:/ {gsub(/"/, "", $$2); print $$2; exit}' $(APP_CONFIG) 2>/dev/null); if test -n "$$v"; then echo "$$v"; else echo "$(APP_DIR)"; fi)
 APP_CGO_ENABLED = $(shell v=$$(awk -F': *' '/^cgoEnabled:/ {gsub(/"/, "", $$2); print $$2; exit}' $(APP_CONFIG) 2>/dev/null); if [ "$$v" = "true" ] || [ "$$v" = "1" ]; then echo 1; else echo 0; fi)
+APP_SWAGGER_ENABLED = $(shell awk -F': *' '/^swaggerEnabled:/ {gsub(/"/, "", $$2); print $$2; exit}' $(APP_CONFIG) 2>/dev/null)
+APP_SWAGGER_GENERAL_INFO = $(shell awk -F': *' '/^swaggerGeneralInfo:/ {gsub(/"/, "", $$2); print $$2; exit}' $(APP_CONFIG) 2>/dev/null)
 APP_PACKAGES = ./$(APP_DIR)/... ./pkg/...
 APP_ENV_FILE ?= $(APP_DIR)/.env
 APP_COSIGN_KEY ?= $(APP_DIR)/$(APP_BINARY).key
@@ -79,8 +81,8 @@ DIST_DIR ?= $(CURDIR)/dist/$(APP)
 COSIGN_IDENTITY_REGEXP := '^https://github.com/toozej/monogo/.github/workflows/(release|weekly-docker-refresh).yaml@refs/(tags/.*|heads/main)$$'
 COSIGN_OIDC_ISSUER := 'https://token.actions.githubusercontent.com'
 
-.PHONY: all list-apps import new-app delete-app migrate-internal-package app-check common-generate app-generate generate generate-all app-templates-check templates-check vet test build release release-all delete-release re-release verify verify-checksums verify-docker verify-docker-all-registries run up down docker-vet docker-test docker-build distroless-build distroless-run install local local-all local-update-deps local-vet local-vendor local-test local-cover local-build local-run local-kill local-iterate release-test local-install docker-login go-tools-install release-tools-install docker-refresh-tools-install ci-release ci-docker-refresh system-tools-install pre-commit-tools-install pre-commit-install pre-commit-update pre-commit-run pre-commit pre-reqs licenses licenses-all update-golang-version upload-secrets-to-gh upload-secrets-envfile-to-1pass docs diagrams mutation-test test-changed watch-test profile-cpu profile-mem profile-all benchmark demo clean clean-all help
-.PHONY: common-generate-no-prereqs app-generate-no-prereqs generate-no-prereqs generate-all-no-prereqs app-templates-check-no-generate docker-vet-no-generate docker-test-no-generate docker-build-no-generate release-test-no-generate local-no-prereqs local-vet-no-prereqs ci-docker-refresh-no-prereqs pre-commit-install-no-prereqs pre-commit-run-no-generate licenses-no-prereqs licenses-all-no-prereqs
+.PHONY: all list-apps import new-app delete-app migrate-internal-package app-check common-generate app-generate swagger-generate generate generate-all app-templates-check templates-check vet test build release release-all delete-release re-release verify verify-checksums verify-docker verify-docker-all-registries run up down docker-vet docker-test docker-build distroless-build distroless-run install local local-all local-update-deps local-vet local-vendor local-test local-cover local-build local-run local-kill local-iterate release-test local-install docker-login go-tools-install release-tools-install docker-refresh-tools-install ci-release ci-docker-refresh system-tools-install pre-commit-tools-install pre-commit-install pre-commit-update pre-commit-run pre-commit pre-reqs licenses licenses-all update-golang-version upload-secrets-to-gh upload-secrets-envfile-to-1pass docs diagrams mutation-test test-changed watch-test profile-cpu profile-mem profile-all benchmark demo clean clean-all help
+.PHONY: common-generate-no-prereqs app-generate-no-prereqs swagger-generate-no-prereqs generate-no-prereqs generate-all-no-prereqs app-templates-check-no-generate docker-vet-no-generate docker-test-no-generate docker-build-no-generate release-test-no-generate local-no-prereqs local-vet-no-prereqs ci-docker-refresh-no-prereqs pre-commit-install-no-prereqs pre-commit-run-no-generate licenses-no-prereqs licenses-all-no-prereqs
 .PHONY: $(GO_TOOL_INSTALL_TARGETS)
 
 all: pre-commit-tools-install ## Run default workflow for every app using Docker where available
@@ -132,6 +134,20 @@ app-generate: pre-reqs ## Generate APP Docker, GoReleaser, Compose, and Air conf
 
 app-generate-no-prereqs: app-check
 	$(CURDIR)/scripts/render-app-configs.sh $(APP)
+	# The weekly refresh uses this Makefile against historical release commits.
+	# Those trees predate Swagger support, so skip generation when the matching
+	# helper is not present in the checked-out release source.
+	@if test -x "$(CURDIR)/scripts/generate-swagger.sh"; then \
+		$(MAKE) swagger-generate-no-prereqs APP=$(APP); \
+	fi
+
+swagger-generate: app-check swag-install ## Generate Swagger API documentation when enabled in app.yaml
+	$(MAKE) swagger-generate-no-prereqs APP=$(APP)
+
+swagger-generate-no-prereqs: app-check
+	APP_SWAGGER_ENABLED=$(APP_SWAGGER_ENABLED) \
+		APP_SWAGGER_GENERAL_INFO="$(APP_SWAGGER_GENERAL_INFO)" \
+		$(CURDIR)/scripts/generate-swagger.sh $(APP)
 
 generate: pre-reqs ## Generate root shared configs and APP configs
 	$(MAKE) generate-no-prereqs APP=$(APP)
@@ -446,9 +462,9 @@ go-tools-install: $(GO_TOOL_INSTALL_TARGETS) ## Install every Go tool pinned in 
 $(GO_TOOL_INSTALL_TARGETS): %-install:
 	TOOLS_BIN="$(TOOLS_BIN)" $(GO_TOOLS) install $*
 
-release-tools-install: gomplate-install goreleaser-install cosign-install syft-install ## Install pinned release tools
+release-tools-install: gomplate-install swag-install goreleaser-install cosign-install syft-install ## Install pinned release tools
 
-docker-refresh-tools-install: gomplate-install goreleaser-install cosign-install ## Install pinned Docker-refresh tools (omits syft; the refresh runs GoReleaser with --skip=sbom)
+docker-refresh-tools-install: gomplate-install swag-install goreleaser-install cosign-install ## Install pinned Docker-refresh tools (omits syft; the refresh runs GoReleaser with --skip=sbom)
 
 ci-release: app-check release-tools-install ## Build, sign, and publish APP release artifacts in CI
 	$(MAKE) app-generate-no-prereqs APP=$(APP)
@@ -461,7 +477,7 @@ ci-docker-refresh-no-prereqs: app-check
 	$(MAKE) -f "$(THIS_MAKEFILE)" app-generate-no-prereqs APP=$(APP)
 	goreleaser release --clean --skip=announce,archive,before,homebrew,nfpm,sbom,validate --config $(APP_DIR)/.goreleaser.yml
 
-pre-reqs: gomplate-install ## Install repository prerequisites
+pre-reqs: gomplate-install swag-install ## Install repository prerequisites
 
 pre-commit: pre-commit-install pre-commit-run ## Install and run pre-commit hooks
 

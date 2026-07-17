@@ -132,7 +132,18 @@ type LogsResponse struct {
 	Error   string     `json:"error,omitempty"`
 }
 
-// handleLogs serves recent log entries as JSON
+// handleLogs serves recent log entries as JSON.
+//
+// @Summary List recent application logs
+// @Description Returns captured log entries in chronological order. Values above 200 are capped. Basic authentication is required when web credentials are configured.
+// @Tags logs
+// @Produce json
+// @Param limit query int false "Maximum number of recent entries" default(50) minimum(1) maximum(200)
+// @Security BasicAuth
+// @Success 200 {object} LogsResponse
+// @Failure 401 {string} string "Unauthorized"
+// @Failure 503 {object} LogsResponse
+// @Router /logs [get]
 func (s *Server) handleLogs(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -179,7 +190,16 @@ func (s *Server) handleLogs(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// handleLogsSSE serves log entries via Server-Sent Events for real-time updates
+// handleLogsSSE serves log entries via Server-Sent Events for real-time updates.
+//
+// @Summary Stream application logs
+// @Description Opens a Server-Sent Events stream with recent log entries, periodic heartbeats, and subsequent updates. Basic authentication is required when web credentials are configured.
+// @Tags logs
+// @Produce text/event-stream
+// @Security BasicAuth
+// @Success 200 {string} string "Server-Sent Events stream"
+// @Failure 401 {string} string "Unauthorized"
+// @Router /logs/stream [get]
 func (s *Server) handleLogsSSE(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)

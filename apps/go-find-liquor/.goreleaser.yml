@@ -4,6 +4,10 @@ version: 2
 project_name: go-find-liquor
 dist: dist/go-find-liquor
 
+retry:
+  attempts: 5
+  delay: 5s
+
 env:
   - GO111MODULE=on
 

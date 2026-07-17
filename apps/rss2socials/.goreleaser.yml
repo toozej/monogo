@@ -4,6 +4,10 @@ version: 2
 project_name: rss2socials
 dist: dist/rss2socials
 
+retry:
+  attempts: 5
+  delay: 5s
+
 env:
   - GO111MODULE=on
 

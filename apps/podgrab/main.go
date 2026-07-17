@@ -17,8 +17,11 @@ import (
 	"github.com/jasonlvhit/gocron"
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/spf13/cobra"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 	"github.com/toozej/monogo/apps/podgrab/controllers"
 	"github.com/toozej/monogo/apps/podgrab/db"
+	_ "github.com/toozej/monogo/apps/podgrab/docs"
 	"github.com/toozej/monogo/apps/podgrab/internal/logger"
 	"github.com/toozej/monogo/apps/podgrab/service"
 	"github.com/toozej/monogo/pkg/avatar"
@@ -34,6 +37,22 @@ var (
 	initDB         = db.Init
 )
 
+// VersionResponse describes the build information returned by the version endpoint.
+type VersionResponse struct {
+	Commit  string
+	Version string
+	Branch  string
+	BuiltAt string
+	Builder string
+}
+
+// @title Podgrab API
+// @version 1.0
+// @description API for managing podcasts, episodes, tags, settings, imports, exports, and generated feeds in Podgrab.
+// @description Set PASSWORD to require HTTP Basic authentication with the username "podgrab".
+// @BasePath /
+// @schemes http https
+// @securityDefinitions.basic BasicAuth
 func main() {
 	rootCmd := &cobra.Command{
 		Use:   "podgrab",
@@ -172,6 +191,7 @@ func run() int {
 
 	pass := os.Getenv("PASSWORD")
 	router := applicationRouter(r, pass)
+	registerSwaggerRoute(router)
 
 	dataPath := os.Getenv("DATA")
 	backupPath := path.Join(os.Getenv("CONFIG"), "backups")
@@ -233,14 +253,7 @@ func run() int {
 	router.GET("/opml", controllers.GetOmpl)
 	router.GET("/player", controllers.PlayerPage)
 	router.GET("/rss", controllers.GetRss)
-	router.GET("/version", func(c *gin.Context) {
-		info, err := version.Get()
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusOK, info)
-	})
+	router.GET("/version", getVersion)
 
 	registerWebsocketRoute(router)
 	go controllers.HandleWebsocketMessages()
@@ -263,11 +276,34 @@ func applicationRouter(r *gin.Engine, password string) *gin.RouterGroup {
 	return r.Group("/", gin.BasicAuth(gin.Accounts{"podgrab": password}))
 }
 
+func registerSwaggerRoute(router *gin.RouterGroup) {
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+}
+
 func registerWebsocketRoute(router *gin.RouterGroup) {
 	router.GET("/ws", func(c *gin.Context) {
 		controllers.Wshandler(c.Writer, c.Request)
 	})
 }
+
+// getVersion returns build and version metadata.
+// @Summary Get version information
+// @Description Returns the Podgrab build version, commit, branch, timestamp, and builder.
+// @Tags system
+// @Produce json
+// @Security BasicAuth
+// @Success 200 {object} VersionResponse
+// @Failure 500 {object} map[string]string
+// @Router /version [get]
+func getVersion(c *gin.Context) {
+	info, err := version.Get()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, info)
+}
+
 func setupSettings() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		setting := db.GetOrCreateSetting()

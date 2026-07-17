@@ -4,6 +4,10 @@ version: 2
 project_name: go-sort-out-gh-actions
 dist: dist/go-sort-out-gh-actions
 
+retry:
+  attempts: 5
+  delay: 5s
+
 env:
   - GO111MODULE=on
 

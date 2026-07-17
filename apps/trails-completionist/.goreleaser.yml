@@ -4,6 +4,10 @@ version: 2
 project_name: trails-completionist
 dist: dist/trails-completionist
 
+retry:
+  attempts: 5
+  delay: 5s
+
 env:
   - GO111MODULE=on
 
