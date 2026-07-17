@@ -39,6 +39,8 @@ RUN LDFLAGS="-s -w -X github.com/toozej/monogo/pkg/version.Version=${VERSION} -X
 FROM scratch
 # Copy our executable.
 COPY --from=build /out/lego-stego /go/bin/lego-stego
+# Include the project license in the runtime image.
+COPY LICENSE /usr/share/doc/lego-stego/copyright
 # Expose port for publishing as web service
 # EXPOSE 8081
 # Run the binary.

@@ -39,6 +39,8 @@ RUN LDFLAGS="-s -w -X github.com/toozej/monogo/pkg/version.Version=${VERSION} -X
 FROM gcr.io/distroless/static-debian13:latest
 # Copy our executable.
 COPY --from=build /out/go-sort-out-gh-actions /go/bin/go-sort-out-gh-actions
+# Include the project license in the runtime image.
+COPY LICENSE /usr/share/doc/go-sort-out-gh-actions/copyright
 # Expose port for publishing as web service
 # EXPOSE 8081
 # Run the binary.

@@ -3,6 +3,8 @@ FROM gcr.io/distroless/static-debian13:nonroot
 # Copy our static executable.
 ARG TARGETPLATFORM
 COPY $TARGETPLATFORM/lego-stego /go/bin/lego-stego
+# Include the project license in the runtime image.
+COPY LICENSE /usr/share/doc/lego-stego/copyright
 # Expose port for publishing as web service
 # EXPOSE 8081
 # Run the binary.

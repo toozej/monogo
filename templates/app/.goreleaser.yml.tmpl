@@ -171,6 +171,7 @@ dockers_v2:
       "index,manifest:org.opencontainers.image.version": '{{ envOrDefault "MONOGO_APP_VERSION" .Version }}'
     extra_files:
       - scripts/goreleaser_entrypoint.sh
+      - LICENSE
 [[- end ]]
   - id: [[$app.name]]-distroless
 [[- if eq $cgo "1" ]]
@@ -222,6 +223,7 @@ dockers_v2:
       "index,manifest:org.opencontainers.image.version": '{{ envOrDefault "MONOGO_APP_VERSION" .Version }}'
     extra_files:
       - scripts/goreleaser_entrypoint.sh
+      - LICENSE
 
 archives:
   - name_template: >-

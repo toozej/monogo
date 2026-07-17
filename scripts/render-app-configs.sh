@@ -22,6 +22,8 @@ if ! command -v gomplate >/dev/null 2>&1; then
 	exit 1
 fi
 
+DISTROLESS_ONLY="$(awk -F': *' '/^distrolessOnly:/ {gsub(/"/, "", $2); print $2; exit}' "${APP_CONFIG}")"
+
 templates=(
 	".goreleaser.yml"
 	"Dockerfile"
@@ -33,6 +35,16 @@ templates=(
 )
 
 for template in "${templates[@]}"; do
+	# distrolessOnly apps only build a distroless GoReleaser image, so the plain
+	# Dockerfile.goreleaser is never referenced. Skip it and drop any stale copy.
+	if [ "${template}" = "Dockerfile.goreleaser" ]; then
+		case "${DISTROLESS_ONLY}" in
+		1 | true)
+			rm -f "${APP_DIR}/${template}"
+			continue
+			;;
+		esac
+	fi
 	mkdir -p "$(dirname "${APP_DIR}/${template}")"
 	gomplate \
 		--left-delim '[[' \
