@@ -134,10 +134,11 @@ app-generate: pre-reqs ## Generate APP Docker, GoReleaser, Compose, and Air conf
 
 app-generate-no-prereqs: app-check
 	$(CURDIR)/scripts/render-app-configs.sh $(APP)
-	# The weekly refresh uses this Makefile against historical release commits.
-	# Those trees predate Swagger support, so skip generation when the matching
-	# helper is not present in the checked-out release source.
-	@if test -x "$(CURDIR)/scripts/generate-swagger.sh"; then \
+	# Gate on the source declaring a swaggerEnabled key rather than on the helper
+	# script's presence: the weekly refresh runs against historical release commits
+	# whose app.yaml predates Swagger, while a moved/non-executable script should
+	# fail loudly here instead of silently skipping docs for the current tree.
+	@if grep -q '^swaggerEnabled:' "$(APP_CONFIG)"; then \
 		$(MAKE) swagger-generate-no-prereqs APP=$(APP); \
 	fi
 

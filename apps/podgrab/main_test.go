@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"html/template"
 	"net/http"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/toozej/monogo/apps/podgrab/db"
+	"github.com/toozej/monogo/pkg/swaggertest"
 	"gorm.io/gorm"
 )
 
@@ -113,34 +113,8 @@ func TestSwaggerRouteUsesApplicationAuthentication(t *testing.T) {
 	if document.Code != http.StatusOK {
 		t.Fatalf("authenticated Swagger document status = %d, want %d: %s", document.Code, http.StatusOK, document.Body.String())
 	}
-	var spec struct {
-		Info struct {
-			Title string `json:"title"`
-		} `json:"info"`
-		Paths               map[string]json.RawMessage `json:"paths"`
-		SecurityDefinitions map[string]struct {
-			Type string `json:"type"`
-		} `json:"securityDefinitions"`
-	}
-	if err := json.Unmarshal(document.Body.Bytes(), &spec); err != nil {
-		t.Fatalf("decode Swagger document: %v", err)
-	}
-	if spec.Info.Title != "Podgrab API" {
-		t.Errorf("Swagger title = %q, want %q", spec.Info.Title, "Podgrab API")
-	}
-	if len(spec.Paths) != 30 {
-		t.Errorf("Swagger path count = %d, want 30", len(spec.Paths))
-	}
-	for _, path := range []string{"/podcasts", "/podcastitems", "/tags", "/settings", "/version"} {
-		if _, ok := spec.Paths[path]; !ok {
-			t.Errorf("Swagger document is missing %s", path)
-		}
-	}
-	if definition, ok := spec.SecurityDefinitions["BasicAuth"]; !ok {
-		t.Error("Swagger document is missing the BasicAuth security definition")
-	} else if definition.Type != "basic" {
-		t.Errorf("BasicAuth type = %q, want %q", definition.Type, "basic")
-	}
+	swaggertest.AssertDocument(t, document.Body.Bytes(), "Podgrab API",
+		"/podcasts", "/podcastitems", "/tags", "/settings", "/version")
 }
 
 func TestRunReturnsErrorWhenSQLiteInitFails(t *testing.T) {

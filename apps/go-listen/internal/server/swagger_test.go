@@ -1,7 +1,6 @@
 package server
 
 import (
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -9,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/toozej/monogo/apps/go-listen/internal/config"
+	"github.com/toozej/monogo/pkg/swaggertest"
 )
 
 func newSwaggerTestServer(t *testing.T, username, password string) *Server {
@@ -70,37 +70,13 @@ func TestServer_ServesSwaggerUIAndDocument(t *testing.T) {
 		t.Fatalf("Swagger document status = %d, want %d: %s", document.Code, http.StatusOK, document.Body.String())
 	}
 
-	var spec struct {
-		Info struct {
-			Title string `json:"title"`
-		} `json:"info"`
-		Paths               map[string]json.RawMessage `json:"paths"`
-		SecurityDefinitions map[string]struct {
-			Type string `json:"type"`
-		} `json:"securityDefinitions"`
-	}
-	if err := json.Unmarshal(document.Body.Bytes(), &spec); err != nil {
-		t.Fatalf("decode Swagger document: %v", err)
-	}
-	if spec.Info.Title != "go-listen API" {
-		t.Errorf("Swagger title = %q, want %q", spec.Info.Title, "go-listen API")
-	}
-	for _, path := range []string{
+	swaggertest.AssertDocument(t, document.Body.Bytes(), "go-listen API",
 		"/api/add-artist",
 		"/api/auth-status",
 		"/api/csrf-token",
 		"/api/playlists",
 		"/api/scrape-artists",
-	} {
-		if _, ok := spec.Paths[path]; !ok {
-			t.Errorf("Swagger document is missing %s", path)
-		}
-	}
-	if definition, ok := spec.SecurityDefinitions["BasicAuth"]; !ok {
-		t.Error("Swagger document is missing the BasicAuth security definition")
-	} else if definition.Type != "basic" {
-		t.Errorf("BasicAuth type = %q, want %q", definition.Type, "basic")
-	}
+	)
 }
 
 func TestServer_SwaggerUsesConfiguredBasicAuth(t *testing.T) {

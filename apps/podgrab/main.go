@@ -37,13 +37,17 @@ var (
 	initDB         = db.Init
 )
 
-// VersionResponse describes the build information returned by the version endpoint.
+// VersionResponse is the JSON body returned by the version endpoint. It mirrors
+// version.Info but pins the wire contract with explicit lowerCamelCase tags so the
+// generated Swagger schema and the marshaled payload stay in agreement (version.Info
+// has no JSON tags, so marshaling it directly would emit PascalCase keys that the
+// spec — which lowercases the first letter — would not match).
 type VersionResponse struct {
-	Commit  string
-	Version string
-	Branch  string
-	BuiltAt string
-	Builder string
+	Commit  string `json:"commit"`
+	Version string `json:"version"`
+	Branch  string `json:"branch"`
+	BuiltAt string `json:"builtAt"`
+	Builder string `json:"builder"`
 }
 
 // @title Podgrab API
@@ -301,7 +305,13 @@ func getVersion(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, info)
+	c.JSON(http.StatusOK, VersionResponse{
+		Commit:  info.Commit,
+		Version: info.Version,
+		Branch:  info.Branch,
+		BuiltAt: info.BuiltAt,
+		Builder: info.Builder,
+	})
 }
 
 func setupSettings() gin.HandlerFunc {

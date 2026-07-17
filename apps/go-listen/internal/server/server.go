@@ -303,7 +303,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param search query string false "Case-insensitive playlist name filter"
 // @Success 200 {object} SwaggerPlaylistsResponse
-// @Failure 401 {object} types.APIResponse "Basic authentication failed or Spotify reauthorization required"
+// @Failure 401 {string} string "Basic authentication failed"
 // @Failure 429 {string} string "Rate limit exceeded"
 // @Failure 500 {object} types.APIResponse
 // @Security BasicAuth
@@ -367,7 +367,7 @@ func (s *Server) handleGetPlaylists(w http.ResponseWriter, r *http.Request) {
 // @Param request body types.AddArtistRequest true "Artist and target playlist"
 // @Success 200 {object} SwaggerAddArtistResponse
 // @Failure 400 {object} types.APIResponse
-// @Failure 401 {object} types.APIResponse "Basic authentication failed or Spotify reauthorization required"
+// @Failure 401 {string} string "Basic authentication failed"
 // @Failure 403 {string} string "Invalid or missing CSRF token"
 // @Failure 429 {string} string "Rate limit exceeded"
 // @Failure 500 {object} types.APIResponse
@@ -448,7 +448,7 @@ func (s *Server) handleAddArtist(w http.ResponseWriter, r *http.Request) {
 // @Param request body types.ScrapeArtistsRequest true "Source page and target playlist"
 // @Success 200 {object} SwaggerScrapeArtistsResponse
 // @Failure 400 {object} types.APIResponse
-// @Failure 401 {object} types.APIResponse "Basic authentication failed or Spotify reauthorization required"
+// @Failure 401 {string} string "Basic authentication failed"
 // @Failure 403 {string} string "Invalid or missing CSRF token"
 // @Failure 429 {string} string "Rate limit exceeded"
 // @Failure 500 {object} types.APIResponse

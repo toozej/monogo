@@ -65,9 +65,9 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "Basic authentication failed or Spotify reauthorization required",
+                        "description": "Basic authentication failed",
                         "schema": {
-                            "$ref": "#/definitions/types.APIResponse"
+                            "type": "string"
                         }
                     },
                     "403": {
@@ -202,9 +202,9 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "Basic authentication failed or Spotify reauthorization required",
+                        "description": "Basic authentication failed",
                         "schema": {
-                            "$ref": "#/definitions/types.APIResponse"
+                            "type": "string"
                         }
                     },
                     "429": {
@@ -272,9 +272,9 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "Basic authentication failed or Spotify reauthorization required",
+                        "description": "Basic authentication failed",
                         "schema": {
-                            "$ref": "#/definitions/types.APIResponse"
+                            "type": "string"
                         }
                     },
                     "403": {

@@ -1,7 +1,6 @@
 package web
 
 import (
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -9,6 +8,7 @@ import (
 	"time"
 
 	"github.com/toozej/monogo/apps/RSSFFS/internal/config"
+	"github.com/toozej/monogo/pkg/swaggertest"
 )
 
 func TestNewServer(t *testing.T) {
@@ -140,31 +140,8 @@ func TestSwaggerDocument(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("got status %d, want %d: %s", w.Code, http.StatusOK, w.Body.String())
 	}
-	var spec struct {
-		Info struct {
-			Title string `json:"title"`
-		} `json:"info"`
-		Paths               map[string]json.RawMessage `json:"paths"`
-		SecurityDefinitions map[string]struct {
-			Type string `json:"type"`
-		} `json:"securityDefinitions"`
-	}
-	if err := json.Unmarshal(w.Body.Bytes(), &spec); err != nil {
-		t.Fatalf("decode Swagger document: %v", err)
-	}
-	if spec.Info.Title != "RSSFFS API" {
-		t.Errorf("Swagger title = %q, want %q", spec.Info.Title, "RSSFFS API")
-	}
-	for _, path := range []string{"/categories", "/logs", "/logs/stream", "/submit"} {
-		if _, ok := spec.Paths[path]; !ok {
-			t.Errorf("Swagger document is missing %s", path)
-		}
-	}
-	if definition, ok := spec.SecurityDefinitions["BasicAuth"]; !ok {
-		t.Error("Swagger document is missing the BasicAuth security definition")
-	} else if definition.Type != "basic" {
-		t.Errorf("BasicAuth type = %q, want %q", definition.Type, "basic")
-	}
+	swaggertest.AssertDocument(t, w.Body.Bytes(), "RSSFFS API",
+		"/categories", "/logs", "/logs/stream", "/submit")
 }
 
 func TestWithMiddleware(t *testing.T) {
