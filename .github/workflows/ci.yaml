@@ -40,6 +40,13 @@ jobs:
             }}
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-checks-tools-
+      - name: Ensure pre-commit CLI after cache hit
+        if: steps.checks-tools-cache.outputs.cache-hit == 'true'
+        run: |
+          if ! command -v pre-commit >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install --yes pre-commit
+          fi
       - name: Install pinned repository tools
         if: steps.checks-tools-cache.outputs.cache-hit != 'true'
         run: make pre-commit-tools-install
