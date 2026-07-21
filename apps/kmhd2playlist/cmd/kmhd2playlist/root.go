@@ -78,11 +78,27 @@ func rootCmdRun(cmd *cobra.Command, args []string) {
 //   - cmd: The cobra command being executed
 //   - args: Command-line arguments
 func rootCmdPreRun(cmd *cobra.Command, args []string) {
+	if !commandRequiresConfig(cmd) {
+		return
+	}
+
 	// Load configuration
 	conf = config.GetEnvVars()
 	if debug {
 		log.SetLevel(log.DebugLevel)
 	}
+}
+
+// commandRequiresConfig reports whether a command needs runtime service
+// configuration. Cobra completion and manpage generation are build-time
+// metadata and must work without provider credentials.
+func commandRequiresConfig(cmd *cobra.Command) bool {
+	for command := cmd; command != nil; command = command.Parent() {
+		if command.Name() == "completion" || command.Name() == "man" {
+			return false
+		}
+	}
+	return true
 }
 
 // Execute starts the command-line interface execution.

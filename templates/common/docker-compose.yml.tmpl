@@ -14,6 +14,10 @@ services:
     read_only: true
 [[ if and $compose (index $compose "environment") ]]    environment:
 [[ range $name, $value := index $compose "environment" ]]      [[$name]]: "[[$value]]"
+[[ end ]][[ end ]][[ if and $compose (index $compose "envFile") ]]    env_file:
+[[ range index $compose "envFile" ]]      - [[.]]
+[[ end ]][[ end ]][[ if and $compose (index $compose "command") ]]    command:
+[[ range index $compose "command" ]]      - "[[.]]"
 [[ end ]][[ end ]][[ if and $compose (index $compose "ports") ]]    ports:
 [[ range index $compose "ports" ]]      - "[[.]]"
 [[ end ]][[ end ]][[ if and $compose (index $compose "volumes") ]]    volumes:

@@ -68,6 +68,15 @@ type SpotifyConfig struct {
 
 // YouTubeMusicConfig represents the configuration for YouTube Music API integration.
 type YouTubeMusicConfig struct {
+	// AuthFilePath points to a JSON object containing the complete headers from
+	// an authenticated music.youtube.com POST request. It is the preferred
+	// authentication mechanism because it retains the browser-specific account,
+	// visitor, and client context needed for playlist mutations.
+	AuthFilePath string `env:"AUTH_FILE_PATH"`
+
+	// Cookie is retained as a legacy fallback. It is sufficient for some
+	// read-only requests but is less reliable for playlist mutations because it
+	// lacks the browser request context available in AuthFilePath.
 	Cookie string `env:"COOKIE"`
 
 	PlaylistNamePrefix string `env:"PLAYLIST_NAME_PREFIX"`
@@ -219,19 +228,20 @@ func validateConfig(conf *Config) error {
 	switch conf.MusicClient {
 	case "spotify":
 		if conf.Spotify.ClientID == "" {
-			fmt.Println("Warning: SPOTIFY_CLIENT_ID is not set. The application will not be able to connect to Spotify.")
-			fmt.Println("Please set your Spotify credentials to use the application.")
+			errors = append(errors, "SPOTIFY_CLIENT_ID is required when MUSIC_CLIENT=spotify")
 		}
 		if conf.Spotify.ClientSecret == "" {
-			fmt.Println("Warning: SPOTIFY_CLIENT_SECRET is not set. The application will not be able to connect to Spotify.")
+			errors = append(errors, "SPOTIFY_CLIENT_SECRET is required when MUSIC_CLIENT=spotify")
+		}
+		if conf.Spotify.RedirectURL == "" {
+			errors = append(errors, "SPOTIFY_REDIRECT_URI is required when MUSIC_CLIENT=spotify")
 		}
 	case "youtube":
-		if conf.YouTubeMusic.Cookie == "" {
-			fmt.Println("Warning: YOUTUBEMUSIC_COOKIE is not set. The application will not be able to connect to YouTube Music.")
-			fmt.Println("Please set your YouTube Music cookie to use the application.")
+		if conf.YouTubeMusic.AuthFilePath == "" && conf.YouTubeMusic.Cookie == "" {
+			errors = append(errors, "YOUTUBEMUSIC_AUTH_FILE_PATH or YOUTUBEMUSIC_COOKIE is required when MUSIC_CLIENT=youtube")
 		}
 	default:
-		errors = append(errors, "MUSIC_CLIENT must be 'spotify' or 'youtube'")
+		errors = append(errors, ErrInvalidMusicClient.Error())
 	}
 
 	// Validate server configuration

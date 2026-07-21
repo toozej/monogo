@@ -19,28 +19,27 @@ func TestGetEnvVars(t *testing.T) {
 		{
 			name: "Valid environment variables",
 			mockEnv: map[string]string{
-				"SPOTIFY_CLIENT_ID": "test-spotify-id",
+				"SPOTIFY_CLIENT_ID":     "test-spotify-id",
+				"SPOTIFY_CLIENT_SECRET": "test-spotify-secret",
+				"SPOTIFY_REDIRECT_URI":  "http://localhost:8080/callback",
 			},
 			expectError:     false,
 			expectSpotifyID: "test-spotify-id",
 		},
 		{
 			name:            "Valid .env file",
-			mockEnvFile:     "SPOTIFY_CLIENT_ID=test-env-spotify-id\n",
+			mockEnvFile:     "SPOTIFY_CLIENT_ID=test-env-spotify-id\nSPOTIFY_CLIENT_SECRET=test-spotify-secret\nSPOTIFY_REDIRECT_URI=http://localhost:8080/callback\n",
 			expectError:     false,
 			expectSpotifyID: "test-env-spotify-id",
 		},
 		{
-			name:            "No environment variables or .env file",
-			expectError:     false, // Should not error - all fields have defaults or are optional
-			expectSpotifyID: "",
-		},
-		{
 			name: "Environment variable overrides .env file",
 			mockEnv: map[string]string{
-				"SPOTIFY_CLIENT_ID": "env-spotify-id",
+				"SPOTIFY_CLIENT_ID":     "env-spotify-id",
+				"SPOTIFY_CLIENT_SECRET": "test-spotify-secret",
+				"SPOTIFY_REDIRECT_URI":  "http://localhost:8080/callback",
 			},
-			mockEnvFile:     "SPOTIFY_CLIENT_ID=file-spotify-id\n",
+			mockEnvFile:     "SPOTIFY_CLIENT_ID=file-spotify-id\nSPOTIFY_CLIENT_SECRET=file-spotify-secret\nSPOTIFY_REDIRECT_URI=http://localhost:8080/callback\n",
 			expectError:     false,
 			expectSpotifyID: "env-spotify-id",
 		},
@@ -62,6 +61,8 @@ func TestGetEnvVars(t *testing.T) {
 
 			// Clear environment variables first
 			_ = os.Unsetenv("SPOTIFY_CLIENT_ID")
+			_ = os.Unsetenv("SPOTIFY_CLIENT_SECRET")
+			_ = os.Unsetenv("SPOTIFY_REDIRECT_URI")
 			_ = os.Unsetenv("MUSIC_CLIENT")
 			_ = os.Unsetenv("YOUTUBEMUSIC_COOKIE")
 
@@ -98,6 +99,86 @@ func TestGetEnvVars(t *testing.T) {
 	}
 
 }
+
+func TestValidateConfigRequiresOnlySelectedProvider(t *testing.T) {
+	validConfig := func() Config {
+		return Config{
+			KMHD: KMHDConfig{
+				APIEndpoint: "https://example.com/playlist",
+				HTTPTimeout: 30,
+			},
+			Server: ServerConfig{Port: 8080},
+		}
+	}
+
+	tests := []struct {
+		name    string
+		config  Config
+		wantErr string
+	}{
+		{
+			name: "Spotify ignores YouTube Music cookie",
+			config: func() Config {
+				conf := validConfig()
+				conf.MusicClient = "spotify"
+				conf.Spotify = SpotifyConfig{
+					ClientID:     "spotify-client-id",
+					ClientSecret: "spotify-client-secret",
+					RedirectURL:  "http://localhost:8080/callback",
+				}
+				return conf
+			}(),
+		},
+		{
+			name: "YouTube Music ignores Spotify configuration",
+			config: func() Config {
+				conf := validConfig()
+				conf.MusicClient = "youtube"
+				conf.YouTubeMusic.Cookie = "SAPISID=example"
+				return conf
+			}(),
+		},
+		{
+			name: "Spotify requires Spotify credentials and redirect URI",
+			config: func() Config {
+				conf := validConfig()
+				conf.MusicClient = "spotify"
+				return conf
+			}(),
+			wantErr: "SPOTIFY_CLIENT_ID is required when MUSIC_CLIENT=spotify",
+		},
+		{
+			name: "YouTube Music requires auth headers or a legacy cookie",
+			config: func() Config {
+				conf := validConfig()
+				conf.MusicClient = "youtube"
+				return conf
+			}(),
+			wantErr: "YOUTUBEMUSIC_AUTH_FILE_PATH or YOUTUBEMUSIC_COOKIE is required when MUSIC_CLIENT=youtube",
+		},
+		{
+			name: "YouTube Music accepts browser auth headers without a cookie environment variable",
+			config: func() Config {
+				conf := validConfig()
+				conf.MusicClient = "youtube"
+				conf.YouTubeMusic.AuthFilePath = "/app/auth/youtubemusic-headers.json"
+				return conf
+			}(),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateConfig(&tt.config)
+			if tt.wantErr == "" {
+				assert.NoError(t, err)
+				return
+			}
+			assert.ErrorContains(t, err, tt.wantErr)
+		})
+	}
+}
+
 func TestSpotifyConfig_GetTokenFilePath(t *testing.T) {
 	tests := []struct {
 		name           string

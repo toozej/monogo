@@ -29,6 +29,8 @@ the devcontainer build. Run `make app-generate APP=<app>` after editing
 | `compose.user` | no | User or UID/GID used to run the Compose service. Useful for nonroot CLI containers that write to bind mounts. |
 | `compose.restart` | no (default `unless-stopped`) | Docker Compose restart policy. Set to `no` for one-shot CLI apps. |
 | `compose.environment` | no | Environment variables emitted for the app service in `docker-compose.yml`. |
+| `compose.envFile` | no | Environment files emitted with Compose's `env_file` setting. |
+| `compose.command` | no | Command and arguments emitted for the app service. |
 | `compose.ports` | no | Port mappings emitted for the app service, such as `8080:8080`. |
 | `compose.volumes` | no | Bind mounts or named-volume mappings emitted for the app service. |
 | `compose.namedVolumes` | no | Named volumes declared at the top level of `docker-compose.yml`. |
@@ -45,6 +47,10 @@ compose:
   environment:
     CONFIG: /config
     DATA: /assets
+  envFile:
+    - .env
+  command:
+    - serve
   ports:
     - 8080:8080
   volumes:

@@ -34,6 +34,8 @@ ARG BUILDER=unknown
 
 RUN LDFLAGS="-s -w -X github.com/toozej/monogo/pkg/version.Version=${VERSION} -X github.com/toozej/monogo/pkg/version.Commit=${COMMIT} -X github.com/toozej/monogo/pkg/version.Branch=${BRANCH} -X github.com/toozej/monogo/pkg/version.BuiltAt=${BUILT_AT} -X github.com/toozej/monogo/pkg/version.Builder=${BUILDER}" && \
     CGO_ENABLED=0 go build -o /out/kmhd2playlist -ldflags="${LDFLAGS}" ./apps/kmhd2playlist
+RUN mkdir -p /container-root/app/data && \
+    chown -R 65532:65532 /container-root
 
 # runtime image
 FROM gcr.io/distroless/static-debian13:nonroot
@@ -41,6 +43,7 @@ FROM gcr.io/distroless/static-debian13:nonroot
 COPY --from=build /out/kmhd2playlist /go/bin/kmhd2playlist
 # Include the project license in the runtime image.
 COPY LICENSE /usr/share/doc/kmhd2playlist/copyright
+COPY --from=build --chown=65532:65532 /container-root/app/data /app/data
 # Expose port for publishing as web service
 # EXPOSE 8081
 # Run the binary.

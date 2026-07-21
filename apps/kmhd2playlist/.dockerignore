@@ -18,4 +18,5 @@ Makefile
 Dockerfile*
 docker-compose.yml
 kmhd2playlist
-
+auth
+data

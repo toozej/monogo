@@ -7,6 +7,19 @@ services:
     security_opt:
       - no-new-privileges:true
     read_only: true
+    environment:
+      SPOTIFY_TOKEN_FILE_PATH: "/app/data/spotify_token.json"
+      YOUTUBEMUSIC_TOKEN_FILE_PATH: "/app/data/youtubemusic_token.json"
+    env_file:
+      - .env
+    command:
+      - "sync"
+      - "--continuous"
+    ports:
+      - "8080:8080"
+    volumes:
+      - "kmhd2playlist-data:/app/data"
+      - "./auth:/app/auth:ro"
     labels:
       - "traefik.enable=false"
       # labels below for publishing as web service
@@ -19,3 +32,5 @@ services:
       # - "traefik.http.routers.kmhd2playlist-secure.tls=true"
     # networks:
       # - traefik
+volumes:
+  kmhd2playlist-data:

@@ -19,3 +19,5 @@ docker-compose.yml
 *.key
 *.bundle
 *.sigstore.json
+apps/*/auth
+apps/*/data

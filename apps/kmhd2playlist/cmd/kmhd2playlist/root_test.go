@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"io"
 	"os"
 	"testing"
 
@@ -12,7 +13,8 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	// No required environment variables needed for config validation
+	_ = os.Setenv("MUSIC_CLIENT", "youtube")
+	_ = os.Setenv("YOUTUBEMUSIC_COOKIE", "SAPISID=test")
 	os.Exit(m.Run())
 }
 
@@ -78,6 +80,40 @@ func TestRootCmdPreRun(t *testing.T) {
 			require.NotNil(t, conf)
 		})
 	}
+}
+
+func TestCompletionCommandDoesNotRequireConfig(t *testing.T) {
+	t.Setenv("MUSIC_CLIENT", "")
+	t.Setenv("SPOTIFY_CLIENT_ID", "")
+	t.Setenv("SPOTIFY_CLIENT_SECRET", "")
+	t.Setenv("SPOTIFY_REDIRECT_URI", "")
+	t.Setenv("YOUTUBEMUSIC_COOKIE", "")
+
+	rootCmd.SetArgs([]string{"completion", "bash"})
+	rootCmd.SetOut(io.Discard)
+	t.Cleanup(func() {
+		rootCmd.SetArgs(nil)
+		rootCmd.SetOut(os.Stdout)
+	})
+
+	assert.NoError(t, rootCmd.Execute())
+}
+
+func TestManCommandDoesNotRequireConfig(t *testing.T) {
+	t.Setenv("MUSIC_CLIENT", "")
+	t.Setenv("SPOTIFY_CLIENT_ID", "")
+	t.Setenv("SPOTIFY_CLIENT_SECRET", "")
+	t.Setenv("SPOTIFY_REDIRECT_URI", "")
+	t.Setenv("YOUTUBEMUSIC_COOKIE", "")
+
+	rootCmd.SetArgs([]string{"man"})
+	rootCmd.SetOut(io.Discard)
+	t.Cleanup(func() {
+		rootCmd.SetArgs(nil)
+		rootCmd.SetOut(os.Stdout)
+	})
+
+	assert.NoError(t, rootCmd.Execute())
 }
 
 func TestInit(t *testing.T) {

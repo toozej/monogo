@@ -4,9 +4,13 @@
 
 # local secret environment variables
 .env
+app.env
 
 # Data directory for Docker volumes (contains tokens and other persistent data)
 data/
+
+# Browser headers used for YouTube Music authentication
+auth/
 
 # Binaries for programs and plugins
 *.exe

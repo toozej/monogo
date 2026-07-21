@@ -58,50 +58,61 @@ make up
     - Set redirect URI to `http://localhost:8080/callback`
 
     ### YouTube Music Setup
-    - Log into YouTube Music in your browser
-    - Export your browser cookies and extract the value of the Cookie request header for requests to `music.youtube.com`
-    - Set that full Cookie header value as the `YOUTUBEMUSIC_COOKIE` environment variable (this should be the raw cookie string — do NOT point this variable to a file path)
+    - Log into YouTube Music in your browser.
+    - Copy the complete headers from an authenticated `POST` request to `music.youtube.com/youtubei/v1/browse`.
+    - Store the headers in `auth/youtubemusic-headers.json`. Docker Compose mounts this directory read-only at `/app/auth`.
 
-    **Getting your YouTube Music cookie:**
+    **Getting YouTube Music browser headers:**
 
     1. Open [music.youtube.com](https://music.youtube.com) and ensure you're logged in
     2. Open your browser's developer tools:
        - **Firefox**: `Ctrl+Shift+I` / `Cmd+Opt+I` → Network tab
        - **Chrome**: `Ctrl+Shift+I` / `Cmd+Opt+I` → Network tab
        - **Safari**: `Cmd+Opt+I` → Network tab
-    3. Refresh the page and click on a `music.youtube.com` request
-    4. In the **Request Headers**, find the `Cookie` header (note the capitalisation shown in the request headers)
-    5. Copy the entire Cookie header value (one or more `name=value` pairs separated by `; `) and paste it into your `.env` file as `YOUTUBEMUSIC_COOKIE`
+    3. Open **Library** or refresh the page, then select a successful `POST` request whose URL contains `/browse`.
+    4. Copy its request headers. The request must be from `music.youtube.com` while you are signed in.
+    5. Create `auth/youtubemusic-headers.json` with the browser values below. Preserve the account index and visitor ID from your request.
 
-    Example (placeholder — replace with your actual cookie header):
+    Example (placeholders — replace every value with your own):
 
     ```bash
-    YOUTUBEMUSIC_COOKIE='SID=xxxxxxxxxx; HSID=xxxxxxxxxx; SSID=xxxxxxxxxx; __Secure-3PAPISID=xxxxxxxxxx'
+    mkdir -p auth
+    $EDITOR auth/youtubemusic-headers.json
+    ```
+
+    ```json
+    {
+      "Cookie": "SID=...; HSID=...; SSID=...; SAPISID=...; __Secure-3PAPISID=...",
+      "X-Goog-AuthUser": "0",
+      "X-Goog-Visitor-Id": "...",
+      "X-YouTube-Client-Name": "67",
+      "X-YouTube-Client-Version": "1.20260721.01.00",
+      "Origin": "https://music.youtube.com",
+      "Referer": "https://music.youtube.com/"
+    }
     ```
 
     Notes:
-    - Wrap the value in single quotes in your `.env` file to avoid shell expansion or parsing issues when the value contains spaces or semicolons.
-    - Ensure the cookie is a single-line string with no newlines or leading/trailing whitespace.
-    - Include either `SAPISID` or `__Secure-3PAPISID` in the cookie; YouTube Music requires one of these values for authenticated requests.
-    - The application sends this value directly as the HTTP `Cookie` header when talking to YouTube Music.
-    - The app also persists auth state to `YOUTUBEMUSIC_TOKEN_FILE_PATH` (a JSON file containing `{"cookie": "..."`}), so once a valid cookie has been saved you can rely on the token file for subsequent runs.
-
-    Alternatively, you can use a browser extension like "EditThisCookie" to view and export cookies from the `youtube.com` or `music.youtube.com` domain.
+    - `Cookie` and `X-Goog-AuthUser` are required. `X-Goog-Visitor-Id`, `X-YouTube-Client-Name`, and `X-YouTube-Client-Version` are strongly recommended because YouTube requires this browser context for playlist mutations.
+    - Do not copy a stale `Authorization` header; the application derives a current `SAPISIDHASH` for every request.
+    - `auth/` is ignored by Git. The container runs as UID 65532, so on a rootful Linux Docker host restrict the bind-mounted credential without blocking the container: `sudo chown 65532:65532 auth/youtubemusic-headers.json && sudo chmod 600 auth/youtubemusic-headers.json`.
+    - Refresh the file after signing out, changing Google accounts, or seeing a YouTube authorization error.
+    - `YOUTUBEMUSIC_COOKIE` remains a legacy fallback. It lacks the complete browser request context and may be rejected for playlist mutations.
 
 3. **Update `.env` with your credentials:**
     ```bash
     # Music Provider Selection (spotify or youtube)
     MUSIC_CLIENT=spotify
 
-    # Required Spotify Configuration
+    # Required only when MUSIC_CLIENT=spotify
     SPOTIFY_CLIENT_ID=your_client_id_here
     SPOTIFY_CLIENT_SECRET=your_client_secret_here
     SPOTIFY_REDIRECT_URI=http://localhost:8080/callback
     SPOTIFY_PLAYLIST_NAME_PREFIX=KMHD
 
-    # Required YouTube Music Configuration (if MUSIC_CLIENT=youtube)
-    # Set the full `Cookie` request header value from music.youtube.com (one line)
-    YOUTUBEMUSIC_COOKIE='SID=xxxxxxxxxx; HSID=xxxxxxxxxx; SSID=xxxxxxxxxx; __Secure-3PAPISID=xxxxxxxxxx'
+    # Required only when MUSIC_CLIENT=youtube
+    # Docker Compose mounts ./auth at /app/auth.
+    YOUTUBEMUSIC_AUTH_FILE_PATH=/app/auth/youtubemusic-headers.json
     YOUTUBEMUSIC_PLAYLIST_NAME_PREFIX=KMHD
 
     # Optional KMHD Configuration (uses defaults if not set)
@@ -174,9 +185,25 @@ make install              # Install from GitHub releases
 ### Docker Compose (Recommended)
 
 ```bash
-# Deploy with Docker Compose
+# 1) Create your .env file and browser-header file for the selected provider
+cp .env.sample .env
+$EDITOR .env
+mkdir -p auth
+$EDITOR auth/youtubemusic-headers.json
+
+# 2) Deploy with Docker Compose. It mounts ./auth read-only and uses a named
+#    volume at /app/data for persisted token state.
 make up
+
+# 3) Tail the logs while you verify authentication
+docker compose logs -f kmhd2playlist
 ```
+
+> The container is configured `read_only: true` and runs as the distroless
+> `nonroot` user (UID 65532). The named `kmhd2playlist-data` volume is mounted
+> at `/app/data` with image-provided nonroot ownership. Browser headers are
+> mounted read-only from `./auth`; token state is stored separately at
+> `/app/data/youtubemusic_token.json`.
 
 ### Standalone Docker
 
@@ -184,9 +211,12 @@ make up
 # Build and run
 make build run
 
-# Or pull from registry with volume mount for token persistence
-mkdir -p ./data
-docker run --rm --env-file .env -v ./data:/app/data toozej/kmhd2playlist:latest sync --continuous
+# Or pull from registry with browser headers and a named data volume
+docker volume create kmhd2playlist-data
+docker run --rm --env-file .env \
+  -v "$(pwd)/auth:/app/auth:ro" \
+  -v kmhd2playlist-data:/app/data \
+  toozej/kmhd2playlist:latest sync --continuous
 ```
 
 ### Token Persistence in Docker
@@ -201,9 +231,11 @@ YOUTUBEMUSIC_TOKEN_FILE_PATH=/app/data/youtubemusic_token.json
 # For standalone Docker runs
 docker run --rm \
   --env-file .env \
+  -e YOUTUBEMUSIC_AUTH_FILE_PATH=/app/auth/youtubemusic-headers.json \
   -e SPOTIFY_TOKEN_FILE_PATH=/app/data/spotify_token.json \
   -e YOUTUBEMUSIC_TOKEN_FILE_PATH=/app/data/youtubemusic_token.json \
-  -v ./data:/app/data \
+  -v "$(pwd)/auth:/app/auth:ro" \
+  -v kmhd2playlist-data:/app/data \
   toozej/kmhd2playlist:latest sync --continuous
 ```
 
@@ -216,12 +248,13 @@ This ensures your authentication persists between container restarts and you won
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `MUSIC_CLIENT` | Music provider to use (`spotify` or `youtube`) | `spotify` |
-| `SPOTIFY_CLIENT_ID` | Spotify app client ID | Required |
-| `SPOTIFY_CLIENT_SECRET` | Spotify app client secret | Required |
-| `SPOTIFY_REDIRECT_URI` | OAuth redirect URI | `http://localhost:8080/callback` |
+| `SPOTIFY_CLIENT_ID` | Spotify app client ID | Required when `MUSIC_CLIENT=spotify` |
+| `SPOTIFY_CLIENT_SECRET` | Spotify app client secret | Required when `MUSIC_CLIENT=spotify` |
+| `SPOTIFY_REDIRECT_URI` | OAuth redirect URI | Required when `MUSIC_CLIENT=spotify` |
 | `SPOTIFY_PLAYLIST_NAME_PREFIX` | Prefix for monthly playlists (creates "{prefix}-YYYY-MM" format) | Uses first existing playlist |
 | `SPOTIFY_TOKEN_FILE_PATH` | Path to store Spotify auth token | `~/.config/kmhd2playlist/spotify_token.json` |
-| `YOUTUBEMUSIC_COOKIE` | YouTube Music `Cookie` request header value (full cookie string; not a file path). Wrap in single quotes in `.env` if needed. | Required for youtube provider |
+| `YOUTUBEMUSIC_AUTH_FILE_PATH` | JSON file containing full headers from an authenticated YouTube Music `POST /browse` request. Preferred for playlist creation. | Required for YouTube Music unless legacy cookie is used |
+| `YOUTUBEMUSIC_COOKIE` | Legacy raw YouTube Music `Cookie` header value. It lacks browser request context and may not authorize playlist mutations. | Legacy fallback |
 | `YOUTUBEMUSIC_PLAYLIST_NAME_PREFIX` | Prefix for monthly playlists (creates "{prefix}-YYYY-MM" format) | Uses first existing playlist |
 | `YOUTUBEMUSIC_TOKEN_FILE_PATH` | Path to store YouTube Music auth token | `~/.config/kmhd2playlist/youtubemusic_token.json` |
 | `KMHD_API_ENDPOINT` | KMHD JSON API endpoint | `https://www.kmhd.org/pf/api/v3/content/fetch/playlist` |

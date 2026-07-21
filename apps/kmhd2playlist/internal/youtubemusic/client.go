@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -17,24 +18,26 @@ import (
 )
 
 const (
-	baseURL       = "https://music.youtube.com/youtubei/v1/"
-	apiKey        = "REDACTED_API_KEY" // #nosec G101 -- nosemgrep:generic.secrets.security.detected-generic-api-key.detected-generic-api-key YouTube Music public API key, not a secret
-	userAgent     = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0"
-	contentType   = "application/json; charset=utf-8"
-	origin        = "https://music.youtube.com"
-	referer       = "https://music.youtube.com/"
-	clientName    = "WEB_REMIX"
-	clientVersion = "1.20240101.00.00"
+	baseURL     = "https://music.youtube.com/youtubei/v1/"
+	apiKey      = "REDACTED_API_KEY" // #nosec G101 -- nosemgrep:generic.secrets.security.detected-generic-api-key.detected-generic-api-key YouTube Music public API key, not a secret
+	userAgent   = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0"
+	contentType = "application/json; charset=utf-8"
+	origin      = "https://music.youtube.com"
+	referer     = "https://music.youtube.com/"
+	clientName  = "WEB_REMIX"
 )
 
 type Client struct {
-	config     config.YouTubeMusicConfig
-	logger     *logrus.Logger
-	cookie     string
-	isAuthed   bool
-	httpClient *http.Client
-	tokenFile  string
-	mu         sync.RWMutex
+	config        config.YouTubeMusicConfig
+	logger        *logrus.Logger
+	cookie        string
+	authHeaders   http.Header
+	clientVersion string
+	authSource    string
+	isAuthed      bool
+	httpClient    *http.Client
+	tokenFile     string
+	mu            sync.RWMutex
 }
 
 type contextPayload struct {
@@ -46,7 +49,7 @@ type contextPayload struct {
 	} `json:"client"`
 }
 
-func newContext() contextPayload {
+func newContext(clientVersion string) contextPayload {
 	ctx := contextPayload{}
 	ctx.Client.Name = clientName
 	ctx.Client.Version = clientVersion
@@ -56,11 +59,22 @@ func newContext() contextPayload {
 }
 
 func NewClient(cfg config.YouTubeMusicConfig, logger *logrus.Logger) (*Client, error) {
-	if cfg.Cookie == "" {
+	authHeaders, err := loadAuthHeaders(cfg.AuthFilePath)
+	if err != nil {
+		return nil, err
+	}
+
+	cookie := cfg.Cookie
+	authSource := "legacy_cookie"
+	if authHeaders != nil {
+		cookie = authHeaders.Get("Cookie")
+		authSource = "auth_file"
+	}
+	if cookie == "" {
 		return nil, fmt.Errorf("youtube music cookie is required")
 	}
 
-	if _, err := extractSAPISID(cfg.Cookie); err != nil {
+	if _, err := extractSAPISID(cookie); err != nil {
 		return nil, fmt.Errorf("invalid youtube music cookie: %w", err)
 	}
 
@@ -68,24 +82,156 @@ func NewClient(cfg config.YouTubeMusicConfig, logger *logrus.Logger) (*Client, e
 	if err != nil {
 		logger.WithError(err).Warn("Could not determine token file path")
 	}
+	configuredClientVersion := clientVersionFromHeaders(authHeaders)
 
 	client := &Client{
-		config:     cfg,
-		logger:     logger,
-		cookie:     cfg.Cookie,
-		isAuthed:   cfg.Cookie != "",
-		httpClient: &http.Client{},
-		tokenFile:  tokenFile,
+		config:        cfg,
+		logger:        logger,
+		cookie:        cookie,
+		authHeaders:   authHeaders,
+		clientVersion: configuredClientVersion,
+		authSource:    authSource,
+		isAuthed:      true,
+		httpClient:    &http.Client{},
+		tokenFile:     tokenFile,
 	}
 
 	client.loadAuthState()
 
 	logger.WithFields(logrus.Fields{
-		"has_cookie": cfg.Cookie != "",
-		"token_file": tokenFile,
+		"auth_source":        client.authSource,
+		"has_cookie":         cookie != "",
+		"cookie_length":      len(cookie),
+		"sapisid_found":      cookieHasKey(cookie, "SAPISID"),
+		"sec3papisid":        cookieHasKey(cookie, "__Secure-3PAPISID"),
+		"client_version":     client.clientVersion,
+		"visitor_id_present": client.authHeaders.Get("X-Goog-Visitor-Id") != "",
+		"token_file":         tokenFile,
+		"token_writable":     tokenFileWritable(tokenFile),
 	}).Info("YouTube Music client initialized")
 
 	return client, nil
+}
+
+func loadAuthHeaders(path string) (http.Header, error) {
+	if path == "" {
+		return nil, nil
+	}
+
+	data, err := readAuthFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read YouTube Music auth file %q: %w", path, err)
+	}
+
+	var rawHeaders map[string]string
+	if err := json.Unmarshal(data, &rawHeaders); err != nil {
+		return nil, fmt.Errorf("failed to parse YouTube Music auth file %q: %w", path, err)
+	}
+
+	headers := make(http.Header, len(rawHeaders))
+	for name, value := range rawHeaders {
+		name = strings.TrimSpace(name)
+		value = strings.TrimSpace(value)
+		if name != "" && value != "" && isForwardedAuthHeader(name) {
+			headers.Set(name, value)
+		}
+	}
+
+	if headers.Get("Cookie") == "" {
+		return nil, fmt.Errorf("YouTube Music auth file %q does not contain a Cookie header", path)
+	}
+	if headers.Get("X-Goog-AuthUser") == "" {
+		return nil, fmt.Errorf("YouTube Music auth file %q does not contain an X-Goog-AuthUser header", path)
+	}
+
+	return headers, nil
+}
+
+// readAuthFile reads a single auth file through an os.Root scoped to its
+// containing directory. Root-relative reads prevent a symlink or path change
+// from escaping that directory between path resolution and file access.
+func readAuthFile(path string) ([]byte, error) {
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return nil, fmt.Errorf("resolve auth file path: %w", err)
+	}
+
+	root, err := os.OpenRoot(filepath.Dir(absPath))
+	if err != nil {
+		return nil, fmt.Errorf("open auth file directory: %w", err)
+	}
+	defer func() { _ = root.Close() }()
+
+	data, err := root.ReadFile(filepath.Base(absPath))
+	if err != nil {
+		return nil, err
+	}
+
+	return data, nil
+}
+
+// isForwardedAuthHeader excludes hop-by-hop and browser-only headers that are
+// tied to the original request body or transport. The remaining headers retain
+// the browser identity that YouTube Music requires for account mutations.
+func isForwardedAuthHeader(name string) bool {
+	canonicalName := http.CanonicalHeaderKey(name)
+	if strings.HasPrefix(canonicalName, "Sec-") {
+		return false
+	}
+
+	switch canonicalName {
+	case "Host", "Content-Length", "Accept-Encoding":
+		return false
+	default:
+		return true
+	}
+}
+
+func clientVersionFromHeaders(headers http.Header) string {
+	if version := strings.TrimSpace(headers.Get("X-YouTube-Client-Version")); version != "" {
+		return version
+	}
+
+	return "1." + time.Now().UTC().Format("20060102") + ".01.00"
+}
+
+// cookieHasKey reports whether the supplied Cookie header string contains a
+// `name=value` pair for the given cookie name.
+func cookieHasKey(cookie, name string) bool {
+	parts := strings.Split(cookie, ";")
+	for _, part := range parts {
+		kv := strings.SplitN(strings.TrimSpace(part), "=", 2)
+		if len(kv) == 2 && strings.TrimSpace(kv[0]) == name && strings.TrimSpace(kv[1]) != "" {
+			return true
+		}
+	}
+	return false
+}
+
+// tokenFileWritable peforms a quick check for whether the token file path can
+// be written by the running process. Returns false in production paths where
+// the parent directory does not exist (e.g. read-only filesystem with no
+// mounted volume inside the Docker container).
+func tokenFileWritable(path string) bool {
+	if path == "" {
+		return false
+	}
+
+	root, err := os.OpenRoot(filepath.Dir(path))
+	if err != nil {
+		return false
+	}
+	defer func() { _ = root.Close() }()
+
+	// Attempt to create and remove a probe file (best effort).
+	const probeFile = ".kmhd2playlist-write-probe"
+	f, err := root.OpenFile(probeFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
+	if err != nil {
+		return false
+	}
+	_ = f.Close()
+	_ = root.Remove(probeFile)
+	return true
 }
 
 func (c *Client) doRequest(endpoint string, body any) ([]byte, error) {
@@ -100,13 +246,30 @@ func (c *Client) doRequest(endpoint string, body any) ([]byte, error) {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	req.Header.Set("Content-Type", contentType)
-	req.Header.Set("User-Agent", userAgent)
-	req.Header.Set("Origin", origin)
-	req.Header.Set("Referer", referer)
-	req.Header.Set("Cookie", c.cookie)
-	req.Header.Set("X-Goog-AuthUser", "0")
-	req.Header.Set("X-Origin", origin)
+	for name, values := range c.authHeaders {
+		req.Header[name] = append([]string(nil), values...)
+	}
+	if req.Header.Get("Content-Type") == "" {
+		req.Header.Set("Content-Type", contentType)
+	}
+	if req.Header.Get("User-Agent") == "" {
+		req.Header.Set("User-Agent", userAgent)
+	}
+	if req.Header.Get("Origin") == "" {
+		req.Header.Set("Origin", origin)
+	}
+	if req.Header.Get("Referer") == "" {
+		req.Header.Set("Referer", referer)
+	}
+	if req.Header.Get("Cookie") == "" {
+		req.Header.Set("Cookie", c.cookie)
+	}
+	if req.Header.Get("X-Goog-AuthUser") == "" {
+		req.Header.Set("X-Goog-AuthUser", "0")
+	}
+	if req.Header.Get("X-Origin") == "" {
+		req.Header.Set("X-Origin", req.Header.Get("Origin"))
+	}
 	if authHeader, err := c.authorizationHeader(); err != nil {
 		c.logger.WithError(err).Debug("Skipping Authorization header for YouTube Music request")
 	} else {
@@ -123,7 +286,31 @@ func (c *Client) doRequest(endpoint string, body any) ([]byte, error) {
 		c.mu.Lock()
 		c.isAuthed = false
 		c.mu.Unlock()
-		return nil, fmt.Errorf("unauthorized: cookie may be invalid or expired")
+		responseBody, readErr := io.ReadAll(resp.Body)
+		if readErr != nil {
+			c.logger.WithError(readErr).Warn("Could not read YouTube Music unauthorized response")
+		}
+		cookieLen := len(c.cookie)
+		hasS := cookieHasKey(c.cookie, "SAPISID")
+		has3P := cookieHasKey(c.cookie, "__Secure-3PAPISID")
+		c.logger.WithFields(logrus.Fields{
+			"endpoint":              endpoint,
+			"cookie_set":            cookieLen > 0,
+			"cookie_length":         cookieLen,
+			"sapisid_present":       hasS,
+			"sec3papisid":           has3P,
+			"auth_source":           c.authSource,
+			"client_name":           clientName,
+			"client_version":        c.clientVersion,
+			"youtube_error_message": responseErrorMessage(responseBody),
+		}).Warn("YouTube Music rejected the request as unauthorized")
+		advice := "cookie may be invalid or expired"
+		if cookieLen == 0 {
+			advice = "authentication cookie is empty; provide YOUTUBEMUSIC_AUTH_FILE_PATH with browser request headers or set the legacy YOUTUBEMUSIC_COOKIE value"
+		} else if !hasS && !has3P {
+			advice = "cookie string does not include SAPISID or __Secure-3PAPISID; YouTube Music requires one of these for authenticated requests"
+		}
+		return nil, fmt.Errorf("unauthorized: %s", advice)
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -136,6 +323,23 @@ func (c *Client) doRequest(endpoint string, body any) ([]byte, error) {
 	}
 
 	return data, nil
+}
+
+// responseErrorMessage extracts the safe, server-supplied error message from a
+// YouTube InnerTube response. It intentionally excludes the full body because
+// diagnostic logs must never include authentication material.
+func responseErrorMessage(body []byte) string {
+	var response struct {
+		Error struct {
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+
+	if err := json.Unmarshal(body, &response); err != nil {
+		return ""
+	}
+
+	return strings.TrimSpace(response.Error.Message)
 }
 
 func (c *Client) IsAuthenticated() bool {
@@ -174,7 +378,14 @@ func (c *Client) authorizationHeader() (string, error) {
 	}
 
 	timestamp := time.Now().Unix()
-	payload := fmt.Sprintf("%d %s %s", timestamp, origin, sapisid)
+	requestOrigin := c.authHeaders.Get("X-Origin")
+	if requestOrigin == "" {
+		requestOrigin = c.authHeaders.Get("Origin")
+	}
+	if requestOrigin == "" {
+		requestOrigin = origin
+	}
+	payload := fmt.Sprintf("%d %s %s", timestamp, sapisid, requestOrigin)
 	sum := sha1.Sum([]byte(payload)) // #nosec G401 -- required by YouTube Music SAPISIDHASH auth // nosemgrep:go.lang.security.audit.crypto.use_of_weak_crypto.use-of-sha1
 	return fmt.Sprintf("SAPISIDHASH %d_%x", timestamp, sum), nil
 }
@@ -230,7 +441,7 @@ func (c *Client) SearchArtist(query string) (*Artist, error) {
 		Query   string         `json:"query"`
 		Params  string         `json:"params,omitempty"`
 	}{
-		Context: newContext(),
+		Context: newContext(c.clientVersion),
 		Query:   query,
 	}
 
@@ -368,7 +579,7 @@ func (c *Client) GetArtistTopTracks(artistID string) ([]Track, error) {
 		Context  contextPayload `json:"context"`
 		BrowseID string         `json:"browseId"`
 	}{
-		Context:  newContext(),
+		Context:  newContext(c.clientVersion),
 		BrowseID: artistID,
 	}
 
@@ -546,7 +757,7 @@ func (c *Client) GetUserPlaylists(_ string) ([]Playlist, error) {
 		Context  contextPayload `json:"context"`
 		BrowseID string         `json:"browseId"`
 	}{
-		Context:  newContext(),
+		Context:  newContext(c.clientVersion),
 		BrowseID: "FEmusic_liked_playlists",
 	}
 
@@ -699,7 +910,7 @@ func (c *Client) AddTracksToPlaylist(playlistID string, trackIDs []string) error
 		PlaylistID string           `json:"playlistId"`
 		Actions    []map[string]any `json:"actions"`
 	}{
-		Context:    newContext(),
+		Context:    newContext(c.clientVersion),
 		PlaylistID: playlistID,
 		Actions:    actions,
 	}
@@ -735,7 +946,7 @@ func (c *Client) CheckTracksInPlaylist(playlistID string, trackIDs []string) ([]
 		Context  contextPayload `json:"context"`
 		BrowseID string         `json:"browseId"`
 	}{
-		Context:  newContext(),
+		Context:  newContext(c.clientVersion),
 		BrowseID: playlistID,
 	}
 
@@ -812,7 +1023,7 @@ func (c *Client) CreatePlaylist(name, description string, public bool) (*Playlis
 		Description   string         `json:"description,omitempty"`
 		PrivacyStatus string         `json:"privacyStatus"`
 	}{
-		Context:       newContext(),
+		Context:       newContext(c.clientVersion),
 		Title:         name,
 		Description:   description,
 		PrivacyStatus: privacyStatus,

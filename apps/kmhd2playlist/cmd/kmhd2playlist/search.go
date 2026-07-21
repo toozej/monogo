@@ -94,10 +94,12 @@ func initializeAllServices() (types.KMHDScraper, types.MusicService, *search.Fuz
 	var musicService types.MusicService
 	var err error
 	switch conf.MusicClient {
+	case "spotify":
+		musicService, err = spotify.NewServiceWithError(conf.Spotify, logger)
 	case "youtube":
 		musicService, err = youtubemusic.NewServiceWithError(conf.YouTubeMusic, logger)
 	default:
-		musicService, err = spotify.NewServiceWithError(conf.Spotify, logger)
+		return nil, nil, nil, fmt.Errorf("unsupported music client %q", conf.MusicClient)
 	}
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("initialize %s music client: %w", conf.MusicClient, err)

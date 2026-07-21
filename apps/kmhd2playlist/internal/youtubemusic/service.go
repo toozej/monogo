@@ -24,7 +24,8 @@ func NewService(cfg config.YouTubeMusicConfig, logger *logrus.Logger) *Service {
 // NewServiceWithError creates a YouTube Music service and reports initialization failures.
 func NewServiceWithError(cfg config.YouTubeMusicConfig, logger *logrus.Logger) (*Service, error) {
 	logger.WithFields(logrus.Fields{
-		"has_cookie": cfg.Cookie != "",
+		"has_auth_file": cfg.AuthFilePath != "",
+		"has_cookie":    cfg.Cookie != "",
 	}).Debug("Creating YouTube Music service with config")
 
 	client, err := NewClient(cfg, logger)

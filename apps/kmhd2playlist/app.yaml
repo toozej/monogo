@@ -17,3 +17,21 @@ cgoEnabled: false
 # runtimeImage: debian:trixie-slim
 # port (optional) is EXPOSEd in the generated Dockerfiles when set.
 # port: 8081
+writableDirs:
+  - /app/data
+compose:
+  envFile:
+    - .env
+  command:
+    - sync
+    - --continuous
+  environment:
+    SPOTIFY_TOKEN_FILE_PATH: /app/data/spotify_token.json
+    YOUTUBEMUSIC_TOKEN_FILE_PATH: /app/data/youtubemusic_token.json
+  ports:
+    - 8080:8080
+  volumes:
+    - kmhd2playlist-data:/app/data
+    - ./auth:/app/auth:ro
+  namedVolumes:
+    - kmhd2playlist-data

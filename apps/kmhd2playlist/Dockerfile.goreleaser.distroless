@@ -1,3 +1,8 @@
+# Directory metadata is architecture-independent; keep this RUN on the native
+# builder so multi-platform image assembly does not require QEMU/binfmt.
+FROM --platform=$BUILDPLATFORM golang:1.26-trixie AS filesystem
+RUN mkdir -p /container-root/app/data && \
+    chown -R 65532:65532 /container-root
 # runtime image including CA certs and tzdata
 FROM gcr.io/distroless/static-debian13:nonroot
 # Copy our static executable.
@@ -5,6 +10,7 @@ ARG TARGETPLATFORM
 COPY $TARGETPLATFORM/kmhd2playlist /go/bin/kmhd2playlist
 # Include the project license in the runtime image.
 COPY LICENSE /usr/share/doc/kmhd2playlist/copyright
+COPY --from=filesystem --chown=65532:65532 /container-root/app/data /app/data
 # Expose port for publishing as web service
 # EXPOSE 8081
 # Run the binary.

@@ -236,3 +236,52 @@ func TestInitializeAllServices(t *testing.T) {
 		})
 	}
 }
+
+func TestInitializeAllServicesUsesOnlySelectedProvider(t *testing.T) {
+	original := conf
+	t.Cleanup(func() { conf = original })
+
+	tests := []struct {
+		name        string
+		musicClient string
+		configure   func()
+	}{
+		{
+			name:        "Spotify does not require YouTube Music cookie",
+			musicClient: "spotify",
+			configure: func() {
+				conf.Spotify.ClientID = "spotify-client-id"
+				conf.Spotify.ClientSecret = "spotify-client-secret"
+				conf.Spotify.RedirectURL = "http://localhost:8080/callback"
+				conf.Spotify.TokenFilePath = t.TempDir() + "/spotify-token.json"
+				conf.YouTubeMusic.Cookie = ""
+			},
+		},
+		{
+			name:        "YouTube Music does not require Spotify credentials",
+			musicClient: "youtube",
+			configure: func() {
+				conf.Spotify.ClientID = ""
+				conf.Spotify.ClientSecret = ""
+				conf.Spotify.RedirectURL = ""
+				conf.YouTubeMusic.Cookie = "SAPISID=example"
+				conf.YouTubeMusic.TokenFilePath = t.TempDir() + "/youtube-token.json"
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			conf = original
+			conf.MusicClient = tt.musicClient
+			tt.configure()
+
+			kmhdScraper, musicService, fuzzySongSearcher, err := initializeAllServices()
+
+			assert.NoError(t, err)
+			assert.NotNil(t, kmhdScraper)
+			assert.NotNil(t, musicService)
+			assert.NotNil(t, fuzzySongSearcher)
+		})
+	}
+}
