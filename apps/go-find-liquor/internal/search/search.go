@@ -88,10 +88,29 @@ type Searcher struct {
 
 // NewSearcher creates a new searcher with cookie support
 func NewSearcher(userAgent string) *Searcher {
+	searcher, err := NewSearcherWithFlareSolverr(userAgent, "")
+	if err != nil {
+		// An empty FlareSolverr URL cannot fail. Keep this compatibility helper
+		// panic-free if that invariant ever changes.
+		return nil
+	}
+	return searcher
+}
+
+// NewSearcherWithFlareSolverr creates a searcher that optionally sends OLCC
+// requests through FlareSolverr. The empty endpoint keeps the direct HTTP path.
+func NewSearcherWithFlareSolverr(userAgent, flareSolverrURL string) (*Searcher, error) {
 	jar, _ := cookiejar.New(nil)
 	client := &http.Client{
 		Jar:     jar,
 		Timeout: 30 * time.Second,
+	}
+	if flareSolverrURL != "" {
+		transport, err := NewFlareSolverrTransport(flareSolverrURL)
+		if err != nil {
+			return nil, err
+		}
+		client.Transport = transport
 	}
 
 	cycleAgent := userAgent == ""
@@ -103,7 +122,7 @@ func NewSearcher(userAgent string) *Searcher {
 		client:     client,
 		userAgent:  userAgent,
 		cycleAgent: cycleAgent,
-	}
+	}, nil
 }
 
 // updateUserAgent sets a new random user agent if cycling is enabled

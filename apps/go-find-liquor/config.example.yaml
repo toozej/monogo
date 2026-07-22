@@ -9,6 +9,10 @@ verbose: true  # Enable verbose logging (default: false)
 # If not set, will cycle through a list of common user agents
 # user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
+# Optional: send OLCC requests through the FlareSolverr Compose sidecar to
+# handle Cloudflare challenges. Leave unset to make direct requests.
+# flaresolverr_url: "http://flaresolverr:8191/v1"
+
 # Commonly available items used for health check searches
 # During periodic health checks, a random item from this list is searched
 # to verify the search service is functioning. The item code or name is

@@ -34,6 +34,19 @@ services:
       # - "traefik.http.routers.[[$app.name]]-secure.tls=true"
     # networks:
       # - traefik
+[[ if and $compose (index $compose "sidecars") ]]
+[[- range $name, $sidecar := index $compose "sidecars" ]]
+  [[$name]]:
+    image: [[ index $sidecar "image" ]]
+[[ if index $sidecar "containerName" ]]    container_name: [[ index $sidecar "containerName" ]]
+[[ end ]][[ if index $sidecar "restart" ]]    restart: [[ index $sidecar "restart" ]]
+[[ end ]][[ if index $sidecar "environment" ]]    environment:
+[[ range $envName, $envValue := index $sidecar "environment" ]]      [[$envName]]: "[[$envValue]]"
+[[ end ]][[ end ]][[ if index $sidecar "ports" ]]    ports:
+[[ range index $sidecar "ports" ]]      - "[[.]]"
+[[ end ]][[ end ]]
+[[- end ]]
+[[- end -]]
 [[ if and $compose (index $compose "namedVolumes") ]]volumes:
 [[ range index $compose "namedVolumes" ]]  [[.]]:
 [[ end ]][[ end -]]

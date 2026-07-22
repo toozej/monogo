@@ -7,6 +7,8 @@ services:
     security_opt:
       - no-new-privileges:true
     read_only: true
+    environment:
+      GFL_FLARESOLVERR_URL: "http://flaresolverr:8191/v1"
     labels:
       - "traefik.enable=false"
       # labels below for publishing as web service
@@ -19,3 +21,9 @@ services:
       # - "traefik.http.routers.go-find-liquor-secure.tls=true"
     # networks:
       # - traefik
+
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    restart: unless-stopped
+    environment:
+      LOG_LEVEL: "info"

@@ -50,9 +50,12 @@ type itemNotifier interface {
 }
 
 // newUserRunner creates a new user runner with the given user configuration (internal function)
-func newUserRunner(userConfig config.UserConfig, interval time.Duration, userAgent string, commonItems []string) (*userRunner, error) {
+func newUserRunner(userConfig config.UserConfig, interval time.Duration, userAgent, flareSolverrURL string, commonItems []string) (*userRunner, error) {
 	// Initialize the searcher
-	searcher := search.NewSearcher(userAgent)
+	searcher, err := search.NewSearcherWithFlareSolverr(userAgent, flareSolverrURL)
+	if err != nil {
+		return nil, fmt.Errorf("create searcher: %w", err)
+	}
 
 	// Initialize notification manager for this user
 	notifier, err := notification.NewNotificationManager(userConfig.Notifications)
@@ -271,7 +274,7 @@ func NewRunner(cfg config.Config) (*SearchRunner, error) {
 			return nil, fmt.Errorf("duplicate user name %q", userConfig.Name)
 		}
 		seenUsers[userConfig.Name] = struct{}{}
-		userRunner, err := newUserRunner(userConfig, cfg.Interval, cfg.UserAgent, commonItemSearches)
+		userRunner, err := newUserRunner(userConfig, cfg.Interval, cfg.UserAgent, cfg.FlareSolverrURL, commonItemSearches)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create user runner for '%s': %w", userConfig.Name, err)
 		}

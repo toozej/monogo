@@ -17,3 +17,12 @@ cgoEnabled: false
 # runtimeImage: debian:trixie-slim
 # port (optional) is EXPOSEd in the generated Dockerfiles when set.
 # port: 8080
+compose:
+  environment:
+    GFL_FLARESOLVERR_URL: http://flaresolverr:8191/v1
+  sidecars:
+    flaresolverr:
+      image: ghcr.io/flaresolverr/flaresolverr:latest
+      restart: unless-stopped
+      environment:
+        LOG_LEVEL: info

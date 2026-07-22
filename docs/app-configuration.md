@@ -34,6 +34,7 @@ the devcontainer build. Run `make app-generate APP=<app>` after editing
 | `compose.ports` | no | Port mappings emitted for the app service, such as `8080:8080`. |
 | `compose.volumes` | no | Bind mounts or named-volume mappings emitted for the app service. |
 | `compose.namedVolumes` | no | Named volumes declared at the top level of `docker-compose.yml`. |
+| `compose.sidecars` | no | Named companion services. Each sidecar supports `image`, `containerName`, `restart`, `environment`, and `ports`. |
 
 The `compose` fields are useful for server apps whose generated development
 deployment needs persistent writable paths or a published port. For example:

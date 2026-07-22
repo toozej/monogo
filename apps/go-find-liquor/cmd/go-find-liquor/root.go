@@ -41,6 +41,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/toozej/monogo/apps/go-find-liquor/internal/config"
+	"github.com/toozej/monogo/apps/go-find-liquor/internal/notification"
 	"github.com/toozej/monogo/apps/go-find-liquor/internal/runner"
 	"github.com/toozej/monogo/pkg/avatar"
 	"github.com/toozej/monogo/pkg/man"
@@ -68,6 +69,7 @@ func rootCmdRun(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("load configuration: %w", err)
 	}
+	log.AddHook(notification.NewGotifyErrorHook(conf.Users))
 
 	// Log configuration summary for multi-user scenarios
 	logConfigurationSummary(conf)

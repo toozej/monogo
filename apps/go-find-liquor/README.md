@@ -283,6 +283,21 @@ notifications:
       token: "YOUR_GOTIFY_TOKEN"
 ```
 
+Error-level application log messages are also sent to every configured Gotify
+target. This uses the same endpoint and token as the finding notifications;
+other notification providers receive findings and heartbeats only.
+
+### FlareSolverr (Cloudflare-protected OLCC searches)
+
+The generated Compose configuration includes a FlareSolverr sidecar. Set
+`flaresolverr_url: "http://flaresolverr:8191/v1"` in `config.yaml` (or
+`GFL_FLARESOLVERR_URL` in the container environment) to route OLCC requests
+through it. Leave it unset to retain direct HTTP requests.
+
+FlareSolverr runs a browser and can require substantial memory. Its port is not
+published to the host; it is only reachable by `go-find-liquor` on the Compose
+network.
+
 ### Slack
 
 ```yaml

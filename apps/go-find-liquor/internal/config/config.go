@@ -90,6 +90,9 @@ type Config struct {
 	Interval  time.Duration `yaml:"interval" json:"interval" env:"GFL_INTERVAL"`
 	UserAgent string        `yaml:"user_agent" json:"user_agent" env:"GFL_USER_AGENT"`
 	Verbose   bool          `yaml:"verbose" json:"verbose" env:"GFL_VERBOSE"`
+	// FlareSolverrURL optionally routes OLCC requests through a FlareSolverr
+	// instance. It is normally set to the Docker Compose sidecar endpoint.
+	FlareSolverrURL string `yaml:"flaresolverr_url" json:"flaresolverr_url" env:"GFL_FLARESOLVERR_URL"`
 
 	// Commonly available items used for health check searches
 	CommonItems []CommonItem `yaml:"common_items" json:"common_items"`
@@ -256,6 +259,20 @@ func validateConfig(config Config) error {
 	if config.Interval <= 0 {
 		return fmt.Errorf("interval must be positive")
 	}
+	if config.FlareSolverrURL != "" {
+		if err := validateHTTPURL("flaresolverr_url", config.FlareSolverrURL); err != nil {
+			return err
+		}
+	}
 
+	return nil
+}
+
+func validateHTTPURL(name, value string) error {
+	// Keep the endpoint validation here so an invalid optional integration fails
+	// during startup instead of after a search has begun.
+	if !strings.HasPrefix(value, "http://") && !strings.HasPrefix(value, "https://") {
+		return fmt.Errorf("%s must be an absolute HTTP(S) URL", name)
+	}
 	return nil
 }
