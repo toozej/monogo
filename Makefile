@@ -81,7 +81,7 @@ DIST_DIR ?= $(CURDIR)/dist/$(APP)
 COSIGN_IDENTITY_REGEXP := '^https://github.com/toozej/monogo/.github/workflows/(release|weekly-docker-refresh).yaml@refs/(tags/.*|heads/main)$$'
 COSIGN_OIDC_ISSUER := 'https://token.actions.githubusercontent.com'
 
-.PHONY: all list-apps import new-app delete-app migrate-internal-package app-check common-generate app-generate swagger-generate generate generate-all app-templates-check templates-check vet test build release release-all delete-release re-release verify verify-checksums verify-docker verify-docker-all-registries run up down docker-vet docker-test docker-build distroless-build distroless-run install local local-all local-update-deps local-vet local-vendor local-test local-cover local-build local-run local-kill local-iterate release-test local-install docker-login go-tools-install release-tools-install docker-refresh-tools-install ci-release ci-docker-refresh system-tools-install pre-commit-tools-install pre-commit-install pre-commit-update pre-commit-run pre-commit pre-reqs licenses licenses-all update-golang-version upload-secrets-to-gh upload-secrets-envfile-to-1pass docs diagrams mutation-test test-changed watch-test profile-cpu profile-mem profile-all benchmark demo clean clean-all help
+.PHONY: all list-apps app-list import new-app delete-app migrate-internal-package app-check common-generate app-generate swagger-generate generate generate-all app-templates-check templates-check vet test build release release-all delete-release re-release verify verify-checksums verify-docker verify-docker-all-registries run up down docker-vet docker-test docker-build distroless-build distroless-run install local local-all local-update-deps local-vet local-vendor local-test local-cover local-build local-run local-kill local-iterate release-test local-install docker-login go-tools-install release-tools-install docker-refresh-tools-install ci-release ci-docker-refresh system-tools-install pre-commit-tools-install pre-commit-install pre-commit-update pre-commit-run pre-commit pre-reqs licenses licenses-all update-golang-version upload-secrets-to-gh upload-secrets-envfile-to-1pass docs diagrams mutation-test test-changed watch-test profile-cpu profile-mem profile-all benchmark demo clean clean-all help
 .PHONY: common-generate-no-prereqs app-generate-no-prereqs swagger-generate-no-prereqs generate-no-prereqs generate-all-no-prereqs app-templates-check-no-generate docker-vet-no-generate docker-test-no-generate docker-build-no-generate release-test-no-generate local-no-prereqs local-vet-no-prereqs ci-docker-refresh-no-prereqs pre-commit-install-no-prereqs pre-commit-run-no-generate licenses-no-prereqs licenses-all-no-prereqs
 .PHONY: $(GO_TOOL_INSTALL_TARGETS)
 
@@ -141,6 +141,8 @@ app-generate-no-prereqs: app-check
 	@if grep -q '^swaggerEnabled:' "$(APP_CONFIG)"; then \
 		$(MAKE) swagger-generate-no-prereqs APP=$(APP); \
 	fi
+
+app-list: list-apps
 
 swagger-generate: app-check swag-install ## Generate Swagger API documentation when enabled in app.yaml
 	$(MAKE) swagger-generate-no-prereqs APP=$(APP)
