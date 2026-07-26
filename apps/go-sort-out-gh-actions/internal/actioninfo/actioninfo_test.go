@@ -294,6 +294,28 @@ func TestCheckOutdatedActions_FloatingMajorTagSHAComparison(t *testing.T) {
 			expectOutdated:    true,
 			expectOutdatedRef: "v2.1.0",
 		},
+		{
+			name:           "pinned commit SHA at latest release is not outdated",
+			currentRef:     "abc123def456abc123def456abc123def456abc1",
+			latestTag:      "v4.37.1",
+			latestSHA:      "abc123def456abc123def456abc123def456abc1",
+			expectOutdated: false,
+		},
+		{
+			name:              "pinned commit SHA behind latest release is outdated",
+			currentRef:        "abc123def456abc123def456abc123def456abc1",
+			latestTag:         "v4.37.1",
+			latestSHA:         "def456abc123def456abc123def456abc123def4",
+			expectOutdated:    true,
+			expectOutdatedRef: "abc123def456abc123def456abc123def456abc1",
+		},
+		{
+			name:           "short pinned commit SHA matching latest release is not outdated",
+			currentRef:     "abc123d",
+			latestTag:      "v4.37.1",
+			latestSHA:      "abc123def456abc123def456abc123def456abc1",
+			expectOutdated: false,
+		},
 	}
 
 	for _, tt := range tests {

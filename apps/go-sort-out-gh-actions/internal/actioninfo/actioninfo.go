@@ -188,6 +188,38 @@ func CheckOutdatedActions(ctx context.Context, ghClient *github.Client, workflow
 				continue
 			}
 
+			// A commit SHA is already an immutable reference, so it cannot be
+			// compared as a semantic version. Compare it directly with the commit
+			// currently targeted by the latest release tag instead. This is the
+			// representation Dependabot uses when GitHub Actions are SHA-pinned.
+			if version.IsCommitSHA(ref.Version) {
+				latestSHA, err := ghClient.GetRefSHA(ctx, ref.OwnerRepo, latestTag)
+				if err != nil {
+					if verbose {
+						fmt.Printf(" Cannot resolve latest SHA for %s@%s: %v\n", ref.OwnerRepo, latestTag, err)
+					}
+					seenOutdated[cacheKey] = true
+					continue
+				}
+
+				if sameCommitSHA(ref.Version, latestSHA) {
+					seenOutdated[cacheKey] = true
+					continue
+				}
+
+				outdatedActions = append(outdatedActions, OutdatedActionInfo{
+					OwnerRepo:  ref.OwnerRepo,
+					ActionPath: ref.ActionPath,
+					CurrentRef: ref.Version,
+					LatestTag:  latestTag,
+					LatestURL:  latestURL,
+					Workflow:   wf.Path,
+					FullRef:    ref.FullRef,
+				})
+				seenOutdated[cacheKey] = true
+				continue
+			}
+
 			if version.IsMajorVersionTag(ref.Version) {
 				if version.SameMajorVersion(ref.Version, latestTag) {
 					same, _, _, err := ghClient.CompareRefSHAs(ctx, ref.OwnerRepo, ref.Version, latestTag)
@@ -243,6 +275,14 @@ func CheckOutdatedActions(ctx context.Context, ghClient *github.Client, workflow
 	}
 
 	return outdatedActions
+}
+
+// sameCommitSHA supports full SHA pins and short SHA references while avoiding
+// case-sensitive mismatches in hexadecimal commit IDs.
+func sameCommitSHA(refSHA, resolvedSHA string) bool {
+	refSHA = strings.ToLower(strings.TrimSpace(refSHA))
+	resolvedSHA = strings.ToLower(strings.TrimSpace(resolvedSHA))
+	return refSHA == resolvedSHA || strings.HasPrefix(resolvedSHA, refSHA) || strings.HasPrefix(refSHA, resolvedSHA)
 }
 
 func WriteOutdatedActions(ctx context.Context, ghClient *github.Client, workflowFiles []*workflow.WorkflowFile, outdatedActions []OutdatedActionInfo, releases map[string]*github.ReleaseInfo, useSemver bool, verbose bool) OutdatedUpdateReport {
