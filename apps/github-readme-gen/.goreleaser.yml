@@ -1,0 +1,319 @@
+---
+version: 2
+
+project_name: github-readme-gen
+dist: dist/github-readme-gen
+
+retry:
+  attempts: 5
+  delay: 5s
+
+env:
+  - GO111MODULE=on
+
+env_files:
+  gitlab_token: ~/nope
+  gitea_token: ~/nope
+
+before:
+  hooks:
+    - go mod tidy
+    - ./scripts/completions.sh github-readme-gen
+    - ./scripts/manpages.sh github-readme-gen
+    # Must run last: pins the mtimes of the files bundled into the archive to
+    # the commit timestamp so the tarball (and thus the Homebrew cask checksum)
+    # is byte-for-byte reproducible across independent builds.
+    - ./scripts/normalize-archive-mtimes.sh github-readme-gen
+
+snapshot:
+  version_template: '{{ incpatch .Version }}-next'
+
+builds:
+  - id: github-readme-gen
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - "386"
+      - amd64
+      - arm
+      - arm64
+    goarm:
+      - "7"
+    ignore:
+      - goos: windows
+        goarch: arm
+    mod_timestamp: '{{ .CommitTimestamp }}'
+    flags:
+      - -trimpath
+    ldflags:
+      - >-
+        -s -w
+        -X github.com/toozej/monogo/pkg/version.Version=v{{ envOrDefault "MONOGO_APP_VERSION" .Version }}
+        -X github.com/toozej/monogo/pkg/version.Commit={{.Commit}}
+        -X github.com/toozej/monogo/pkg/version.Branch={{.Branch}}
+        -X github.com/toozej/monogo/pkg/version.BuiltAt={{.CommitDate}}
+        -X github.com/toozej/monogo/pkg/version.Builder=goreleaser
+    main: ./apps/github-readme-gen
+    binary: readme-gen
+
+universal_binaries:
+  - replace: false
+    # Pin the merged universal binary's mtime to the commit timestamp (as
+    # builds.mod_timestamp does for the per-arch binaries) so the Darwin_all
+    # archive is reproducible too.
+    mod_timestamp: '{{ .CommitTimestamp }}'
+
+checksum:
+  name_template: 'checksums.txt'
+
+docker_digest:
+  name_template: 'digests.txt'
+
+changelog:
+  # Release notes are produced by `gh` (CI) / the Makefile, not GoReleaser,
+  # whenever the SCM release is disabled. Skip GoReleaser's own changelog then
+  # to avoid noisy GitHub API calls and empty .PreviousTag lookups against the
+  # local-only vX.Y.Z tag. Condition mirrors release.disable below.
+  disable: '{{ or (eq (envOrDefault "MONOGO_APP_RELEASE" "false") "true") (eq (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true") }}'
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - '^test:'
+      - '^chore'
+      - 'merge conflict'
+      - Merge pull request
+      - Merge remote-tracking branch
+      - Merge branch
+      - go mod tidy
+  groups:
+    - title: Dependency updates
+      regexp: "^.*feat\\(deps\\)*:+.*$"
+      order: 300
+    - title: 'New Features'
+      regexp: "^.*feat[(\\w)]*:+.*$"
+      order: 100
+    - title: 'Bug fixes'
+      regexp: "^.*fix[(\\w)]*:+.*$"
+      order: 200
+    - title: 'Documentation updates'
+      regexp: "^.*docs[(\\w)]*:+.*$"
+      order: 400
+    - title: Other work
+      order: 9999
+
+dockers_v2:
+  - id: github-readme-gen
+    images:
+      - 'toozej/github-readme-gen'
+      - 'ghcr.io/toozej/github-readme-gen'
+      - 'quay.io/toozej/github-readme-gen'
+    tags:
+      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}v{{ envOrDefault "MONOGO_APP_VERSION" .Version }}{{ end }}'
+      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ envOrDefault "MONOGO_APP_VERSION" .Version }}{{ end }}'
+      - "latest"
+    dockerfile: apps/github-readme-gen/Dockerfile.goreleaser
+    labels:
+      "io.artifacthub.package.readme-url": "https://github.com/toozej/monogo/raw/main/README.md"
+      "io.artifacthub.package.maintainers": "[{\"name\":\"toozej\"}]"
+      "io.artifacthub.package.license": "GPLv3"
+      "org.opencontainers.image.description": >-
+        Generate GitHub profile README.md files from recent public activity
+      "org.opencontainers.image.created": "{{.Date}}"
+      "org.opencontainers.image.name": "{{.ProjectName}}"
+      "org.opencontainers.image.revision": "{{.FullCommit}}"
+      "org.opencontainers.image.version": '{{ envOrDefault "MONOGO_APP_VERSION" .Version }}'
+      "org.opencontainers.image.source": "{{.GitURL}}"
+      "org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
+      "org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
+      "org.opencontainers.image.licenses": "GPL-3.0-only"
+      "org.opencontainers.image.title": "{{.ProjectName}}"
+      "org.opencontainers.image.vendor": "James Tooze"
+    annotations:
+      "index,manifest:org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
+      "index,manifest:org.opencontainers.image.created": "{{.Date}}"
+      "index,manifest:org.opencontainers.image.description": >-
+        Generate GitHub profile README.md files from recent public activity
+      "index,manifest:org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
+      "index,manifest:org.opencontainers.image.licenses": "GPL-3.0-only"
+      "index,manifest:org.opencontainers.image.revision": "{{.FullCommit}}"
+      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/monogo"
+      "index,manifest:org.opencontainers.image.title": "{{.ProjectName}}"
+      "index,manifest:org.opencontainers.image.vendor": "James Tooze"
+      "index,manifest:org.opencontainers.image.version": '{{ envOrDefault "MONOGO_APP_VERSION" .Version }}'
+    extra_files:
+      - scripts/goreleaser_entrypoint.sh
+      - LICENSE
+  - id: github-readme-gen-distroless
+    images:
+      - 'toozej/github-readme-gen'
+      - 'ghcr.io/toozej/github-readme-gen'
+      - 'quay.io/toozej/github-readme-gen'
+    tags:
+      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}v{{ envOrDefault "MONOGO_APP_VERSION" .Version }}-distroless{{ end }}'
+      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ envOrDefault "MONOGO_APP_VERSION" .Version }}-distroless{{ end }}'
+      - "distroless"
+    dockerfile: apps/github-readme-gen/Dockerfile.goreleaser.distroless
+    labels:
+      "io.artifacthub.package.readme-url": "https://github.com/toozej/monogo/raw/main/README.md"
+      "io.artifacthub.package.maintainers": "[{\"name\":\"toozej\"}]"
+      "io.artifacthub.package.license": "GPLv3"
+      "org.opencontainers.image.description": >-
+        Generate GitHub profile README.md files from recent public activity
+      "org.opencontainers.image.created": "{{.Date}}"
+      "org.opencontainers.image.name": "{{.ProjectName}}"
+      "org.opencontainers.image.revision": "{{.FullCommit}}"
+      "org.opencontainers.image.version": '{{ envOrDefault "MONOGO_APP_VERSION" .Version }}'
+      "org.opencontainers.image.source": "{{.GitURL}}"
+      "org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
+      "org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
+      "org.opencontainers.image.licenses": "GPL-3.0-only"
+      "org.opencontainers.image.title": "{{.ProjectName}}"
+      "org.opencontainers.image.vendor": "James Tooze"
+    annotations:
+      "index,manifest:org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
+      "index,manifest:org.opencontainers.image.created": "{{.Date}}"
+      "index,manifest:org.opencontainers.image.description": >-
+        Generate GitHub profile README.md files from recent public activity
+      "index,manifest:org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
+      "index,manifest:org.opencontainers.image.licenses": "GPL-3.0-only"
+      "index,manifest:org.opencontainers.image.revision": "{{.FullCommit}}"
+      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/monogo"
+      "index,manifest:org.opencontainers.image.title": "{{.ProjectName}}"
+      "index,manifest:org.opencontainers.image.vendor": "James Tooze"
+      "index,manifest:org.opencontainers.image.version": '{{ envOrDefault "MONOGO_APP_VERSION" .Version }}'
+    extra_files:
+      - scripts/goreleaser_entrypoint.sh
+      - LICENSE
+
+archives:
+  - name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+    format_overrides:
+      - goos: windows
+        formats: ['zip']
+    files:
+      - src: apps/github-readme-gen/README.md
+        dst: README.md
+      - LICENSE
+      - completions/readme-gen.bash
+      - completions/readme-gen.fish
+      - completions/readme-gen.zsh
+      - manpages/readme-gen.1.gz
+
+nfpms:
+  - file_name_template: '{{ .ConventionalFileName }}'
+    id: packages
+    homepage: https://github.com/toozej/monogo
+    description: |-
+      Generate GitHub profile README.md files from recent public activity
+    maintainer: toozej
+    license: GPLv3
+    vendor: monogo
+    bindir: /usr/bin
+    section: utils
+    contents:
+      - src: ./completions/readme-gen.bash
+        dst: /usr/share/bash-completion/completions/readme-gen
+        file_info:
+          mode: 0644
+      - src: ./completions/readme-gen.fish
+        dst: /usr/share/fish/completions/readme-gen.fish
+        file_info:
+          mode: 0644
+      - src: ./completions/readme-gen.zsh
+        dst: /usr/share/zsh/vendor-completions/_readme-gen
+        file_info:
+          mode: 0644
+      - src: ./manpages/readme-gen.1.gz
+        dst: /usr/share/man/man1/readme-gen.1.gz
+        file_info:
+          mode: 0644
+      - src: ./LICENSE
+        dst: /usr/share/doc/readme-gen/copyright
+        file_info:
+          mode: 0644
+    formats:
+      - apk
+      - deb
+      - rpm
+    dependencies:
+      - git
+    recommends:
+      - golang
+    deb:
+      lintian_overrides:
+        - statically-linked-binary
+        - changelog-file-missing-in-native-package
+
+homebrew_casks:
+  - name: readme-gen
+    # Render the cask into dist/ during the release build, but do NOT push it to
+    # the tap from here. The publish_homebrew_cask CI job commits that
+    # already-rendered file to the tap after the GitHub release assets exist, so
+    # the cask's SHA-256 always matches the exact archive users download (both
+    # come from this single build). See .github/workflows/release.yaml.
+    skip_upload: "true"
+    homepage: https://github.com/toozej/monogo
+    description: >-
+      Generate GitHub profile README.md files from recent public activity
+    license: GPLv3
+    repository:
+      owner: toozej
+      name: homebrew-tap
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
+    manpages:
+      - "manpages/readme-gen.1.gz"
+    completions:
+      bash: "completions/readme-gen.bash"
+      zsh: "completions/readme-gen.zsh"
+      fish: "completions/readme-gen.fish"
+    url:
+      template: "https://github.com/toozej/monogo/releases/download/{{ envOrDefault \"MONOGO_RELEASE_TAG\" .Tag }}/{{ .ArtifactName }}"
+      verified: "github.com/toozej/monogo/releases/download"
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/readme-gen"]
+          end
+
+sboms:
+  - artifacts: archive
+
+signs:
+  - cmd: cosign
+    output: true
+    signature: "${artifact}.sigstore.json"
+    args:
+      - 'sign-blob'
+      - '--bundle=${signature}'
+      - '${artifact}'
+      - '--yes'
+    artifacts: checksum
+
+docker_signs:
+  - cmd: cosign
+    artifacts: all
+    output: true
+    args:
+      - 'sign'
+      - '--yes'
+      - '${artifact}'
+
+milestones:
+  - close: true
+
+release:
+  mode: append
+  disable: '{{ or (eq (envOrDefault "MONOGO_APP_RELEASE" "false") "true") (eq (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true") }}'
+  footer: |
+    **Full Changelog**: https://github.com/toozej/monogo/compare/{{ .PreviousTag }}...{{ .Tag }}
