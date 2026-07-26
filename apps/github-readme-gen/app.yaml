@@ -6,7 +6,10 @@ mainPath: apps/github-readme-gen
 description: "Generate GitHub profile README.md files from recent public activity"
 shortDescription: "GitHub profile README generator"
 goImage: golang:1.26-trixie
-distrolessImage: gcr.io/distroless/static-debian13:nonroot
+# GitHub Docker actions must run as root so they can write the runner-mounted
+# workspace. The action metadata consumes the distroless image below.
+distrolessImage: gcr.io/distroless/static-debian13:latest
+distrolessOnly: true
 # cgoEnabled defaults to false. When true, builds use CGO_ENABLED=1, the runtime
 # image becomes glibc-capable (debian:trixie-slim / distroless base-debian), and
 # GoReleaser is trimmed to the native linux/amd64 platform.

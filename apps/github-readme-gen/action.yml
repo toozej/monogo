@@ -1,0 +1,28 @@
+---
+name: 'Generate GitHub README'
+description: 'Generate a README from recent GitHub activity'
+author: 'toozej'
+inputs:
+  token:
+    description: 'GitHub token for API access'
+    required: true
+  user:
+    description: 'GitHub username whose public activity is rendered'
+    required: true
+  template:
+    description: 'Path to the README template, relative to the repository root'
+    required: false
+    default: 'templates/README.md.tpl'
+  output:
+    description: 'Path to the generated README, relative to the repository root'
+    required: false
+    default: 'README.md'
+runs:
+  using: 'docker'
+  image: 'docker://ghcr.io/toozej/github-readme-gen:latest'
+  env:
+    GITHUB_TOKEN: ${{ inputs.token }}
+  args:
+    - --user=${{ inputs.user }}
+    - --template=${{ inputs.template }}
+    - --output=${{ inputs.output }}

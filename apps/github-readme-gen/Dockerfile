@@ -36,7 +36,7 @@ RUN LDFLAGS="-s -w -X github.com/toozej/monogo/pkg/version.Version=${VERSION} -X
     CGO_ENABLED=0 go build -o /out/readme-gen -ldflags="${LDFLAGS}" ./apps/github-readme-gen
 
 # runtime image
-FROM scratch
+FROM gcr.io/distroless/static-debian13:latest
 # Copy our executable.
 COPY --from=build /out/readme-gen /go/bin/readme-gen
 # Include the project license in the runtime image.
