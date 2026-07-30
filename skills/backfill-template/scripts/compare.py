@@ -40,8 +40,8 @@ def get_git_remote_info(target_dir):
         match = re.search(r"github\.com[:/]([^/]+)/([^/.]+)(?:\.git)?", url)
         if match:
             return match.group(1), match.group(2)
-    except Exception:
-        pass
+    except (OSError, subprocess.CalledProcessError):
+        return None, None
     return None, None
 
 
@@ -62,8 +62,8 @@ def get_go_module_info(target_dir):
                     return parts[0], parts[1]
                 else:
                     return None, parts[0]
-        except Exception:
-            pass
+        except OSError:
+            return None, None
     return None, None
 
 

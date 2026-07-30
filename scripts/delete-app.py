@@ -182,12 +182,13 @@ def remove_dependabot_entry(app_name: str) -> None:
                         rf"^{re.escape(match.group(1))}-\s+package-ecosystem:\s+\""
                     )
                     break
-                if lines[j].startswith("  - "):
-                    # Stop at preceding peer block even if not docker
-                    if re.match(r"^\s*-\s+package-ecosystem:", lines[j]):
-                        start = j
-                        indent_pattern = rf"^{re.escape(re.match(r'^(\s*)', lines[j]).group(1))}-\s+package-ecosystem:\s+\""
-                        break
+                # Stop at preceding peer block even if not docker.
+                if lines[j].startswith("  - ") and re.match(
+                    r"^\s*-\s+package-ecosystem:", lines[j]
+                ):
+                    start = j
+                    indent_pattern = rf"^{re.escape(re.match(r'^(\s*)', lines[j]).group(1))}-\s+package-ecosystem:\s+\""
+                    break
                 j -= 1
             if start is None:
                 start = idx
