@@ -59,6 +59,9 @@ COPY LICENSE /usr/share/doc/[[$app.binary]]/copyright
 [[- range index $app "writableDirs" ]]
 COPY --from=build --chown=65532:65532 /container-root[[.]] [[.]]
 [[- end ]]
+[[ if index $app "workDir" -]]
+WORKDIR [[$app.workDir]]
+[[ end -]]
 # Expose port for publishing as web service
 [[- if index $app "port" ]]
 EXPOSE [[$app.port]]

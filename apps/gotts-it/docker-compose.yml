@@ -3,10 +3,21 @@ services:
   gotts-it:
     container_name: gotts-it
     image: toozej/gotts-it:latest
+    user: "${UID:-1000}:${GID:-1000}"
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
     read_only: true
+    env_file:
+      - gotts-it.env
+    command:
+      - "server"
+      - "--output-dir"
+      - "/out"
+    stdin_open: true
+    tty: true
+    volumes:
+      - "./out:/out"
     labels:
       - "traefik.enable=false"
       # labels below for publishing as web service
@@ -19,3 +30,9 @@ services:
       # - "traefik.http.routers.gotts-it-secure.tls=true"
     # networks:
       # - traefik
+
+  speaches:
+    image: ghcr.io/speaches-ai/speaches:latest-cpu
+    restart: unless-stopped
+    ports:
+      - "8000:8000"

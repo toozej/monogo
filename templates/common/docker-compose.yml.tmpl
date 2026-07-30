@@ -18,7 +18,9 @@ services:
 [[ range index $compose "envFile" ]]      - [[.]]
 [[ end ]][[ end ]][[ if and $compose (index $compose "command") ]]    command:
 [[ range index $compose "command" ]]      - "[[.]]"
-[[ end ]][[ end ]][[ if and $compose (index $compose "ports") ]]    ports:
+[[ end ]][[ end ]][[ if and $compose (index $compose "stdinOpen") ]]    stdin_open: true
+[[ end ]][[ if and $compose (index $compose "tty") ]]    tty: true
+[[ end ]][[ if and $compose (index $compose "ports") ]]    ports:
 [[ range index $compose "ports" ]]      - "[[.]]"
 [[ end ]][[ end ]][[ if and $compose (index $compose "volumes") ]]    volumes:
 [[ range index $compose "volumes" ]]      - "[[.]]"

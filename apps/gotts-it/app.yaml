@@ -17,3 +17,27 @@ cgoEnabled: false
 # runtimeImage: debian:trixie-slim
 # port (optional) is EXPOSEd in the generated Dockerfiles when set.
 # port: 8081
+writableDirs:
+  - /out
+# Keep relative audio outputs out of the distroless image's root directory.
+workDir: /out
+compose:
+  # Map the host user's identity so the bind-mounted output directory remains
+  # writable when the container runs as a nonroot user.
+  user: "${UID:-1000}:${GID:-1000}"
+  envFile:
+    - gotts-it.env
+  command:
+    - server
+    - --output-dir
+    - /out
+  stdinOpen: true
+  tty: true
+  volumes:
+    - ./out:/out
+  sidecars:
+    speaches:
+      image: ghcr.io/speaches-ai/speaches:latest-cpu
+      restart: unless-stopped
+      ports:
+        - 8000:8000
