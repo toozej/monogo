@@ -211,6 +211,7 @@ def build_plan(app: str, remote: str, gh_ok: bool) -> AppPlan:
             cwd=ROOT,
             capture_output=True,
             text=True,
+            check=False,
         )
         plan.released = view.returncode == 0
 
@@ -229,7 +230,9 @@ def build_plan(app: str, remote: str, gh_ok: bool) -> AppPlan:
 
 def preflight(app: str) -> bool:
     print(f"    running preflight: make release-test APP={app}")
-    completed = subprocess.run(["make", "release-test", f"APP={app}"], cwd=ROOT)
+    completed = subprocess.run(
+        ["make", "release-test", f"APP={app}"], cwd=ROOT, check=False
+    )
     return completed.returncode == 0
 
 
