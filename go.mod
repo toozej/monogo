@@ -6,7 +6,7 @@ require (
 	github.com/blushft/go-diagrams v0.0.0-20250322201119-d91ac4ca5de4
 	github.com/caarlos0/env/v11 v11.4.1
 	github.com/go-git/go-billy/v5 v5.9.1
-	github.com/go-git/go-git/v5 v5.19.1
+	github.com/go-git/go-git/v5 v5.19.2
 	github.com/joho/godotenv v1.5.1
 	github.com/muesli/mango-cobra v1.3.0
 	github.com/muesli/roff v0.1.0
@@ -26,13 +26,13 @@ require (
 	github.com/go-openapi/jsonpointer v1.0.0 // indirect
 	github.com/go-openapi/jsonreference v1.0.0 // indirect
 	github.com/go-openapi/spec v0.22.9 // indirect
-	github.com/go-openapi/swag/conv v0.27.3 // indirect
-	github.com/go-openapi/swag/jsonutils v0.27.3 // indirect
-	github.com/go-openapi/swag/loading v0.27.3 // indirect
-	github.com/go-openapi/swag/pools v0.27.3 // indirect
-	github.com/go-openapi/swag/stringutils v0.27.3 // indirect
-	github.com/go-openapi/swag/typeutils v0.27.3 // indirect
-	github.com/go-openapi/swag/yamlutils v0.27.3 // indirect
+	github.com/go-openapi/swag/conv v0.28.0 // indirect
+	github.com/go-openapi/swag/jsonutils v0.28.0 // indirect
+	github.com/go-openapi/swag/loading v0.28.0 // indirect
+	github.com/go-openapi/swag/pools v0.28.0 // indirect
+	github.com/go-openapi/swag/stringutils v0.28.0 // indirect
+	github.com/go-openapi/swag/typeutils v0.28.0 // indirect
+	github.com/go-openapi/swag/yamlutils v0.28.0 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/swaggo/files/v2 v2.0.2 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
@@ -55,13 +55,13 @@ require (
 	github.com/bwmarrin/discordgo v0.29.0
 	github.com/bytedance/gopkg v0.1.4 // indirect
 	github.com/bytedance/sonic v1.15.2 // indirect
-	github.com/bytedance/sonic/loader v0.5.1 // indirect
+	github.com/bytedance/sonic/loader v0.5.2 // indirect
 	github.com/carlmjohnson/versioninfo v0.22.5 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/charmbracelet/colorprofile v0.4.3 // indirect
 	github.com/charmbracelet/x/ansi v0.11.7 // indirect
 	github.com/charmbracelet/x/cellbuf v0.0.15 // indirect
-	github.com/charmbracelet/x/mosaic v0.0.0-20260726004341-482a56510f1b // indirect
+	github.com/charmbracelet/x/mosaic v0.0.0-20260730164118-7e2d3e6c5238 // indirect
 	github.com/charmbracelet/x/term v0.2.2 // indirect
 	github.com/chromedp/cdproto v0.0.0-20250724212937-08a3db8b4327 // indirect
 	github.com/chromedp/chromedp v0.14.2
@@ -96,7 +96,7 @@ require (
 	github.com/gobwas/ws v1.4.0 // indirect
 	github.com/goccy/go-json v0.10.6 // indirect
 	github.com/goccy/go-yaml v1.19.2 // indirect
-	github.com/gofrs/uuid/v5 v5.4.0
+	github.com/gofrs/uuid/v5 v5.5.0
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/gogs/chardet v0.0.0-20211120154057-b7413eaefb8f // indirect
 	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect
@@ -115,7 +115,7 @@ require (
 	github.com/hashicorp/hcl/v2 v2.24.0
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/ipfs/bbloom v0.1.0 // indirect
-	github.com/ipfs/boxo v0.42.0 // indirect
+	github.com/ipfs/boxo v0.42.1 // indirect
 	github.com/ipfs/go-block-format v0.2.4 // indirect
 	github.com/ipfs/go-cid v0.6.2 // indirect
 	github.com/ipfs/go-datastore v0.9.2 // indirect
@@ -144,7 +144,7 @@ require (
 	github.com/mattn/go-sixel v0.0.12 // indirect
 	github.com/minio/sha256-simd v1.0.1 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
-	github.com/modelcontextprotocol/go-sdk v1.6.1 // indirect
+	github.com/modelcontextprotocol/go-sdk v1.7.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/mr-tron/base58 v1.3.0 // indirect
@@ -159,7 +159,7 @@ require (
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646 // indirect
 	github.com/nikoksr/notify v1.5.0
 	github.com/njayp/ophis v1.1.4
-	github.com/openai/openai-go/v3 v3.46.0
+	github.com/openai/openai-go/v3 v3.48.0
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.4.3 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
@@ -223,10 +223,10 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/gorm v1.31.2
 	lukechampine.com/blake3 v1.4.1 // indirect
-	modernc.org/libc v1.74.3 // indirect
+	modernc.org/libc v1.74.4 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
-	modernc.org/sqlite v1.54.0 // indirect
+	modernc.org/sqlite v1.55.0 // indirect
 )
 
 // github.com/davhofer/indigo (pulled in transitively via rss2socials -> botsky)
