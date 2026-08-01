@@ -20,6 +20,8 @@ APP_MAIN_PATH = $(shell v=$$(awk -F': *' '/^mainPath:/ {gsub(/"/, "", $$2); prin
 APP_CGO_ENABLED = $(shell v=$$(awk -F': *' '/^cgoEnabled:/ {gsub(/"/, "", $$2); print $$2; exit}' $(APP_CONFIG) 2>/dev/null); if [ "$$v" = "true" ] || [ "$$v" = "1" ]; then echo 1; else echo 0; fi)
 APP_SWAGGER_ENABLED = $(shell awk -F': *' '/^swaggerEnabled:/ {gsub(/"/, "", $$2); print $$2; exit}' $(APP_CONFIG) 2>/dev/null)
 APP_SWAGGER_GENERAL_INFO = $(shell awk -F': *' '/^swaggerGeneralInfo:/ {gsub(/"/, "", $$2); print $$2; exit}' $(APP_CONFIG) 2>/dev/null)
+APP_WASM_MAIN_PATH = $(shell awk -F': *' '/^wasmMainPath:/ {gsub(/"/, "", $$2); print $$2; exit}' $(APP_CONFIG) 2>/dev/null)
+APP_WASM_OUTPUT = $(APP_DIR)/internal/server/web/app.wasm
 APP_PACKAGES = ./$(APP_DIR)/... ./pkg/...
 APP_ENV_FILE ?= $(APP_DIR)/.env
 APP_COSIGN_KEY ?= $(APP_DIR)/$(APP_BINARY).key
@@ -81,7 +83,7 @@ DIST_DIR ?= $(CURDIR)/dist/$(APP)
 COSIGN_IDENTITY_REGEXP := '^https://github.com/toozej/monogo/.github/workflows/(release|weekly-docker-refresh).yaml@refs/(tags/.*|heads/main)$$'
 COSIGN_OIDC_ISSUER := 'https://token.actions.githubusercontent.com'
 
-.PHONY: all list-apps app-list import new-app delete-app migrate-internal-package app-check common-generate app-generate swagger-generate generate generate-all app-templates-check templates-check vet test build release release-all delete-release re-release verify verify-checksums verify-docker verify-docker-all-registries run up down docker-vet docker-test docker-build distroless-build distroless-run install local local-all local-update-deps local-vet local-vendor local-test local-cover local-build local-run local-kill local-iterate release-test local-install docker-login go-tools-install release-tools-install docker-refresh-tools-install ci-release ci-docker-refresh system-tools-install pre-commit-tools-install pre-commit-install pre-commit-update pre-commit-run pre-commit pre-reqs licenses licenses-all update-golang-version upload-secrets-to-gh upload-secrets-envfile-to-1pass docs diagrams mutation-test test-changed watch-test profile-cpu profile-mem profile-all benchmark demo clean clean-all help
+.PHONY: all list-apps app-list import new-app delete-app migrate-internal-package app-check common-generate app-generate swagger-generate generate generate-all app-templates-check templates-check vet test build release release-all delete-release re-release verify verify-checksums verify-docker verify-docker-all-registries run up down docker-vet docker-test docker-build distroless-build distroless-run install local local-all local-update-deps local-vet local-vendor local-test local-cover local-build local-wasm-build local-run local-kill local-iterate release-test local-install docker-login go-tools-install release-tools-install docker-refresh-tools-install ci-release ci-docker-refresh system-tools-install pre-commit-tools-install pre-commit-install pre-commit-update pre-commit-run pre-commit pre-reqs licenses licenses-all update-golang-version upload-secrets-to-gh upload-secrets-envfile-to-1pass docs diagrams mutation-test test-changed watch-test profile-cpu profile-mem profile-all benchmark demo clean clean-all help
 .PHONY: common-generate-no-prereqs app-generate-no-prereqs swagger-generate-no-prereqs generate-no-prereqs generate-all-no-prereqs app-templates-check-no-generate docker-vet-no-generate docker-test-no-generate docker-build-no-generate release-test-no-generate local-no-prereqs local-vet-no-prereqs ci-docker-refresh-no-prereqs pre-commit-install-no-prereqs pre-commit-run-no-generate licenses-no-prereqs licenses-all-no-prereqs
 .PHONY: $(GO_TOOL_INSTALL_TARGETS)
 
@@ -392,7 +394,7 @@ local-vendor: ## Run `go mod tidy & vendor` using locally installed golang toolc
 	go mod tidy
 	go mod vendor
 
-local-test: app-check ## Run Go tests for APP
+local-test: app-check local-wasm-build ## Run Go tests for APP
 	go test -race -coverprofile $(APP_DIR)/c.out -v $(APP_PACKAGES)
 	@echo -e "\nStatements missing coverage"
 	@grep -e " 0$$" $(APP_DIR)/c.out || true
@@ -400,8 +402,14 @@ local-test: app-check ## Run Go tests for APP
 local-cover: app-check ## View APP coverage report in web browser
 	go tool cover -html=$(APP_DIR)/c.out
 
-local-build: app-check ## Build APP using locally installed golang toolchain
+local-build: app-check local-wasm-build ## Build APP using locally installed golang toolchain
 	CGO_ENABLED=$(APP_CGO_ENABLED) go build -o $(CURDIR)/out/$(APP_BINARY) -ldflags="$(LDFLAGS)" ./$(APP_MAIN_PATH)
+
+local-wasm-build: app-check ## Build APP's go-app WebAssembly client when wasmMainPath is configured
+	@if test -n "$(APP_WASM_MAIN_PATH)"; then \
+		mkdir -p "$(dir $(APP_WASM_OUTPUT))"; \
+		GOOS=js GOARCH=wasm CGO_ENABLED=0 go build -o "$(APP_WASM_OUTPUT)" ./$(APP_WASM_MAIN_PATH); \
+	fi
 
 local-run: app-check ## Run locally built APP binary
 	if test -e $(CURDIR)/.env; then \

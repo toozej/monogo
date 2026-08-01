@@ -1,0 +1,38 @@
+---
+services:
+  go-castctl:
+    container_name: go-castctl
+    image: toozej/go-castctl:latest
+    restart: unless-stopped
+    network_mode: "host"
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    healthcheck:
+      test: ["CMD", "/go/bin/go-castctl", "version"]
+      interval: 30s
+      timeout: 5s
+      start_period: 5s
+      retries: 3
+    environment:
+      CASTOR_BINARY: "/usr/local/bin/castor"
+      HOME: "/tmp"
+      SERVER_HOST: "127.0.0.1"
+      SERVER_PORT: "8080"
+      XDG_CACHE_HOME: "/tmp/cache"
+    volumes:
+      - "go-castctl-tmp:/tmp"
+    labels:
+      - "traefik.enable=false"
+      # labels below for publishing as web service
+      # - "traefik.docker.network=traefik"
+      # - "traefik.http.routers.go-castctl.rule=Host(`go-castctl.test`)"
+      # - "traefik.http.routers.go-castctl.middlewares=http-redirect-https@file,headers@file"
+      # - "traefik.http.routers.go-castctl-secure.entrypoints=https"
+      # - "traefik.http.routers.go-castctl-secure.rule=Host(`go-castctl.test`)"
+      # - "traefik.http.routers.go-castctl-secure.middlewares=headers@file"
+      # - "traefik.http.routers.go-castctl-secure.tls=true"
+    # networks:
+      # - traefik
+volumes:
+  go-castctl-tmp:

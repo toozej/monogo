@@ -20,15 +20,18 @@ the devcontainer build. Run `make app-generate APP=<app>` after editing
 | `goImage` | yes | Builder image for the Docker build stages, e.g. `golang:1.26-trixie`. |
 | `distrolessImage` | yes | Distroless runtime image for `Dockerfile.distroless`, e.g. `gcr.io/distroless/static-debian13:nonroot`. |
 | `distrolessOnly` | no (default `false`) | Builds only the distroless release image. That image receives both the normal (`latest`, version) and distroless (`distroless`, version-distroless) tags. The generated default Dockerfile also uses the distroless runtime. Use this for apps that require CA certificates or timezone data. |
+| `dockerPlatforms` | no | Restricts GoReleaser container images to the listed OCI platforms, such as `linux/amd64` and `linux/arm64`. Use this when a custom runtime base is not published for every default platform. |
 | `cgoEnabled` | no (default `false`) | Toggles `CGO_ENABLED`. See [CGO apps](#cgo-apps). |
 | `runtimeImage` | no | Overrides the runtime base in the non-distroless `Dockerfile`. Defaults to `scratch`, or `debian:trixie-slim` when `cgoEnabled` is `true`. |
 | `port` | no | When set, `EXPOSE <port>` is emitted in the generated Dockerfiles. |
 | `swaggerEnabled` | no (default `false`) | Generates and serves Swagger 2.0 documentation for an app with a user-facing HTTP API. See [Swagger API documentation](#swagger-api-documentation). |
 | `swaggerGeneralInfo` | when `swaggerEnabled` is `true` | Go source file, relative to the app directory, containing the general Swag annotations. |
+| `wasmMainPath` | no | Main package for a go-app WebAssembly client. Make, Docker, and GoReleaser build it to `apps/<app>/internal/server/web/app.wasm` before the native binary is built, allowing the server to embed it. |
 | `writableDirs` | no | Runtime directories created with ownership for the image's nonroot user. This lets empty named volumes inherit usable permissions. |
 | `workDir` | no | Runtime working directory for generated Dockerfiles. Set this to a writable directory when an app writes relative paths. |
 | `compose.user` | no | User or UID/GID used to run the Compose service. Useful for nonroot CLI containers that write to bind mounts. |
 | `compose.restart` | no (default `unless-stopped`) | Docker Compose restart policy. Set to `no` for one-shot CLI apps. |
+| `compose.networkMode` | no | Compose network mode, such as `host` for LAN discovery/casting applications. Do not combine host networking with published `ports`. |
 | `compose.environment` | no | Environment variables emitted for the app service in `docker-compose.yml`. |
 | `compose.envFile` | no | Environment files emitted with Compose's `env_file` setting. |
 | `compose.command` | no | Command and arguments emitted for the app service. |

@@ -1,0 +1,34 @@
+---
+name: go-castctl
+binary: go-castctl
+path: apps/go-castctl
+mainPath: apps/go-castctl
+wasmMainPath: apps/go-castctl/web
+description: "Chromecast streaming website powered by Castor and go-app"
+shortDescription: "Cast web video to a TV or watch it locally"
+goImage: golang:1.26-trixie
+# Castor's runtime supplies the castor binary, Chromium, ffmpeg, and ffprobe.
+distrolessImage: ghcr.io/stupside/castor:v1.7.0
+distrolessOnly: true
+dockerPlatforms:
+  - linux/amd64
+  - linux/arm64
+cgoEnabled: false
+port: 8080
+writableDirs:
+  - /tmp
+workDir: /tmp
+compose:
+  # Castor discovery and the device's connection back to its stream require the
+  # container to share the Linux host network.
+  networkMode: host
+  environment:
+    SERVER_HOST: 127.0.0.1
+    SERVER_PORT: "8080"
+    CASTOR_BINARY: /usr/local/bin/castor
+    HOME: /tmp
+    XDG_CACHE_HOME: /tmp/cache
+  volumes:
+    - go-castctl-tmp:/tmp
+  namedVolumes:
+    - go-castctl-tmp

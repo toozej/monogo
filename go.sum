@@ -489,6 +489,8 @@ github.com/mattn/go-sixel v0.0.12 h1:pQadX/oJ4fhSi6RnFHggWELW1TvADrQP9b+Kdx1wNzs
 github.com/mattn/go-sixel v0.0.12/go.mod h1:Z5QJ/vRbnpAl4CTN0NZ0mzURdMccsG7rpGZ5eJfZ6ys=
 github.com/mattn/go-sqlite3 v1.14.22 h1:2gZY6PC6kBnID23Tichd1K+Z0oS6nE/XwU+Vz/5o4kU=
 github.com/mattn/go-sqlite3 v1.14.22/go.mod h1:Uh1q+B4BYcTPb+yiD3kU8Ct7aC0hY9fxUwlHK0RXw+Y=
+github.com/maxence-charriere/go-app/v10 v10.1.11 h1:4JUSlVQ8zVIeL3acFJEpuerP6FLoEQWg6CUTtHcz7Ro=
+github.com/maxence-charriere/go-app/v10 v10.1.11/go.mod h1:FqUW4on4nJewVfBnSkuxQd3fvtK2RdKS/z76OOUDAAY=
 github.com/miekg/dns v1.0.14/go.mod h1:W1PPwlIAgtquWBMBEV9nkV9Cazfe8ScdGz/Lj7v3Nrg=
 github.com/minio/sha256-simd v1.0.1 h1:6kaan5IFmwTNynnKKpDHe6FWHohJOHhCPchzK49dzMM=
 github.com/minio/sha256-simd v1.0.1/go.mod h1:Pz6AKMiUdngCLpeTL/RJY1M9rUuPMYujV5xJjtbRSN8=
@@ -549,8 +551,8 @@ github.com/onsi/ginkgo v1.10.1/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+
 github.com/onsi/gomega v1.7.0/go.mod h1:ex+gbHU/CVuBBDIJjb2X0qEXbFg53c61hWP/1CpauHY=
 github.com/onsi/gomega v1.34.1 h1:EUMJIKUjM8sKjYbtxQI9A4z2o+rruxnzNvpknOXie6k=
 github.com/onsi/gomega v1.34.1/go.mod h1:kU1QgUvBDLXBJq618Xvm2LUX6rSAfRaFRTcdOeDLwwY=
-github.com/openai/openai-go/v3 v3.48.0 h1:HRVBn6UEP4qzGK2c6UWAZ0mdFf6yODNWTJ4ywLIyDpQ=
-github.com/openai/openai-go/v3 v3.48.0/go.mod h1:nCqcbgPr2jYDV8wiCWPA2tRL56mWXdb6QavBmBwzSis=
+github.com/openai/openai-go/v3 v3.49.0 h1:/BObwLKdgHJ3AbJ7AXK8BRDfjuTAV+eTmEQFbG86wnQ=
+github.com/openai/openai-go/v3 v3.49.0/go.mod h1:nCqcbgPr2jYDV8wiCWPA2tRL56mWXdb6QavBmBwzSis=
 github.com/opentracing/opentracing-go v1.2.0 h1:uEJPy/1a5RIPAJ0Ov+OIO8OxWu77jEv+1B0VhjKrZUs=
 github.com/opentracing/opentracing-go v1.2.0/go.mod h1:GxEUsuufX4nBwe+T+Wl9TAgYrxe9dPLANfrWvHYVTgc=
 github.com/orisano/pixelmatch v0.0.0-20220722002657-fb0b55479cde h1:x0TT0RDC7UhAVbbWWBzr41ElhJx5tXPWkIHA2HWPRuw=

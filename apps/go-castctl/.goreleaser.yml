@@ -1,16 +1,8 @@
-[[- $app := ds "app" -]]
-[[- $cgo := "0" -]]
-[[- if conv.ToBool (index $app "cgoEnabled") -]][[- $cgo = "1" -]][[- end -]]
-[[- $distrolessOnly := false -]]
-[[- if index $app "distrolessOnly" -]][[- $distrolessOnly = conv.ToBool (index $app "distrolessOnly") -]][[- end -]]
-[[- $dockerPlatforms := index $app "dockerPlatforms" -]]
-[[- /* Docker repository names must be lower-case (e.g. RSSFFS -> rssffs) */ -]]
-[[- $image := strings.ToLower $app.name -]]
 ---
 version: 2
 
-project_name: [[$app.name]]
-dist: dist/[[$app.name]]
+project_name: go-castctl
+dist: dist/go-castctl
 
 retry:
   attempts: 5
@@ -26,31 +18,21 @@ env_files:
 before:
   hooks:
     - go mod tidy
-[[- if index $app "wasmMainPath" ]]
-    - env GOOS=js GOARCH=wasm CGO_ENABLED=0 go build -o [[$app.path]]/internal/server/web/app.wasm ./[[$app.wasmMainPath]]
-[[- end ]]
-    - ./scripts/completions.sh [[$app.name]]
-    - ./scripts/manpages.sh [[$app.name]]
+    - env GOOS=js GOARCH=wasm CGO_ENABLED=0 go build -o apps/go-castctl/internal/server/web/app.wasm ./apps/go-castctl/web
+    - ./scripts/completions.sh go-castctl
+    - ./scripts/manpages.sh go-castctl
     # Must run last: pins the mtimes of the files bundled into the archive to
     # the commit timestamp so the tarball (and thus the Homebrew cask checksum)
     # is byte-for-byte reproducible across independent builds.
-    - ./scripts/normalize-archive-mtimes.sh [[$app.name]]
+    - ./scripts/normalize-archive-mtimes.sh go-castctl
 
 snapshot:
   version_template: '{{ incpatch .Version }}-next'
 
 builds:
-  - id: [[$app.name]]
+  - id: go-castctl
     env:
-      - CGO_ENABLED=[[$cgo]]
-[[- if eq $cgo "1" ]]
-    # CGO links against C libraries; cross-compiling needs target toolchains,
-    # so restrict CGO builds to the native linux/amd64 platform.
-    goos:
-      - linux
-    goarch:
-      - amd64
-[[- else ]]
+      - CGO_ENABLED=0
     goos:
       - linux
       - darwin
@@ -65,7 +47,6 @@ builds:
     ignore:
       - goos: windows
         goarch: arm
-[[- end ]]
     mod_timestamp: '{{ .CommitTimestamp }}'
     flags:
       - -trimpath
@@ -77,10 +58,9 @@ builds:
         -X github.com/toozej/monogo/pkg/version.Branch={{.Branch}}
         -X github.com/toozej/monogo/pkg/version.BuiltAt={{.CommitDate}}
         -X github.com/toozej/monogo/pkg/version.Builder=goreleaser
-    main: ./[[$app.mainPath]]
-    binary: [[$app.binary]]
+    main: ./apps/go-castctl
+    binary: go-castctl
 
-[[ if ne $cgo "1" -]]
 universal_binaries:
   - replace: false
     # Pin the merged universal binary's mtime to the commit timestamp (as
@@ -88,7 +68,6 @@ universal_binaries:
     # archive is reproducible too.
     mod_timestamp: '{{ .CommitTimestamp }}'
 
-[[ end -]]
 checksum:
   name_template: 'checksums.txt'
 
@@ -129,90 +108,28 @@ changelog:
       order: 9999
 
 dockers_v2:
-[[- if not $distrolessOnly ]]
-  - id: [[$app.name]]
-[[- if $dockerPlatforms ]]
-    platforms:
-[[- range $dockerPlatforms ]]
-      - [[.]]
-[[- end ]]
-[[- else if eq $cgo "1" ]]
-    # CGO builds only produce a linux/amd64 binary, so pin the image platform.
+  - id: go-castctl-distroless
     platforms:
       - linux/amd64
-[[- end ]]
+      - linux/arm64
     images:
-      - 'toozej/[[$image]]'
-      - 'ghcr.io/toozej/[[$image]]'
-      - 'quay.io/toozej/[[$image]]'
+      - 'toozej/go-castctl'
+      - 'ghcr.io/toozej/go-castctl'
+      - 'quay.io/toozej/go-castctl'
     tags:
       - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}v{{ envOrDefault "MONOGO_APP_VERSION" .Version }}{{ end }}'
       - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ envOrDefault "MONOGO_APP_VERSION" .Version }}{{ end }}'
       - "latest"
-    dockerfile: [[$app.path]]/Dockerfile.goreleaser
-    labels:
-      "io.artifacthub.package.readme-url": "https://github.com/toozej/monogo/raw/main/README.md"
-      "io.artifacthub.package.maintainers": "[{\"name\":\"toozej\"}]"
-      "io.artifacthub.package.license": "GPLv3"
-      "org.opencontainers.image.description": >-
-        [[$app.description]]
-      "org.opencontainers.image.created": "{{.Date}}"
-      "org.opencontainers.image.name": "{{.ProjectName}}"
-      "org.opencontainers.image.revision": "{{.FullCommit}}"
-      "org.opencontainers.image.version": '{{ envOrDefault "MONOGO_APP_VERSION" .Version }}'
-      "org.opencontainers.image.source": "{{.GitURL}}"
-      "org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
-      "org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
-      "org.opencontainers.image.licenses": "GPL-3.0-only"
-      "org.opencontainers.image.title": "{{.ProjectName}}"
-      "org.opencontainers.image.vendor": "James Tooze"
-    annotations:
-      "index,manifest:org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
-      "index,manifest:org.opencontainers.image.created": "{{.Date}}"
-      "index,manifest:org.opencontainers.image.description": >-
-        [[$app.description]]
-      "index,manifest:org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
-      "index,manifest:org.opencontainers.image.licenses": "GPL-3.0-only"
-      "index,manifest:org.opencontainers.image.revision": "{{.FullCommit}}"
-      "index,manifest:org.opencontainers.image.source": "https://github.com/toozej/monogo"
-      "index,manifest:org.opencontainers.image.title": "{{.ProjectName}}"
-      "index,manifest:org.opencontainers.image.vendor": "James Tooze"
-      "index,manifest:org.opencontainers.image.version": '{{ envOrDefault "MONOGO_APP_VERSION" .Version }}'
-    extra_files:
-      - scripts/goreleaser_entrypoint.sh
-      - LICENSE
-[[- end ]]
-  - id: [[$app.name]]-distroless
-[[- if $dockerPlatforms ]]
-    platforms:
-[[- range $dockerPlatforms ]]
-      - [[.]]
-[[- end ]]
-[[- else if eq $cgo "1" ]]
-    # CGO builds only produce a linux/amd64 binary, so pin the image platform.
-    platforms:
-      - linux/amd64
-[[- end ]]
-    images:
-      - 'toozej/[[$image]]'
-      - 'ghcr.io/toozej/[[$image]]'
-      - 'quay.io/toozej/[[$image]]'
-    tags:
-[[- if $distrolessOnly ]]
-      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}v{{ envOrDefault "MONOGO_APP_VERSION" .Version }}{{ end }}'
-      - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ envOrDefault "MONOGO_APP_VERSION" .Version }}{{ end }}'
-      - "latest"
-[[- end ]]
       - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}v{{ envOrDefault "MONOGO_APP_VERSION" .Version }}-distroless{{ end }}'
       - '{{ if ne (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true" }}{{ envOrDefault "MONOGO_APP_VERSION" .Version }}-distroless{{ end }}'
       - "distroless"
-    dockerfile: [[$app.path]]/Dockerfile.goreleaser.distroless
+    dockerfile: apps/go-castctl/Dockerfile.goreleaser.distroless
     labels:
       "io.artifacthub.package.readme-url": "https://github.com/toozej/monogo/raw/main/README.md"
       "io.artifacthub.package.maintainers": "[{\"name\":\"toozej\"}]"
       "io.artifacthub.package.license": "GPLv3"
       "org.opencontainers.image.description": >-
-        [[$app.description]]
+        Chromecast streaming website powered by Castor and go-app
       "org.opencontainers.image.created": "{{.Date}}"
       "org.opencontainers.image.name": "{{.ProjectName}}"
       "org.opencontainers.image.revision": "{{.FullCommit}}"
@@ -227,7 +144,7 @@ dockers_v2:
       "index,manifest:org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
       "index,manifest:org.opencontainers.image.created": "{{.Date}}"
       "index,manifest:org.opencontainers.image.description": >-
-        [[$app.description]]
+        Chromecast streaming website powered by Castor and go-app
       "index,manifest:org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
       "index,manifest:org.opencontainers.image.licenses": "GPL-3.0-only"
       "index,manifest:org.opencontainers.image.revision": "{{.FullCommit}}"
@@ -250,44 +167,44 @@ archives:
       - goos: windows
         formats: ['zip']
     files:
-      - src: [[$app.path]]/README.md
+      - src: apps/go-castctl/README.md
         dst: README.md
       - LICENSE
-      - completions/[[$app.binary]].bash
-      - completions/[[$app.binary]].fish
-      - completions/[[$app.binary]].zsh
-      - manpages/[[$app.binary]].1.gz
+      - completions/go-castctl.bash
+      - completions/go-castctl.fish
+      - completions/go-castctl.zsh
+      - manpages/go-castctl.1.gz
 
 nfpms:
   - file_name_template: '{{ .ConventionalFileName }}'
     id: packages
     homepage: https://github.com/toozej/monogo
     description: |-
-      [[$app.description]]
+      Chromecast streaming website powered by Castor and go-app
     maintainer: toozej
     license: GPLv3
     vendor: monogo
     bindir: /usr/bin
     section: utils
     contents:
-      - src: ./completions/[[$app.binary]].bash
-        dst: /usr/share/bash-completion/completions/[[$app.binary]]
+      - src: ./completions/go-castctl.bash
+        dst: /usr/share/bash-completion/completions/go-castctl
         file_info:
           mode: 0644
-      - src: ./completions/[[$app.binary]].fish
-        dst: /usr/share/fish/completions/[[$app.binary]].fish
+      - src: ./completions/go-castctl.fish
+        dst: /usr/share/fish/completions/go-castctl.fish
         file_info:
           mode: 0644
-      - src: ./completions/[[$app.binary]].zsh
-        dst: /usr/share/zsh/vendor-completions/_[[$app.binary]]
+      - src: ./completions/go-castctl.zsh
+        dst: /usr/share/zsh/vendor-completions/_go-castctl
         file_info:
           mode: 0644
-      - src: ./manpages/[[$app.binary]].1.gz
-        dst: /usr/share/man/man1/[[$app.binary]].1.gz
+      - src: ./manpages/go-castctl.1.gz
+        dst: /usr/share/man/man1/go-castctl.1.gz
         file_info:
           mode: 0644
       - src: ./LICENSE
-        dst: /usr/share/doc/[[$app.binary]]/copyright
+        dst: /usr/share/doc/go-castctl/copyright
         file_info:
           mode: 0644
     formats:
@@ -304,7 +221,7 @@ nfpms:
         - changelog-file-missing-in-native-package
 
 homebrew_casks:
-  - name: [[$app.binary]]
+  - name: go-castctl
     # Render the cask into dist/ during the release build, but do NOT push it to
     # the tap from here. The publish_homebrew_cask CI job commits that
     # already-rendered file to the tap after the GitHub release assets exist, so
@@ -313,18 +230,18 @@ homebrew_casks:
     skip_upload: "true"
     homepage: https://github.com/toozej/monogo
     description: >-
-      [[$app.description]]
+      Chromecast streaming website powered by Castor and go-app
     license: GPLv3
     repository:
       owner: toozej
       name: homebrew-tap
       token: "{{ .Env.TAP_GITHUB_TOKEN }}"
     manpages:
-      - "manpages/[[$app.binary]].1.gz"
+      - "manpages/go-castctl.1.gz"
     completions:
-      bash: "completions/[[$app.binary]].bash"
-      zsh: "completions/[[$app.binary]].zsh"
-      fish: "completions/[[$app.binary]].fish"
+      bash: "completions/go-castctl.bash"
+      zsh: "completions/go-castctl.zsh"
+      fish: "completions/go-castctl.fish"
     url:
       template: "https://github.com/toozej/monogo/releases/download/{{ envOrDefault \"MONOGO_RELEASE_TAG\" .Tag }}/{{ .ArtifactName }}"
       verified: "github.com/toozej/monogo/releases/download"
@@ -332,7 +249,7 @@ homebrew_casks:
       post:
         install: |
           if OS.mac?
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/[[$app.binary]]"]
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/go-castctl"]
           end
 
 sboms:

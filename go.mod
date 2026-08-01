@@ -8,6 +8,7 @@ require (
 	github.com/go-git/go-billy/v5 v5.9.1
 	github.com/go-git/go-git/v5 v5.19.2
 	github.com/joho/godotenv v1.5.1
+	github.com/maxence-charriere/go-app/v10 v10.1.11
 	github.com/muesli/mango-cobra v1.3.0
 	github.com/muesli/roff v0.1.0
 	github.com/sirupsen/logrus v1.9.4
@@ -159,7 +160,7 @@ require (
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646 // indirect
 	github.com/nikoksr/notify v1.5.0
 	github.com/njayp/ophis v1.1.4
-	github.com/openai/openai-go/v3 v3.48.0
+	github.com/openai/openai-go/v3 v3.49.0
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.4.3 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect

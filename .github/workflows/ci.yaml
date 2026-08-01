@@ -66,6 +66,7 @@ jobs:
           - url2anki
           - RSSFFS
           - go-find-liquor
+          - go-castctl
           - photos2map
           - go-listen
           - ghreleases2rss

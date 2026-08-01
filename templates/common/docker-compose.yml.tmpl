@@ -9,6 +9,7 @@ services:
 [[ if and $compose (index $compose "user") ]]    user: "[[ index $compose "user" ]]"
 [[ end ]][[ if and $compose (index $compose "restart") ]]    restart: "[[ index $compose "restart" ]]"
 [[ else ]]    restart: unless-stopped
+[[ end ]][[ if and $compose (index $compose "networkMode") ]]    network_mode: "[[ index $compose "networkMode" ]]"
 [[ end ]]    security_opt:
       - no-new-privileges:true
     read_only: true

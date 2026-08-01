@@ -1,0 +1,1 @@
+The generated app.wasm is written next to this file and embedded by the server build.

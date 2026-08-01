@@ -1,0 +1,3 @@
+# Built by the repository's WASM-aware Make/GoReleaser/Docker workflows.
+internal/server/web/app.wasm
+c.out
