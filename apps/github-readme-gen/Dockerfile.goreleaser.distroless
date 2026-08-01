@@ -7,5 +7,9 @@ COPY $TARGETPLATFORM/readme-gen /go/bin/readme-gen
 COPY LICENSE /usr/share/doc/readme-gen/copyright
 # Expose port for publishing as web service
 # EXPOSE 8081
+# Verify that the application binary can start without requiring a shell or
+# additional utilities in the minimal runtime image.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+    CMD ["/go/bin/readme-gen", "version"]
 # Run the binary.
 ENTRYPOINT ["/go/bin/readme-gen"]

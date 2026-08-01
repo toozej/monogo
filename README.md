@@ -10,6 +10,20 @@
 
 MonoGo is a [Golang](https://go.dev/) [monorepo](https://en.wikipedia.org/wiki/Monorepo), allowing for a common update, build, test, and release pipeline as well an application scaffold for quickly setting up a new application.
 
+## Install an App with Homebrew
+
+Released MonoGo apps are available as Homebrew casks from the
+[`toozej/homebrew-tap`](https://github.com/toozej/homebrew-tap) repository. For
+example, install `files2prompt` with:
+
+```bash
+brew install --cask toozej/tap/files2prompt
+```
+
+Replace `files2prompt` with the app's binary name (for example, use
+`readme-gen` for the `github-readme-gen` app). Homebrew automatically adds the
+tap when the fully qualified cask name is used.
+
 | App | Badges | Description |
 | --- | --- | --- |
 | [`golang-starter`](apps/golang-starter/README.md) | ![CI](https://img.shields.io/github/actions/workflow/status/toozej/monogo/ci.yaml) ![Docker Pulls](https://img.shields.io/docker/pulls/toozej/golang-starter) ![Downloads](https://img.shields.io/github/downloads/toozej/monogo/total) | Starter app for this Go monorepo. |

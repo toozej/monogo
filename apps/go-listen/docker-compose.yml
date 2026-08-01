@@ -7,6 +7,12 @@ services:
     security_opt:
       - no-new-privileges:true
     read_only: true
+    healthcheck:
+      test: ["CMD", "/go/bin/go-listen", "version"]
+      interval: 30s
+      timeout: 5s
+      start_period: 5s
+      retries: 3
     environment:
       SECURITY_PASSWORD: "${SECURITY_PASSWORD:?set SECURITY_PASSWORD}"
       SECURITY_USERNAME: "${SECURITY_USERNAME:-go-listen}"

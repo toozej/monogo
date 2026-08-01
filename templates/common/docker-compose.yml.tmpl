@@ -12,6 +12,12 @@ services:
 [[ end ]]    security_opt:
       - no-new-privileges:true
     read_only: true
+    healthcheck:
+      test: ["CMD", "/go/bin/[[$app.binary]]", "version"]
+      interval: 30s
+      timeout: 5s
+      start_period: 5s
+      retries: 3
 [[ if and $compose (index $compose "environment") ]]    environment:
 [[ range $name, $value := index $compose "environment" ]]      [[$name]]: "[[$value]]"
 [[ end ]][[ end ]][[ if and $compose (index $compose "envFile") ]]    env_file:

@@ -47,6 +47,10 @@ COPY --from=build --chown=65532:65532 /container-root/config /config
 COPY --from=build --chown=65532:65532 /container-root/assets /assets
 # Expose port for publishing as web service
 EXPOSE 8080
+# Verify that the application binary can start without requiring a shell or
+# additional utilities in the minimal runtime image.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+    CMD ["/go/bin/podgrab", "version"]
 # Run the binary.
 USER 65532:65532
 ENTRYPOINT ["/go/bin/podgrab"]

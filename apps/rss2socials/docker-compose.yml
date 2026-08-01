@@ -7,6 +7,12 @@ services:
     security_opt:
       - no-new-privileges:true
     read_only: true
+    healthcheck:
+      test: ["CMD", "/go/bin/rss2socials", "version"]
+      interval: 30s
+      timeout: 5s
+      start_period: 5s
+      retries: 3
     labels:
       - "traefik.enable=false"
       # labels below for publishing as web service

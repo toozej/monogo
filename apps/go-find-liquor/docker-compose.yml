@@ -7,6 +7,12 @@ services:
     security_opt:
       - no-new-privileges:true
     read_only: true
+    healthcheck:
+      test: ["CMD", "/go/bin/go-find-liquor", "version"]
+      interval: 30s
+      timeout: 5s
+      start_period: 5s
+      retries: 3
     environment:
       GFL_FLARESOLVERR_URL: "http://flaresolverr:8191/v1"
     labels:

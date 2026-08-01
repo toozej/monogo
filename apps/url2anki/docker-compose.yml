@@ -8,6 +8,12 @@ services:
     security_opt:
       - no-new-privileges:true
     read_only: true
+    healthcheck:
+      test: ["CMD", "/go/bin/url2anki", "version"]
+      interval: 30s
+      timeout: 5s
+      start_period: 5s
+      retries: 3
     environment:
       URL2ANKI_ANSWER_SELECTOR: "${URL2ANKI_ANSWER_SELECTOR:?required}"
       URL2ANKI_OUTPUT_FILE: "/output/anki_cards.csv"

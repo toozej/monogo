@@ -43,6 +43,10 @@ COPY --from=build /out/ghreleases2rss /go/bin/ghreleases2rss
 COPY LICENSE /usr/share/doc/ghreleases2rss/copyright
 # Expose port for publishing as web service
 # EXPOSE 8081
+# Verify that the application binary can start without requiring a shell or
+# additional utilities in the minimal runtime image.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+    CMD ["/go/bin/ghreleases2rss", "version"]
 # Run the binary.
 USER 65532:65532
 ENTRYPOINT ["/go/bin/ghreleases2rss"]
