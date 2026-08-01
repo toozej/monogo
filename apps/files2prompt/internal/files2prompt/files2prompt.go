@@ -66,6 +66,43 @@ type readErrorFilesystem struct {
 	err error
 }
 
+// scopedReadDirFilesystem limits recursive directory reads to the path from a
+// repository root to scanRoot and the scanRoot subtree. ReadPatterns starts at
+// the repository root so it can apply ancestor .gitignore files correctly, but
+// it does not need to inspect sibling subtrees that cannot contain input files.
+type scopedReadDirFilesystem struct {
+	billy.Filesystem
+	scanRoot string
+}
+
+func (f *scopedReadDirFilesystem) ReadDir(path string) ([]os.FileInfo, error) {
+	entries, err := f.Filesystem.ReadDir(path)
+	if err != nil {
+		return nil, err
+	}
+
+	dir := filepath.Clean(path)
+	scanRoot := filepath.Clean(f.scanRoot)
+	if scanRoot == "." || dir == scanRoot {
+		return entries, nil
+	}
+	if rel, relErr := filepath.Rel(scanRoot, dir); relErr == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return entries, nil
+	}
+
+	rel, err := filepath.Rel(dir, scanRoot)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return nil, nil
+	}
+	next := strings.SplitN(rel, string(filepath.Separator), 2)[0]
+	for _, entry := range entries {
+		if entry.Name() == next {
+			return []os.FileInfo{entry}, nil
+		}
+	}
+	return nil, nil
+}
+
 func isGitFileInfoExclude(fs billy.Filesystem, filename string) bool {
 	clean := filepath.Clean(filename)
 	infoDir := filepath.Dir(clean)
@@ -166,10 +203,18 @@ func newPathFilter(path string, info os.FileInfo, cfg config.Config, excludedPat
 		if err != nil {
 			return nil, err
 		}
-		if matcher, ok := ignoreCache[filter.ignoreRoot]; ok {
+		scanScope, relErr := filepath.Rel(filter.ignoreRoot, filter.scanRoot)
+		if relErr != nil {
+			return nil, relErr
+		}
+		cacheKey := filter.ignoreRoot + "\x00" + scanScope
+		if matcher, ok := ignoreCache[cacheKey]; ok {
 			filter.ignore = matcher
 		} else {
-			filesystem := &readErrorFilesystem{Filesystem: osfs.New(filter.ignoreRoot)}
+			filesystem := &readErrorFilesystem{Filesystem: &scopedReadDirFilesystem{
+				Filesystem: osfs.New(filter.ignoreRoot),
+				scanRoot:   scanScope,
+			}}
 			patterns, patternErr := readIgnorePatterns(filesystem, nil)
 			if patternErr != nil {
 				return nil, fmt.Errorf("read gitignore patterns: %w", patternErr)
@@ -179,7 +224,7 @@ func newPathFilter(path string, info os.FileInfo, cfg config.Config, excludedPat
 			}
 			filter.ignore = gitignore.NewMatcher(patterns)
 			if ignoreCache != nil {
-				ignoreCache[filter.ignoreRoot] = filter.ignore
+				ignoreCache[cacheKey] = filter.ignore
 			}
 		}
 	}

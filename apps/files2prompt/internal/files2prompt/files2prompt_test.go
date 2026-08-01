@@ -22,6 +22,16 @@ func (failingWriter) Write([]byte) (int, error) {
 	return 0, errors.New("write failed")
 }
 
+type readDirRecordingFilesystem struct {
+	billy.Filesystem
+	paths []string
+}
+
+func (f *readDirRecordingFilesystem) ReadDir(path string) ([]os.FileInfo, error) {
+	f.paths = append(f.paths, filepath.Clean(path))
+	return f.Filesystem.ReadDir(path)
+}
+
 func TestProcessFile(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -554,6 +564,36 @@ func TestRunLoadsGitignoreOncePerRepository(t *testing.T) {
 	t.Cleanup(func() { osStdout = originalStdout })
 	assert.NoError(t, Run(config.Config{Paths: []string{first, second}}))
 	assert.Equal(t, 1, loads)
+}
+
+func TestGitignoreDiscoveryIsScopedToInputSubtree(t *testing.T) {
+	root := t.TempDir()
+	assert.NoError(t, os.Mkdir(filepath.Join(root, ".git"), 0o755))
+	inputRoot := filepath.Join(root, "input")
+	unrelatedRoot := filepath.Join(root, "unrelated")
+	assert.NoError(t, os.Mkdir(inputRoot, 0o755))
+	assert.NoError(t, os.Mkdir(unrelatedRoot, 0o755))
+	assert.NoError(t, os.WriteFile(filepath.Join(root, ".gitignore"), []byte("input/ignored.txt\n"), 0o600))
+	assert.NoError(t, os.WriteFile(filepath.Join(inputRoot, "ignored.txt"), []byte("IGNORED"), 0o600))
+	assert.NoError(t, os.WriteFile(filepath.Join(inputRoot, "visible.txt"), []byte("VISIBLE"), 0o600))
+	assert.NoError(t, os.WriteFile(filepath.Join(unrelatedRoot, ".gitignore"), []byte("*.txt\n"), 0o600))
+
+	originalReadPatterns := readIgnorePatterns
+	var visited []string
+	readIgnorePatterns = func(fs billy.Filesystem, path []string) ([]gitignore.Pattern, error) {
+		recording := &readDirRecordingFilesystem{Filesystem: fs}
+		patterns, err := originalReadPatterns(recording, path)
+		visited = append(visited, recording.paths...)
+		return patterns, err
+	}
+	t.Cleanup(func() { readIgnorePatterns = originalReadPatterns })
+
+	var output bytes.Buffer
+	index := 1
+	assert.NoError(t, processPath(inputRoot, config.Config{}, &output, nil, &index))
+	assert.Contains(t, output.String(), "VISIBLE")
+	assert.NotContains(t, output.String(), "IGNORED")
+	assert.NotContains(t, visited, "unrelated")
 }
 
 func TestGitignoreSupportsNestedWorktreeGitFiles(t *testing.T) {
