@@ -4,7 +4,7 @@ FROM --platform=$BUILDPLATFORM golang:1.26-trixie AS filesystem
 RUN mkdir -p /container-root/tmp && \
     chown -R 65532:65532 /container-root
 # runtime image including CA certs and tzdata
-FROM ghcr.io/stupside/castor:v1.7.0
+FROM ghcr.io/stupside/castor:v1.8.1
 # Copy our static executable.
 ARG TARGETPLATFORM
 COPY $TARGETPLATFORM/go-castctl /go/bin/go-castctl

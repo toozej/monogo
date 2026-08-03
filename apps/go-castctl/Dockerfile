@@ -42,7 +42,7 @@ RUN mkdir -p /container-root/tmp && \
     chown -R 65532:65532 /container-root
 
 # runtime image
-FROM ghcr.io/stupside/castor:v1.7.0
+FROM ghcr.io/stupside/castor:v1.8.1
 # Copy our executable.
 COPY --from=build /out/go-castctl /go/bin/go-castctl
 # Include the project license in the runtime image.

@@ -8,7 +8,7 @@ description: "Chromecast streaming website powered by Castor and go-app"
 shortDescription: "Cast web video to a TV or watch it locally"
 goImage: golang:1.26-trixie
 # Castor's runtime supplies the castor binary, Chromium, ffmpeg, and ffprobe.
-distrolessImage: ghcr.io/stupside/castor:v1.7.0
+distrolessImage: ghcr.io/stupside/castor:v1.8.1
 distrolessOnly: true
 dockerPlatforms:
   - linux/amd64
