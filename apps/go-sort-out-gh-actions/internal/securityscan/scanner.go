@@ -43,6 +43,12 @@ func DefaultRules() []Rule {
 		evalRule{},
 		dockerSocketRule{},
 		missingPermissionsRule{},
+		workflowRunRule{},
+		issueCommentRule{},
+		checkoutCredentialsRule{},
+		longLivedCredentialRule{},
+		unprotectedDeploymentRule{},
+		secretInterpolationRule{},
 	}
 }
 
