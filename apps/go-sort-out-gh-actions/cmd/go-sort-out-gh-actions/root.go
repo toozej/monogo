@@ -109,6 +109,7 @@ func init() {
 		newEOLCmd(),
 		newOutdatedCmd(),
 		newPinCmd(),
+		newScanCmd(),
 		newCheckCmd(),
 		newMCPCmd(),
 		avatar.NewCommand("go-sort-out-gh-actions"),
