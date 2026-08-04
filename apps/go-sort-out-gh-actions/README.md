@@ -128,6 +128,14 @@ go-sort-out-gh-actions scan --output-format json
 
 The built-in rules are deliberately small and composable so additional checks can be registered through the internal `securityscan.Rule` interface. Current checks cover `pull_request_target`, PR-controlled checkouts under privileged triggers (including PR merge refs), untrusted event and input data interpolated into `run` commands, unsafe `eval`, write permissions under privileged triggers and missing explicit permissions, cache use under `pull_request_target`, self-hosted runners for pull requests, Docker-socket exposure, action references that are not pinned to a full commit SHA, likely hardcoded credentials, broad secret exposure (`toJson(secrets)`, reusable-workflow `secrets: inherit`, and workflow/job secret environments), unsafe artifact downloads/uploads, and attacker-controlled writes to `GITHUB_ENV` or `GITHUB_PATH`.
 
+Use the reusable GitHub Action in another repository after checkout. It is offline and does not require a token:
+
+```yaml
+- uses: toozej/monogo/apps/go-sort-out-gh-actions/scan@main
+  with:
+    min-severity: high
+```
+
 ### Path Expansion
 
 All path inputs support `~` expansion to your home directory:

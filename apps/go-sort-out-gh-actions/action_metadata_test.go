@@ -29,29 +29,39 @@ func TestContainerActionMetadata(t *testing.T) {
 	t.Parallel()
 
 	type actionSpec struct {
-		command string
-		flags   []string
+		command       string
+		flags         []string
+		requiresToken bool
 	}
 	actions := map[string]actionSpec{
 		"action.yml": {
-			command: "archived",
-			flags:   []string{"verbose", "debug", "workflow", "workflows-dir", "repos-dir", "notify", "create-issue", "stale-days"},
+			command:       "archived",
+			flags:         []string{"verbose", "debug", "workflow", "workflows-dir", "repos-dir", "notify", "create-issue", "stale-days"},
+			requiresToken: true,
 		},
 		"check/action.yml": {
-			command: "check",
-			flags:   []string{"verbose", "debug", "workflow", "workflows-dir", "repos-dir", "notify", "create-issue", "write", "semver", "stale-days"},
+			command:       "check",
+			flags:         []string{"verbose", "debug", "workflow", "workflows-dir", "repos-dir", "notify", "create-issue", "write", "semver", "stale-days"},
+			requiresToken: true,
 		},
 		"check-archived/action.yml": {
-			command: "archived",
-			flags:   []string{"verbose", "debug", "workflow", "workflows-dir", "repos-dir", "notify", "create-issue", "stale-days"},
+			command:       "archived",
+			flags:         []string{"verbose", "debug", "workflow", "workflows-dir", "repos-dir", "notify", "create-issue", "stale-days"},
+			requiresToken: true,
 		},
 		"check-outdated/action.yml": {
-			command: "outdated",
-			flags:   []string{"verbose", "debug", "workflow", "workflows-dir", "repos-dir", "update", "pin", "semver"},
+			command:       "outdated",
+			flags:         []string{"verbose", "debug", "workflow", "workflows-dir", "repos-dir", "update", "pin", "semver"},
+			requiresToken: true,
 		},
 		"eol/action.yml": {
-			command: "eol",
-			flags:   []string{"verbose", "debug", "workflow", "workflows-dir", "repos-dir", "notify", "update", "stale-days"},
+			command:       "eol",
+			flags:         []string{"verbose", "debug", "workflow", "workflows-dir", "repos-dir", "notify", "update", "stale-days"},
+			requiresToken: true,
+		},
+		"scan/action.yml": {
+			command: "scan",
+			flags:   []string{"workflow", "workflows-dir", "repos-dir", "min-severity", "output-format"},
 		},
 	}
 	inputExpression := regexp.MustCompile(`^--[^=]+=\$[{][{] inputs\.([a-z0-9-]+) [}][}]$`)
@@ -79,14 +89,18 @@ func TestContainerActionMetadata(t *testing.T) {
 			if len(metadata.Runs.Steps) != 0 {
 				t.Fatal("Docker action metadata must not contain composite-action steps")
 			}
-			if got := metadata.Runs.Env["GH_TOKEN"]; got != "${{ inputs.token }}" {
-				t.Errorf("runs.env.GH_TOKEN = %q, want token input expression", got)
-			}
-			if _, ok := metadata.Inputs["token"]; !ok {
-				t.Error("token input is not declared")
-			}
-			if len(metadata.Runs.Env) != 1 {
-				t.Errorf("runs.env = %v, want only GH_TOKEN", metadata.Runs.Env)
+			if spec.requiresToken {
+				if got := metadata.Runs.Env["GH_TOKEN"]; got != "${{ inputs.token }}" {
+					t.Errorf("runs.env.GH_TOKEN = %q, want token input expression", got)
+				}
+				if _, ok := metadata.Inputs["token"]; !ok {
+					t.Error("token input is not declared")
+				}
+				if len(metadata.Runs.Env) != 1 {
+					t.Errorf("runs.env = %v, want only GH_TOKEN", metadata.Runs.Env)
+				}
+			} else if len(metadata.Runs.Env) != 0 {
+				t.Errorf("runs.env = %v, want no environment variables", metadata.Runs.Env)
 			}
 			if len(metadata.Runs.Args) == 0 || metadata.Runs.Args[0] != spec.command {
 				t.Fatalf("first argument = %q, want %q", metadata.Runs.Args, spec.command)

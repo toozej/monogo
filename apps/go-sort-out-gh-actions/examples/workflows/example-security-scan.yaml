@@ -1,0 +1,22 @@
+---
+name: Example - Scan GitHub Actions Workflow Security
+on:
+  schedule:
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Scan workflow security
+        uses: toozej/monogo/apps/go-sort-out-gh-actions/scan@main
+        with:
+          min-severity: high
+          output-format: text

@@ -33,3 +33,7 @@ run_check "SHA-pinned and version-pinned actions"     sha-pinned-actions.yaml; s
 
 echo "=== Demo: pinnable actions ==="
 "${BIN}" pin --workflow "${WORKFLOWS}/pinnable-actions.yaml" --verbose || true
+
+separator
+echo "=== Demo: workflow security findings ==="
+"${BIN}" scan --workflow "${WORKFLOWS}/security-issues.yaml" --min-severity high || true

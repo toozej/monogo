@@ -1,0 +1,52 @@
+---
+name: 'Scan GitHub Actions Workflow Security'
+description: 'Scan local GitHub Actions workflows for known security risks'
+author: 'toozej'
+inputs:
+  workflow:
+    description: 'Path to specific workflow file to scan (optional, scans all if not specified)'
+    required: false
+  workflows-dir:
+    description: 'Path to directory containing workflow yaml files (optional, scans all if
+      not specified)'
+    required: false
+  repos-dir:
+    description: 'Path to base directory containing multiple repos to scan (optional)'
+    required: false
+  min-severity:
+    description: 'Only report findings at or above: low, medium, high, critical'
+    required: false
+    default: 'low'
+  output-format:
+    description: 'Output format: text, json, or csv'
+    required: false
+    default: 'text'
+runs:
+  using: 'docker'
+  image: 'docker://ghcr.io/toozej/go-sort-out-gh-actions:latest'
+  args:
+    - scan
+    - --workflow=${{ inputs.workflow }}
+    - --workflows-dir=${{ inputs.workflows-dir }}
+    - --repos-dir=${{ inputs.repos-dir }}
+    - --min-severity=${{ inputs.min-severity }}
+    - --output-format=${{ inputs.output-format }}
+
+# Example usage in a workflow:
+#
+# name: Scan GitHub Actions Workflow Security
+# on:
+#   pull_request:
+#   schedule:
+#     - cron: '0 0 * * 0'
+#
+# jobs:
+#   scan:
+#     runs-on: ubuntu-latest
+#     permissions:
+#       contents: read
+#     steps:
+#       - uses: actions/checkout@v4
+#       - uses: toozej/monogo/apps/go-sort-out-gh-actions/scan@main
+#         with:
+#           min-severity: high
