@@ -28,16 +28,20 @@ APP_COSIGN_KEY ?= $(APP_DIR)/$(APP_BINARY).key
 # Per-app demo script run by `make APP=<app> demo`; each app stores its own.
 APP_DEMO ?= $(APP_DIR)/demo.sh
 
-# Go tools are installed as package@version from a single manifest. Each tool
-# therefore gets its own module graph and cannot affect the applications or one
-# another.
+# Go and binary tools are installed from their respective manifests. Go tools
+# get their own module graphs; release binaries are downloaded to the same
+# repository-local tool directory.
 TOOLS_BIN := $(CURDIR)/.tools/bin
 GO_TOOLS := $(CURDIR)/scripts/manage-go-tools.sh
 GO_TOOL_MANIFEST ?= $(CURDIR)/tools/go-tools.tsv
+BINARY_TOOLS := $(CURDIR)/scripts/manage-binary-tools.sh
+BINARY_TOOL_MANIFEST ?= $(CURDIR)/tools/binary-tools.tsv
 # Use the character code for "#" because GNU awk warns that \# is an unknown
 # regexp escape, while an unescaped # would start a Make comment here.
 GO_TOOL_NAMES := $(shell if test -f "$(GO_TOOL_MANIFEST)"; then awk -F '\t' 'NF && substr($$1, 1, 1) != sprintf("%c", 35) { print $$1 }' "$(GO_TOOL_MANIFEST)"; fi)
 GO_TOOL_INSTALL_TARGETS := $(addsuffix -install,$(GO_TOOL_NAMES))
+BINARY_TOOL_NAMES := $(shell if test -f "$(BINARY_TOOL_MANIFEST)"; then awk -F '\t' 'NF && substr($$1, 1, 1) != sprintf("%c", 35) { print $$1 }' "$(BINARY_TOOL_MANIFEST)"; fi)
+BINARY_TOOL_INSTALL_TARGETS := $(addsuffix -install,$(BINARY_TOOL_NAMES))
 export PATH := $(TOOLS_BIN):$(PATH)
 
 # Path to the makefile currently being read: the saved wrapper copy when invoked
@@ -83,9 +87,9 @@ DIST_DIR ?= $(CURDIR)/dist/$(APP)
 COSIGN_IDENTITY_REGEXP := '^https://github.com/toozej/monogo/.github/workflows/(release|weekly-docker-refresh).yaml@refs/(tags/.*|heads/main)$$'
 COSIGN_OIDC_ISSUER := 'https://token.actions.githubusercontent.com'
 
-.PHONY: all list-apps app-list import new-app delete-app migrate-internal-package app-check common-generate app-generate swagger-generate generate generate-all app-templates-check templates-check vet test build release release-all delete-release re-release verify verify-checksums verify-docker verify-docker-all-registries run up down docker-vet docker-test docker-build distroless-build distroless-run install local local-all local-update-deps local-vet local-vendor local-test local-cover local-build local-wasm-build local-run local-kill local-iterate release-test local-install docker-login go-tools-install release-tools-install docker-refresh-tools-install ci-release ci-docker-refresh system-tools-install pre-commit-tools-install pre-commit-install pre-commit-update pre-commit-run pre-commit pre-reqs licenses licenses-all update-golang-version upload-secrets-to-gh upload-secrets-envfile-to-1pass docs diagrams mutation-test test-changed watch-test profile-cpu profile-mem profile-all benchmark demo clean clean-all help
+.PHONY: all list-apps app-list import new-app delete-app migrate-internal-package app-check common-generate app-generate swagger-generate generate generate-all app-templates-check templates-check vet test build release release-all delete-release re-release verify verify-checksums verify-docker verify-docker-all-registries run up down docker-vet docker-test docker-build distroless-build distroless-run install local local-all local-update-deps local-vet local-vendor local-test local-cover local-build local-wasm-build local-run local-kill local-iterate release-test local-install docker-login go-tools-install binary-tools-install binary-tools-update release-tools-install docker-refresh-tools-install ci-release ci-docker-refresh system-tools-install pre-commit-tools-install pre-commit-install pre-commit-update pre-commit-run pre-commit pre-reqs licenses licenses-all update-golang-version upload-secrets-to-gh upload-secrets-envfile-to-1pass docs diagrams mutation-test test-changed watch-test profile-cpu profile-mem profile-all benchmark demo clean clean-all help
 .PHONY: common-generate-no-prereqs app-generate-no-prereqs swagger-generate-no-prereqs generate-no-prereqs generate-all-no-prereqs app-templates-check-no-generate docker-vet-no-generate docker-test-no-generate docker-build-no-generate release-test-no-generate local-no-prereqs local-vet-no-prereqs ci-docker-refresh-no-prereqs pre-commit-install-no-prereqs pre-commit-run-no-generate licenses-no-prereqs licenses-all-no-prereqs
-.PHONY: $(GO_TOOL_INSTALL_TARGETS)
+.PHONY: $(GO_TOOL_INSTALL_TARGETS) $(BINARY_TOOL_INSTALL_TARGETS)
 
 all: pre-commit-tools-install ## Run default workflow for every app using Docker where available
 	$(MAKE) generate-all-no-prereqs local-update-deps local-vendor pre-commit-install-no-prereqs pre-commit-run-no-generate licenses-all-no-prereqs
@@ -473,6 +477,11 @@ go-tools-install: $(GO_TOOL_INSTALL_TARGETS) ## Install every Go tool pinned in 
 $(GO_TOOL_INSTALL_TARGETS): %-install:
 	TOOLS_BIN="$(TOOLS_BIN)" $(GO_TOOLS) install $*
 
+binary-tools-install: $(BINARY_TOOL_INSTALL_TARGETS) ## Install every binary tool pinned in tools/binary-tools.tsv
+
+$(BINARY_TOOL_INSTALL_TARGETS): %-install:
+	TOOLS_BIN="$(TOOLS_BIN)" BINARY_TOOL_MANIFEST="$(BINARY_TOOL_MANIFEST)" $(BINARY_TOOLS) install $*
+
 release-tools-install: gomplate-install swag-install goreleaser-install cosign-install syft-install ## Install pinned release tools
 
 docker-refresh-tools-install: gomplate-install swag-install goreleaser-install cosign-install ## Install pinned Docker-refresh tools (omits syft; the refresh runs GoReleaser with --skip=sbom)
@@ -492,7 +501,10 @@ pre-reqs: gomplate-install swag-install ## Install repository prerequisites
 
 pre-commit: pre-commit-install pre-commit-run ## Install and run pre-commit hooks
 
-system-tools-install: ## Install non-Go tools needed by repository checks
+binary-tools-update: ## Update binary tool versions in tools/binary-tools.tsv
+	BINARY_TOOL_MANIFEST="$(BINARY_TOOL_MANIFEST)" $(BINARY_TOOLS) update
+
+system-tools-install: binary-tools-install ## Install non-Go tools needed by repository checks
 	command -v apt >/dev/null 2>&1 && apt-get update || echo "package manager not apt"
 	# uv (Python packaging tool used by Python pre-commit hooks)
 	@if ! command -v uv >/dev/null 2>&1; then \
@@ -508,8 +520,6 @@ system-tools-install: ## Install non-Go tools needed by repository checks
 	command -v shellcheck >/dev/null 2>&1 || brew install shellcheck || apt install -y shellcheck || sudo dnf install -y ShellCheck || sudo apt install -y shellcheck
 	# graphviz for dot
 	command -v dot >/dev/null 2>&1 || brew install graphviz || sudo apt install -y graphviz || sudo dnf install -y graphviz
-	# semgrep
-	command -v semgrep >/dev/null 2>&1 || brew install semgrep || python3 -m pip install --break-system-packages --upgrade semgrep
 	# pre-commit CLI
 	grep --silent "VERSION=\"12 (bookworm)\"" /etc/os-release && apt install -y --no-install-recommends python3-pip && python3 -m pip install --break-system-packages --upgrade pre-commit || echo "OS is not Debian 12 bookworm"
 	command -v pre-commit >/dev/null 2>&1 || brew install pre-commit || sudo dnf install -y pre-commit || sudo apt install -y pre-commit
@@ -539,9 +549,11 @@ pre-commit-install-no-prereqs:
 		echo "Prepended $(TOOLS_BIN) to PATH in $$hook"; \
 	fi
 
-pre-commit-update: system-tools-install ## Update pinned Go tools and pre-commit hook revisions, then verify
+pre-commit-update: system-tools-install ## Update pinned tools and pre-commit hook revisions, then verify
 	TOOLS_BIN="$(TOOLS_BIN)" $(GO_TOOLS) update
+	BINARY_TOOL_MANIFEST="$(BINARY_TOOL_MANIFEST)" $(BINARY_TOOLS) update
 	$(MAKE) go-tools-install
+	$(MAKE) binary-tools-install
 	pre-commit autoupdate
 	$(MAKE) generate-all-no-prereqs
 	$(MAKE) pre-commit-run-no-generate

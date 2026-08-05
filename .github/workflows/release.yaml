@@ -229,7 +229,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha, yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        uses: aquasecurity/trivy-action@master # noopengrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha, yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
           image-ref: ghcr.io/toozej/${{ needs.goreleaser.outputs.image }}:latest
           format: 'table'

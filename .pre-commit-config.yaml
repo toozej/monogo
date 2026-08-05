@@ -161,12 +161,14 @@ repos:
       - id: text-unicode-replacement-char
       - id: python-no-log-warn
 
-  # run semgrep on all known filetypes
-  - repo: https://github.com/semgrep/pre-commit
-    rev: 'v1.170.0'
+  # Scan supported filetypes with OpenGrep.
+  - repo: local
     hooks:
-      - id: semgrep
-        # See https://semgrep.dev/explore to select a ruleset and copy its URL
+      - id: opengrep
+        name: Scan code with OpenGrep
+        entry: opengrep scan
+        language: system
+        # OpenGrep accepts the repository's existing rule format and rulesets.
         # Exclude advisory security.audit rules that produce false positives on
         # legitimate CLI/server patterns and test mock HTTP servers (a CLI that
         # shells out to git/gh; *_test.go mocks that write to a ResponseWriter).
@@ -181,7 +183,7 @@ repos:
         # third-party frontend JS bundles (e.g. podgrab's apps/podgrab/webassets/
         # *.js: axios, luxon, vue, etc.). These are not real first-party
         # code/infrastructure. pre-commit passes filenames explicitly, so this
-        # exclude — not .semgrepignore — is what actually filters them out.
+        # exclude — not the scanner's ignore file — is what actually filters them out.
         exclude: '(^|/)(examples?|demo|demo-assets|testdata|tracks|e2e)/|(^|/)webassets/.*\.js$|(^|/)[^/]*example[^/]*\.ya?ml$'
 
   - repo: meta
