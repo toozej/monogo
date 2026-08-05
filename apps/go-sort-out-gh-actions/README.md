@@ -9,7 +9,7 @@
 
 <img src="img/avatar.png" alt="go-sort-out-gh-actions avatar"/>
 
-A tool to detect archived, outdated, and EOL-runtime GitHub Actions in use in GHA Workflows with optional notifications, auto-updates, pinning, and GH Issue creation.
+A tool to detect archived, outdated, and EOL-runtime GitHub Actions in use in GHA Workflows with optional notifications, auto-updates, pinning, security scanning, and GH Issue creation.
 
 ## What it does
 
@@ -29,6 +29,7 @@ This tool scans your GitHub Actions workflows (`.github/workflows/**/*.yml` and 
 - 🐳 **Pre-commit Support**: Run as a pre-commit check using either local Go toolchain or Docker
 - ⚡ **Concurrent API Calls**: Parallel repository checks with rate limit protection
 - 💾 **Smart Caching**: Each action is looked up only once, even if used across multiple workflows
+- 🔒 **Workflow Security Scan**: Detects risky triggers, poisoned-pipeline patterns, unsafe secret and artifact handling, excessive permissions, runner exposure, and unpinned actions
 
 ## Installation
 
@@ -73,6 +74,9 @@ go-sort-out-gh-actions eol
 
 # Run all checks (archived + EOL + outdated)
 go-sort-out-gh-actions check
+
+# Scan workflows for known security risks
+go-sort-out-gh-actions scan
 ```
 
 ### Basic Usage
@@ -110,6 +114,26 @@ go-sort-out-gh-actions eol --stale-days 180
 
 # Run all checks and auto-update EOL + outdated actions
 go-sort-out-gh-actions check --write
+
+# Fail only on high- or critical-severity security findings
+go-sort-out-gh-actions scan --min-severity high
+
+# Emit security findings for tooling
+go-sort-out-gh-actions scan --output-format json
+```
+
+### Workflow security scanning
+
+`scan` is an offline, rule-based check that returns a non-zero exit code when it reports a finding. It supports the same local targeting flags as the other commands: `--workflow`, `--workflows-dir`, and `--repos-dir`. Findings include a stable rule ID, severity, path, source line, and remediation; use `--output-format json` or `csv` for automation.
+
+The built-in rules are deliberately small and composable so additional checks can be registered through the internal `securityscan.Rule` interface. They cover dangerous event trust boundaries, poisoned-pipeline execution, command and environment-file injection, token and deployment permissions, action and cache supply-chain risks, secret lifetime and scope, checkout credential persistence, artifact poisoning and leakage, and runner or Docker-host exposure. See [Workflow security scan coverage](SECURITY_SCAN.md) for the deduplicated rule/remediation matrix, source references, and controls that cannot be verified from workflow YAML alone.
+
+Use the reusable GitHub Action in another repository after checkout. It is offline and does not require a token:
+
+```yaml
+- uses: toozej/monogo/apps/go-sort-out-gh-actions/scan@main
+  with:
+    min-severity: high
 ```
 
 ### Path Expansion

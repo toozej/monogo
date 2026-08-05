@@ -1,0 +1,33 @@
+---
+name: Demo - Insecure Workflow
+on: [pull_request_target, workflow_run]
+permissions: write-all
+
+jobs:
+  insecure:
+    runs-on: [self-hosted, linux]
+    env:
+      DEPLOY_TOKEN: demo-token-not-for-production
+    steps:
+      - name: Check out pull request code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Restore shared cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache
+          key: shared-cache
+      - name: Write untrusted input to environment
+        run: echo "${{ github.event.issue.title }}" >> "$GITHUB_ENV"
+      - name: Dynamically execute shell input
+        run: eval "$USER_INPUT"
+      - name: Download untrusted artifact
+        uses: actions/download-artifact@v4
+      - name: Upload the workspace
+        uses: actions/upload-artifact@v4
+        with:
+          name: workspace
+          path: .
+      - name: Expose Docker socket
+        run: docker run -v /var/run/docker.sock:/var/run/docker.sock tool

@@ -21,7 +21,7 @@ func TestCommandStructure(t *testing.T) {
 		commandNames[subCmd.Name()] = true
 	}
 
-	expectedCommands := []string{"archived", "eol", "outdated", "check", "version", "man", "mcp", "avatar"}
+	expectedCommands := []string{"archived", "eol", "outdated", "pin", "scan", "check", "version", "man", "mcp", "avatar"}
 	for _, name := range expectedCommands {
 		if !commandNames[name] {
 			t.Errorf("Expected subcommand %q not found", name)
