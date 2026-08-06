@@ -36,8 +36,8 @@ jobs:
             ~/.cache/pip
             ~/.cache/pre-commit
           key: ${{ runner.os }}-${{ runner.arch }}-checks-tools-${{ hashFiles('Makefile',
-            '.pre-commit-config.yaml', 'tools/go-tools.tsv', 'scripts/manage-go-tools.sh')
-            }}
+            '.pre-commit-config.yaml', 'tools/go-tools.tsv', 'tools/binary-tools.tsv', 'scripts/manage-go-tools.sh',
+            'scripts/manage-binary-tools.sh') }}
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-checks-tools-
       - name: Ensure pre-commit CLI after cache hit
@@ -144,7 +144,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Run Trivy vulnerability scanner in fs mode
-        uses: aquasecurity/trivy-action@master # nosemgrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha, yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        uses: aquasecurity/trivy-action@master # noopengrep: yaml.github-actions.security.third-party-action-not-pinned-to-commit-sha.third-party-action-not-pinned-to-commit-sha, yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         with:
           scan-type: 'fs'
           scan-ref: '.'
@@ -162,7 +162,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Run Snyk to check for vulnerabilities
-        uses: snyk/actions/golang@master # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        uses: snyk/actions/golang@master # noopengrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         continue-on-error: true # To make sure that SARIF upload gets called
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}

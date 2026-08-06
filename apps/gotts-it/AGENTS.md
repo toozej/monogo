@@ -50,7 +50,7 @@ CLI tool that extracts readable article text from a URL or local HTML file and s
 - Run govulncheck: `govulncheck ./...`
 - Run go-licenses report: `go-licenses report github.com/toozej/monogo/apps/gotts-it/cmd/gotts-it`
 
-Pre-commit hooks include: golangci-lint, gosec, staticcheck, go-critic, gofmt, goimports, shellcheck, hadolint (Dockerfiles), checkmake (Makefile), actionlint (GitHub Actions), goreleaser-check, semgrep, and private key detection.
+Pre-commit hooks include: golangci-lint, gosec, staticcheck, go-critic, gofmt, goimports, shellcheck, hadolint (Dockerfiles), checkmake (Makefile), actionlint (GitHub Actions), goreleaser-check, OpenGrep, and private key detection.
 
 ## Project structure
 
