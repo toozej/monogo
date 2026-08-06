@@ -599,7 +599,9 @@ diagrams: app-generate ## Generate APP architectural diagrams using go-diagrams
 
 mutation-test: app-check gremlins-install ## Run APP mutation testing using go-gremlins
 	@echo "Running mutation tests for $(APP)..."
-	gremlins unleash -E "vendor/" $(APP_PACKAGES)
+	@for pkg in $(APP_PACKAGES); do \
+		gremlins unleash -E "vendor/" $$pkg; \
+	done
 	@echo "Mutation testing completed"
 
 test-changed: ## Run tests only for packages with changes since last commit

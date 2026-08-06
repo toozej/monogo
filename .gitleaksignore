@@ -1,0 +1,18 @@
+# Historical false positives from imported test fixtures and documentation.
+0c8c083d48cef0c59801508b01b734d94c6f31ff:internal/issue/issue_test.go:generic-api-key:176
+871f4ed396f840184aedda2279560201aaee804a:docs/development/setup.md:curl-auth-user:437
+
+# The detect-secrets baseline records hashes, not credentials.
+41c4657f4517152aad93ba3b482392f85f08256c:.secrets.baseline:generic-api-key:134
+41c4657f4517152aad93ba3b482392f85f08256c:.secrets.baseline:generic-api-key:141
+41c4657f4517152aad93ba3b482392f85f08256c:.secrets.baseline:generic-api-key:155
+41c4657f4517152aad93ba3b482392f85f08256c:.secrets.baseline:generic-api-key:162
+41c4657f4517152aad93ba3b482392f85f08256c:.secrets.baseline:generic-api-key:176
+41c4657f4517152aad93ba3b482392f85f08256c:.secrets.baseline:generic-api-key:183
+41c4657f4517152aad93ba3b482392f85f08256c:.secrets.baseline:generic-api-key:192
+41c4657f4517152aad93ba3b482392f85f08256c:.secrets.baseline:generic-api-key:201
+41c4657f4517152aad93ba3b482392f85f08256c:.secrets.baseline:generic-api-key:219
+41c4657f4517152aad93ba3b482392f85f08256c:.secrets.baseline:generic-api-key:228
+41c4657f4517152aad93ba3b482392f85f08256c:.secrets.baseline:generic-api-key:237
+41c4657f4517152aad93ba3b482392f85f08256c:.secrets.baseline:generic-api-key:246
+41c4657f4517152aad93ba3b482392f85f08256c:.secrets.baseline:generic-api-key:255
