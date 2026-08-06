@@ -168,6 +168,12 @@ func TestDevicesAndGoAppResources(t *testing.T) {
 	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), "generated app.wasm") {
 		t.Fatalf("embedded resource status = %d, body = %q", res.Code, res.Body.String())
 	}
+
+	res = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(res, httptest.NewRequest(http.MethodGet, "/web/app.wasm", nil))
+	if res.Code != http.StatusOK || res.Header().Get("Content-Type") != "application/wasm" || res.Body.Len() == 0 {
+		t.Fatalf("wasm status = %d, content-type = %q, length = %d", res.Code, res.Header().Get("Content-Type"), res.Body.Len())
+	}
 }
 
 func TestJSONResponseContract(t *testing.T) {

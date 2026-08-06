@@ -19,7 +19,8 @@ RUN go vet ./apps/go-castctl/... ./pkg/...
 # run tests
 FROM init AS test
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-RUN go test -coverprofile c.out -v ./apps/go-castctl/... ./pkg/... && \
+RUN GOOS=js GOARCH=wasm CGO_ENABLED=0 go build -o apps/go-castctl/internal/server/web/app.wasm ./apps/go-castctl/web && \
+    go test -coverprofile c.out -v ./apps/go-castctl/... ./pkg/... && \
     echo "Statements missing coverage" && \
     grep -v -e " 1$" c.out
 

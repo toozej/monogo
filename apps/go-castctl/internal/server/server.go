@@ -22,7 +22,11 @@ import (
 
 const maxRequestBody = 1 << 20
 
-//go:embed web
+// Embed app.wasm explicitly as well as the web directory. The explicit pattern
+// makes native builds fail if the browser client has not been built first,
+// rather than silently producing a server that returns 404 for /web/app.wasm.
+//
+//go:embed web web/app.wasm
 var webResources embed.FS
 
 type embeddedResources struct {
