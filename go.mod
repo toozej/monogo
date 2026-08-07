@@ -80,7 +80,7 @@ require (
 	github.com/gin-contrib/location v1.0.3
 	github.com/gin-contrib/sse v1.1.1 // indirect
 	github.com/gin-gonic/gin v1.12.0
-	github.com/glebarez/go-sqlite v1.22.0 // indirect
+	github.com/glebarez/go-sqlite v1.23.0 // indirect
 	github.com/glebarez/sqlite v1.11.0
 	github.com/go-echarts/go-echarts/v2 v2.7.2
 	github.com/go-json-experiment/json v0.0.0-20250725192818-e39067aee2d2 // indirect
@@ -224,9 +224,9 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/gorm v1.31.2
 	lukechampine.com/blake3 v1.4.1 // indirect
-	modernc.org/libc v1.74.4 // indirect
+	modernc.org/libc v1.75.1 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
-	modernc.org/memory v1.11.0 // indirect
+	modernc.org/memory v1.12.0 // indirect
 	modernc.org/sqlite v1.56.0 // indirect
 )
 
