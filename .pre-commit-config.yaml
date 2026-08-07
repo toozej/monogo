@@ -166,25 +166,28 @@ repos:
     hooks:
       - id: opengrep
         name: Scan code with OpenGrep
-        entry: opengrep scan
+        # Scanning the repository tree once avoids OpenGrep's SIGBUS crash when
+        # pre-commit passes the complete file list as command-line arguments.
+        entry: opengrep scan .
         language: system
         # OpenGrep accepts the repository's existing rule format and rulesets.
         # Exclude advisory security.audit rules that produce false positives on
         # legitimate CLI/server patterns and test mock HTTP servers (a CLI that
         # shells out to git/gh; *_test.go mocks that write to a ResponseWriter).
-        args: ['--config', 'auto', '--error', '--skip-unknown-extensions', '--quiet', '--exclude-rule',
-          'go.lang.security.audit.dangerous-exec-command.dangerous-exec-command', '--exclude-rule',
-          'go.lang.security.audit.xss.no-direct-write-to-responsewriter.no-direct-write-to-responsewriter',
+        args: ['--config', 'auto', '--error', '--skip-unknown-extensions', '--quiet', '--jobs',
+          '2', '--exclude', 'examples', '--exclude', 'example', '--exclude', 'demo', '--exclude',
+          'demo-assets', '--exclude', 'testdata', '--exclude', 'tracks', '--exclude', 'e2e',
+          '--exclude', 'webassets', '--exclude', '*example*.yaml', '--exclude', '*example*.yml',
+          '--exclude-rule', 'go.lang.security.audit.dangerous-exec-command.dangerous-exec-command',
+          '--exclude-rule', 'go.lang.security.audit.xss.no-direct-write-to-responsewriter.no-direct-write-to-responsewriter',
           '--exclude-rule', 'go.lang.security.audit.xss.no-fprintf-to-responsewriter.no-fprintf-to-responsewriter']
         # Skip intentional example/fixture/demo data shipped by imported apps
         # (e.g. terranotate's deliberately-insecure Terraform examples that serve
         # as validator test inputs; go-sort-out-gh-actions' deliberately-unpinned
         # e2e/ workflow fixtures and *example*.yaml usage docs) and vendored
-        # third-party frontend JS bundles (e.g. podgrab's apps/podgrab/webassets/
-        # *.js: axios, luxon, vue, etc.). These are not real first-party
-        # code/infrastructure. pre-commit passes filenames explicitly, so this
-        # exclude — not the scanner's ignore file — is what actually filters them out.
-        exclude: '(^|/)(examples?|demo|demo-assets|testdata|tracks|e2e)/|(^|/)webassets/.*\.js$|(^|/)[^/]*example[^/]*\.ya?ml$'
+        # third-party frontend assets (e.g. podgrab's webassets directory).
+        # These are not first-party code or infrastructure.
+        pass_filenames: false
 
   - repo: meta
     hooks:

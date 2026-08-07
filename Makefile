@@ -87,7 +87,7 @@ DIST_DIR ?= $(CURDIR)/dist/$(APP)
 COSIGN_IDENTITY_REGEXP := '^https://github.com/toozej/monogo/.github/workflows/(release|weekly-docker-refresh).yaml@refs/(tags/.*|heads/main)$$'
 COSIGN_OIDC_ISSUER := 'https://token.actions.githubusercontent.com'
 
-.PHONY: all list-apps app-list import new-app delete-app migrate-internal-package app-check common-generate app-generate swagger-generate generate generate-all app-templates-check templates-check vet test build release release-all delete-release re-release verify verify-checksums verify-docker verify-docker-all-registries run up down docker-vet docker-test docker-build distroless-build distroless-run install local local-all local-update-deps local-vet local-vendor local-test local-cover local-build local-wasm-build local-run local-kill local-iterate release-test local-install docker-login go-tools-install binary-tools-install binary-tools-update release-tools-install docker-refresh-tools-install ci-release ci-docker-refresh system-tools-install pre-commit-tools-install pre-commit-install pre-commit-update pre-commit-run pre-commit pre-reqs licenses licenses-all update-golang-version upload-secrets-to-gh upload-secrets-envfile-to-1pass docs diagrams mutation-test test-changed watch-test profile-cpu profile-mem profile-all benchmark demo clean clean-all help
+.PHONY: all list-apps app-list import new-app delete-app migrate-internal-package app-check common-generate app-generate swagger-generate generate generate-all app-templates-check templates-check vet test build release release-all delete-release re-release verify verify-checksums verify-docker verify-docker-all-registries run up down docker-vet docker-test docker-build distroless-build distroless-run install local local-all local-update-deps local-vet local-vendor local-test local-cover local-build local-wasm-build wasm-build-all local-run local-kill local-iterate release-test local-install docker-login go-tools-install binary-tools-install binary-tools-update release-tools-install docker-refresh-tools-install ci-release ci-docker-refresh system-tools-install pre-commit-tools-install pre-commit-install pre-commit-update pre-commit-run pre-commit pre-reqs licenses licenses-all update-golang-version upload-secrets-to-gh upload-secrets-envfile-to-1pass docs diagrams mutation-test test-changed watch-test profile-cpu profile-mem profile-all benchmark demo clean clean-all help
 .PHONY: common-generate-no-prereqs app-generate-no-prereqs swagger-generate-no-prereqs generate-no-prereqs generate-all-no-prereqs app-templates-check-no-generate docker-vet-no-generate docker-test-no-generate docker-build-no-generate release-test-no-generate local-no-prereqs local-vet-no-prereqs ci-docker-refresh-no-prereqs pre-commit-install-no-prereqs pre-commit-run-no-generate licenses-no-prereqs licenses-all-no-prereqs
 .PHONY: $(GO_TOOL_INSTALL_TARGETS) $(BINARY_TOOL_INSTALL_TARGETS)
 
@@ -412,8 +412,17 @@ local-build: app-check local-wasm-build ## Build APP using locally installed gol
 local-wasm-build: app-check ## Build APP's go-app WebAssembly client when wasmMainPath is configured
 	@if test -n "$(APP_WASM_MAIN_PATH)"; then \
 		mkdir -p "$(dir $(APP_WASM_OUTPUT))"; \
-		GOOS=js GOARCH=wasm CGO_ENABLED=0 go build -o "$(APP_WASM_OUTPUT)" ./$(APP_WASM_MAIN_PATH); \
+		GOOS=js GOARCH=wasm CGO_ENABLED=0 go build -mod=mod -o "$(APP_WASM_OUTPUT)" ./$(APP_WASM_MAIN_PATH); \
 	fi
+
+wasm-build-all: ## Build WebAssembly clients required by apps before repository-wide checks
+	@set -e; \
+	for app in $(APPS); do \
+		wasm_main_path=$$(awk -F': *' '/^wasmMainPath:/ {gsub(/"/, "", $$2); print $$2; exit}' "apps/$$app/app.yaml"); \
+		if test -n "$$wasm_main_path"; then \
+			$(MAKE) --no-print-directory local-wasm-build APP=$$app; \
+		fi; \
+	done
 
 local-run: app-check ## Run locally built APP binary
 	if test -e $(CURDIR)/.env; then \
@@ -561,7 +570,7 @@ pre-commit-update: system-tools-install ## Update pinned tools and pre-commit ho
 pre-commit-run: pre-commit-tools-install generate-all ## Run pre-commit hooks, govulncheck, and license checks against all files
 	$(MAKE) pre-commit-run-no-generate licenses-all-no-prereqs
 
-pre-commit-run-no-generate:
+pre-commit-run-no-generate: wasm-build-all
 	pre-commit run --all-files
 	# manually run govulncheck since it has no working pre-commit hook
 	govulncheck ./...
