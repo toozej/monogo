@@ -10,6 +10,7 @@
 
 ## Build and Test Commands
 
+- Use `mktemp -d` with `trap` to automatically cleanup any temporary directories needed to build+test this repo.
 - Generate configs: `make generate-all`
 - List apps: `make list-apps`
 - Test default app: `make test`
