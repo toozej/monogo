@@ -438,7 +438,7 @@ func TestOutputIsAtomicAndNeverReadAsInput(t *testing.T) {
 	assert.NoError(t, readErr)
 	assert.Equal(t, "INPUT", string(content))
 
-	assert.NoError(t, Run(config.Config{Paths: []string{root}, OutputFile: output, Extensions: []string{".txt"}}))
+	assert.NoError(t, Run(config.Config{Paths: []string{root}, OutputFile: output, Extensions: []string{".txt"}, IgnoreGitignore: true}))
 	content, readErr = os.ReadFile(output)
 	assert.NoError(t, readErr)
 	assert.Contains(t, string(content), "INPUT")
@@ -514,11 +514,11 @@ func TestExplicitHiddenDirectoryHonorsFilter(t *testing.T) {
 
 	var output bytes.Buffer
 	index := 1
-	assert.NoError(t, processPath(root, config.Config{}, &output, nil, &index))
+	assert.NoError(t, processPath(root, config.Config{IgnoreGitignore: true}, &output, nil, &index))
 	assert.Empty(t, output.String())
 
 	output.Reset()
-	assert.NoError(t, processPath(root, config.Config{IncludeHidden: true}, &output, nil, &index))
+	assert.NoError(t, processPath(root, config.Config{IncludeHidden: true, IgnoreGitignore: true}, &output, nil, &index))
 	assert.Contains(t, output.String(), "SECRET")
 }
 
