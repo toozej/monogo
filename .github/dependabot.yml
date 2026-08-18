@@ -16,58 +16,38 @@ updates:
   # go.mod files under apps/*/.monogo/original-module/ are archived, not built.
   - package-ecosystem: "gomod"
     directory: "/"
-    schedule:
-      interval: "weekly"
     cooldown:
       default-days: 7
     labels:
       - "dependencies"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
     patterns:
       - "*"
     multi-ecosystem-group: "combined"
   # npm: go-listen ships JavaScript tests (Jest) for its web interface.
   - package-ecosystem: "npm"
     directory: "/apps/go-listen"
-    schedule:
-      interval: "weekly"
     cooldown:
       default-days: 7
     labels:
       - "dependencies"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
     patterns:
       - "*"
     multi-ecosystem-group: "combined"
   - package-ecosystem: "github-actions"
     directory: "/"
-    schedule:
-      interval: "weekly"
     cooldown:
       default-days: 7
     labels:
       - "dependencies"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
     patterns:
       - "*"
     multi-ecosystem-group: "combined"
   - package-ecosystem: "devcontainers"
     directory: "/"
-    schedule:
-      interval: "weekly"
     cooldown:
       default-days: 7
     labels:
       - "dependencies"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
     patterns:
       - "*"
     multi-ecosystem-group: "combined"
@@ -83,15 +63,10 @@ updates:
     directories:
       - "/apps/*"
       - "/.devcontainer"
-    schedule:
-      interval: "weekly"
     cooldown:
       default-days: 7
     labels:
       - "dependencies"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
     patterns:
       - "*"
     multi-ecosystem-group: "combined"
@@ -102,15 +77,10 @@ updates:
   - package-ecosystem: "docker-compose"
     directories:
       - "/apps/*"
-    schedule:
-      interval: "weekly"
     cooldown:
       default-days: 7
     labels:
       - "dependencies"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
     patterns:
       - "*"
     multi-ecosystem-group: "combined"
