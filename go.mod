@@ -11,7 +11,7 @@ require (
 	github.com/maxence-charriere/go-app/v10 v10.1.11
 	github.com/muesli/mango-cobra v1.3.0
 	github.com/muesli/roff v0.1.0
-	github.com/sirupsen/logrus v1.10.0
+	github.com/sirupsen/logrus v1.10.1
 	github.com/spf13/cobra v1.10.2
 	github.com/swaggo/files v1.0.1
 	github.com/swaggo/gin-swagger v1.6.1
@@ -27,13 +27,13 @@ require (
 	github.com/go-openapi/jsonpointer v1.0.0 // indirect
 	github.com/go-openapi/jsonreference v1.0.0 // indirect
 	github.com/go-openapi/spec v0.22.9 // indirect
-	github.com/go-openapi/swag/conv v0.28.0 // indirect
-	github.com/go-openapi/swag/jsonutils v0.28.0 // indirect
-	github.com/go-openapi/swag/loading v0.28.0 // indirect
-	github.com/go-openapi/swag/pools v0.28.0 // indirect
-	github.com/go-openapi/swag/stringutils v0.28.0 // indirect
-	github.com/go-openapi/swag/typeutils v0.28.0 // indirect
-	github.com/go-openapi/swag/yamlutils v0.28.0 // indirect
+	github.com/go-openapi/swag/conv v0.29.0 // indirect
+	github.com/go-openapi/swag/jsonutils v0.29.0 // indirect
+	github.com/go-openapi/swag/loading v0.29.0 // indirect
+	github.com/go-openapi/swag/pools v0.29.0 // indirect
+	github.com/go-openapi/swag/stringutils v0.29.0 // indirect
+	github.com/go-openapi/swag/typeutils v0.29.0 // indirect
+	github.com/go-openapi/swag/yamlutils v0.29.0 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/swaggo/files/v2 v2.0.2 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
@@ -62,7 +62,7 @@ require (
 	github.com/charmbracelet/colorprofile v0.4.3 // indirect
 	github.com/charmbracelet/x/ansi v0.11.8 // indirect
 	github.com/charmbracelet/x/cellbuf v0.0.15 // indirect
-	github.com/charmbracelet/x/mosaic v0.0.0-20260813141921-f091cedeaf78 // indirect
+	github.com/charmbracelet/x/mosaic v0.0.0-20260816001655-68d539dca504 // indirect
 	github.com/charmbracelet/x/term v0.2.2 // indirect
 	github.com/chromedp/cdproto v0.0.0-20250724212937-08a3db8b4327 // indirect
 	github.com/chromedp/chromedp v0.14.2
@@ -71,7 +71,6 @@ require (
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/cloudwego/base64x v0.1.7 // indirect
 	github.com/cschomburg/go-pushbullet v0.0.0-20171206132031-67759df45fbb // indirect
-	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/davhofer/botsky v0.0.0-20250218025645-d30f6a2851dd
 	github.com/davhofer/indigo v0.0.0-20250201122929-953fec9cd255 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
@@ -116,7 +115,7 @@ require (
 	github.com/hashicorp/hcl/v2 v2.24.0
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/ipfs/bbloom v0.1.0 // indirect
-	github.com/ipfs/boxo v0.42.1 // indirect
+	github.com/ipfs/boxo v0.42.2 // indirect
 	github.com/ipfs/go-block-format v0.2.4 // indirect
 	github.com/ipfs/go-cid v0.6.2 // indirect
 	github.com/ipfs/go-datastore v0.9.2 // indirect
@@ -133,7 +132,7 @@ require (
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/cpuid/v2 v2.4.0 // indirect
-	github.com/klauspost/reedsolomon v1.14.1
+	github.com/klauspost/reedsolomon v1.14.2
 	github.com/leanovate/gopter v0.2.11
 	github.com/leodido/go-urn v1.5.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.4.1 // indirect
@@ -141,7 +140,7 @@ require (
 	github.com/makiuchi-d/gozxing v0.1.1
 	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/mattn/go-mastodon v0.0.13
-	github.com/mattn/go-runewidth v0.0.27 // indirect
+	github.com/mattn/go-runewidth v0.0.28 // indirect
 	github.com/mattn/go-sixel v0.0.12 // indirect
 	github.com/minio/sha256-simd v1.0.1 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
@@ -160,10 +159,9 @@ require (
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646 // indirect
 	github.com/nikoksr/notify v1.5.0
 	github.com/njayp/ophis v1.1.4
-	github.com/openai/openai-go/v3 v3.51.0
+	github.com/openai/openai-go/v3 v3.52.0
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.4.3 // indirect
-	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/polydawn/refmt v0.90.0 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
 	github.com/quic-go/quic-go v0.61.0 // indirect
@@ -174,13 +172,13 @@ require (
 	github.com/segmentio/asm v1.2.1 // indirect
 	github.com/segmentio/encoding v0.5.4 // indirect
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
-	github.com/slack-go/slack v0.27.0 // indirect
+	github.com/slack-go/slack v0.29.0 // indirect
 	github.com/soniakeys/quant v1.0.0 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/spf13/afero v1.15.0
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect
-	github.com/stretchr/testify v1.11.1
+	github.com/stretchr/testify v1.12.1
 	github.com/technoweenie/multipartstreamer v1.0.1 // indirect
 	github.com/tidwall/gjson v1.19.0 // indirect
 	github.com/tidwall/match v1.2.0 // indirect
@@ -224,10 +222,10 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/gorm v1.31.2
 	lukechampine.com/blake3 v1.4.1 // indirect
-	modernc.org/libc v1.75.3 // indirect
+	modernc.org/libc v1.75.4 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
-	modernc.org/memory v1.12.0 // indirect
-	modernc.org/sqlite v1.56.0 // indirect
+	modernc.org/memory v1.12.1 // indirect
+	modernc.org/sqlite v1.57.0 // indirect
 )
 
 // github.com/davhofer/indigo (pulled in transitively via rss2socials -> botsky)

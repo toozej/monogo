@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-import os
-import sys
 import argparse
-import subprocess
-import tempfile
-import shutil
-import re
 import difflib
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
 
 
 def parse_args():

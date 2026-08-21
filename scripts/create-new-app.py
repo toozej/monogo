@@ -11,10 +11,9 @@ import stat
 import subprocess
 import sys
 import textwrap
+from collections.abc import Iterable
 from pathlib import Path
 from string import Template
-from collections.abc import Iterable
-
 
 ROOT = Path(__file__).resolve().parent.parent
 STARTER_APP = ROOT / "apps" / "golang-starter"
