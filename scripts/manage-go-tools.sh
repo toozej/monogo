@@ -20,7 +20,7 @@ require_tool() {
 }
 
 install_tools() {
-	local requested name package _module version
+	local requested name package _module version stamp_contents
 	for requested in "$@"; do
 		require_tool "${requested}"
 	done
@@ -50,8 +50,11 @@ install_tools() {
 		# bump forces a rebuild, while an unchanged tool (e.g. from a restored
 		# cache) is reused.
 		local stamp="${TOOLS_BIN}/.stamps/${name}"
+		# Go tools are compiled binaries. Include the exact compiler version in
+		# the stamp so a restored cache cannot reuse a tool across Go upgrades.
+		stamp_contents="${package}@${version} $(go version)"
 		if [[ -x "${TOOLS_BIN}/${name}" && -f "${stamp}" \
-			&& "$(cat "${stamp}")" == "${package}@${version}" ]]; then
+			&& "$(cat "${stamp}")" == "${stamp_contents}" ]]; then
 			echo "Skipping ${name} (${package}@${version} already installed)"
 			continue
 		fi
@@ -59,7 +62,7 @@ install_tools() {
 		echo "Installing ${name} (${package}@${version})"
 		GOBIN="${TOOLS_BIN}" go install "${package}@${version}"
 		mkdir -p "${TOOLS_BIN}/.stamps"
-		printf '%s@%s\n' "${package}" "${version}" >"${stamp}"
+		printf '%s\n' "${stamp_contents}" >"${stamp}"
 	done <"${MANIFEST}"
 }
 
