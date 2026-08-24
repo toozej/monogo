@@ -1,0 +1,27 @@
+---
+services:
+  notes2ssg:
+    container_name: notes2ssg
+    image: toozej/notes2ssg:latest
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    healthcheck:
+      test: ["CMD", "/go/bin/notes2ssg", "version"]
+      interval: 30s
+      timeout: 5s
+      start_period: 5s
+      retries: 3
+    labels:
+      - "traefik.enable=false"
+      # labels below for publishing as web service
+      # - "traefik.docker.network=traefik"
+      # - "traefik.http.routers.notes2ssg.rule=Host(`notes2ssg.test`)"
+      # - "traefik.http.routers.notes2ssg.middlewares=http-redirect-https@file,headers@file"
+      # - "traefik.http.routers.notes2ssg-secure.entrypoints=https"
+      # - "traefik.http.routers.notes2ssg-secure.rule=Host(`notes2ssg.test`)"
+      # - "traefik.http.routers.notes2ssg-secure.middlewares=headers@file"
+      # - "traefik.http.routers.notes2ssg-secure.tls=true"
+    # networks:
+      # - traefik

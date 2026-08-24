@@ -5,7 +5,7 @@ path: apps/golang-starter
 mainPath: apps/golang-starter
 description: Golang starter app
 shortDescription: golang-starter starter app
-goImage: golang:1.26-trixie
+goImage: golang:1.26.7-trixie
 distrolessImage: gcr.io/distroless/static-debian13:nonroot
 # cgoEnabled defaults to false. When true, builds use CGO_ENABLED=1, the runtime
 # image becomes glibc-capable (debian:trixie-slim / distroless base-debian), and

@@ -1,5 +1,5 @@
 # setup project and deps
-ARG GO_IMAGE=golang:1.26-trixie
+ARG GO_IMAGE=golang:1.26.7-trixie
 FROM ${GO_IMAGE} AS init
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]

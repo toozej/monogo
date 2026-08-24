@@ -1,0 +1,20 @@
+# SSH tricks and tips
+
+## socks proxy
+<https://blog.gwlab.page/vpn-over-ssh-the-socks-proxy-8a8d7bdc7028>
+
+`ssh -NTCD 12345 SSH_remote_host_IP`
+
+-N Do not execute a remote command
+-T Disable pseudo-terminal allocation
+-C Requests compression of all data
+-D <port>
+
+Then on web browser choose:
+- proxy settings
+- manual socks v5 proxy
+- host: 127.0.0.1
+- port: 12345
+- proxy dns when using socks: checked
+Tags: 
+System tags: markdown

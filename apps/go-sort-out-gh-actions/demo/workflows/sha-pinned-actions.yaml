@@ -14,7 +14,7 @@ jobs:
       - name: Setup Go (current, version-pinned)
         uses: actions/setup-go@v5
         with:
-          go-version: '1.26'
+          go-version: '1.27'
 
       - name: Cache (outdated v2, SHA-pinned)
         uses: actions/cache@v2

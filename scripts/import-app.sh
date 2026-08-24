@@ -408,7 +408,7 @@ path: apps/${APP_NAME}
 mainPath: ${MAIN_PATH}
 description: "$(yaml_escape "$DESCRIPTION")"
 shortDescription: "${APP_NAME}"
-goImage: golang:1.26-trixie
+goImage: golang:1.26.7-trixie
 distrolessImage: gcr.io/distroless/static-debian13:nonroot
 # distrolessOnly builds a single CA/tzdata-capable release image and applies
 # both the normal and distroless tag families to it.

@@ -36,13 +36,25 @@ GO_TOOLS := $(CURDIR)/scripts/manage-go-tools.sh
 GO_TOOL_MANIFEST ?= $(CURDIR)/tools/go-tools.tsv
 BINARY_TOOLS := $(CURDIR)/scripts/manage-binary-tools.sh
 BINARY_TOOL_MANIFEST ?= $(CURDIR)/tools/binary-tools.tsv
+GO_VERSION := $(shell awk '$$1 == "go" { print $$2; exit }' go.mod)
+# The Go directive may be a language version (for example, 1.27). Toolchain
+# names require a patch component, so use the first release in that series.
+GO_TOOLCHAIN := $(shell awk '$$1 == "go" { count = split($$2, version, "."); printf "go%s%s\n", $$2, count == 2 ? ".0" : ""; exit }' go.mod)
 # Use the character code for "#" because GNU awk warns that \# is an unknown
 # regexp escape, while an unescaped # would start a Make comment here.
 GO_TOOL_NAMES := $(shell if test -f "$(GO_TOOL_MANIFEST)"; then awk -F '\t' 'NF && substr($$1, 1, 1) != sprintf("%c", 35) { print $$1 }' "$(GO_TOOL_MANIFEST)"; fi)
 GO_TOOL_INSTALL_TARGETS := $(addsuffix -install,$(GO_TOOL_NAMES))
 BINARY_TOOL_NAMES := $(shell if test -f "$(BINARY_TOOL_MANIFEST)"; then awk -F '\t' 'NF && substr($$1, 1, 1) != sprintf("%c", 35) { print $$1 }' "$(BINARY_TOOL_MANIFEST)"; fi)
 BINARY_TOOL_INSTALL_TARGETS := $(addsuffix -install,$(BINARY_TOOL_NAMES))
-export PATH := $(TOOLS_BIN):$(PATH)
+# `override` prevents an inherited or command-line PATH/GOTOOLCHAIN from
+# bypassing the repository's pinned tools or the Go version declared in go.mod.
+# +auto still permits Go to select a newer toolchain when the module explicitly
+# requires one, while the declared version remains the default for this repo.
+override export PATH := $(TOOLS_BIN):$(PATH)
+override export GOTOOLCHAIN := $(GO_TOOLCHAIN)+auto
+
+PRE_COMMIT_GO_TOOL_NAMES := gomplate goreleaser go-critic golangci-lint goimports gosec staticcheck govulncheck
+PRE_COMMIT_GO_TOOL_INSTALL_TARGETS := $(addsuffix -install,$(PRE_COMMIT_GO_TOOL_NAMES))
 
 # Path to the makefile currently being read: the saved wrapper copy when invoked
 # as `make -f <wrapper>` (weekly-docker-refresh copies the current Makefile aside
@@ -153,7 +165,7 @@ app-list: list-apps
 swagger-generate: app-check swag-install ## Generate Swagger API documentation when enabled in app.yaml
 	$(MAKE) swagger-generate-no-prereqs APP=$(APP)
 
-swagger-generate-no-prereqs: app-check
+swagger-generate-no-prereqs: app-check swag-install
 	APP_SWAGGER_ENABLED=$(APP_SWAGGER_ENABLED) \
 		APP_SWAGGER_GENERAL_INFO="$(APP_SWAGGER_GENERAL_INFO)" \
 		$(CURDIR)/scripts/generate-swagger.sh $(APP)
@@ -174,7 +186,7 @@ generate-all-no-prereqs:
 app-templates-check: app-generate goreleaser-install ## Render and check generated config for APP
 	$(MAKE) app-templates-check-no-generate APP=$(APP)
 
-app-templates-check-no-generate: app-check
+app-templates-check-no-generate: app-check goreleaser-install
 	goreleaser check --config $(APP_DIR)/.goreleaser.yml
 
 templates-check: pre-reqs goreleaser-install ## Render and check generated config for every app
@@ -390,7 +402,7 @@ local-update-deps: ## Run `go get -t -u ./...` to update Go module dependencies
 local-vet: goimports-install ## Run goimports and go vet for APP
 	$(MAKE) local-vet-no-prereqs APP=$(APP)
 
-local-vet-no-prereqs: app-check
+local-vet-no-prereqs: app-check goimports-install
 	goimports -w $(APP_DIR) pkg
 	go vet $(APP_PACKAGES)
 
@@ -544,18 +556,21 @@ pre-commit-install-no-prereqs:
 	# git runs .git/hooks/pre-commit outside make, where the repo-local pinned
 	# tools in .tools/bin are not on PATH. The tekwizely Go hooks (golangci-lint,
 	# gosec, staticcheck, go-critic, goimports) and the goreleaser-check hook
-	# resolve their binaries from PATH, so prepend .tools/bin to PATH in the
-	# generated hook (pre-commit writes it as a bash script) to keep `git commit`
-	# working. Idempotent via a marker; re-applied each time the hook is installed.
+	# resolve their binaries from PATH. Derive the checkout root at hook runtime so
+	# a moved clone still uses its own tools and its Go version from go.mod.
 	@hook="$$(git rev-parse --git-path hooks/pre-commit)"; \
-	if [ -f "$$hook" ] && ! grep -q 'monogo-tools-path' "$$hook"; then \
+	if [ -f "$$hook" ] && ! grep -q 'monogo-repo-tools-env' "$$hook"; then \
 		tmp="$$(mktemp)"; \
 		{ head -n 1 "$$hook"; \
-		  echo 'export PATH="$(TOOLS_BIN):$$PATH"  # monogo-tools-path'; \
+		  echo 'repo_root="$$(git rev-parse --show-toplevel)"  # monogo-repo-tools-env'; \
+		  echo 'export PATH="$$repo_root/.tools/bin:$$PATH"'; \
+		  echo 'go_version="$$(awk '\''$$1 == "go" { print $$2; exit }'\'' "$$repo_root/go.mod")"'; \
+		  echo 'case "$$go_version" in *.*.*) go_toolchain="go$$go_version" ;; *.*) go_toolchain="go$$go_version.0" ;; *) go_toolchain="go$$go_version" ;; esac'; \
+		  echo 'export GOTOOLCHAIN="$$go_toolchain+auto"'; \
 		  tail -n +2 "$$hook"; } >"$$tmp"; \
 		cat "$$tmp" >"$$hook"; \
 		rm -f "$$tmp"; \
-		echo "Prepended $(TOOLS_BIN) to PATH in $$hook"; \
+		echo "Configured repository tools and Go toolchain in $$hook"; \
 	fi
 
 pre-commit-update: system-tools-install ## Update pinned tools and pre-commit hook revisions, then verify
@@ -570,7 +585,7 @@ pre-commit-update: system-tools-install ## Update pinned tools and pre-commit ho
 pre-commit-run: pre-commit-tools-install generate-all ## Run pre-commit hooks, govulncheck, and license checks against all files
 	$(MAKE) pre-commit-run-no-generate licenses-all-no-prereqs
 
-pre-commit-run-no-generate: wasm-build-all
+pre-commit-run-no-generate: $(PRE_COMMIT_GO_TOOL_INSTALL_TARGETS) wasm-build-all
 	pre-commit run --all-files
 	# manually run govulncheck since it has no working pre-commit hook
 	govulncheck ./...
@@ -578,7 +593,7 @@ pre-commit-run-no-generate: wasm-build-all
 licenses: go-licenses-install ## Report third-party licenses for APP
 	$(MAKE) licenses-no-prereqs APP=$(APP)
 
-licenses-no-prereqs: app-check
+licenses-no-prereqs: app-check go-licenses-install
 	go-licenses report $(PKG)/apps/$(APP)
 
 licenses-all: go-licenses-install ## Report third-party licenses for every app

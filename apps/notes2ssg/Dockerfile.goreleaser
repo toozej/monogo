@@ -1,0 +1,16 @@
+# runtime image
+FROM scratch
+# Copy our static executable.
+ARG TARGETPLATFORM
+COPY $TARGETPLATFORM/notes2ssg /go/bin/notes2ssg
+# Include the project license in the runtime image.
+COPY LICENSE /usr/share/doc/notes2ssg/copyright
+# Expose port for publishing as web service
+# EXPOSE 8081
+# Verify that the application binary can start without requiring a shell or
+# additional utilities in the minimal runtime image.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+    CMD ["/go/bin/notes2ssg", "version"]
+# Run the binary.
+USER 65532:65532
+ENTRYPOINT ["/go/bin/notes2ssg"]

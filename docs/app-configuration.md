@@ -17,7 +17,7 @@ the devcontainer build. Run `make app-generate APP=<app>` after editing
 | `mainPath` | yes | Path to the `main` package to build. |
 | `description` | yes | Long description used in image labels and metadata. |
 | `shortDescription` | yes | Short description. |
-| `goImage` | yes | Builder image for the Docker build stages, e.g. `golang:1.26-trixie`. |
+| `goImage` | yes | Builder image for the Docker build stages, e.g. `golang:1.26.7-trixie`. |
 | `distrolessImage` | yes | Distroless runtime image for `Dockerfile.distroless`, e.g. `gcr.io/distroless/static-debian13:nonroot`. |
 | `distrolessOnly` | no (default `false`) | Builds only the distroless release image. That image receives both the normal (`latest`, version) and distroless (`distroless`, version-distroless) tags. The generated default Dockerfile also uses the distroless runtime. Use this for apps that require CA certificates or timezone data. |
 | `dockerPlatforms` | no | Restricts GoReleaser container images to the listed OCI platforms, such as `linux/amd64` and `linux/arm64`. Use this when a custom runtime base is not published for every default platform. |
