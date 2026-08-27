@@ -1,0 +1,44 @@
+{
+    "version": "2.0.0",
+    "inputs": [
+        {
+            "id": "app",
+            "type": "promptString",
+            "description": "App directory name (see `make list-apps`)",
+            "default": "golang-starter"
+        }
+    ],
+    "tasks": [
+        {
+            "label": "MonoGo: build app",
+            "type": "shell",
+            "command": "make",
+            "args": ["local-build", "APP=${input:app}"],
+            "group": "build",
+            "problemMatcher": "$go"
+        },
+        {
+            "label": "MonoGo: test app",
+            "type": "shell",
+            "command": "make",
+            "args": ["local-test", "APP=${input:app}"],
+            "group": "test",
+            "problemMatcher": "$go"
+        },
+        {
+            "label": "MonoGo: develop app (Air)",
+            "type": "shell",
+            "command": "make",
+            "args": ["local-iterate", "APP=${input:app}"],
+            "isBackground": true,
+            "problemMatcher": []
+        },
+        {
+            "label": "MonoGo: build app Docker image",
+            "type": "shell",
+            "command": "make",
+            "args": ["docker-build", "APP=${input:app}"],
+            "problemMatcher": []
+        }
+    ]
+}

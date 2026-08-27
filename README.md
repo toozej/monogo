@@ -63,6 +63,22 @@ make pre-commit-install
 
 `APP` defaults to `golang-starter`, so `make test` and `make local-build` work for the starter app.
 
+## Dev Container
+
+Open the repository in a Dev Container to get the pinned Go toolchain, Node and
+Python support for pre-commit, and an isolated Docker daemon for the repository's
+Docker targets. The first creation runs `make pre-commit-install`, which installs
+the repository-managed tools and Git hook.
+
+Use the **MonoGo** VS Code tasks to build, test, develop with Air, or build a
+Docker image for any app; each task prompts for its `apps/<app>` directory name.
+The same commands are available in the container terminal, for example:
+
+```bash
+make local-iterate APP=golang-starter
+make docker-build APP=golang-starter
+```
+
 ## Generated Configs
 
 Install prerequisites and regenerate configs:

@@ -23,6 +23,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Validate Dev Container configuration
+        uses: chrisreddington/validate-devcontainer@98214005c3cad63a8c62a2f2b34b2f9e630f3354 # v0.0.8
+        with:
+          required-extensions: golang.go,ms-azuretools.vscode-docker,GitHub.vscode-github-actions,redhat.vscode-yaml,ms-vscode.makefile-tools
+          devcontainer-path: .devcontainer/devcontainer.json
+          validate-tasks: "true"
+          required-features: ghcr.io/devcontainers/features/docker-in-docker:4,ghcr.io/devcontainers/features/node:2,ghcr.io/devcontainers/features/python:1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: '1.26.7'
@@ -94,6 +101,20 @@ jobs:
             'scripts/manage-go-tools.sh') }}
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-test-tools-
+      - name: Download Go modules
+        run: |
+          for attempt in 1 2 3; do
+            if go mod download; then
+              exit 0
+            fi
+
+            if [ "$attempt" -lt 3 ]; then
+              echo "Module download failed; retrying in $((attempt * 10)) seconds..."
+              sleep "$((attempt * 10))"
+            fi
+          done
+
+          exit 1
       - name: Run tests
         run: make test APP=${{ matrix.app }}
       - name: Run mutation testing
@@ -133,11 +154,11 @@ jobs:
           check-latest: true
       - name: Generate app configs
         run: make generate-all
-      - uses: github/codeql-action/init@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4.37.7
+      - uses: github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
         with:
           languages: go
-      - uses: github/codeql-action/autobuild@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4.37.7
-      - uses: github/codeql-action/analyze@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4.37.7
+      - uses: github/codeql-action/autobuild@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
+      - uses: github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
 
   trivy-scan-source:
     name: trivy-scan-source
@@ -173,7 +194,7 @@ jobs:
         # Only upload when Snyk actually produced a SARIF (it does not when
         # SNYK_TOKEN is unset), so a missing report does not fail the job.
         if: ${{ hashFiles('snyk.sarif') != '' }}
-        uses: github/codeql-action/upload-sarif@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4.37.7
+        uses: github/codeql-action/upload-sarif@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
         with:
           sarif_file: snyk.sarif
 

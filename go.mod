@@ -5,7 +5,7 @@ go 1.26.7
 require (
 	codeberg.org/readeck/go-readability/v2 v2.1.2
 	github.com/Masterminds/semver/v3 v3.5.0
-	github.com/PuerkitoBio/goquery v1.12.0
+	github.com/PuerkitoBio/goquery v1.13.0
 	github.com/TheHippo/podcastindex v1.0.0
 	github.com/antchfx/xmlquery v1.5.1
 	github.com/blacktop/go-termimg v0.1.26
@@ -41,10 +41,10 @@ require (
 	github.com/muesli/roff v0.1.0
 	github.com/nikoksr/notify v1.5.0
 	github.com/njayp/ophis v1.1.4
-	github.com/openai/openai-go/v3 v3.52.0
+	github.com/openai/openai-go/v3 v3.54.0
 	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd
 	github.com/sahilm/fuzzy v0.1.3
-	github.com/sirupsen/logrus v1.10.1
+	github.com/sirupsen/logrus v1.10.2
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/spf13/afero v1.15.0
 	github.com/spf13/cobra v1.10.2
@@ -77,7 +77,7 @@ require (
 	github.com/apparentlymart/go-textseg/v17 v17.0.1 // indirect
 	github.com/awalterschulze/gographviz v2.0.3+incompatible // indirect
 	github.com/bytedance/gopkg v0.1.4 // indirect
-	github.com/bytedance/sonic v1.15.2 // indirect
+	github.com/bytedance/sonic v1.15.3 // indirect
 	github.com/bytedance/sonic/loader v0.5.2 // indirect
 	github.com/carlmjohnson/versioninfo v0.22.5 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
@@ -104,8 +104,8 @@ require (
 	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-openapi/jsonpointer v1.0.0 // indirect
-	github.com/go-openapi/jsonreference v1.0.0 // indirect
-	github.com/go-openapi/spec v0.22.9 // indirect
+	github.com/go-openapi/jsonreference v1.0.1 // indirect
+	github.com/go-openapi/spec v0.22.11 // indirect
 	github.com/go-openapi/swag/conv v0.29.1 // indirect
 	github.com/go-openapi/swag/jsonutils v0.29.1 // indirect
 	github.com/go-openapi/swag/loading v0.29.1 // indirect
@@ -200,12 +200,12 @@ require (
 	github.com/xo/terminfo v1.0.0 // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	github.com/zclconf/go-cty v1.19.0 // indirect
-	go.mongodb.org/mongo-driver/v2 v2.8.0 // indirect
+	go.mongodb.org/mongo-driver/v2 v2.8.2 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
-	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.70.0 // indirect
-	go.opentelemetry.io/otel v1.45.0 // indirect
-	go.opentelemetry.io/otel/metric v1.45.0 // indirect
-	go.opentelemetry.io/otel/trace v1.45.0 // indirect
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.71.0 // indirect
+	go.opentelemetry.io/otel v1.46.0 // indirect
+	go.opentelemetry.io/otel/metric v1.46.0 // indirect
+	go.opentelemetry.io/otel/trace v1.46.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
@@ -219,7 +219,7 @@ require (
 	google.golang.org/protobuf v1.36.12 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	lukechampine.com/blake3 v1.4.1 // indirect
-	modernc.org/libc v1.75.4 // indirect
+	modernc.org/libc v1.75.6 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.12.1 // indirect
 	modernc.org/sqlite v1.57.0 // indirect

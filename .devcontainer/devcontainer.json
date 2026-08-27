@@ -1,27 +1,37 @@
 {
-    "name": "Go Dev Container with LLM Support",
+    "name": "MonoGo",
     "build": {
         "context": "..",
         "dockerfile": "Dockerfile",
-        "target": "build",
         "args": {
-            "APP": "monogo"
+            "GO_IMAGE": "golang:1.26.7-trixie"
         }
     },
     "workspaceFolder": "/workspace",
     "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
+    "mounts": [
+        "source=monogo-go-build-cache,target=/root/.cache/go-build,type=volume",
+        "source=monogo-go-module-cache,target=/go/pkg/mod,type=volume",
+        "source=monogo-tools,target=/workspace/.tools,type=volume"
+    ],
     "remoteEnv": {
-        "PATH": "${containerEnv:PATH}:/root/.local/bin/:/go/bin/"
+        "PATH": "/workspace/.tools/bin:${containerEnv:PATH}"
     },
     "features": {
+        "ghcr.io/devcontainers/features/docker-in-docker:4": {},
         "ghcr.io/devcontainers/features/node:2": {
-            "version": "latest"
+            "version": "22"
         },
         "ghcr.io/devcontainers/features/python:1": {
-            "version": "latest"
+            "version": "3.13"
         }
     },
-    "postCreateCommand": "make pre-commit-install && pip install uv && uv tool install llm && llm install llm-github-models && llm models default github/gpt-4.1",
+    "postCreateCommand": "make pre-commit-install",
+    "tasks": {
+        "build": "make local-build APP=<app>",
+        "test": "make local-test APP=<app>",
+        "run": "make local-iterate APP=<app>"
+    },
     "customizations": {
         "vscode": {
             "extensions": [
