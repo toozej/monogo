@@ -275,6 +275,10 @@ milestones:
   - close: true
 
 release:
+  # Verify publishing credentials and immutable-release conflicts before
+  # spending time building, packaging, and signing artifacts.
+  preflight:
+    fail_on_error: true
   mode: append
   disable: '{{ or (eq (envOrDefault "MONOGO_APP_RELEASE" "false") "true") (eq (envOrDefault "GORELEASER_DOCKER_REFRESH" "false") "true") }}'
   footer: |
