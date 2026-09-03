@@ -6,6 +6,10 @@
 [[- $dockerPlatforms := index $app "dockerPlatforms" -]]
 [[- /* Docker repository names must be lower-case (e.g. RSSFFS -> rssffs) */ -]]
 [[- $image := strings.ToLower $app.name -]]
+[[/* Homebrew cask names must be lower-case (e.g. RSSFFS -> rssffs). */]]
+[[- $caskName := strings.ToLower $app.binary -]]
+[[/* Homebrew renders descriptions inside a Ruby double-quoted string. */]]
+[[- $caskDescription := $app.description | strings.ReplaceAll "\\" "\\\\" | strings.ReplaceAll "\"" "\\\"" -]]
 ---
 version: 2
 
@@ -304,7 +308,13 @@ nfpms:
         - changelog-file-missing-in-native-package
 
 homebrew_casks:
-  - name: [[$app.binary]]
+  - # Cask names become both the filename and the Ruby cask token, which
+    # Homebrew requires to match and to be lower-case.
+    name: [[$caskName]]
+    # Do not derive the installed binary from the lower-case cask name: apps
+    # such as RSSFFS retain their configured binary capitalization.
+    binaries:
+      - [[$app.binary]]
     # Render the cask into dist/ during the release build, but do NOT push it to
     # the tap from here. The publish_homebrew_cask CI job commits that
     # already-rendered file to the tap after the GitHub release assets exist, so
@@ -313,7 +323,7 @@ homebrew_casks:
     skip_upload: "true"
     homepage: https://github.com/toozej/monogo
     description: >-
-      [[$app.description]]
+      [[$caskDescription]]
     license: GPLv3
     repository:
       owner: toozej

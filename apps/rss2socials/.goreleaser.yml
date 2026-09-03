@@ -217,7 +217,13 @@ nfpms:
         - changelog-file-missing-in-native-package
 
 homebrew_casks:
-  - name: rss2socials
+  - # Cask names become both the filename and the Ruby cask token, which
+    # Homebrew requires to match and to be lower-case.
+    name: rss2socials
+    # Do not derive the installed binary from the lower-case cask name: apps
+    # such as RSSFFS retain their configured binary capitalization.
+    binaries:
+      - rss2socials
     # Render the cask into dist/ during the release build, but do NOT push it to
     # the tap from here. The publish_homebrew_cask CI job commits that
     # already-rendered file to the tap after the GitHub release assets exist, so
