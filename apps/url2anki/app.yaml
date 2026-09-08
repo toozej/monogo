@@ -5,7 +5,7 @@ path: apps/url2anki
 mainPath: apps/url2anki
 description: "Generate Anki flashcards from a URL"
 shortDescription: "url2anki"
-goImage: golang:1.26.7-trixie
+goImage: golang:1.27.1-trixie
 distrolessImage: gcr.io/distroless/static-debian13:nonroot
 distrolessOnly: true
 # cgoEnabled defaults to false. When true, builds use CGO_ENABLED=1, the runtime

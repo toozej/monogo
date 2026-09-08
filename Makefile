@@ -32,6 +32,7 @@ APP_DEMO ?= $(APP_DIR)/demo.sh
 # get their own module graphs; release binaries are downloaded to the same
 # repository-local tool directory.
 TOOLS_BIN := $(CURDIR)/.tools/bin
+GOLANGCI_LINT := $(TOOLS_BIN)/golangci-lint
 GO_TOOLS := $(CURDIR)/scripts/manage-go-tools.sh
 GO_TOOL_MANIFEST ?= $(CURDIR)/tools/go-tools.tsv
 BINARY_TOOLS := $(CURDIR)/scripts/manage-binary-tools.sh
@@ -586,6 +587,7 @@ pre-commit-run: pre-commit-tools-install generate-all ## Run pre-commit hooks, g
 	$(MAKE) pre-commit-run-no-generate licenses-all-no-prereqs
 
 pre-commit-run-no-generate: $(PRE_COMMIT_GO_TOOL_INSTALL_TARGETS) wasm-build-all
+	test -x "$(GOLANGCI_LINT)"
 	pre-commit run --all-files
 	# manually run govulncheck since it has no working pre-commit hook
 	govulncheck ./...
@@ -603,7 +605,7 @@ licenses-all-no-prereqs:
 	@for app in $(APPS); do $(MAKE) licenses-no-prereqs APP=$$app; done
 
 update-golang-version: ## Update to latest Golang version across the repo
-	@VERSION=`curl -s "https://go.dev/dl/?mode=json" | jq -r '.[0].version' | sed 's/go//' | cut -d '.' -f 1,2`; \
+	@VERSION=`curl -s "https://go.dev/dl/?mode=json" | jq -r '.[0].version' | sed 's/go//'`; \
 	$(CURDIR)/scripts/update_golang_version.sh $$VERSION
 
 docs: app-check ## Serve Go documentation

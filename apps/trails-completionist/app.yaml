@@ -5,7 +5,7 @@ path: apps/trails-completionist
 mainPath: apps/trails-completionist
 description: "Golang application to parse a list of trails, then display a searchable HTML table for ease of tracking completion of trails."
 shortDescription: "trails-completionist"
-goImage: golang:1.26.7-trixie
+goImage: golang:1.27.1-trixie
 distrolessImage: gcr.io/distroless/static-debian13:nonroot
 # cgoEnabled defaults to false. When true, builds use CGO_ENABLED=1, the runtime
 # image becomes glibc-capable (debian:trixie-slim / distroless base-debian), and

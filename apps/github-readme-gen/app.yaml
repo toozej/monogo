@@ -5,7 +5,7 @@ path: apps/github-readme-gen
 mainPath: apps/github-readme-gen
 description: "Generate GitHub profile README.md files from recent public activity"
 shortDescription: "GitHub profile README generator"
-goImage: golang:1.26.7-trixie
+goImage: golang:1.27.1-trixie
 # GitHub Docker actions must run as root so they can write the runner-mounted
 # workspace. The action metadata consumes the distroless image below.
 distrolessImage: gcr.io/distroless/static-debian13:latest

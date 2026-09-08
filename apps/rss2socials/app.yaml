@@ -5,7 +5,7 @@ path: apps/rss2socials
 mainPath: apps/rss2socials
 description: "Watches a RSS feed for new posts, then announces them on Mastodon"
 shortDescription: "rss2socials"
-goImage: golang:1.26.7-trixie
+goImage: golang:1.27.1-trixie
 distrolessImage: gcr.io/distroless/static-debian13:nonroot
 distrolessOnly: true
 # cgoEnabled defaults to false. When true, builds use CGO_ENABLED=1, the runtime

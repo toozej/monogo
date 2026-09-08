@@ -1,6 +1,6 @@
 # Directory metadata is architecture-independent; keep this RUN on the native
 # builder so multi-platform image assembly does not require QEMU/binfmt.
-FROM --platform=$BUILDPLATFORM golang:1.26.7-trixie AS filesystem
+FROM --platform=$BUILDPLATFORM golang:1.27.1-trixie AS filesystem
 RUN mkdir -p /container-root/out && \
     chown -R 65532:65532 /container-root
 # runtime image including CA certs and tzdata
