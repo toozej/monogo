@@ -5,7 +5,7 @@ path: apps/photos2map
 mainPath: apps/photos2map
 description: "Generate GPX map from photos' EXIF data"
 shortDescription: "photos2map"
-goImage: golang:1.26.7-trixie
+goImage: golang:1.27.1-trixie
 distrolessImage: gcr.io/distroless/static-debian13:nonroot
 # cgoEnabled defaults to false. When true, builds use CGO_ENABLED=1, the runtime
 # image becomes glibc-capable (debian:trixie-slim / distroless base-debian), and

@@ -89,9 +89,18 @@ repos:
         exclude: '(^|/)testdata/'
       - id: go-imports
         exclude: '(^|/)testdata/'
-      - id: golangci-lint-mod
       - id: go-test-mod
         args: [-race]
+
+  # Use the repository-local v2 binary. Do not resolve golangci-lint from PATH.
+  - repo: local
+    hooks:
+      - id: golangci-lint
+        name: Lint Go code with repository-local golangci-lint
+        entry: .tools/bin/golangci-lint run ./...
+        language: system
+        pass_filenames: false
+        always_run: true
 
   # run shellcheck on Bash scripts
   - repo: https://github.com/koalaman/shellcheck-precommit

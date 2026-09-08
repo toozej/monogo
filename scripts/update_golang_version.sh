@@ -24,12 +24,13 @@ OLD_GOLANG_VERSION=$(grep -E "^go " go.mod | awk '{print $2}')
 NEW_GOLANG_VERSION="${1}"
 GIT_REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 FILES_NEEDING_UPDATES=$(find "${GIT_REPO_ROOT}" \
-    \( -path "${GIT_REPO_ROOT}/.git" -o -path "${GIT_REPO_ROOT}/vendor" \) -prune -o \
+    \( -path "${GIT_REPO_ROOT}/.git" -o -path "${GIT_REPO_ROOT}/vendor" -o -type d -name '.monogo' \) -prune -o \
     -type f \( \
         -name '*.yaml' -o \
         -name '*.yml' -o \
-        -name 'Dockerfile*.tmpl' -o \
-        -name 'go.mod' \
+        -name 'Dockerfile*' -o \
+        -name '*.md' -o \
+        -name '*.sh' \
     \) -print)
 
 if [[ "${OLD_GOLANG_VERSION}" == "${NEW_GOLANG_VERSION}" ]]; then
@@ -43,6 +44,7 @@ cd "${GIT_REPO_ROOT}" || exit 1
 # shellcheck disable=SC2086
 go mod edit -go=${NEW_GOLANG_VERSION}
 
-# rename from $OLD_GOLANG_VERSION to $NEW_GOLANG_VERSION
+# Update active configuration, documentation, and import templates. `go mod
+# edit` above updates go.mod, so this file list excludes it.
 # shellcheck disable=SC2086
 grep -Fl "${OLD_GOLANG_VERSION}" ${FILES_NEEDING_UPDATES} | ${XARGS_CMD} -r ${SED_CMD} "s/${OLD_GOLANG_VERSION//./[.]}/${NEW_GOLANG_VERSION}/g"

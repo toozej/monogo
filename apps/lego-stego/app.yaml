@@ -5,7 +5,7 @@ path: apps/lego-stego
 mainPath: apps/lego-stego
 description: "Go-based CLI tool for Steganography"
 shortDescription: "lego-stego"
-goImage: golang:1.26.7-trixie
+goImage: golang:1.27.1-trixie
 distrolessImage: gcr.io/distroless/static-debian13:nonroot
 # cgoEnabled defaults to false. When true, builds use CGO_ENABLED=1, the runtime
 # image becomes glibc-capable (debian:trixie-slim / distroless base-debian), and
