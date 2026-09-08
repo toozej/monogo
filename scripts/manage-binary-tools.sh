@@ -78,7 +78,6 @@ install_tools() {
 
 update_tools() {
 	local name repository version linux_amd64 linux_arm64 darwin_amd64 darwin_arm64 latest updated=false
-	local temporary
 	temporary="$(mktemp)"
 	trap 'rm -f "${temporary}"' EXIT
 
@@ -88,7 +87,12 @@ update_tools() {
 			continue
 		fi
 
-		latest="$(curl --fail --silent --show-error "https://api.github.com/repos/${repository}/releases/latest" | awk -F '"' '/"tag_name":/ { print $4; exit }')"
+		latest="$(curl --fail --silent --show-error "https://api.github.com/repos/${repository}/releases/latest" | awk -F '"' '
+			/"tag_name":/ && !found {
+				print $4
+				found = 1
+			}
+		')"
 		if [[ -z "${latest}" ]]; then
 			echo "could not resolve latest release for ${repository}" >&2
 			exit 1
