@@ -146,6 +146,11 @@ func TestContinuousNote(t *testing.T) {
 	if split[1].Content != "Second line" {
 		t.Errorf("expected content 'Second line', got %q", split[1].Content)
 	}
+	for i, splitNote := range split {
+		if len(splitNote.Tags) != 1 || splitNote.Tags[0] != "thoughts" {
+			t.Errorf("split note %d tags = %v, want [thoughts]", i, splitNote.Tags)
+		}
+	}
 }
 
 func TestContinuousNoteEmptyBody(t *testing.T) {

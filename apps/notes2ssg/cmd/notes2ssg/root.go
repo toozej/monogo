@@ -9,6 +9,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -36,24 +38,24 @@ var rootCmd = &cobra.Command{
 	Long:             `Notes2ssg fetches notes from Simplenote or Usememos and writes them as Hugo Markdown files.`,
 	Args:             cobra.ExactArgs(0),
 	PersistentPreRun: rootCmdPreRun,
-	Run:              rootCmdRun,
+	RunE:             rootCmdRun,
 }
 
-// runConverter creates the app and runs a single pass. It is exposed as a
-// variable so tests can replace it.
+// runConverter creates the app and runs exports until a signal cancels the
+// context. A zero polling cycle runs one export pass. Tests can replace it.
 var runConverter = func(cfg config.Config) error {
 	app, err := converter.NewApp(cfg)
 	if err != nil {
 		return err
 	}
-	return app.Run(context.Background())
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	return app.RunPolling(ctx)
 }
 
 // rootCmdRun is the main execution function for the root command.
-func rootCmdRun(cmd *cobra.Command, args []string) {
-	if err := runConverter(confEffective()); err != nil {
-		log.Errorf("Application error: %v", err)
-	}
+func rootCmdRun(cmd *cobra.Command, args []string) error {
+	return runConverter(confEffective())
 }
 
 // confEffective returns the current effective configuration. It is extracted

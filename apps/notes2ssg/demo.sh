@@ -6,8 +6,8 @@ set -euo pipefail
 
 BIN="${BIN:-out/notes2ssg}"
 
-echo "=== 1. greet a username (-u overrides the USERNAME env var) ==="
-"${BIN}" --username "notes2ssg demo"
+echo "=== 1. show command help ==="
+"${BIN}" --help
 
 echo "=== 2. version: print build metadata (version, commit, branch, build time) ==="
 "${BIN}" version

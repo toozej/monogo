@@ -3,6 +3,7 @@ package ssg
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/toozej/monogo/apps/notes2ssg/internal/backend"
@@ -33,6 +34,20 @@ func Slugify(title string) string {
 	}
 	slug = strings.Trim(slug, "-")
 	return slug
+}
+
+// SlugFor returns the assigned output slug when present. Otherwise, it
+// derives a slug from the note title.
+func SlugFor(note backend.Note) string {
+	if note.Slug != "" {
+		return note.Slug
+	}
+	return Slugify(note.Title)
+}
+
+// QuoteYAML returns s as a quoted YAML scalar.
+func QuoteYAML(s string) string {
+	return strconv.Quote(s)
 }
 
 // WriteFileIfChanged writes the given content to path only when the file is

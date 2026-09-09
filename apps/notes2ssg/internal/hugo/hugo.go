@@ -20,10 +20,10 @@ author: {{author}}
 type: post
 unlisted: {{unlisted}}
 date: {{date}}
-url: /{{slug}}/
+url: {{url}}
 summary: {{summary}}
 categories:
-  - {{tag}}
+{{categories}}
 ---
 `
 
@@ -31,12 +31,18 @@ categories:
 type Formatter struct {
 	author        string
 	unlistedTags  []string
-	substitutions map[string]string
+	substitutions []Substitution
 	template      string
 }
 
+// Substitution defines one ordered title-to-summary mapping.
+type Substitution struct {
+	Find    string
+	Replace string
+}
+
 // NewFormatter creates a new Hugo formatter.
-func NewFormatter(author string, unlistedTags []string, substitutions map[string]string) *Formatter {
+func NewFormatter(author string, unlistedTags []string, substitutions []Substitution) *Formatter {
 	return &Formatter{
 		author:        author,
 		unlistedTags:  unlistedTags,
@@ -47,14 +53,15 @@ func NewFormatter(author string, unlistedTags []string, substitutions map[string
 
 // Format generates the Hugo markdown content for a note.
 func (f *Formatter) Format(note backend.Note) string {
+	slug := ssg.SlugFor(note)
 	replacer := newMultiReplacer()
-	replacer.add("{{title}}", note.Title)
-	replacer.add("{{author}}", f.author)
+	replacer.add("{{title}}", ssg.QuoteYAML(note.Title))
+	replacer.add("{{author}}", ssg.QuoteYAML(f.author))
 	replacer.add("{{unlisted}}", fmt.Sprintf("%t", note.Unlisted))
-	replacer.add("{{date}}", note.Date.Format(time.RFC3339))
-	replacer.add("{{slug}}", ssg.Slugify(note.Title))
-	replacer.add("{{summary}}", f.computeSummary(note))
-	replacer.add("{{tag}}", f.formatTags(note.Tags))
+	replacer.add("{{date}}", ssg.QuoteYAML(note.Date.Format(time.RFC3339)))
+	replacer.add("{{url}}", ssg.QuoteYAML("/"+slug+"/"))
+	replacer.add("{{summary}}", ssg.QuoteYAML(f.computeSummary(note)))
+	replacer.add("{{categories}}", f.formatTags(note.Tags))
 
 	return replacer.apply(f.template) + "\n" + note.Content
 }
@@ -65,7 +72,7 @@ func (f *Formatter) WriteFile(note backend.Note, outputDir string) error {
 		return fmt.Errorf("creating output directory: %w", err)
 	}
 
-	filename := ssg.Slugify(note.Title) + ".md"
+	filename := ssg.SlugFor(note) + ".md"
 	path := filepath.Join(outputDir, filename)
 	content := f.Format(note)
 
@@ -76,15 +83,11 @@ func (f *Formatter) WriteFile(note backend.Note, outputDir string) error {
 func (f *Formatter) formatTags(tags []string) string {
 	filtered := f.filterIgnoredTags(tags)
 	if len(filtered) == 0 {
-		return "Uncategorized"
+		filtered = []string{"Uncategorized"}
 	}
-	if len(filtered) == 1 {
-		return filtered[0]
-	}
-	var lines []string
-	lines = append(lines, filtered[0])
-	for _, t := range filtered[1:] {
-		lines = append(lines, "  - "+t)
+	lines := make([]string, 0, len(filtered))
+	for _, tag := range filtered {
+		lines = append(lines, "  - "+ssg.QuoteYAML(tag))
 	}
 	return strings.Join(lines, "\n")
 }
@@ -100,12 +103,10 @@ func (f *Formatter) filterIgnoredTags(tags []string) []string {
 // replacement string applied to the title. Returns "" if no match.
 func (f *Formatter) computeSummary(note backend.Note) string {
 	lowerTitle := strings.ToLower(note.Title)
-	for find, replace := range f.substitutions {
-		if strings.Contains(lowerTitle, strings.ToLower(find)) {
-			return replace
+	for _, substitution := range f.substitutions {
+		if strings.Contains(lowerTitle, strings.ToLower(substitution.Find)) {
+			return substitution.Replace
 		}
-		_ = find
-		_ = replace
 	}
 	return ""
 }

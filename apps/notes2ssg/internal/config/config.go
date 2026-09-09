@@ -27,8 +27,10 @@ type Config struct {
 
 	// TagToDownload is the tag used to filter notes for downloading/exporting.
 	TagToDownload string `env:"TAG_TO_DOWNLOAD"`
-	// ContinuousNoteTag is the tag that identifies a continuous note which
-	// should be split into individual notes per line.
+	// ContinuousNoteTag is a comma-separated list of tags that identify
+	// continuous notes. The converter splits each matching note into one note
+	// per line. For a tag in the form "group:category", the converter replaces
+	// the tag with "category" in each generated note.
 	ContinuousNoteTag string `env:"CONTINUOUS_NOTE_TAG"`
 	// UnlistedTags is a comma-separated list of tags that should cause notes
 	// to be marked as unlisted in the generated front matter.

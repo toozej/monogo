@@ -3,6 +3,8 @@ package converter
 import (
 	"context"
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -14,11 +16,15 @@ import (
 )
 
 type mockBackend struct {
-	notes []backend.Note
-	err   error
+	notes     []backend.Note
+	err       error
+	fetchFunc func(context.Context, string) ([]backend.Note, error)
 }
 
 func (m *mockBackend) FetchNotes(ctx context.Context, tag string) ([]backend.Note, error) {
+	if m.fetchFunc != nil {
+		return m.fetchFunc(ctx, tag)
+	}
 	return m.notes, m.err
 }
 
@@ -65,22 +71,130 @@ func TestRun(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		t.Fatalf("reading output dir: %v", err)
+	if files := markdownFiles(t, dir); len(files) != 2 {
+		t.Fatalf("expected 2 Markdown files, got %d", len(files))
 	}
-	if len(entries) != 2 {
-		t.Fatalf("expected 2 output files, got %d", len(entries))
+}
+
+func TestRunIsIdempotent(t *testing.T) {
+	dir := t.TempDir()
+	app := newAppWithDeps(config.Config{OutputDir: dir}, &mockBackend{
+		notes: []backend.Note{{Title: "Repeat", Content: "body"}},
+	})
+
+	if err := app.Run(context.Background()); err != nil {
+		t.Fatalf("first run failed: %v", err)
+	}
+	if err := app.Run(context.Background()); err != nil {
+		t.Fatalf("second run failed: %v", err)
+	}
+	if files := markdownFiles(t, dir); len(files) != 1 {
+		t.Fatalf("expected 1 Markdown file, got %d", len(files))
+	}
+}
+
+func TestRunRemovesOnlyStaleGeneratedFiles(t *testing.T) {
+	dir := t.TempDir()
+	userFile := filepath.Join(dir, "user-file.md")
+	if err := os.WriteFile(userFile, []byte("user content"), 0o600); err != nil {
+		t.Fatalf("writing user file: %v", err)
+	}
+	source := &mockBackend{
+		notes: []backend.Note{{Title: "Generated", Content: "first\nsecond", Tags: []string{"blog:thoughts"}}},
+	}
+	app := newAppWithDeps(config.Config{
+		ContinuousNoteTag: "blog:thoughts",
+		OutputDir:         dir,
+	}, source)
+
+	if err := app.Run(context.Background()); err != nil {
+		t.Fatalf("first run failed: %v", err)
+	}
+	source.notes = []backend.Note{{Title: "Generated", Content: "replacement", Tags: []string{"blog:thoughts"}}}
+	if err := app.Run(context.Background()); err != nil {
+		t.Fatalf("second run failed: %v", err)
+	}
+
+	if _, err := os.Stat(userFile); err != nil {
+		t.Fatalf("user file was removed: %v", err)
+	}
+	if files := markdownFiles(t, dir); len(files) != 2 {
+		t.Fatalf("expected one generated file and one user file, got %d Markdown files", len(files))
+	}
+}
+
+func TestRunAssignsUniqueSlugs(t *testing.T) {
+	dir := t.TempDir()
+	app := newAppWithDeps(config.Config{OutputDir: dir}, &mockBackend{
+		notes: []backend.Note{
+			{Title: "Same", Content: "first"},
+			{Title: "Same!", Content: "second"},
+			{Title: "思考", Content: "third"},
+		},
+	})
+
+	if err := app.Run(context.Background()); err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+	files := markdownFiles(t, dir)
+	if len(files) != 3 {
+		t.Fatalf("expected 3 unique Markdown files, got %d", len(files))
+	}
+	for _, file := range files {
+		if file == ".md" {
+			t.Fatal("generated an empty slug filename")
+		}
+	}
+	combined := ""
+	for _, file := range files {
+		data, err := os.ReadFile(filepath.Join(dir, file))
+		if err != nil {
+			t.Fatalf("reading generated file %q: %v", file, err)
+		}
+		combined += string(data)
+	}
+	for _, content := range []string{"first", "second", "third"} {
+		if !strings.Contains(combined, content) {
+			t.Errorf("generated files do not contain %q", content)
+		}
+	}
+}
+
+func TestRunRequiresOutputDirectory(t *testing.T) {
+	app := newAppWithDeps(config.Config{}, &mockBackend{})
+	if err := app.Run(context.Background()); err == nil {
+		t.Fatal("expected an error when OUTPUT_DIR is empty")
 	}
 }
 
 func TestRunFetchError(t *testing.T) {
-	cfg := config.Config{Backend: "mock"}
+	cfg := config.Config{Backend: "mock", OutputDir: t.TempDir()}
 	app := newAppWithDeps(cfg, &mockBackend{err: os.ErrNotExist})
 
 	err := app.Run(context.Background())
 	if err == nil {
 		t.Fatal("expected error when backend fails")
+	}
+}
+
+func TestRunPollingStopsAfterCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	calls := 0
+	backend := &mockBackend{
+		fetchFunc: func(context.Context, string) ([]backend.Note, error) {
+			calls++
+			cancel()
+			return []backend.Note{{Title: "Polling", Content: "body"}}, nil
+		},
+	}
+	app := newAppWithDeps(config.Config{OutputDir: t.TempDir(), PollingCycle: 1}, backend)
+
+	if err := app.RunPolling(ctx); err != nil {
+		t.Fatalf("polling run failed: %v", err)
+	}
+	if calls != 1 {
+		t.Errorf("expected 1 export before cancellation, got %d", calls)
 	}
 }
 
@@ -98,16 +212,46 @@ func TestProcessNotesUnlisted(t *testing.T) {
 	}
 }
 
-func TestProcessNotesContinuous(t *testing.T) {
+func TestProcessNotesMultipleContinuousCategories(t *testing.T) {
 	cfg := config.Config{
-		ContinuousNoteTag: "blog:thoughts",
+		ContinuousNoteTag: "blog:thoughts, blog:camping",
 	}
 	app := newAppWithDeps(cfg, &mockBackend{})
 
-	note := backend.Note{Title: "Thoughts", Tags: []string{"blog:thoughts"}, Content: "Line 1\nLine 2"}
-	processed := app.processNotes([]backend.Note{note})
-	if len(processed) != 2 {
-		t.Fatalf("expected 2 processed notes, got %d", len(processed))
+	notes := []backend.Note{
+		{Title: "Thoughts", Tags: []string{"blog:thoughts"}, Content: "First thought\nSecond thought"},
+		{Title: "Camping", Tags: []string{"blog:camping"}, Content: "First trip\nSecond trip"},
+	}
+	processed := app.processNotes(notes)
+	if len(processed) != 4 {
+		t.Fatalf("expected 4 processed notes, got %d", len(processed))
+	}
+
+	for _, index := range []int{0, 1} {
+		if len(processed[index].Tags) != 1 || processed[index].Tags[0] != "thoughts" {
+			t.Errorf("thought note %d tags = %v, want [thoughts]", index, processed[index].Tags)
+		}
+	}
+	for _, index := range []int{2, 3} {
+		if len(processed[index].Tags) != 1 || processed[index].Tags[0] != "camping" {
+			t.Errorf("camping note %d tags = %v, want [camping]", index, processed[index].Tags)
+		}
+	}
+}
+
+func TestMatchingContinuousTag(t *testing.T) {
+	tag, replacement, ok := matchingContinuousTag(
+		[]string{"blog:camping"},
+		[]string{"blog:thoughts", "blog:camping"},
+	)
+	if !ok {
+		t.Fatal("expected a matching continuous-note tag")
+	}
+	if tag != "blog:camping" {
+		t.Errorf("tag = %q, want %q", tag, "blog:camping")
+	}
+	if replacement != "camping" {
+		t.Errorf("replacement = %q, want %q", replacement, "camping")
 	}
 }
 
@@ -125,12 +269,15 @@ func TestParseList(t *testing.T) {
 }
 
 func TestParseSubstitutions(t *testing.T) {
-	m := parseSubstitutions("find:replace, a: b")
-	if m["find"] != "replace" {
-		t.Errorf("expected find->replace, got %q", m["find"])
+	substitutions := parseSubstitutions("find:replace, a: b, :ignored")
+	if len(substitutions) != 2 {
+		t.Fatalf("expected 2 substitutions, got %d", len(substitutions))
 	}
-	if m["a"] != "b" {
-		t.Errorf("expected a->b, got %q", m["a"])
+	if substitutions[0].Find != "find" || substitutions[0].Replace != "replace" {
+		t.Errorf("first substitution = %+v, want find->replace", substitutions[0])
+	}
+	if substitutions[1].Find != "a" || substitutions[1].Replace != "b" {
+		t.Errorf("second substitution = %+v, want a->b", substitutions[1])
 	}
 }
 
@@ -189,4 +336,19 @@ func TestFormatterSelection(t *testing.T) {
 
 func zeroTime() time.Time {
 	return time.Time{}
+}
+
+func markdownFiles(t *testing.T, dir string) []string {
+	t.Helper()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("reading output directory: %v", err)
+	}
+	files := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if !entry.IsDir() && filepath.Ext(entry.Name()) == ".md" {
+			files = append(files, entry.Name())
+		}
+	}
+	return files
 }

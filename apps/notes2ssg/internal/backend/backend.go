@@ -10,6 +10,7 @@ import (
 // Note represents a single note fetched from any backend.
 type Note struct {
 	Title    string
+	Slug     string
 	Date     time.Time
 	Tags     []string
 	Content  string

@@ -37,11 +37,12 @@ func NewFormatter(defaultSubtitle string) *Formatter {
 
 // Format renders the note as go-vite markdown with front matter.
 func (f *Formatter) Format(note backend.Note) string {
+	slug := ssg.SlugFor(note)
 	replacer := newMultiReplacer()
-	replacer.add("{{slug}}", ssg.Slugify(note.Title))
-	replacer.add("{{title}}", note.Title)
-	replacer.add("{{subtitle}}", f.subtitle(note))
-	replacer.add("{{date}}", note.Date.Format(time.DateOnly))
+	replacer.add("{{slug}}", ssg.QuoteYAML(slug))
+	replacer.add("{{title}}", ssg.QuoteYAML(note.Title))
+	replacer.add("{{subtitle}}", ssg.QuoteYAML(f.subtitle(note)))
+	replacer.add("{{date}}", ssg.QuoteYAML(note.Date.Format(time.DateOnly)))
 
 	return replacer.apply(f.template) + noteBody(note.Content)
 }
@@ -52,7 +53,7 @@ func (f *Formatter) WriteFile(note backend.Note, outputDir string) error {
 		return fmt.Errorf("creating output directory: %w", err)
 	}
 
-	filename := ssg.Slugify(note.Title) + ".md"
+	filename := ssg.SlugFor(note) + ".md"
 	path := filepath.Join(outputDir, filename)
 	content := f.Format(note)
 
