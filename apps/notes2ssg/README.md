@@ -15,7 +15,7 @@ notes2ssg fetches notes from **Simplenote** or **Usememos** and converts them in
 - **Continuous note splitting**: Automatically split a single note into multiple notes, one per line.
 - **Unlisted tags**: Mark notes as `unlisted` based on configured tags.
 - **Title substitutions**: Map titles keywords to custom summary text.
-- **Idempotent writes**: Only writes files when content changes to reduce filesystem churn.
+- **Safe repeat exports**: Only writes changed files. It removes stale files that its output manifest lists.
 - **Push notifications**: Optional Gotify integration for success and failure alerts.
 - **Retry logic**: Simplenote backend retries with exponential backoff and jitter.
 
@@ -41,8 +41,11 @@ apps/notes2ssg/
 ## Usage
 
 ```sh
-# Run once (default) with environment variables set
+# Export notes repeatedly. The default polling cycle is 3600 seconds.
 notes2ssg
+
+# Run one export pass and exit.
+POLLING_CYCLE=0 notes2ssg
 
 # Enable debug logging
 notes2ssg --debug
@@ -67,15 +70,15 @@ All configuration is passed via environment variables:
 | `MEMOS_URL` | — | Base URL of the Usememos instance |
 | `MEMOS_TOKEN` | — | API token for Usememos |
 | `TAG_TO_DOWNLOAD` | — | Tag used to filter notes for export |
-| `CONTINUOUS_NOTE_TAG` | — | Tag that identifies a continuous note (split into one note per line) |
+| `CONTINUOUS_NOTE_TAG` | — | Comma-separated continuous-note tags. Each matching note is split into one note per line. A tag such as `blog:thoughts` becomes the `thoughts` category. |
 | `UNLISTED_TAGS` | — | Comma-separated tags that mark notes as `unlisted` |
-| `TITLE_SUBSTITUTIONS` | — | Comma-separated `find:replace` pairs for summary generation |
+| `TITLE_SUBSTITUTIONS` | — | Comma-separated, ordered `find:replace` pairs for summary generation. The first matching pair wins. |
 | `SSG_TYPE` | `hugo` | Static site generator type (`hugo` or `vite`) |
 | `VITE_SUBTITLE` | — | Default subtitle used in go-vite front matter |
 | `INPUT_DIR` | — | Directory for temporary/raw input files |
-| `OUTPUT_DIR` | — | Directory where generated Markdown files are written |
+| `OUTPUT_DIR` | — | Required directory where generated Markdown files are written. The app records generated filenames in `.notes2ssg-manifest.json`. |
 | `AUTHOR` | `root` | Author name used in front matter |
-| `POLLING_CYCLE` | `3600` | Sleep duration between runs in seconds |
+| `POLLING_CYCLE` | `3600` | Sleep duration between exports in seconds. Set `0` to export once and exit. |
 | `GOTIFY_URL` | — | Gotify server base URL for notifications |
 | `GOTIFY_TOKEN` | — | Gotify application token |
 | `DEBUG` | `false` | Enable debug-level logging |

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"testing"
 
@@ -19,8 +20,8 @@ func TestRootCmdStructure(t *testing.T) {
 	if rootCmd.PersistentPreRun == nil {
 		t.Error("expected PersistentPreRun to be set, got nil")
 	}
-	if rootCmd.Run == nil {
-		t.Error("expected Run to be set, got nil")
+	if rootCmd.RunE == nil {
+		t.Error("expected RunE to be set, got nil")
 	}
 }
 
@@ -85,9 +86,23 @@ func TestRootCmdRun(t *testing.T) {
 		return nil
 	}
 
-	rootCmdRun(rootCmd, []string{})
+	if err := rootCmdRun(rootCmd, []string{}); err != nil {
+		t.Fatalf("root command returned an error: %v", err)
+	}
 	if !runCalled {
 		t.Error("expected runConverter to be called")
+	}
+}
+
+func TestRootCmdRunReturnsConverterError(t *testing.T) {
+	origRun := runConverter
+	defer func() { runConverter = origRun }()
+
+	want := errors.New("conversion failed")
+	runConverter = func(cfg config.Config) error { return want }
+
+	if err := rootCmdRun(rootCmd, []string{}); !errors.Is(err, want) {
+		t.Errorf("root command error = %v, want %v", err, want)
 	}
 }
 

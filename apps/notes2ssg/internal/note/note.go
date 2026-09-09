@@ -210,10 +210,24 @@ func ContinuousNote(note backend.Note, tag string, replacement string) []backend
 		newNote := note
 		newNote.Content = line
 		newNote.Title = fmt.Sprintf("%s - %d", note.Title, counter)
+		newNote.Tags = replaceTag(note.Tags, tag, replacement)
 		counter--
 		notes = append(notes, newNote)
 	}
-	_ = replacement
-	_ = tag
 	return notes
+}
+
+// replaceTag replaces tag with replacement. It preserves tags when no
+// replacement was configured.
+func replaceTag(tags []string, tag, replacement string) []string {
+	result := append([]string(nil), tags...)
+	if replacement == "" {
+		return result
+	}
+	for i, value := range result {
+		if value == tag {
+			result[i] = replacement
+		}
+	}
+	return result
 }
