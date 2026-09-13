@@ -1,0 +1,26 @@
+[Unit]
+Description=Gocicle control plane
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=gocicle
+Group=gocicle
+EnvironmentFile=/etc/gocicle/control.env
+ExecStart=/usr/local/bin/gocicle serve
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

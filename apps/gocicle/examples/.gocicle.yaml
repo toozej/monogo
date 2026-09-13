@@ -1,0 +1,22 @@
+---
+apiVersion: gocicle/v1
+project:
+  name: example
+  source:
+    git:
+      url: https://github.com/example/project.git
+      branch: main
+jobs:
+  update-dependencies:
+    schedule: '0 3 * * 1'
+    timezone: UTC
+    runner:
+      labels: [linux, maintenance]
+    container:
+      image: golang:1.27.1-trixie
+    command:
+      path: /workspace/scripts/update-dependencies
+      args: []
+      workingDirectory: /workspace
+    timeout: 30m
+    pushChanges: true

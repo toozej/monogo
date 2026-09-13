@@ -1,0 +1,20 @@
+[Unit]
+Description=Gocicle rootless Podman runner
+After=network-online.target podman.socket
+Requires=podman.socket
+
+[Service]
+Type=simple
+EnvironmentFile=%h/.config/gocicle/runner.env
+Environment=GOCICLE_RUNTIME=podman
+Environment=GOCICLE_SOCKET=%t/podman/podman.sock
+Environment=GOCICLE_STATE_DIR=%h/.local/state/gocicle-runner
+ExecStart=/usr/local/bin/gocicle runner
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=120
+KillMode=control-group
+UMask=0077
+
+[Install]
+WantedBy=default.target

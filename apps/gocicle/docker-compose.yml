@@ -1,0 +1,35 @@
+---
+services:
+  gocicle:
+    container_name: gocicle
+    image: toozej/gocicle:latest
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    healthcheck:
+      test: ["CMD", "/go/bin/gocicle", "version"]
+      interval: 30s
+      timeout: 5s
+      start_period: 5s
+      retries: 3
+    environment:
+      GOCICLE_LISTEN: "0.0.0.0:8080"
+    env_file:
+      - .env
+    command:
+      - "serve"
+    ports:
+      - "127.0.0.1:8080:8080"
+    labels:
+      - "traefik.enable=false"
+      # labels below for publishing as web service
+      # - "traefik.docker.network=traefik"
+      # - "traefik.http.routers.gocicle.rule=Host(`gocicle.test`)"
+      # - "traefik.http.routers.gocicle.middlewares=http-redirect-https@file,headers@file"
+      # - "traefik.http.routers.gocicle-secure.entrypoints=https"
+      # - "traefik.http.routers.gocicle-secure.rule=Host(`gocicle.test`)"
+      # - "traefik.http.routers.gocicle-secure.middlewares=headers@file"
+      # - "traefik.http.routers.gocicle-secure.tls=true"
+    # networks:
+      # - traefik

@@ -1,0 +1,39 @@
+---
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: gocicle
+      POSTGRES_USER: gocicle
+      POSTGRES_PASSWORD: ${GOCICLE_POSTGRES_PASSWORD:?Set a development database password}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - 127.0.0.1:5432:5432
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U gocicle]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  gocicle:
+    build:
+      context: ../../..
+      dockerfile: apps/gocicle/Dockerfile
+    command: [serve]
+    environment:
+      GOCICLE_DATABASE_URL: postgres://gocicle:${GOCICLE_POSTGRES_PASSWORD}@postgres:5432/gocicle?sslmode=disable
+      GOCICLE_KEY_FILE: /run/secrets/gocicle-key.json
+      GOCICLE_LISTEN: 0.0.0.0:8080
+      GOCICLE_PUBLIC_URL: ${GOCICLE_PUBLIC_URL:?Set the HTTPS public origin}
+    volumes:
+      - ${GOCICLE_KEY_FILE:?Set the absolute key path}:/run/secrets/gocicle-key.json:ro
+    ports:
+      - 127.0.0.1:8080:8080
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      postgres:
+        condition: service_healthy
+volumes:
+  postgres-data:
