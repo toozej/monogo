@@ -2,6 +2,8 @@
 
 Gocicle schedules container jobs across Linux runners. PostgreSQL stores the execution queue and configuration. The control plane serves a Go WebAssembly interface, a JSON API, and live events. Runners use outbound HTTPS connections and a local Docker or Podman socket.
 
+For a new installation, follow [Set up a new instance](docs/setup.md). The guide covers database and key creation, HTTPS, forge OAuth registration, the first administrator, and runner access.
+
 ## Build and test
 
 ```sh
@@ -29,52 +31,11 @@ The weekly image refresh discovers released apps from their tags. Gocicle enters
 
 ## Control plane installation
 
-1. Create a PostgreSQL database and an application database role.
-2. Install the binary on the control plane host.
-3. Create an encryption key outside PostgreSQL.
-4. Apply migrations.
-5. Configure at least one login provider.
-6. Create an administrator invitation.
-7. Start the control plane behind an HTTPS proxy.
+Use the [installation procedure](docs/setup.md#prepare-the-control-plane) before starting the service. Run `gocicle migrate` explicitly. The control plane does not create or update its schema at startup.
 
-```sh
-gocicle keygen --output /etc/gocicle/keys.json
-export GOCICLE_DATABASE_URL='postgres://gocicle:REPLACE_ME@localhost/gocicle?sslmode=require'
-export GOCICLE_KEY_FILE=/etc/gocicle/keys.json
-export GOCICLE_PUBLIC_URL=https://gocicle.example.com
-gocicle migrate
-gocicle provider-add /etc/gocicle/github.json
-gocicle bootstrap
-gocicle serve
-```
+Complete the [one-time OAuth setup](docs/setup.md#register-login-providers) for each forge that users will use for sign-in. The guide includes GitHub, GitLab, Codeberg, Forgejo, SourceHut, Tangled, and Generic Git. Each registered provider has its own callback URL. Tangled instead publishes an AT Protocol client metadata document. Generic Git provides repository access only.
 
-Run these commands as the account that owns the key file. The key file must have mode `0600`. `bootstrap` prints a single-use invitation with a one-hour lifetime. Paste it into the first sign-in form. The first invited user becomes an administrator. Later users remain disabled until an administrator approves them. `provider-add` requires direct database and key-file access. Use it only for local instance administration.
-
-Example provider file:
-
-```json
-{
-  "Name": "GitHub",
-  "Kind": "github",
-  "ClientSecret": "REPLACE_ME",
-  "Config": {
-    "baseURL": "https://github.com",
-    "clientID": "REPLACE_ME"
-  }
-}
-```
-
-The command encrypts `ClientSecret` before storing it. Protect the input file. Remove it after configuration if it is no longer required. The command prints the provider ID. Register this callback URL with the provider:
-
-```text
-https://gocicle.example.com/auth/PROVIDER_ID/callback
-```
-
-Supported provider kinds are `github`, `gitlab`, `forgejo`, `codeberg`, `sourcehut`, `tangled`, and `git`. Generic Git supports manually entered clone URLs. It does not provide login. GitLab and Forgejo can use configured public instance URLs. `apiURL` overrides the metadata API root. Provider requests reject private network addresses and redirects.
-
-Tangled uses AT Protocol discovery, PKCE, PAR, and DPoP. Its public client metadata is available at `/oauth-client-metadata.json`. Enter a handle or DID during login. A Tangled login does not supply SSH write credentials. Provider OAuth tokens supply repository discovery. Repository credentials remain separate and require an explicit project grant.
-
-Provider references: [GitHub OAuth](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps), [GitLab OAuth](https://docs.gitlab.com/api/oauth2/), [Forgejo OAuth](https://forgejo.org/docs/latest/user/authentication/oauth2-provider/), [SourceHut GraphQL](https://docs.sourcehut.org/meta.sr.ht/), [AT Protocol OAuth](https://atproto.com/specs/oauth), and [Tangled](https://docs.tangled.org/single-page).
+Run `gocicle bootstrap` immediately before the [first administrator sign-in](docs/setup.md#create-the-first-administrator). Its invitation expires after one hour. Later users need administrator approval or an invitation. Repository credentials and runner grants require separate setup, even after OAuth sign-in succeeds.
 
 ## Projects and jobs
 
