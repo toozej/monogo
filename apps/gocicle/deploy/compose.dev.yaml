@@ -18,7 +18,7 @@ services:
   gocicle:
     build:
       context: ../../..
-      dockerfile: apps/gocicle/Dockerfile
+      dockerfile: apps/gocicle/Dockerfile.distroless
     command: [serve]
     environment:
       GOCICLE_DATABASE_URL: postgres://gocicle:${GOCICLE_POSTGRES_PASSWORD}@postgres:5432/gocicle?sslmode=disable

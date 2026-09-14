@@ -23,6 +23,8 @@ The acceptance script creates an isolated PostgreSQL container. It tests Docker 
 
 The deployment test checks the nginx and Caddy examples with temporary certificates and isolated containers. It verifies HTTPS, forwarded protocol headers, and incremental event delivery. The server tests also check shutdown with an active stream.
 
+Gocicle builds and publishes only distroless container images. `make docker-build APP=gocicle` and the development Compose example use `Dockerfile.distroless`. Releases use `Dockerfile.goreleaser.distroless`. Both normal and distroless release tags refer to the same image. The app does not generate `Dockerfile` or `Dockerfile.goreleaser`.
+
 The weekly image refresh discovers released apps from their tags. Gocicle enters that workflow after its first `apps/gocicle/vX.Y.Z` release tag.
 
 ## Control plane installation

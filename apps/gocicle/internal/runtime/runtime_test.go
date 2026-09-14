@@ -11,11 +11,56 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/toozej/monogo/apps/gocicle/internal/jobs"
 )
+
+func TestPodmanFinishesLogsAfterMissedExitEvent(t *testing.T) {
+	socket := filepath.Join(t.TempDir(), "s")
+	listener, err := net.Listen("unix", socket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var inspections, snapshots atomic.Int32
+	server := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/json") {
+			_ = json.NewEncoder(w).Encode(map[string]any{"State": map[string]bool{"Running": inspections.Add(1) == 1}})
+			return
+		}
+		frame := func(data string) {
+			header := make([]byte, 8)
+			header[0] = 1
+			binary.BigEndian.PutUint32(header[4:], uint32(len(data)))
+			_, _ = w.Write(append(header, data...))
+		}
+		frame("first\n")
+		if r.URL.Query().Get("follow") == "true" {
+			w.(http.Flusher).Flush()
+			<-r.Context().Done()
+			return
+		}
+		snapshots.Add(1)
+		frame("last\n")
+	})}
+	go func() { _ = server.Serve(listener) }()
+	t.Cleanup(func() { _ = server.Close() })
+	runtime, err := NewPodman(socket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	var logs bytes.Buffer
+	if err := runtime.Logs(ctx, "run", &logs); err != nil {
+		t.Fatal(err)
+	}
+	if logs.String() != "first\nlast\n" || snapshots.Load() != 1 {
+		t.Fatalf("logs=%q snapshots=%d", logs.String(), snapshots.Load())
+	}
+}
 
 func TestAdapters(t *testing.T) {
 	for _, kind := range []string{"docker", "podman"} {

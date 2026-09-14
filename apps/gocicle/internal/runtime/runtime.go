@@ -16,6 +16,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -269,7 +270,10 @@ func (t *transport) List(ctx context.Context, runner string) ([]Container, error
 	return result, err
 }
 func (t *transport) Logs(ctx context.Context, id string, w io.Writer) error {
-	resp, err := t.request(ctx, "GET", "/containers/"+url.PathEscape(id)+"/logs?follow=1&stdout=1&stderr=1&timestamps=1", nil)
+	return t.logs(ctx, id, w, true)
+}
+func (t *transport) logs(ctx context.Context, id string, w io.Writer, follow bool) error {
+	resp, err := t.request(ctx, "GET", "/containers/"+url.PathEscape(id)+"/logs?follow="+strconv.FormatBool(follow)+"&stdout=1&stderr=1&timestamps=1", nil)
 	if err != nil {
 		return err
 	}

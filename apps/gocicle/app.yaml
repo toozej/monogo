@@ -10,6 +10,8 @@ description: Schedule container jobs across distributed runners
 shortDescription: Run scheduled container jobs
 goImage: golang:1.27.1-trixie
 distrolessImage: gcr.io/distroless/static-debian13:nonroot
+distrolessOnly: true
+dockerfile: Dockerfile.distroless
 cgoEnabled: false
 port: 8080
 compose:

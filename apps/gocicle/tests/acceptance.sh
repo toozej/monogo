@@ -44,7 +44,10 @@ if command -v podman >/dev/null; then
         [[ -S "$GOCICLE_TEST_RUNTIME_SOCKET" ]] && break
         sleep 1
     done
-    go test -race -count=1 ./apps/gocicle/internal/runtime -run TestRuntimeIntegration
+    if ! go test -race -count=1 ./apps/gocicle/internal/runtime -run TestRuntimeIntegration; then
+        cat "$task_tmp/podman.log" >&2
+        exit 1
+    fi
 else
     echo 'Podman is unavailable. The live Podman test did not run.' >&2
 fi

@@ -118,7 +118,7 @@ jobs:
           exit 1
       - name: Run tests
         run: make test APP=${{ matrix.app }}
-      - name: Test gocicle database, Docker, browser, and proxies
+      - name: Test gocicle database, Docker, Podman, browser, and proxies
         if: matrix.app == 'gocicle'
         run: |
           GOCICLE_TEST_BROWSER=1 apps/gocicle/tests/acceptance.sh

@@ -23,6 +23,14 @@ if ! command -v gomplate >/dev/null 2>&1; then
 fi
 
 DISTROLESS_ONLY="$(awk -F': *' '/^distrolessOnly:/ {gsub(/"/, "", $2); print $2; exit}' "${APP_CONFIG}")"
+BUILD_DOCKERFILE="$(awk -F': *' '/^dockerfile:/ {gsub(/"/, "", $2); print $2; exit}' "${APP_CONFIG}")"
+case "${BUILD_DOCKERFILE}" in
+"" | Dockerfile | Dockerfile.distroless) ;;
+*)
+	echo "dockerfile must be Dockerfile or Dockerfile.distroless in ${APP_CONFIG}" >&2
+	exit 1
+	;;
+esac
 
 templates=(
 	".goreleaser.yml"
@@ -35,6 +43,11 @@ templates=(
 )
 
 for template in "${templates[@]}"; do
+	# An explicit distroless build uses its named Dockerfile directly.
+	if [ "${template}" = Dockerfile ] && [ "${BUILD_DOCKERFILE}" = Dockerfile.distroless ]; then
+		rm -f "${APP_DIR}/${template}"
+		continue
+	fi
 	# distrolessOnly apps only build a distroless GoReleaser image, so the plain
 	# Dockerfile.goreleaser is never referenced. Skip it and drop any stale copy.
 	if [ "${template}" = "Dockerfile.goreleaser" ]; then
