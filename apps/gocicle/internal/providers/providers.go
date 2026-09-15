@@ -8,14 +8,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
-	"time"
 
-	"github.com/toozej/monogo/pkg/urlsafe"
 	"golang.org/x/oauth2"
 )
 
@@ -61,7 +58,7 @@ type Adapter struct {
 	Kind   string
 	Config Config
 	Secret string
-	HTTP   *http.Client
+	http   *http.Client
 }
 
 func New(kind string, cfg Config, secret string) (*Adapter, error) {
@@ -83,36 +80,14 @@ func New(kind string, cfg Config, secret string) (*Adapter, error) {
 			return nil, err
 		}
 	}
-	return &Adapter{Kind: kind, Config: cfg, Secret: secret, HTTP: PublicClient()}, nil
+	return &Adapter{Kind: kind, Config: cfg, Secret: secret, http: publicClient()}, nil
 }
 func httpsURL(raw string) error {
 	u, err := url.Parse(raw)
-	if err != nil || u.Scheme != "https" || u.Host == "" || u.User != nil || u.Fragment != "" {
+	if err != nil || u.Scheme != "https" || u.Hostname() == "" || u.User != nil || u.Fragment != "" || u.Opaque != "" {
 		return errors.New("provider URL must use HTTPS")
 	}
 	return nil
-}
-func PublicClient() *http.Client {
-	dialer := net.Dialer{Timeout: 10 * time.Second}
-	return &http.Client{Timeout: 20 * time.Second, CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }, Transport: &http.Transport{Proxy: nil, DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
-		host, port, err := net.SplitHostPort(address)
-		if err != nil {
-			return nil, err
-		}
-		ips, err := net.DefaultResolver.LookupIPAddr(ctx, host)
-		if err != nil {
-			return nil, err
-		}
-		for _, ip := range ips {
-			if urlsafe.IsInternalIP(ip.IP) {
-				return nil, errors.New("provider address is not public")
-			}
-		}
-		if len(ips) == 0 {
-			return nil, errors.New("provider address is unavailable")
-		}
-		return dialer.DialContext(ctx, network, net.JoinHostPort(ips[0].IP.String(), port))
-	}}}
 }
 func (a *Adapter) oauth() *oauth2.Config {
 	base := strings.TrimRight(a.Config.BaseURL, "/")
@@ -146,7 +121,7 @@ func (a *Adapter) Exchange(ctx context.Context, code, issuer string, state State
 	if a.Kind == "tangled" {
 		return a.exchangeAT(ctx, code, issuer, state)
 	}
-	ctx = context.WithValue(ctx, oauth2.HTTPClient, a.HTTP)
+	ctx = context.WithValue(ctx, oauth2.HTTPClient, a.http)
 	token, err := a.oauth().Exchange(ctx, code, oauth2.VerifierOption(state.Verifier))
 	if err != nil {
 		return Profile{}, nil, fmt.Errorf("%s login failed: reconnect the provider", a.Kind)
@@ -175,7 +150,7 @@ func (a *Adapter) request(ctx context.Context, method, endpoint, token string, b
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
-	resp, err := a.HTTP.Do(req)
+	resp, err := a.do(req)
 	if err != nil {
 		return errors.New("provider request failed")
 	}

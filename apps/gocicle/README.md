@@ -1,5 +1,7 @@
 # gocicle
 
+<img src="img/avatar.png" alt="gocicle avatar" style="background-color: #FFFFFF;" />
+
 Gocicle schedules container jobs across Linux runners. PostgreSQL stores the execution queue and configuration. The control plane serves a Go WebAssembly interface, a JSON API, and live events. Runners use outbound HTTPS connections and a local Docker or Podman socket.
 
 For a new installation, follow [Set up a new instance](docs/setup.md). The guide covers database and key creation, HTTPS, forge OAuth registration, the first administrator, and runner access.

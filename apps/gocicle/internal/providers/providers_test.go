@@ -30,7 +30,7 @@ func TestTangledRepositoryIdentity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a.HTTP = server.Client()
+	a.http = server.Client()
 	token := (&oauth2.Token{}).WithExtra(map[string]any{"subject": "did:plc:user", "pds": server.URL})
 	repos, err := a.Repositories(context.Background(), token, "")
 	if err != nil || len(repos) != 2 {
@@ -50,7 +50,7 @@ func TestSourceHutMissingIdentity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a.HTTP = server.Client()
+	a.http = server.Client()
 	if _, err := a.profile(context.Background(), &oauth2.Token{AccessToken: "fixture"}); err == nil {
 		t.Fatal("missing SourceHut subject was accepted")
 	}
@@ -94,7 +94,7 @@ func TestLoginAndRepositoryAdapters(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			a.HTTP = server.Client()
+			a.http = server.Client()
 			location, state, err := a.Begin(context.Background(), "state", "")
 			if err != nil {
 				t.Fatal(err)
@@ -160,7 +160,7 @@ func TestATProtocolDiscoveryPARAndIssuerBinding(t *testing.T) {
 		t.Fatal(err)
 	}
 	parAttempts := 0
-	a.HTTP = &http.Client{Transport: roundTrip(func(r *http.Request) (*http.Response, error) {
+	a.http = &http.Client{Transport: roundTrip(func(r *http.Request) (*http.Response, error) {
 		body := ""
 		status := 200
 		headers := http.Header{"Content-Type": {"application/json"}}

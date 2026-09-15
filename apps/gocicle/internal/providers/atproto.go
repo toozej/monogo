@@ -62,7 +62,7 @@ func (a *Adapter) resolve(ctx context.Context, input string) (string, string, er
 			if err != nil {
 				return "", "", err
 			}
-			resp, err := a.HTTP.Do(req)
+			resp, err := a.do(req)
 			if err != nil {
 				return "", "", errors.New("cannot resolve AT Protocol handle")
 			}
@@ -225,7 +225,7 @@ func (a *Adapter) dpopForm(ctx context.Context, endpoint string, form url.Values
 		}
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 		req.Header.Set("DPoP", proof)
-		resp, err := a.HTTP.Do(req)
+		resp, err := a.do(req)
 		if err != nil {
 			return errors.New("AT Protocol OAuth request failed")
 		}
