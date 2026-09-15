@@ -18,6 +18,7 @@ APP_BINARY = $(shell awk -F': *' '/^binary:/ {gsub(/"/, "", $$2); print $$2; exi
 APP_NAME = $(shell awk -F': *' '/^name:/ {gsub(/"/, "", $$2); print $$2; exit}' $(APP_CONFIG) 2>/dev/null)
 APP_MAIN_PATH = $(shell v=$$(awk -F': *' '/^mainPath:/ {gsub(/"/, "", $$2); print $$2; exit}' $(APP_CONFIG) 2>/dev/null); if test -n "$$v"; then echo "$$v"; else echo "$(APP_DIR)"; fi)
 APP_CGO_ENABLED = $(shell v=$$(awk -F': *' '/^cgoEnabled:/ {gsub(/"/, "", $$2); print $$2; exit}' $(APP_CONFIG) 2>/dev/null); if [ "$$v" = "true" ] || [ "$$v" = "1" ]; then echo 1; else echo 0; fi)
+APP_DOCKERFILE = $(shell v=$$(awk -F': *' '/^dockerfile:/ {gsub(/"/, "", $$2); print $$2; exit}' $(APP_CONFIG) 2>/dev/null); if test -n "$$v"; then echo "$$v"; else echo Dockerfile; fi)
 APP_SWAGGER_ENABLED = $(shell awk -F': *' '/^swaggerEnabled:/ {gsub(/"/, "", $$2); print $$2; exit}' $(APP_CONFIG) 2>/dev/null)
 APP_SWAGGER_GENERAL_INFO = $(shell awk -F': *' '/^swaggerGeneralInfo:/ {gsub(/"/, "", $$2); print $$2; exit}' $(APP_CONFIG) 2>/dev/null)
 APP_WASM_MAIN_PATH = $(shell awk -F': *' '/^wasmMainPath:/ {gsub(/"/, "", $$2); print $$2; exit}' $(APP_CONFIG) 2>/dev/null)
@@ -141,6 +142,7 @@ app-check: ## Validate APP points at a configured app
 	@test -n "$(APP)" || (echo "APP is required, e.g. make test APP=golang-starter" && exit 1)
 	@test -f "$(APP_CONFIG)" || (echo "No app config found at $(APP_CONFIG)" && exit 1)
 	@test -n "$(APP_BINARY)" || (echo "No binary configured in $(APP_CONFIG)" && exit 1)
+	@case "$(APP_DOCKERFILE)" in Dockerfile|Dockerfile.distroless) ;; *) echo "dockerfile must be Dockerfile or Dockerfile.distroless in $(APP_CONFIG)"; exit 1 ;; esac
 
 common-generate: pre-reqs ## Generate root shared configs from templates/common
 	$(MAKE) common-generate-no-prereqs APP=$(APP)
@@ -317,19 +319,19 @@ docker-vet: generate ## Run go vet for APP in Docker
 	$(MAKE) docker-vet-no-generate APP=$(APP)
 
 docker-vet-no-generate: app-check
-	docker build --target vet -f $(CURDIR)/$(APP_DIR)/Dockerfile -t $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG) .
+	docker build --target vet -f $(CURDIR)/$(APP_DIR)/$(APP_DOCKERFILE) -t $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG) .
 
 docker-test: generate ## Run go test for APP in Docker
 	$(MAKE) docker-test-no-generate APP=$(APP)
 
 docker-test-no-generate: app-check
-	docker build --progress=plain --target test -f $(CURDIR)/$(APP_DIR)/Dockerfile -t $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG) .
+	docker build --progress=plain --target test -f $(CURDIR)/$(APP_DIR)/$(APP_DOCKERFILE) -t $(IMAGE_AUTHOR)/$(IMAGE_NAME):$(IMAGE_TAG) .
 
 docker-build: generate ## Build APP Docker image
 	$(MAKE) docker-build-no-generate APP=$(APP)
 
 docker-build-no-generate: app-check
-	docker build -f $(CURDIR)/$(APP_DIR)/Dockerfile \
+	docker build -f $(CURDIR)/$(APP_DIR)/$(APP_DOCKERFILE) \
 		--build-arg VERSION=$(VERSION) \
 		--build-arg COMMIT=$(COMMIT) \
 		--build-arg BRANCH=$(BRANCH) \

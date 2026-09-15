@@ -1,0 +1,22 @@
+---
+name: gocicle
+binary: gocicle
+path: apps/gocicle
+mainPath: apps/gocicle
+wasmMainPath: apps/gocicle/web
+swaggerEnabled: true
+swaggerGeneralInfo: cmd/gocicle/root.go
+description: Schedule container jobs across distributed runners
+shortDescription: Run scheduled container jobs
+goImage: golang:1.27.1-trixie
+distrolessImage: gcr.io/distroless/static-debian13:nonroot
+distrolessOnly: true
+dockerfile: Dockerfile.distroless
+cgoEnabled: false
+port: 8080
+compose:
+  command: [serve]
+  ports: ["127.0.0.1:8080:8080"]
+  environment:
+    GOCICLE_LISTEN: "0.0.0.0:8080"
+  envFile: [.env]

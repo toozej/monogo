@@ -1,0 +1,24 @@
+[Unit]
+Description=Gocicle Docker runner
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=gocicle-runner
+Group=gocicle-runner
+SupplementaryGroups=docker
+EnvironmentFile=/etc/gocicle/runner.env
+Environment=GOCICLE_RUNTIME=docker
+Environment=GOCICLE_SOCKET=/var/run/docker.sock
+Environment=GOCICLE_STATE_DIR=/var/lib/gocicle-runner
+StateDirectory=gocicle-runner
+ExecStart=/usr/local/bin/gocicle runner
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=120
+KillMode=control-group
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

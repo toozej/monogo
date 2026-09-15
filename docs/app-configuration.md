@@ -21,6 +21,7 @@ files.
 | `goImage` | yes | Builder image for the Docker build stages, e.g. `golang:1.27.1-trixie`. |
 | `distrolessImage` | yes | Distroless runtime image for `Dockerfile.distroless`, e.g. `gcr.io/distroless/static-debian13:nonroot`. |
 | `distrolessOnly` | no (default `false`) | Builds only the distroless release image. That image receives both the normal (`latest`, version) and distroless (`distroless`, version-distroless) tags. The generated default Dockerfile also uses the distroless runtime. Use this for apps that require CA certificates or timezone data. |
+| `dockerfile` | no (default `Dockerfile`) | Selects `Dockerfile` or `Dockerfile.distroless` for Make's Docker build, test, and vet targets. Selecting `Dockerfile.distroless` also omits the redundant default `Dockerfile` during generation. |
 | `dockerPlatforms` | no | Restricts GoReleaser container images to the listed OCI platforms, such as `linux/amd64` and `linux/arm64`. Use this when a custom runtime base is not published for every default platform. |
 | `cgoEnabled` | no (default `false`) | Toggles `CGO_ENABLED`. See [CGO apps](#cgo-apps). |
 | `runtimeImage` | no | Overrides the runtime base in the non-distroless `Dockerfile`. Defaults to `scratch`, or `debian:trixie-slim` when `cgoEnabled` is `true`. |
@@ -120,6 +121,11 @@ single distroless image for these apps and applies both tag families to the same
 digest: `latest`/plain version tags and `distroless`/distroless-version tags.
 The weekly refresh and signature-verification workflows continue to verify both
 stable aliases without building a duplicate scratch image.
+
+To keep only the two explicitly named distroless Dockerfiles, also set
+`dockerfile: Dockerfile.distroless`. Generation removes `Dockerfile` and
+`Dockerfile.goreleaser`. Make uses `Dockerfile.distroless`, and GoReleaser uses
+`Dockerfile.goreleaser.distroless`. The devcontainer uses the same Make targets.
 
 ### Implementation notes
 

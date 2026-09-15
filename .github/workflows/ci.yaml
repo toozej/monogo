@@ -87,6 +87,7 @@ jobs:
           - podgrab
           - github-readme-gen
           - notes2ssg
+          - gocicle
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -117,6 +118,11 @@ jobs:
           exit 1
       - name: Run tests
         run: make test APP=${{ matrix.app }}
+      - name: Test gocicle database, Docker, Podman, browser, and proxies
+        if: matrix.app == 'gocicle'
+        run: |
+          GOCICLE_TEST_BROWSER=1 apps/gocicle/tests/acceptance.sh
+          apps/gocicle/tests/deployment.sh
       - name: Run mutation testing
         # Mutation testing re-runs the full test suite once per generated mutant,
         # so restrict it to the weekly scheduled run and manual dispatch rather
