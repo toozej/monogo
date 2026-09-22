@@ -1,0 +1,27 @@
+---
+services:
+  notes-courier:
+    container_name: notes-courier
+    image: toozej/notes-courier:latest
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    healthcheck:
+      test: ["CMD", "/go/bin/notes-courier", "version"]
+      interval: 30s
+      timeout: 5s
+      start_period: 5s
+      retries: 3
+    labels:
+      - "traefik.enable=false"
+      # labels below for publishing as web service
+      # - "traefik.docker.network=traefik"
+      # - "traefik.http.routers.notes-courier.rule=Host(`notes-courier.test`)"
+      # - "traefik.http.routers.notes-courier.middlewares=http-redirect-https@file,headers@file"
+      # - "traefik.http.routers.notes-courier-secure.entrypoints=https"
+      # - "traefik.http.routers.notes-courier-secure.rule=Host(`notes-courier.test`)"
+      # - "traefik.http.routers.notes-courier-secure.middlewares=headers@file"
+      # - "traefik.http.routers.notes-courier-secure.tls=true"
+    # networks:
+      # - traefik
