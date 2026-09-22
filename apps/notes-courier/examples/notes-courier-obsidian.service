@@ -1,0 +1,15 @@
+[Unit]
+Description=Export Simplenote notes into an Obsidian vault
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/.config/notes-courier-obsidian
+ExecStart=%h/.local/bin/notes-courier
+Restart=on-failure
+RestartSec=30
+UMask=0077
+
+[Install]
+WantedBy=default.target

@@ -7,6 +7,7 @@ MAKEFLAGS += --no-builtin-rules
 # Set default goal such that `make` runs `make help`
 .DEFAULT_GOAL := help
 
+# An app exists only after it has app.yaml. Ignore incomplete work directories.
 APPS := $(sort $(patsubst apps/%/app.yaml,%,$(wildcard apps/*/app.yaml)))
 APP ?= golang-starter
 PACKAGE ?=
