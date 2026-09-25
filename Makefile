@@ -7,7 +7,8 @@ MAKEFLAGS += --no-builtin-rules
 # Set default goal such that `make` runs `make help`
 .DEFAULT_GOAL := help
 
-APPS := $(shell find apps -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort)
+# An app exists only after it has app.yaml. Ignore incomplete work directories.
+APPS := $(sort $(patsubst apps/%/app.yaml,%,$(wildcard apps/*/app.yaml)))
 APP ?= golang-starter
 PACKAGE ?=
 # Release bump type for `make release` (major | minor | patch)

@@ -1,0 +1,18 @@
+---
+name: notes-courier
+binary: notes-courier
+path: apps/notes-courier
+mainPath: apps/notes-courier
+description: "Move notes from Simplenote, Memos, or Obsidian to Memos, Obsidian, Hugo, or go-vite"
+shortDescription: "Move notes between note platforms"
+goImage: golang:1.27.1-trixie
+distrolessImage: gcr.io/distroless/static-debian13:nonroot
+# cgoEnabled defaults to false. When true, builds use CGO_ENABLED=1, the runtime
+# image becomes glibc-capable (debian:trixie-slim / distroless base-debian), and
+# GoReleaser is trimmed to the native linux/amd64 platform.
+cgoEnabled: false
+# runtimeImage (optional) overrides the runtime base for the non-distroless
+# Dockerfile. Defaults to "scratch", or "debian:trixie-slim" when cgoEnabled is true.
+# runtimeImage: debian:trixie-slim
+# port (optional) is EXPOSEd in the generated Dockerfiles when set.
+# port: 8081
