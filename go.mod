@@ -18,8 +18,8 @@ require (
 	github.com/gin-contrib/location v1.0.3
 	github.com/gin-gonic/gin v1.12.0
 	github.com/glebarez/sqlite v1.11.0
-	github.com/go-echarts/go-echarts/v2 v2.7.2
-	github.com/go-git/go-billy/v5 v5.9.1
+	github.com/go-echarts/go-echarts/v2 v2.7.3
+	github.com/go-git/go-billy/v5 v5.9.2
 	github.com/go-git/go-git/v5 v5.19.2
 	github.com/go-telegram-bot-api/telegram-bot-api v4.6.4+incompatible
 	github.com/gobeam/stringy v0.0.7
