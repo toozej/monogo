@@ -9,7 +9,7 @@ Podgrab is a self-hosted podcast manager written in Go that automatically
 downloads podcast episodes. It's built as a lightweight web application with a
 Go backend and HTML template frontend.
 
-**Stack**: Go 1.15+, Gin web framework, GORM with SQLite, HTML templates,
+**Stack**: Go 1.27.2+, Gin web framework, GORM with SQLite, HTML templates,
 WebSockets for real-time updates, Uber Zap structured logging
 
 ## Development Commands

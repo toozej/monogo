@@ -67,7 +67,7 @@ install_tools() {
 }
 
 update_tools() {
-	local name package module version latest updated=false
+	local name package module version latest latest_info latest_time current_time updated=false
 	local temp
 	temp="$(mktemp)"
 	trap 'rm -f "${temp}"' EXIT
@@ -80,10 +80,21 @@ update_tools() {
 
 		# `-mod=mod` so the network `@latest` query still works when a vendor/
 		# directory is present (Go otherwise defaults to -mod=vendor and refuses).
-		latest="$(go list -mod=mod -m -f '{{.Version}}' "${module}@latest")"
+		latest_info="$(go list -mod=mod -m -json "${module}@latest")"
+		latest="$(jq -r '.Version // empty' <<<"${latest_info}")"
 		if [[ -z "${latest}" ]]; then
 			echo "could not resolve latest version for ${module}" >&2
 			exit 1
+		fi
+		# A pinned development commit can be newer than the latest release.
+		# Keep that commit until a release is published after it.
+		if [[ "${latest}" != "${version}" && "${version}" == *-* ]]; then
+			latest_time="$(jq -r '.Time // empty' <<<"${latest_info}")"
+			current_time="$(go list -mod=mod -m -json "${module}@${version}" | jq -r '.Time // empty')"
+			if [[ -n "${current_time}" && -n "${latest_time}" && "${current_time}" > "${latest_time}" ]]; then
+				echo "Keeping ${name}: ${version} is newer than ${latest}"
+				latest="${version}"
+			fi
 		fi
 		if [[ "${latest}" != "${version}" ]]; then
 			echo "Updating ${name}: ${version} -> ${latest}"

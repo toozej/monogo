@@ -66,7 +66,7 @@ volumes:
 
 ### From Source
 
-**Prerequisites**: Go 1.26+, Make
+**Prerequisites**: Go 1.27.2+, Make
 
 ```bash
 # Clone repository
@@ -132,7 +132,7 @@ Configure via the web UI at `http://localhost:8080/settings`:
 
 ### Prerequisites
 
-- Go 1.26 or higher
+- Go 1.27.2 or higher
 - Make (build automation)
 - Chrome/Chromium (for E2E tests)
 - pre-commit (for code quality hooks)
@@ -210,7 +210,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
 
 ## Technology Stack
 
-- **Backend**: Go 1.26+
+- **Backend**: Go 1.27.2+
 - **Web Framework**: Gin
 - **Database**: GORM with SQLite
 - **Templating**: Go HTML templates

@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Go 1.25+
+- Go 1.27.2+
 - Make
 - Docker (optional)
 

@@ -19,7 +19,7 @@ rss2socials is a CLI tool that monitors an RSS feed for new posts and automatica
 
 ## Installation
 ### Prerequisites
-- Go (version 1.26 or later)
+- Go (version 1.27.2 or later)
 - SQLite for database management
 - Make
 
