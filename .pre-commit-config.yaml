@@ -82,6 +82,8 @@ repos:
       # inputs) that the Go toolchain ignores; the per-file hooks below would
       # otherwise try to parse/format them and fail.
       - id: go-critic
+        # These checks report false positives across imported apps with Go 1.27.
+        args: ["-disable=sloppyTypeAssert,caseOrder,appendAssign"]
         exclude: '(^|/)testdata/'
       # disabled until https://github.com/orijtech/structslop/pull/63 is merged
       # - id: go-structslop-mod
