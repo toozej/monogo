@@ -11,9 +11,7 @@ should be easy to figure out the steps for your specific distro.
 
 ## Install Go
 
-Podgrab is built using Go which would be needed to compile and build the source
-code. Podgrab is written with Go 1.16 so any version equal to or above this
-should be good to Go.
+This repository requires Go 1.27.2 or later to build Podgrab from source.
 
 If you already have Go installed on your machine, you can skip to the next step.
 

@@ -8,7 +8,7 @@ including component interactions, data flow, and key design decisions.
 Podgrab is a self-hosted podcast manager built as a monolithic web application
 with the following characteristics:
 
-- **Backend**: Go 1.15+ with Gin web framework
+- **Backend**: Go 1.27.2+ with Gin web framework
 - **Database**: SQLite with GORM ORM
 - **Frontend**: Server-side HTML templates with minimal JavaScript
 - **Background Jobs**: Scheduled tasks using gocron

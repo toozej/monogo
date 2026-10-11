@@ -236,7 +236,7 @@ func writeFileAtomically(finalPath string, contents io.Reader) (returnErr error)
 	temporaryPath := temporary.Name()
 	defer func() {
 		if returnErr != nil {
-			_ = os.Remove(temporaryPath)
+			_ = os.Remove(temporaryPath) // #nosec G703 -- os.CreateTemp returned this path
 		}
 	}()
 
@@ -247,7 +247,7 @@ func writeFileAtomically(finalPath string, contents io.Reader) (returnErr error)
 	if err = temporary.Close(); err != nil {
 		return err
 	}
-	if err = os.Rename(temporaryPath, finalPath); err != nil {
+	if err = os.Rename(temporaryPath, finalPath); err != nil { // #nosec G703 -- callers validate finalPath; os.CreateTemp returned temporaryPath
 		return err
 	}
 	return nil

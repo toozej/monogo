@@ -1,50 +1,65 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-if ! command -v go > /dev/null 2>&1; then
-    echo "Golang not installed, exiting"
+if [[ $# -ne 1 || ! $1 =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "usage: $0 <Go version, for example 1.27.2>" >&2
+    exit 2
+fi
+
+if ! command -v go >/dev/null 2>&1; then
+    echo "Go is required to update go.mod" >&2
     exit 1
 fi
 
-# Detect operating system
-OS=$(uname -s)
+repo_root=$(git rev-parse --show-toplevel)
+cd "${repo_root}"
 
-# Set the sed command based on OS
-if [[ "$OS" == "Darwin" ]]; then
-    # macOS
-    SED_CMD="gsed -i -e"
-    XARGS_CMD="gxargs"
+new_version=$1
+old_version=$(awk '$1 == "go" { print $2; exit }' go.mod)
+if [[ -z ${old_version} ]]; then
+    echo "go.mod has no Go version" >&2
+    exit 1
+fi
+
+# GNU sed uses the same in-place syntax on Linux and macOS.
+if [[ $(uname -s) == Darwin ]]; then
+    sed_command="gsed"
 else
-    # Linux and others
-    SED_CMD="sed -i -e"
-    XARGS_CMD="xargs"
+    sed_command="sed"
 fi
 
-OLD_GOLANG_VERSION=$(grep -E "^go " go.mod | awk '{print $2}')
-NEW_GOLANG_VERSION="${1}"
-GIT_REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
-FILES_NEEDING_UPDATES=$(find "${GIT_REPO_ROOT}" \
-    \( -path "${GIT_REPO_ROOT}/.git" -o -path "${GIT_REPO_ROOT}/vendor" -o -type d -name '.monogo' \) -prune -o \
-    -type f \( \
-        -name '*.yaml' -o \
-        -name '*.yml' -o \
-        -name 'Dockerfile*' -o \
-        -name '*.md' -o \
-        -name '*.sh' \
-    \) -print)
-
-if [[ "${OLD_GOLANG_VERSION}" == "${NEW_GOLANG_VERSION}" ]]; then
-    echo "No update needed, already on latest Golang version ${NEW_GOLANG_VERSION}"
-    exit 0
+if [[ ${old_version} != "${new_version}" ]]; then
+    go mod edit -go="${new_version}"
 fi
 
-# we need to be at repo root to adjust go.mod
-cd "${GIT_REPO_ROOT}" || exit 1
+# Change tracked active files. Preserve historical imports under .monogo and
+# tool versions that happen to contain the old Go version number.
+old_pattern=${old_version//./[.]}
+while IFS= read -r -d '' file; do
+    case ${file} in
+        apps/*/.monogo/*) continue ;;
+        *.yaml|*.yml|*Dockerfile*|*.md|*.sh) ;;
+        *) continue ;;
+    esac
 
-# shellcheck disable=SC2086
-go mod edit -go=${NEW_GOLANG_VERSION}
+    if grep -Fq "${old_version}" "${file}"; then
+        "${sed_command}" -i -e "s/${old_pattern}/${new_version}/g" "${file}"
+    fi
 
-# Update active configuration, documentation, and import templates. `go mod
-# edit` above updates go.mod, so this file list excludes it.
-# shellcheck disable=SC2086
-grep -Fl "${OLD_GOLANG_VERSION}" ${FILES_NEEDING_UPDATES} | ${XARGS_CMD} -r ${SED_CMD} "s/${OLD_GOLANG_VERSION//./[.]}/${NEW_GOLANG_VERSION}/g"
+    # Some active guides have an older minimum version than go.mod.
+    if [[ ${file} == *.md ]]; then
+        "${sed_command}" -i -E \
+            -e "s/(Go[[:space:]]+)[0-9]+[.][0-9]+([.][0-9]+)?/\1${new_version}/g" \
+            -e "s/(Go[[:space:]]+\(version[[:space:]]+)[0-9]+[.][0-9]+([.][0-9]+)?/\1${new_version}/g" \
+            -e "s/(Go[[:space:]]+[Vv]ersion:[*]*[[:space:]]*)[0-9]+[.][0-9]+([.][0-9]+)?/\1${new_version}/g" \
+            "${file}"
+    fi
+done < <(git ls-files -z)
+
+# The dev container can have an older Go image than go.mod.
+devcontainer_config=.devcontainer/devcontainer.json
+if [[ -f ${devcontainer_config} ]]; then
+    "${sed_command}" -i -E \
+        "s#(\"GO_IMAGE\"[[:space:]]*:[[:space:]]*\"golang:)[0-9]+[.][0-9]+([.][0-9]+)?(-[^\"]+\")#\1${new_version}\3#" \
+        "${devcontainer_config}"
+fi
