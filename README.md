@@ -205,6 +205,20 @@ git push origin apps/url2anki/v0.1.0
 
 Before releasing, validate the GoReleaser config and build a snapshot locally with `make release-test APP=url2anki`.
 
+### Automatic releases for Go dependency updates
+
+When root `go.mod` or `go.sum` changes are pushed to `main`, the
+`Release Go dependency updates` workflow runs `make release-all TYPE=patch`.
+The target tests and bumps each previously released app's patch version, then
+pushes its app tag to trigger the existing Release workflow. Apps with no previous
+release are skipped, matching the existing `release-all` behavior.
+
+The workflow reuses `AUTOUPDATE_APP_ID` and `AUTOUPDATE_APP_PRIVATE_KEY`. That
+GitHub App needs **Contents: write** on this repository so its tag pushes trigger
+release builds. Runs are serialized without cancelling an active release, and
+tags point to the dependency update commit. Re-running a completed run creates
+another patch release for each app.
+
 ### Delete a bad release
 
 To remove a release that was published in error (wrong version, broken assets, an old checksum-mismatched cask, etc.):
