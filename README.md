@@ -109,8 +109,10 @@ It retains lychee's default exclusions for reserved example domains.
 Two exact URLs in `apps/RSSFFS/CREDITS.md` are excluded because they require
 browser challenges: Stack Overflow answer `60675491` and the Golang Cafe
 article about dependency upgrades. Both sources were verified on 2026-10-13.
-The exact Substack article URL in `apps/go-sort-out-gh-actions/SECURITY_SCAN.md`
-is also excluded. It loads locally but returns HTTP 403 to GitHub Actions.
+The exact Substack and Datadog article URLs in
+`apps/go-sort-out-gh-actions/SECURITY_SCAN.md` are also excluded. Both load
+locally. Substack returns HTTP 403 to GitHub Actions, and Datadog connections
+failed in two GitHub Actions runs recorded in `.lychee.toml`.
 The exclusions preserve attribution without accepting HTTP failures for other
 URLs. Review these exceptions when either site changes its access policy.
 It does not accept HTTP error codes or exclude entire public hosts.

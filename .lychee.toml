@@ -18,10 +18,14 @@ include_verbatim = false
 # Stack Overflow returns Cloudflare's 403 challenge; Golang Cafe returns
 # Vercel's 429 challenge. Keep the citations and exclude only these exact URLs.
 # The Substack article is available locally but returns 403 to GitHub Actions.
+# The Datadog article returns 200 locally, but connections failed in two CI runs:
+# https://github.com/toozej/monogo/actions/runs/38441048214
+# https://github.com/toozej/monogo/actions/runs/38444721520
 exclude = [
     '^https://stackoverflow\.com/a/60675491$',
     '^https://golang\.cafe/blog/how-to-upgrade-golang-dependencies$',
     '^https://2amsecurity\.substack\.com/p/threat-modeling-github-how-vulnerable$',
+    '^https://securitylabs\.datadoghq\.com/articles/case-for-github-actions-security/$',
 ]
 
 # These paths contain downloaded styles, tools, dependencies, build output,
