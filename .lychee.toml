@@ -1,0 +1,19 @@
+# Check Markdown links with bounded concurrency and retries.
+timeout = 20
+max_retries = 2
+retry_wait_time = 2
+max_concurrency = 8
+host_concurrency = 2
+host_request_interval = "100ms"
+no_progress = true
+cache = false
+
+# Local server examples require services that do not run in documentation CI.
+exclude_loopback = true
+# Email delivery and addresses inside code examples are outside this check.
+include_mail = false
+include_verbatim = false
+
+# These paths contain downloaded styles, tools, dependencies, build output,
+# or archived import metadata. scripts/check-docs.sh also filters input paths.
+exclude_path = ['(^|/)(\.vale|\.tools|\.monogo|vendor|node_modules|dist)/']

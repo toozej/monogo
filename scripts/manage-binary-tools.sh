@@ -46,44 +46,67 @@ asset_for_platform() {
 }
 
 install_tools() {
-	local requested name repository version linux_amd64 linux_arm64 darwin_amd64 darwin_arm64
+	local requested name repository version linux_amd64 linux_arm64 darwin_amd64 darwin_arm64 member
 	for requested in "$@"; do
 		require_tool "${requested}"
 	done
 
 	mkdir -p "${TOOLS_BIN}" "${TOOLS_BIN}/.stamps"
-	while IFS=$'\t' read -r name repository version linux_amd64 linux_arm64 darwin_amd64 darwin_arm64 || [[ -n "${name}" ]]; do
+	while IFS=$'\t' read -r name repository version linux_amd64 linux_arm64 darwin_amd64 darwin_arm64 member || [[ -n "${name}" ]]; do
 		if [[ -z "${name}" || "${name}" == \#* ]] || ! is_selected "${name}" "$@"; then
 			continue
 		fi
 
+		local asset archive stamp_contents
+		asset="$(asset_for_platform "${linux_amd64}" "${linux_arm64}" "${darwin_amd64}" "${darwin_arm64}")"
+		# Release filenames can contain the version without its leading v.
+		asset="${asset//\{version\}/${version#v}}"
+		archive="${asset%.tar.gz}"
+		archive="${archive%.tgz}"
+		archive="${archive%.zip}"
+		member="${member//\{archive\}/${archive}}"
 		local stamp="${TOOLS_BIN}/.stamps/${name}"
+		stamp_contents="${repository}@${version} ${asset} ${member:--}"
 		if [[ -x "${TOOLS_BIN}/${name}" && -f "${stamp}" \
-			&& "$(cat "${stamp}")" == "${repository}@${version}" ]]; then
+			&& "$(cat "${stamp}")" == "${stamp_contents}" ]]; then
 			echo "Skipping ${name} (${repository}@${version} already installed)"
 			continue
 		fi
 
-		local asset temporary
-		asset="$(asset_for_platform "${linux_amd64}" "${linux_arm64}" "${darwin_amd64}" "${darwin_arm64}")"
-		temporary="${TOOLS_BIN}/.${name}.tmp"
 		echo "Installing ${name} (${repository}@${version})"
-		curl --fail --show-error --location "https://github.com/${repository}/releases/download/${version}/${asset}" -o "${temporary}"
-		chmod 0755 "${temporary}"
-		"${temporary}" --version
-		mv "${temporary}" "${TOOLS_BIN}/${name}"
-		printf '%s@%s\n' "${repository}" "${version}" >"${stamp}"
+		# A subshell gives each download its own cleanup trap. Extract only the
+		# configured member to stdout, never arbitrary archive paths to disk.
+		(
+			set -euo pipefail
+			temporary="$(mktemp -d "${TOOLS_BIN}/.${name}.XXXXXX")"
+			trap 'rm -rf "${temporary}"' EXIT
+			curl --fail --silent --show-error --location --retry 3 --connect-timeout 20 \
+				"https://github.com/${repository}/releases/download/${version}/${asset}" -o "${temporary}/download"
+			if [[ -z "${member}" || "${member}" == - ]]; then
+				mv "${temporary}/download" "${temporary}/binary"
+			else
+				case "${asset}" in
+					*.tar.gz|*.tgz) tar -xzOf "${temporary}/download" "${member}" >"${temporary}/binary" ;;
+					*.zip) unzip -p "${temporary}/download" "${member}" >"${temporary}/binary" ;;
+					*) echo "unsupported release archive: ${asset}" >&2; exit 1 ;;
+				esac
+			fi
+			chmod 0755 "${temporary}/binary"
+			"${temporary}/binary" --version
+			mv "${temporary}/binary" "${TOOLS_BIN}/${name}"
+			printf '%s\n' "${stamp_contents}" >"${stamp}"
+		)
 	done <"${MANIFEST}"
 }
 
 update_tools() {
-	local name repository version linux_amd64 linux_arm64 darwin_amd64 darwin_arm64 latest updated=false
+	local name repository version linux_amd64 linux_arm64 darwin_amd64 darwin_arm64 member latest updated=false
 	temporary="$(mktemp)"
 	trap 'rm -f "${temporary}"' EXIT
 
-	while IFS=$'\t' read -r name repository version linux_amd64 linux_arm64 darwin_amd64 darwin_arm64 || [[ -n "${name}" ]]; do
+	while IFS=$'\t' read -r name repository version linux_amd64 linux_arm64 darwin_amd64 darwin_arm64 member || [[ -n "${name}" ]]; do
 		if [[ -z "${name}" || "${name}" == \#* ]]; then
-			printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "${name}" "${repository}" "${version}" "${linux_amd64}" "${linux_arm64}" "${darwin_amd64}" "${darwin_arm64}" >>"${temporary}"
+			printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "${name}" "${repository}" "${version}" "${linux_amd64}" "${linux_arm64}" "${darwin_amd64}" "${darwin_arm64}" "${member}" >>"${temporary}"
 			continue
 		fi
 
@@ -102,7 +125,7 @@ update_tools() {
 			version="${latest}"
 			updated=true
 		fi
-		printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "${name}" "${repository}" "${version}" "${linux_amd64}" "${linux_arm64}" "${darwin_amd64}" "${darwin_arm64}" >>"${temporary}"
+		printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "${name}" "${repository}" "${version}" "${linux_amd64}" "${linux_arm64}" "${darwin_amd64}" "${darwin_arm64}" "${member}" >>"${temporary}"
 	done <"${MANIFEST}"
 
 	mv "${temporary}" "${MANIFEST}"

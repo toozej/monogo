@@ -10,6 +10,8 @@ MAKEFLAGS += --no-builtin-rules
 APPS := $(sort $(patsubst apps/%/app.yaml,%,$(wildcard apps/*/app.yaml)))
 APP ?= golang-starter
 PACKAGE ?=
+# Optional Markdown file for docs-check. Empty or missing paths check all docs.
+export FILE ?=
 # Release bump type for `make release` (major | minor | patch)
 TYPE ?= patch
 APP_DIR = apps/$(APP)
@@ -40,7 +42,7 @@ BINARY_TOOL_MANIFEST ?= $(CURDIR)/tools/binary-tools.tsv
 GO_VERSION := $(shell awk '$$1 == "go" { print $$2; exit }' go.mod)
 # The Go directive may be a language version (for example, 1.27). Toolchain
 # names require a patch component, so use the first release in that series.
-GO_TOOLCHAIN := $(shell awk '$$1 == "go" { count = split($$2, version, "."); printf "go%s%s\n", $$2, count == 2 ? ".0" : ""; exit }' go.mod)
+GO_TOOLCHAIN := $(shell awk '$$1 == "go" { count = split($$2, version, "."); printf "go%s%s\n", $$2, (count == 2 ? ".0" : ""); exit }' go.mod)
 # Use the character code for "#" because GNU awk warns that \# is an unknown
 # regexp escape, while an unescaped # would start a Make comment here.
 GO_TOOL_NAMES := $(shell if test -f "$(GO_TOOL_MANIFEST)"; then awk -F '\t' 'NF && substr($$1, 1, 1) != sprintf("%c", 35) { print $$1 }' "$(GO_TOOL_MANIFEST)"; fi)
@@ -103,6 +105,7 @@ COSIGN_OIDC_ISSUER := 'https://token.actions.githubusercontent.com'
 .PHONY: all list-apps app-list import new-app delete-app migrate-internal-package app-check common-generate app-generate swagger-generate generate generate-all app-templates-check templates-check vet test build release release-all delete-release re-release verify verify-checksums verify-docker verify-docker-all-registries run up down docker-vet docker-test docker-build distroless-build distroless-run install local local-all local-update-deps local-vet local-vendor local-test local-cover local-build local-wasm-build wasm-build-all local-run local-kill local-iterate release-test local-install docker-login go-tools-install binary-tools-install binary-tools-update release-tools-install docker-refresh-tools-install ci-release ci-docker-refresh system-tools-install pre-commit-tools-install pre-commit-install pre-commit-update pre-commit-run pre-commit pre-reqs licenses licenses-all update-golang-version upload-secrets-to-gh upload-secrets-envfile-to-1pass docs diagrams mutation-test test-changed watch-test profile-cpu profile-mem profile-all benchmark demo clean clean-all help
 .PHONY: common-generate-no-prereqs app-generate-no-prereqs swagger-generate-no-prereqs generate-no-prereqs generate-all-no-prereqs app-templates-check-no-generate docker-vet-no-generate docker-test-no-generate docker-build-no-generate release-test-no-generate local-no-prereqs local-vet-no-prereqs ci-docker-refresh-no-prereqs pre-commit-install-no-prereqs pre-commit-run-no-generate licenses-no-prereqs licenses-all-no-prereqs
 .PHONY: $(GO_TOOL_INSTALL_TARGETS) $(BINARY_TOOL_INSTALL_TARGETS)
+.PHONY: vale-sync vale lychee docs-check binary-tools-test
 
 all: pre-commit-tools-install ## Run default workflow for every app using Docker where available
 	$(MAKE) generate-all-no-prereqs local-update-deps local-vendor pre-commit-install-no-prereqs pre-commit-run-no-generate licenses-all-no-prereqs
@@ -501,8 +504,23 @@ $(GO_TOOL_INSTALL_TARGETS): %-install:
 
 binary-tools-install: $(BINARY_TOOL_INSTALL_TARGETS) ## Install every binary tool pinned in tools/binary-tools.tsv
 
+binary-tools-test: ## Test binary archive installation and updates without network access
+	scripts/test-binary-tools.sh
+
 $(BINARY_TOOL_INSTALL_TARGETS): %-install:
 	TOOLS_BIN="$(TOOLS_BIN)" BINARY_TOOL_MANIFEST="$(BINARY_TOOL_MANIFEST)" $(BINARY_TOOLS) install $*
+
+vale-sync: vale-install ## Synchronize pinned Vale styles
+	"$(TOOLS_BIN)/vale" sync --config="$(CURDIR)/.vale.ini" --no-global
+
+vale: ## Check Markdown prose with Vale (only errors fail)
+	+TOOLS_BIN="$(TOOLS_BIN)" scripts/check-docs.sh vale
+
+lychee: ## Check Markdown links with lychee
+	+TOOLS_BIN="$(TOOLS_BIN)" scripts/check-docs.sh lychee
+
+docs-check: vale-install lychee-install ## Install tools, sync styles, and check Markdown (optional FILE=path)
+	DOCS_CHECK_FILE="$$FILE" $(MAKE) -k vale lychee
 
 release-tools-install: gomplate-install swag-install goreleaser-install cosign-install syft-install ## Install pinned release tools
 
