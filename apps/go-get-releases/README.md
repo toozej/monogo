@@ -219,6 +219,8 @@ See the [GitHub rate limit guidance](https://docs.github.com/en/rest/using-the-r
 
 ## Daily cron at 04:00
 
+See [EXAMPLES.md](EXAMPLES.md) for a complete cron setup with a repository list, tokens, and a wrapper script.
+
 Build the binary before you add the cron entry.
 Use absolute paths in the cron entry and the YAML configuration.
 Ensure that the cron user can write the destination and log file.
