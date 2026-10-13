@@ -26,6 +26,7 @@ repos:
         language: system
         files: '\.(md|markdown)$'
         require_serial: true
+        verbose: true
       - id: generate-app-configs
         name: Generate app configs with gomplate
         entry: make generate-all

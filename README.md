@@ -102,6 +102,9 @@ prose check. Contractions produce errors. The dictionary rule is disabled.
 Package download failures and configuration errors also fail the check.
 
 `.lychee.toml` sets a 20-second timeout, two retries, and bounded concurrency.
+Lychee runs with `-v -v` to show checked URLs and the redirects it follows.
+The pinned version requires two verbosity flags to display successful redirects.
+The pre-commit hook also displays this output when the check passes.
 Broken local links, HTTP failures, and timeouts fail the link check.
 The configuration excludes loopback URLs because documentation uses local server
 examples. It does not check email addresses or links inside code examples.

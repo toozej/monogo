@@ -66,6 +66,7 @@ case "${checker}" in
 		;;
 	lychee)
 		make --no-print-directory lychee-install TOOLS_BIN="${TOOLS_BIN}"
-		exec "${TOOLS_BIN}/lychee" --config "${ROOT}/.lychee.toml" "${files[@]}"
+		# Two verbosity flags show successful links and their redirect chains.
+		exec "${TOOLS_BIN}/lychee" -v -v --config "${ROOT}/.lychee.toml" "${files[@]}"
 		;;
 esac
