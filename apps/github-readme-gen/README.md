@@ -1,6 +1,6 @@
 ### Hi there 👋
 
-I'm toozej: a DevOps & Infrastructure engineer, audiophile, mountain fiend, photographer, car nerd, ~loud typist~ [mech keyboard enthusiast](https://github.com/toozej/keebs), FOSS-ist, skier, PNW-er. Once in IT, always in IT.
+I am toozej: a DevOps & Infrastructure engineer, audiophile, mountain fiend, photographer, car nerd, ~loud typist~ [mech keyboard enthusiast](https://github.com/toozej/keebs), FOSS-ist, skier, PNW-er. Once in IT, always in IT.
 
 #### 👨💻 Repositories I created recently
 
@@ -10,7 +10,7 @@ I'm toozej: a DevOps & Infrastructure engineer, audiophile, mountain fiend, phot
 - [lego-stego](https://github.com/toozej/lego-stego) - Go-based CLI tool for Steganography
 - [go-sort-out-gh-actions](https://github.com/toozej/go-sort-out-gh-actions) - Find archived, outdated, EOL runtime GitHub Actions in use in GHA Workflows with optional notifications, auto-updates, pinning, and GH Issue creation
 
-#### ⛏️ What I've been working on
+#### ⛏️ What I have been working on
 
 - [toozej/toozej](https://github.com/toozej/toozej) -  (just now)
 - [toozej/tools](https://github.com/toozej/tools) -  (1 day ago)

@@ -383,8 +383,8 @@ Maximum simultaneous episode downloads.
 
 **Considerations:**
 
-- **Network bandwidth**: Don't saturate connection
-- **Storage I/O**: Don't overwhelm disk writes
+- **Network bandwidth**: Do not saturate connection
+- **Storage I/O**: Do not overwhelm disk writes
 - **CPU**: Each download uses some processing
 - **Memory**: Each connection uses memory
 
@@ -625,7 +625,7 @@ Create metadata .nfo files alongside episodes.
 - Enable if: Using media center software
 - Disable if: Not needed (saves disk writes)
 
-#### Don't Re-download Deleted Episodes
+#### Do Not Re-download Deleted Episodes
 
 Skip re-downloading manually deleted episodes.
 

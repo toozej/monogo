@@ -521,7 +521,7 @@ Located in `webassets/`:
 - JavaScript: `webassets/js/`
 - Images: `webassets/images/`
 
-Changes to static files don't require restart.
+Changes to static files do not require restart.
 
 ### JavaScript Development
 
@@ -723,7 +723,7 @@ go mod tidy
 
 ## Contributing Workflow
 
-See [Contributing Guidelines](contributing.md) for detailed contribution
+See the [repository guidelines](../../../../AGENTS.md) for the shared contribution
 process.
 
 ### Quick Start
@@ -736,7 +736,7 @@ process.
 
 ## Related Documentation
 
-- [Contributing Guidelines](contributing.md) - How to contribute
-- [Testing Guide](testing.md) - Testing documentation
+- [Repository Guidelines](../../../../AGENTS.md) - How to contribute
+- [Testing Guide](../testing.md) - Testing documentation
 - [Architecture Overview](../architecture/overview.md) - System architecture
 - [REST API](../api/rest-api.md) - API reference

@@ -12,7 +12,7 @@ Below is a list of various projects and code-snippets used in this RSSFFS repo, 
 ## Golang Module Usage and Upgrading
 - <https://github.com/jaegertracing/jaeger>
 - <https://stackoverflow.com/a/60675491>
-- <https://golang.cafe/blog/how-to-upgrade-golang-dependencies.html>
+- <https://golang.cafe/blog/how-to-upgrade-golang-dependencies>
 
 ## SBOM and Signing
 - <https://carlosbecker.com/posts/goreleaser-cosign/>
@@ -39,7 +39,7 @@ Below is a list of various projects and code-snippets used in this RSSFFS repo, 
 - help text generator
     - <https://marmelab.com/blog/2016/02/29/auto-documented-makefile.html>
 - checkmake
-	- <https://github.com/mrtazz/checkmake/issues/25>
+	- <https://github.com/checkmake/checkmake/issues/25>
 
 ## GitHub Actions
 - generate and auto-commit docs

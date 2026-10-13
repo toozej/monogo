@@ -48,7 +48,7 @@ tap when the fully qualified cask name is used.
 
 `golang-starter` is the starter app in this Go monorepo. It keeps shared repository concerns at the root while each app lives under `apps/<app>`.
 
-The root `go.mod`, `go.sum`, `.pre-commit-config.yaml`, `.devcontainer/`, workflows, scripts, Makefile, and `pkg/` packages are shared. Development-tool versions are isolated in `tools/go-tools.tsv`. App-local Docker and GoReleaser files are generated from `templates/app`; app-local Air and Compose files plus root shared files such as `.env.sample` are generated from `templates/common`.
+The root `go.mod`, `go.sum`, `.pre-commit-config.yaml`, `.devcontainer/`, workflows, scripts, Makefile, and `pkg/` packages are shared. Development-tool versions are pinned in `tools/go-tools.tsv` and `tools/binary-tools.tsv`. App-local Docker and GoReleaser files are generated from `templates/app`; app-local Air and Compose files plus root shared files such as `.env.sample` are generated from `templates/common`.
 
 ## Common Commands
 
@@ -63,6 +63,81 @@ make pre-commit-install
 ```
 
 `APP` defaults to `golang-starter`, so `make test` and `make local-build` work for the starter app.
+
+## Documentation Checks
+
+Vale checks Markdown prose. Its Go package version is pinned in
+`tools/go-tools.tsv` and installed with the shared Go tool installer.
+Lychee checks Markdown links. Its release binary is pinned in
+`tools/binary-tools.tsv` and installed with the shared binary installer.
+Both installers place their tools in `.tools/bin`. Make, pre-commit, and the CI
+`checks` job use these repository-managed tools and the same configuration.
+
+```bash
+make docs-check
+```
+
+This command installs both pinned tools if necessary, synchronizes Vale styles,
+and runs both documentation checks. It runs the link check even when Vale reports
+errors. The command fails if either check fails. No setup targets are required.
+Use `make vale` or `make lychee` to run one check with its required setup.
+
+To check one Markdown file, set `FILE` to a relative or absolute file path:
+
+```bash
+make docs-check FILE=README.md
+make docs-check FILE="docs/my guide.md"
+```
+
+If `FILE` is empty, unset, or does not name an existing file, each check prints a
+message and checks all documentation files. The same exclusions still apply.
+
+Vale synchronizes
+[Syntaf/vale-llm-slop v0.1.0](https://github.com/Syntaf/vale-llm-slop/releases/tag/v0.1.0)
+before every check. Its downloaded `Slop` and `STE` styles reside in `.vale/styles`,
+which Git and documentation checks ignore.
+
+`.vale.ini` reports suggestions and warnings as advice. Only errors fail the
+prose check. Contractions produce errors. The dictionary rule is disabled.
+Package download failures and configuration errors also fail the check.
+
+`.lychee.toml` sets a 20-second timeout, two retries, and bounded concurrency.
+Lychee runs with `-v -v` to show checked URLs and the redirects it follows.
+The pinned version requires two verbosity flags to display successful redirects.
+The pre-commit hook also displays this output when the check passes.
+Broken local links, HTTP failures, and timeouts fail the link check.
+The configuration excludes loopback URLs because documentation uses local server
+examples. It does not check email addresses or links inside code examples.
+It retains lychee's default exclusions for reserved example domains.
+Two exact URLs in `apps/RSSFFS/CREDITS.md` are excluded because they require
+browser challenges: Stack Overflow answer `60675491` and the Golang Cafe
+article about dependency upgrades. Both sources were verified on 2026-10-13.
+The exact Substack and Datadog article URLs in
+`apps/go-sort-out-gh-actions/SECURITY_SCAN.md` are also excluded. Both load
+locally. Substack returns HTTP 403 to GitHub Actions, and Datadog connections
+failed in two GitHub Actions runs recorded in `.lychee.toml`.
+The exclusions preserve attribution without accepting HTTP failures for other
+URLs. Review these exceptions when either site changes its access policy.
+It does not accept HTTP error codes or exclude entire public hosts.
+
+Checks cover tracked Markdown and untracked Markdown that Git does not ignore.
+They exclude downloaded tools and styles, dependencies, build output, and
+archived import metadata under `.monogo`. These exclusions also apply when a
+hook receives an explicit file list. Existing documentation findings must be
+resolved separately from tool installation or configuration failures.
+
+For specific files, use the shared check script or the local pre-commit hooks:
+
+```bash
+scripts/check-docs.sh vale README.md
+scripts/check-docs.sh lychee README.md
+pre-commit run vale --files README.md
+pre-commit run lychee --files README.md
+```
+
+The hooks check the Markdown files that pre-commit selects. CI runs both full
+documentation checks as separate Make steps and skips duplicate hook runs.
+The first installation and each Vale style synchronization require network access.
 
 ## Dev Container
 

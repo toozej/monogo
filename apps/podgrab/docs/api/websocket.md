@@ -471,13 +471,13 @@ const ws = new WebSocket('ws://localhost:8080/ws', {
 });
 ```
 
-**Note:** Browser WebSocket API doesn't support custom headers. For
+**Note:** Browser WebSocket API does not support custom headers. For
 authenticated connections, use authenticated HTTP session or query parameters.
 
 ### Data Validation
 
 - All message payloads are JSON-parsed on server
-- Invalid JSON payloads are logged but don't crash server
+- Invalid JSON payloads are logged but do not crash server
 - Client should validate received data before processing
 
 ## Use Cases

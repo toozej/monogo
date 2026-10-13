@@ -60,7 +60,16 @@ jobs:
       - name: Generate all app configs
         run: make generate-all
       - name: Run pre-commit and vulnerability checks
+        # Dedicated steps below report documentation findings separately.
+        env:
+          SKIP: vale,lychee
         run: make pre-commit-run-no-generate
+      - name: Check Markdown prose with Vale
+        if: ${{ !cancelled() }}
+        run: make vale
+      - name: Check Markdown links with lychee
+        if: ${{ !cancelled() }}
+        run: make lychee
 
   test:
     runs-on: ubuntu-latest

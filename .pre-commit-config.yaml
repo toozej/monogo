@@ -6,12 +6,27 @@ minimum_pre_commit_version: "1.15"
 # apps/<app>/.monogo/. Those archival files are not part of the active build, so
 # exclude them from all hooks (the *-mod Go hooks would otherwise try to lint and
 # test the empty preserved module and fail).
-exclude: '(^|/)\.monogo/'
+# Vale downloads style packages under .vale/ before it checks documentation.
+exclude: '(^|/)(\.monogo|\.vale)/'
 
 repos:
-  # generate app-local config files from gomplate templates before linting them
+  # Use repository tools for docs and generate app configs before linting them.
   - repo: local
     hooks:
+      - id: vale
+        name: Check Markdown prose with Vale
+        entry: scripts/check-docs.sh vale
+        language: system
+        files: '\.(md|markdown)$'
+        require_serial: true
+        verbose: true
+      - id: lychee
+        name: Check Markdown links with lychee
+        entry: scripts/check-docs.sh lychee
+        language: system
+        files: '\.(md|markdown)$'
+        require_serial: true
+        verbose: true
       - id: generate-app-configs
         name: Generate app configs with gomplate
         entry: make generate-all

@@ -6,7 +6,7 @@ episodes.
 [![Build Status](https://img.shields.io/github/actions/workflow/status/toozej/monogo/ci.yaml)](https://github.com/toozej/monogo/actions/workflows/ci.yaml)
 [![License](https://img.shields.io/github/license/toozej/monogo)](LICENSE)
 [![Docker Pulls](https://img.shields.io/docker/pulls/toozej/podgrab)](https://hub.docker.com/r/toozej/podgrab)
-[![Go Version](https://img.shields.io/github/go-mod/go-version/toozej/monogo)](https://github.com/toozej/monogo/blob/main/apps/podgrab/go.mod)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/toozej/monogo)](https://github.com/toozej/monogo/blob/main/go.mod)
 
 <img src="img/avatar.png" alt="podgrab avatar" style="background-color: #FFFFFF;" />
 
@@ -101,7 +101,7 @@ make docker-login            # Login to container registries
 make install                 # Install from latest GitHub release
 ```
 
-For a complete list of targets, run `make help` or see the [Makefile](Makefile).
+For a complete list of targets, run `make help` or see the [Makefile](../../Makefile).
 
 ## Configuration
 
@@ -194,14 +194,14 @@ All code changes must pass:
 - `pre-commit` hooks (25 automated checks)
 - Test coverage thresholds (85%+ overall)
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
+See [Contributing workflow](docs/development/setup.md#contributing-workflow) for contribution guidelines.
 
 ## Documentation
 
 - **[Documentation Index](docs/readme.md)**: Complete documentation navigation
 - **[Testing Guide](docs/testing.md)**: Comprehensive testing documentation
 - **[CI/CD Guide](docs/ci-cd.md)**: GitHub Actions workflows and automation
-- **[Contributing](CONTRIBUTING.md)**: How to contribute to Podgrab
+- **[Contributing](docs/development/setup.md#contributing-workflow)**: How to contribute to Podgrab
 - **[Logging Guide](internal/logger/README.md)**: Structured logging
   documentation
 - **Swagger API Documentation**: Interactive REST API reference at
@@ -222,9 +222,9 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/toozej/monogo/apps/podgrab/issues)
+- **Issues**: [GitHub Issues](https://github.com/toozej/monogo/issues)
 - **Discussions**:
-  [GitHub Discussions](https://github.com/toozej/monogo/apps/podgrab/discussions)
+  [Upstream GitHub Discussions](https://github.com/akhilrex/podgrab/discussions)
 
 ## Credits
 

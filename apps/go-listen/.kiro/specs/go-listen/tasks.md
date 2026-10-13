@@ -30,7 +30,7 @@
 - [x] 3. Create playlist management system
   - [x] 3.1 Implement "Incoming" folder playlist retrieval
     - Create method to fetch playlists from "Incoming" folder
-    - Handle cases where "Incoming" folder doesn't exist
+    - Handle cases where "Incoming" folder does not exist
     - Add playlist filtering and search functionality
     - Write unit tests for playlist retrieval and filtering
     - _Requirements: 2.1, 2.2, 2.4_
@@ -178,7 +178,7 @@
     - _Requirements: All requirements through final integration_
 
     - [x] 11.3 Document API and test functionality
-    - Write REST API documentation in [API Documentation](docs/api.md)
+    - Write REST API documentation in [API Documentation](../../../docs/api.md)
     - Test complete application functionality
     - _Requirements: All requirements through final integration_
 - [-] 12. Utilize github.com/zmb3/spotify/v2 library for core Spotify functionality

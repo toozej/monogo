@@ -418,7 +418,7 @@ graph TB
 
 ### Current Limitations
 
-- **Single instance**: SQLite doesn't support multiple writers
+- **Single instance**: SQLite does not support multiple writers
 - **File storage**: Local filesystem only
 - **No caching layer**: Direct database queries
 - **Memory-bound**: All operations in-process

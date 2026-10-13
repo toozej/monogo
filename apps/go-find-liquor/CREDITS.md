@@ -4,7 +4,7 @@
 - https://raw.githubusercontent.com/toozej/golang-starter/main/CREDITS.md
 
 ## Oregon Liquor Search
-- http://www.oregonliquorsearch.com
+- https://www.oregonliquorsearch.com/
 - https://github.com/adumbgreen/oregon-liquor-search/blob/main/main.py
 
 ## LLM

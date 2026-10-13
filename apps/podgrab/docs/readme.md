@@ -40,7 +40,7 @@ architecture, deployment, API usage, and development.
 
 - **[Development Setup](development/setup.md)** - Setting up your development
   environment
-- **[Contributing Guide](../CONTRIBUTING.md)** - How to contribute to Podgrab
+- **[Contributing Guide](development/setup.md#contributing-workflow)** - How to contribute to Podgrab
 - **[Logging Guide](../internal/logger/README.md)** - Structured logging with
   Uber Zap
 
@@ -67,7 +67,7 @@ Contributing to Podgrab? Check these docs:
 1. [System Design](architecture/system-design.md) - Understand the codebase
    architecture
 1. [Development Setup](development/setup.md) - Set up your dev environment
-1. [Contributing Guide](../CONTRIBUTING.md) - Learn our development workflow
+1. [Contributing Guide](development/setup.md#contributing-workflow) - Learn our development workflow
 1. [Testing Guide](testing.md) - Testing strategies and coverage requirements
 1. [CI/CD Guide](ci-cd.md) - GitHub Actions workflows and automation
 1. [REST API](api/rest-api.md) - Understand the API endpoints
@@ -75,12 +75,12 @@ Contributing to Podgrab? Check these docs:
 ## 📖 Additional Resources
 
 - **[Main README](../README.md)** - Project overview and quick start
-- **[CLAUDE.md](../CLAUDE.md)** - AI assistant guide for working with this
+- **[AGENTS.md](../AGENTS.md)** - AI assistant guide for working with this
   codebase
 
 ## 🔍 Navigation Tips
 
-- All diagrams use [Mermaid](https://mermaid.js.github.io/) for easy rendering
+- All diagrams use [Mermaid](https://mermaid.js.org/) for easy rendering
   on GitHub
 - Code examples are tested against the current codebase
 - Each document includes links to related documentation

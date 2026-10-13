@@ -64,7 +64,7 @@ make up
 
     **Getting YouTube Music browser headers:**
 
-    1. Open [music.youtube.com](https://music.youtube.com) and ensure you're logged in
+    1. Open [music.youtube.com](https://music.youtube.com) and ensure you are logged in
     2. Open your browser's developer tools:
        - **Firefox**: `Ctrl+Shift+I` / `Cmd+Opt+I` → Network tab
        - **Chrome**: `Ctrl+Shift+I` / `Cmd+Opt+I` → Network tab
@@ -239,7 +239,7 @@ docker run --rm \
   toozej/kmhd2playlist:latest sync --continuous
 ```
 
-This ensures your authentication persists between container restarts and you won't need to re-authenticate every time.
+This ensures your authentication persists between container restarts and you will not need to re-authenticate every time.
 
 ## 🔧 Advanced Configuration
 

@@ -10,7 +10,7 @@ All API requests are relative to your Podgrab installation's base URL:
 http://localhost:8080
 ```
 
-If you've configured a `PASSWORD` environment variable, all endpoints require
+If you have configured a `PASSWORD` environment variable, all endpoints require
 HTTP Basic Authentication:
 
 - Username: `podgrab`
@@ -136,7 +136,7 @@ GET /podcasts/:id
 GET /podcasts/:id/image
 ```
 
-Returns the podcast cover image. Redirects to original URL if local copy doesn't
+Returns the podcast cover image. Redirects to original URL if local copy does not
 exist.
 
 **Response:** Image file (JPEG/PNG)
@@ -326,7 +326,7 @@ GET /podcastitems/:id
 GET /podcastitems/:id/image
 ```
 
-Returns the episode artwork. Redirects to original URL if local copy doesn't
+Returns the episode artwork. Redirects to original URL if local copy does not
 exist.
 
 **Response:** Image file (JPEG/PNG)

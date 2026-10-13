@@ -330,7 +330,7 @@ func runServeCommand(cmd *cobra.Command, args []string) {
 
 ### Spotify Authentication
 
-Since this is an internal service without user authentication requirements, we'll use Spotify's Client Credentials flow for app-only authentication:
+Since this is an internal service without user authentication requirements, we will use Spotify's Client Credentials flow for app-only authentication:
 
 1. Configure Spotify app credentials in environment variables
 2. Obtain access token on startup for immediate service availability
