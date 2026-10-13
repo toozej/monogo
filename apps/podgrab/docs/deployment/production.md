@@ -277,7 +277,9 @@ podgrab.example.com {
 
 ## SSL/TLS Configuration
 
+<!-- vale STE.Contractions = NO -->
 ### Let's Encrypt with Certbot
+<!-- vale STE.Contractions = YES -->
 
 #### Initial Setup
 
@@ -715,7 +717,7 @@ ignoreregex =
 
 ### Load Balancing (Read-Only)
 
-**Note:** Podgrab uses SQLite which doesn't support multiple writers. Read-only
+**Note:** Podgrab uses SQLite which does not support multiple writers. Read-only
 replicas possible:
 
 ```mermaid

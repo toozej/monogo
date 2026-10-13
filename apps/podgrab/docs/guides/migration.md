@@ -2,7 +2,7 @@
 
 Migrate podcast files and database from
 [akhilrex/podgrab](https://github.com/akhilrex/podgrab) to
-[toozej/podgrab](https://github.com/toozej/monogo/apps/podgrab).
+[Podgrab in monogo](https://github.com/toozej/monogo/tree/main/apps/podgrab).
 
 ## Overview
 
@@ -217,4 +217,4 @@ service inherits the same volume paths as the main `podgrab` service.
 - [Docker Deployment](../deployment/docker.md) - Docker and Docker Compose
   setup
 - [Configuration Guide](configuration.md) - Filename format settings
-- [Scripts README](../../scripts/README.md) - Project utility scripts
+- [Scripts README](../../../../scripts/README.md) - Project utility scripts

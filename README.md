@@ -106,7 +106,14 @@ Broken local links, HTTP failures, and timeouts fail the link check.
 The configuration excludes loopback URLs because documentation uses local server
 examples. It does not check email addresses or links inside code examples.
 It retains lychee's default exclusions for reserved example domains.
-It does not accept HTTP error codes or suppress failures for public hosts.
+Two exact URLs in `apps/RSSFFS/CREDITS.md` are excluded because they require
+browser challenges: Stack Overflow answer `60675491` and the Golang Cafe
+article about dependency upgrades. Both sources were verified on 2026-10-13.
+The exact Substack article URL in `apps/go-sort-out-gh-actions/SECURITY_SCAN.md`
+is also excluded. It loads locally but returns HTTP 403 to GitHub Actions.
+The exclusions preserve attribution without accepting HTTP failures for other
+URLs. Review these exceptions when either site changes its access policy.
+It does not accept HTTP error codes or exclude entire public hosts.
 
 Checks cover tracked Markdown and untracked Markdown that Git does not ignore.
 They exclude downloaded tools and styles, dependencies, build output, and

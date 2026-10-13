@@ -524,7 +524,7 @@ Add to crontab:
 
 ## Troubleshooting
 
-### Container Won't Start
+### Container Will Not Start
 
 **Check logs:**
 
@@ -662,7 +662,9 @@ deploy:
 Always deploy with HTTPS in production:
 
 - Use reverse proxy (Nginx, Traefik, Caddy)
+<!-- vale STE.Contractions = NO -->
 - Obtain SSL certificate (Let's Encrypt)
+<!-- vale STE.Contractions = YES -->
 - Redirect HTTP to HTTPS
 
 ### Strong Passwords

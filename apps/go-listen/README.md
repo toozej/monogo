@@ -87,7 +87,7 @@ make local-build APP=go-listen
 1. **Select a Playlist**: Choose from your "Incoming" folder playlists using the searchable dropdown
 2. **Search for an Artist**: Enter an artist name (fuzzy matching handles typos)
 3. **Add Tracks**: Click "Add Artist" to add their top 5 tracks to the selected playlist
-4. **Handle Duplicates**: If tracks already exist, you'll get an option to add anyway
+4. **Handle Duplicates**: If tracks already exist, you will get an option to add anyway
 5. **Listen**: Use the embedded Spotify player to listen to your updated playlist
 
 ### Web Scraping

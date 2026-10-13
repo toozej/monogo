@@ -31,7 +31,7 @@ go-listen is a web application that allows users to search for artists and autom
 
 ### Requirement 3
 
-**User Story:** As a user, I want to see an embedded Spotify player for my selected playlist, so that I can immediately listen to the music I'm organizing.
+**User Story:** As a user, I want to see an embedded Spotify player for my selected playlist, so that I can immediately listen to the music I am organizing.
 
 #### Acceptance Criteria
 

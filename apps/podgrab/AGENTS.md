@@ -6,7 +6,7 @@ code in this repository.
 ## Project Overview
 
 Podgrab is a self-hosted podcast manager written in Go that automatically
-downloads podcast episodes. It's built as a lightweight web application with a
+downloads podcast episodes. It is built as a lightweight web application with a
 Go backend and HTML template frontend.
 
 **Stack**: Go 1.27.2+, Gin web framework, GORM with SQLite, HTML templates,
@@ -290,4 +290,4 @@ WebSocket messages sent from `controllers/websockets.go`:
 - Background jobs use simple locking via `JobLock` table - not
   distributed-system safe
 - File paths are sanitized but folder structure is flat (one folder per podcast)
-- WebSocket connections don't persist across server restarts
+- WebSocket connections do not persist across server restarts

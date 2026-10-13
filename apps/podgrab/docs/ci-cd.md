@@ -503,7 +503,7 @@ docker buildx build --platform linux/amd64 -t test .
 
 **Cache too large**:
 
-- Review what's being cached
+- Review what is being cached
 - Implement cache rotation
 - Use cache-to with mode=max selectively
 
@@ -576,4 +576,4 @@ Potential improvements:
 - [Docker Buildx Documentation](https://docs.docker.com/buildx/working-with-buildx/)
 - [golangci-lint Documentation](https://golangci-lint.run/)
 - [Codecov Documentation](https://docs.codecov.com/)
-- [Workflows README](./../.github/workflows/README.md)
+- [Repository workflows](../../../.github/workflows)

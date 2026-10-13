@@ -14,6 +14,16 @@ exclude_loopback = true
 include_mail = false
 include_verbatim = false
 
+# Verified 2026-10-13: these two credit sources require browser challenges.
+# Stack Overflow returns Cloudflare's 403 challenge; Golang Cafe returns
+# Vercel's 429 challenge. Keep the citations and exclude only these exact URLs.
+# The Substack article is available locally but returns 403 to GitHub Actions.
+exclude = [
+    '^https://stackoverflow\.com/a/60675491$',
+    '^https://golang\.cafe/blog/how-to-upgrade-golang-dependencies$',
+    '^https://2amsecurity\.substack\.com/p/threat-modeling-github-how-vulnerable$',
+]
+
 # These paths contain downloaded styles, tools, dependencies, build output,
 # or archived import metadata. scripts/check-docs.sh also filters input paths.
 exclude_path = ['(^|/)(\.vale|\.tools|\.monogo|vendor|node_modules|dist)/']

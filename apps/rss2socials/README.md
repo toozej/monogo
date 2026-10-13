@@ -108,7 +108,7 @@ To obtain the required `MASTODON_CLIENT_KEY`, `MASTODON_CLIENT_SECRET`, and `MAS
 3. Fill in the application name (e.g., `rss2socials`).
 4. Under **Scopes**, ensure at least `write:statuses` is checked (required for posting).
 5. Click **Submit** to create the application.
-6. On the application page, you'll find:
+6. On the application page, you will find:
    - **Client key** → set as `MASTODON_CLIENT_KEY`
    - **Client secret** → set as `MASTODON_CLIENT_SECRET`
    - **Your access token** → set as `MASTODON_ACCESS_TOKEN`

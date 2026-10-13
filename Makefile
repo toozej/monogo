@@ -53,8 +53,10 @@ BINARY_TOOL_INSTALL_TARGETS := $(addsuffix -install,$(BINARY_TOOL_NAMES))
 # bypassing the repository's pinned tools or the Go version declared in go.mod.
 # +auto still permits Go to select a newer toolchain when the module explicitly
 # requires one, while the declared version remains the default for this repo.
-override export PATH := $(TOOLS_BIN):$(PATH)
-override export GOTOOLCHAIN := $(GO_TOOLCHAIN)+auto
+# Keep assignment and export separate for macOS's GNU Make 3.81.
+override PATH := $(TOOLS_BIN):$(PATH)
+override GOTOOLCHAIN := $(GO_TOOLCHAIN)+auto
+export PATH GOTOOLCHAIN
 
 PRE_COMMIT_GO_TOOL_NAMES := gomplate goreleaser go-critic golangci-lint goimports gosec staticcheck govulncheck
 PRE_COMMIT_GO_TOOL_INSTALL_TARGETS := $(addsuffix -install,$(PRE_COMMIT_GO_TOOL_NAMES))

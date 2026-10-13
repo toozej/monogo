@@ -53,7 +53,7 @@ Complete guide to using Podgrab for podcast management.
 
 ### Method 2: Search
 
-**When to use:** You don't have the feed URL
+**When to use:** You do not have the feed URL
 
 ```
 1. Click "+ Add Podcast"
@@ -630,7 +630,7 @@ See [Configuration Guide](configuration.md) for detailed settings documentation.
 
 - **Download Episode Images**: Save episode artwork locally
 - **Generate NFO Files**: Create metadata files
-- **Don't Re-download Deleted**: Skip manually deleted episodes
+- **`Don't Re-download Deleted`**: Skip manually deleted episodes
 - **User Agent**: Custom user agent for downloads
 
 ## Keyboard Shortcuts
@@ -727,7 +727,7 @@ Android Chrome:
 
 ### Common Issues
 
-**Podcast won't add:**
+**Podcast will not add:**
 
 - Verify RSS URL is correct
 - Check feed is accessible (try in browser)
@@ -776,12 +776,12 @@ Android Chrome:
 - **Use descriptive tags** for easy filtering
 - **Regular cleanup** of old episodes
 - **Bookmark** episodes to listen later
-- **Pause** podcasts you're not actively listening to
+- **Pause** podcasts you are not actively listening to
 
 ### Storage Management
 
 - **Monitor disk usage** in settings
-- **Delete old episodes** you won't re-listen
+- **Delete old episodes** you will not re-listen
 - **Adjust download settings** based on listening habits
 - **Use selective downloads** instead of "download all"
 

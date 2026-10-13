@@ -74,9 +74,9 @@ URL: https://news.example.com
 
 **When to use Single URL Mode:**
 - You want feeds only from a specific website
-- You're on a slow connection and want faster results
+- You are on a slow connection and want faster results
 - You want to avoid feeds from linked/referenced sites
-- You're targeting a specific domain for feed discovery
+- You are targeting a specific domain for feed discovery
 
 ### Form Validation
 

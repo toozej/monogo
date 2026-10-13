@@ -58,7 +58,7 @@ cd /usr/local/bin/podgrab && ./podgrab
 ```
 
 Point your browser to http://localhost:8080 (if trying on the same machine) or
-http://server-ip:8080 from other machines.
+`http://server-ip:8080` from other machines. Replace `server-ip` with the server address.
 
 If you are using ufw or some other firewall, you might have to make an exception
 for this port on that.

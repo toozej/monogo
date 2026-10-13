@@ -355,8 +355,8 @@ Checking 5 non-archived action repositories for stale/deprecated status...
 
 When using the `outdated` sub-command, the tool intelligently handles major version tags (e.g., `v2`):
 
-- If you're using `action@v2` and the latest release is `v2.3.3`, the tool compares the commit SHAs
-- If the major version tag (`v2`) points to the same commit as the latest version (`v2.3.3`), it's **not** marked as outdated
+- If you are using `action@v2` and the latest release is `v2.3.3`, the tool compares the commit SHAs
+- If the major version tag (`v2`) points to the same commit as the latest version (`v2.3.3`), it is **not** marked as outdated
 - If the major version tag (`v2`) points to a different commit than `v2.3.3`, it **is** marked as outdated (a new patch exists)
 - This allows you to use major version tags (recommended practice) without false positives
 
