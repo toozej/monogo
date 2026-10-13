@@ -25,6 +25,23 @@ Use positional arguments or repeat `--repo` to add repositories.
 CLI options override global values in the configuration.
 Repository targets override global targets.
 
+Use `--release-match` to select tags for one app in a monorepo:
+
+```sh
+./out/go-get-releases --keep 3 --all-assets \
+  --release-match '^apps/go-sort-out-gh-actions/' toozej/monogo
+```
+
+The filter applies before the tool selects the latest releases.
+Cleanup only removes older releases whose tags match the same filter.
+YAML accepts `release_match` globally and per repository.
+A repository filter overrides the global filter.
+
+Use `--all-assets` or YAML `all_assets: true` to download every uploaded asset.
+This includes packages without platform names, signatures, and metadata.
+The tool still checks asset sizes, GitHub digests, and recognized checksum files.
+This option bypasses platform targets and cannot be combined with `--require-all`.
+
 ## Asset selection
 
 The default targets select all matching packages for these platforms:
@@ -87,16 +104,17 @@ Files use this directory structure:
 
 ```text
 /srv/github-releases/
-  owner%2Frepo/
-    v1.2.3/
-      App-linux-amd64.AppImage
-      checksums.txt
-      .go-get-releases.json
-    v1.2.2/
-    v1.2.1/
+  owner/
+    repo/
+      v1.2.3/
+        App-linux-amd64.AppImage
+        checksums.txt
+        .go-get-releases.json
+      v1.2.2/
+      v1.2.1/
 ```
 
-The repository directory encodes the slash in `owner/repo` as `%2F`.
+The owner and repository each use a separate directory.
 This prevents collisions between owners with repositories of the same name.
 Ordinary version tags remain unchanged.
 The tool percent-encodes path separators and leading dots in tags.

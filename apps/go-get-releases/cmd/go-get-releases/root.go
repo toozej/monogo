@@ -23,10 +23,10 @@ func newRootCommand() *cobra.Command {
 
 func newCommand(run func(context.Context, releases.Config, io.Writer, io.Writer) error) *cobra.Command {
 	defaults := releases.Defaults()
-	var configPath, directory string
+	var configPath, directory, releaseMatch string
 	var repositories, targets []string
 	var keep, retries int
-	var requireAll bool
+	var requireAll, allAssets bool
 	var timeout time.Duration
 	cmd := &cobra.Command{
 		Use:           "go-get-releases [owner/repo ...]",
@@ -47,6 +47,12 @@ func newCommand(run func(context.Context, releases.Config, io.Writer, io.Writer)
 			}
 			if cmd.Flags().Changed("directory") {
 				c.Directory = directory
+			}
+			if cmd.Flags().Changed("release-match") {
+				c.ReleaseMatch = releaseMatch
+			}
+			if cmd.Flags().Changed("all-assets") {
+				c.AllAssets = allAssets
 			}
 			if cmd.Flags().Changed("keep") {
 				c.Keep = keep
@@ -81,6 +87,8 @@ func newCommand(run func(context.Context, releases.Config, io.Writer, io.Writer)
 	cmd.Flags().StringVar(&configPath, "config", "", "Read a YAML configuration file")
 	cmd.Flags().StringSliceVar(&repositories, "repo", nil, "Add GitHub repositories (owner/repo or HTTPS URL)")
 	cmd.Flags().StringVar(&directory, "directory", defaults.Directory, "Store releases in this directory")
+	cmd.Flags().StringVar(&releaseMatch, "release-match", "", "Select release tags that match this regular expression")
+	cmd.Flags().BoolVar(&allAssets, "all-assets", false, "Download every uploaded asset, including packages without platform names")
 	cmd.Flags().IntVar(&keep, "keep", defaults.Keep, "Keep this many latest stable releases per repository")
 	cmd.Flags().IntVar(&retries, "retries", defaults.Retries, "Retry each failed download at least once (1 to 10)")
 	cmd.Flags().StringSliceVar(&targets, "target", nil, "Select OS/ARCH:FORMAT+FORMAT (repeat this option)")

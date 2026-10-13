@@ -165,7 +165,7 @@ func publish(root *os.Root, stage, dest, repo, tag string) error {
 	return root.RemoveAll(backup)
 }
 
-func prune(root *os.Root, repoDir, repo string, keep map[string]bool) error {
+func prune(root *os.Root, repoDir, repo string, keep map[string]bool, filter *regexp.Regexp) error {
 	dir, err := root.Open(repoDir)
 	if err != nil {
 		return err
@@ -181,7 +181,7 @@ func prune(root *os.Root, repoDir, repo string, keep map[string]bool) error {
 		}
 		path := filepath.Join(repoDir, entry.Name())
 		m, err := readManifest(root, path)
-		if err != nil || m.Repository != repo || component(m.Tag) != entry.Name() {
+		if err != nil || m.Repository != repo || component(m.Tag) != entry.Name() || !filter.MatchString(m.Tag) {
 			continue
 		}
 		if err := root.RemoveAll(path); err != nil {

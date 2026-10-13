@@ -66,7 +66,7 @@ func setupRunner(t *testing.T) (*Runner, *fakeSource, Config) {
 }
 
 func storedPath(c Config, tag string) string {
-	return filepath.Join(c.Directory, component("owner/repo"), component(tag))
+	return filepath.Join(c.Directory, filepath.Join("owner", "repo"), component(tag))
 }
 func requireExists(t *testing.T, path string) {
 	t.Helper()
@@ -90,7 +90,7 @@ func TestRunRetentionAndCache(t *testing.T) {
 	for _, tag := range []string{"v1", "v2", "v3"} {
 		requireExists(t, filepath.Join(storedPath(c, tag), manifestName))
 	}
-	unrelated := filepath.Join(c.Directory, component("owner/repo"), "personal-notes")
+	unrelated := filepath.Join(c.Directory, filepath.Join("owner", "repo"), "personal-notes")
 	if err := os.Mkdir(unrelated, 0700); err != nil {
 		t.Fatal(err)
 	}
@@ -175,7 +175,7 @@ func TestFailuresPreserveOlderReleases(t *testing.T) {
 			if name == "download" && f.calls[3] != 4 {
 				t.Fatal("incorrect retries", f.calls)
 			}
-			entries, err := os.ReadDir(filepath.Join(c.Directory, component("owner/repo")))
+			entries, err := os.ReadDir(filepath.Join(c.Directory, filepath.Join("owner", "repo")))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -281,17 +281,28 @@ func TestSafePaths(t *testing.T) {
 }
 
 func TestSymlinks(t *testing.T) {
-	r, _, c := setupRunner(t)
-	outside := t.TempDir()
-	if err := os.Symlink(outside, filepath.Join(c.Directory, component("owner/repo"))); err != nil {
-		t.Fatal(err)
-	}
-	if err := r.Run(context.Background(), c); err == nil {
-		t.Fatal("accepted repository symlink")
-	}
-	entries, err := os.ReadDir(outside)
-	if err != nil || len(entries) != 0 {
-		t.Fatal(entries, err)
+	for _, level := range []string{"owner", "repository"} {
+		t.Run(level, func(t *testing.T) {
+			r, _, c := setupRunner(t)
+			outside := t.TempDir()
+			link := filepath.Join(c.Directory, "owner")
+			if level == "repository" {
+				if err := os.Mkdir(link, 0700); err != nil {
+					t.Fatal(err)
+				}
+				link = filepath.Join(link, "repo")
+			}
+			if err := os.Symlink(outside, link); err != nil {
+				t.Fatal(err)
+			}
+			if err := r.Run(context.Background(), c); err == nil {
+				t.Fatal("accepted a directory symlink")
+			}
+			entries, err := os.ReadDir(outside)
+			if err != nil || len(entries) != 0 {
+				t.Fatal(entries, err)
+			}
+		})
 	}
 }
 
@@ -300,7 +311,7 @@ func TestStoreRecovery(t *testing.T) {
 	if err := r.Run(context.Background(), c); err != nil {
 		t.Fatal(err)
 	}
-	repoDir := component("owner/repo")
+	repoDir := filepath.Join("owner", "repo")
 	backup := filepath.Join(c.Directory, repoDir, ".backup-v3")
 	if err := os.Rename(storedPath(c, "v3"), backup); err != nil {
 		t.Fatal(err)
@@ -332,5 +343,79 @@ func TestInvalidRunner(t *testing.T) {
 	c.Repositories = []Repository{{Name: "owner/repo"}}
 	if err := r.Run(context.Background(), c); err == nil {
 		t.Fatal("accepted nil source")
+	}
+}
+
+func TestReleaseFilterAndRetentionScope(t *testing.T) {
+	r, f, c := setupRunner(t)
+	c.Keep = 3
+	if err := r.Run(context.Background(), c); err != nil {
+		t.Fatal(err)
+	}
+	c.Keep = 1
+	c.ReleaseMatch = `^v[12]$`
+	if err := r.Run(context.Background(), c); err != nil {
+		t.Fatal(err)
+	}
+	requireExists(t, storedPath(c, "v2"))
+	requireExists(t, storedPath(c, "v3"))
+	requireMissing(t, storedPath(c, "v1"))
+	if f.calls[3] != 1 {
+		t.Fatal("release outside the filter was downloaded")
+	}
+	c.ReleaseMatch = `^no-such-app/`
+	if err := r.Run(context.Background(), c); err == nil {
+		t.Fatal("expected no matching release error")
+	}
+	requireExists(t, storedPath(c, "v2"))
+}
+
+func TestRepositoryReleaseFilterOverride(t *testing.T) {
+	r, _, c := setupRunner(t)
+	c.Keep = 1
+	c.ReleaseMatch = `^v3$`
+	c.Repositories[0].ReleaseMatch = `^v1$`
+	if err := r.Run(context.Background(), c); err != nil {
+		t.Fatal(err)
+	}
+	requireExists(t, storedPath(c, "v1"))
+	requireMissing(t, storedPath(c, "v3"))
+}
+
+func TestAllAssets(t *testing.T) {
+	r, f, c := setupRunner(t)
+	c.AllAssets = true
+	c.Targets = nil
+	c.Keep = 1
+	for i, name := range []string{"pebble-darkroom.tar.gz", "package.aarch64.apk", "checksums.txt.sigstore.json", "package.sbom.json"} {
+		id := int64(30 + i)
+		body := "asset bytes"
+		f.assets[3] = append(f.assets[3], assetFixture(id, name, body))
+		f.data[id] = body
+	}
+	pending := assetFixture(40, "pending.zip", "pending")
+	pending.State = github.Ptr("new")
+	f.assets[3] = append(f.assets[3], pending)
+	if err := r.Run(context.Background(), c); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"pebble-darkroom.tar.gz", "package.aarch64.apk", "checksums.txt.sigstore.json", "package.sbom.json"} {
+		requireExists(t, filepath.Join(storedPath(c, "v3"), name))
+	}
+	if f.calls[40] != 0 {
+		t.Fatal("downloaded an incomplete asset")
+	}
+}
+
+func TestOwnerRepositoryLayout(t *testing.T) {
+	r, _, c := setupRunner(t)
+	c.Repositories = []Repository{{Name: "first/repo"}, {Name: "second/repo"}, {Name: "first/other"}}
+	if err := r.Run(context.Background(), c); err != nil {
+		t.Fatal(err)
+	}
+	for _, repo := range c.Repositories {
+		owner, name := splitRepository(repo.Name)
+		requireExists(t, filepath.Join(c.Directory, owner, name, "v3", manifestName))
+		requireMissing(t, filepath.Join(c.Directory, component(repo.Name)))
 	}
 }
