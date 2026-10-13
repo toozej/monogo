@@ -16,8 +16,8 @@ import (
 )
 
 type fakeSource struct {
-	releases  []*github.RepositoryRelease
-	assets    map[int64][]*github.ReleaseAsset
+	releases  []*Release
+	assets    map[int64][]*Asset
 	data      map[int64]string
 	failures  map[int64]int
 	calls     map[int64]int
@@ -27,10 +27,10 @@ type fakeSource struct {
 }
 
 func (f *fakeSource) VerifyRepository(_ context.Context, repo string) error { return f.verifyErr[repo] }
-func (f *fakeSource) Releases(context.Context, string) ([]*github.RepositoryRelease, error) {
+func (f *fakeSource) Releases(context.Context, string) ([]*Release, error) {
 	return f.releases, f.listErr
 }
-func (f *fakeSource) Assets(_ context.Context, _ string, id int64) ([]*github.ReleaseAsset, error) {
+func (f *fakeSource) Assets(_ context.Context, _ string, id int64) ([]*Asset, error) {
 	return f.assets[id], f.assetsErr
 }
 func (f *fakeSource) Download(_ context.Context, _ string, id int64) (io.ReadCloser, error) {
@@ -42,8 +42,8 @@ func (f *fakeSource) Download(_ context.Context, _ string, id int64) (io.ReadClo
 	return io.NopCloser(strings.NewReader(f.data[id])), nil
 }
 
-func assetFixture(id int64, name, body string) *github.ReleaseAsset {
-	return &github.ReleaseAsset{ID: github.Ptr(id), Name: github.Ptr(name), Size: github.Ptr(len(body)), State: github.Ptr("uploaded")}
+func assetFixture(id int64, name, body string) *Asset {
+	return &Asset{ID: github.Ptr(id), Name: github.Ptr(name), Size: github.Ptr(len(body)), State: github.Ptr("uploaded")}
 }
 
 func setupRunner(t *testing.T) (*Runner, *fakeSource, Config) {
@@ -53,13 +53,13 @@ func setupRunner(t *testing.T) (*Runner, *fakeSource, Config) {
 	c.Keep = 2
 	c.Targets = []Target{{OS: "linux", Arch: "amd64", Formats: []string{"appimage"}}}
 	c.Repositories = []Repository{{Name: "owner/repo"}}
-	f := &fakeSource{assets: map[int64][]*github.ReleaseAsset{}, data: map[int64]string{}, failures: map[int64]int{}, calls: map[int64]int{}, verifyErr: map[string]error{}}
+	f := &fakeSource{assets: map[int64][]*Asset{}, data: map[int64]string{}, failures: map[int64]int{}, calls: map[int64]int{}, verifyErr: map[string]error{}}
 	for id := int64(1); id <= 3; id++ {
 		body := fmt.Sprintf("package %d", id)
 		a := assetFixture(id, "App-amd64.AppImage", body)
 		a.Digest = github.Ptr("sha256:" + hashText(t, "sha256", body))
 		f.releases = append(f.releases, releaseFixture(id, fmt.Sprintf("v%d", id), id))
-		f.assets[id] = []*github.ReleaseAsset{a}
+		f.assets[id] = []*Asset{a}
 		f.data[id] = body
 	}
 	return &Runner{Source: f, Log: &bytes.Buffer{}, Wait: func(ctx context.Context, _ time.Duration) error { return ctx.Err() }}, f, c
@@ -129,7 +129,7 @@ func TestFailuresPreserveOlderReleases(t *testing.T) {
 			switch name {
 			case "download":
 				f.failures[3] = 10
-				a.UpdatedAt = &github.Timestamp{Time: time.Now()}
+				a.UpdatedAt = &Timestamp{Time: time.Now()}
 			case "digest":
 				a.Digest = github.Ptr("sha256:" + strings.Repeat("0", 64))
 			case "unsupported digest":

@@ -14,7 +14,14 @@ services:
       start_period: 5s
       retries: 3
     environment:
+      CODEBERG_TOKEN: "${CODEBERG_TOKEN:-}"
+      FORGEJO_TOKEN: "${FORGEJO_TOKEN:-}"
       GH_TOKEN: "${GH_TOKEN:-}"
+      GITHUB_API_TOKEN: "${GITHUB_API_TOKEN:-}"
+      GITHUB_TOKEN: "${GITHUB_TOKEN:-}"
+      GITLAB_ACCESS_TOKEN: "${GITLAB_ACCESS_TOKEN:-}"
+      GITLAB_TOKEN: "${GITLAB_TOKEN:-}"
+      OAUTH_TOKEN: "${OAUTH_TOKEN:-}"
     command:
       - "--config"
       - "/config.yaml"

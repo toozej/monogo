@@ -14,14 +14,6 @@ import (
 	"github.com/google/go-github/v89/github"
 )
 
-// Source provides release metadata and asset streams.
-type Source interface {
-	VerifyRepository(context.Context, string) error
-	Releases(context.Context, string) ([]*github.RepositoryRelease, error)
-	Assets(context.Context, string, int64) ([]*github.ReleaseAsset, error)
-	Download(context.Context, string, int64) (io.ReadCloser, error)
-}
-
 // Token uses environment credentials before it checks the GitHub CLI.
 func Token(ctx context.Context, getenv func(string) string, command func(context.Context) ([]byte, error)) string {
 	for _, key := range []string{"GH_TOKEN", "GITHUB_TOKEN", "GITHUB_API_TOKEN"} {
@@ -165,9 +157,9 @@ func (g *GitHub) VerifyRepository(ctx context.Context, repo string) error {
 }
 
 // Releases reads all pages because the API order uses creation dates, not publication dates.
-func (g *GitHub) Releases(ctx context.Context, repo string) ([]*github.RepositoryRelease, error) {
+func (g *GitHub) Releases(ctx context.Context, repo string) ([]*Release, error) {
 	owner, name := splitRepository(repo)
-	result := []*github.RepositoryRelease{}
+	result := []*Release{}
 	for page := 1; page != 0; {
 		var releases []*github.RepositoryRelease
 		var response *github.Response
@@ -179,16 +171,18 @@ func (g *GitHub) Releases(ctx context.Context, repo string) ([]*github.Repositor
 		if err != nil {
 			return nil, err
 		}
-		result = append(result, releases...)
+		for _, release := range releases {
+			result = append(result, githubRelease(release))
+		}
 		page = response.NextPage
 	}
 	return result, nil
 }
 
 // Assets reads all asset pages instead of relying on embedded release assets.
-func (g *GitHub) Assets(ctx context.Context, repo string, id int64) ([]*github.ReleaseAsset, error) {
+func (g *GitHub) Assets(ctx context.Context, repo string, id int64) ([]*Asset, error) {
 	owner, name := splitRepository(repo)
-	result := []*github.ReleaseAsset{}
+	result := []*Asset{}
 	for page := 1; page != 0; {
 		var assets []*github.ReleaseAsset
 		var response *github.Response
@@ -200,7 +194,9 @@ func (g *GitHub) Assets(ctx context.Context, repo string, id int64) ([]*github.R
 		if err != nil {
 			return nil, err
 		}
-		result = append(result, assets...)
+		for _, asset := range assets {
+			result = append(result, githubAsset(asset))
+		}
 		page = response.NextPage
 	}
 	return result, nil
@@ -239,4 +235,26 @@ func (g *GitHub) Download(ctx context.Context, repo string, id int64) (io.ReadCl
 		return nil, fmt.Errorf("asset download returned status %d", response.StatusCode)
 	}
 	return response.Body, nil
+}
+
+func githubRelease(r *github.RepositoryRelease) *Release {
+	if r == nil {
+		return nil
+	}
+	result := &Release{ID: r.GetID(), TagName: r.GetTagName(), Name: r.Name, Draft: r.GetDraft(), Prerelease: r.GetPrerelease()}
+	if r.PublishedAt != nil {
+		result.PublishedAt = &Timestamp{r.PublishedAt.Time}
+	}
+	return result
+}
+
+func githubAsset(a *github.ReleaseAsset) *Asset {
+	if a == nil {
+		return nil
+	}
+	result := &Asset{ID: a.ID, Name: a.Name, Size: a.Size, State: a.State, Digest: a.Digest}
+	if a.UpdatedAt != nil {
+		result.UpdatedAt = &Timestamp{a.UpdatedAt.Time}
+	}
+	return result
 }

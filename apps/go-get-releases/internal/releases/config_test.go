@@ -123,3 +123,49 @@ func TestSelectionOptions(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestForgeRepositoryNames(t *testing.T) {
+	for _, tc := range []struct{ input, want string }{
+		{"github.com/Owner/Repo.git", "owner/repo"},
+		{"https://gitlab.com/Group/Subgroup/MyRepo.git/", "gitlab.com/Group/Subgroup/MyRepo"},
+		{"gitlab.com/Group/MyRepo", "gitlab.com/Group/MyRepo"},
+		{"https://codeberg.org/Owner/MyRepo", "codeberg.org/Owner/MyRepo"},
+		{"codeberg.org/owner/repo", "codeberg.org/owner/repo"},
+		{"https://tangled.sh/@user.bsky.social/MyRepo.git", "tangled.sh/user.bsky.social/MyRepo"},
+		{"tangled.org/user.bsky.social/repo", "tangled.sh/user.bsky.social/repo"},
+		{"tangled.sh/did:plc:wshs7t2adsemcrrd4snkeqli/repo", "tangled.sh/did:plc:wshs7t2adsemcrrd4snkeqli/repo"},
+		{"owner.name/repo", "owner.name/repo"},
+	} {
+		t.Run(tc.input, func(t *testing.T) {
+			got, err := NormalizeRepository(tc.input)
+			if err != nil || got != tc.want {
+				t.Fatalf("got %q, %v, want %q", got, err, tc.want)
+			}
+			again, err := NormalizeRepository(got)
+			if err != nil || again != got {
+				t.Fatalf("normalization is not idempotent: %q, %v", again, err)
+			}
+		})
+	}
+	for _, host := range []string{"github.com", "gitlab.com", "codeberg.org", "tangled.sh"} {
+		for _, path := range []string{"owner", "owner//repo", "../repo", "owner/..", "owner/a b", "owner/repo?x=1", "owner/repo#x", "owner/"} {
+			if _, err := NormalizeRepository("https://" + host + "/" + path); err == nil {
+				t.Errorf("accepted %s/%s", host, path)
+			}
+		}
+	}
+	for _, input := range []string{"https://gitlab.com:443/a/b", "https://gitlab.com/a%2Fb/c", "https://gitlab.com/a/b?", "https://gitlab.com/a/b%00", "tangled.sh/did:plc:bad/repo", "codeberg.org/a/b/c", "tangled.sh/a/b/c", "evil.test/a/b", "gitlab.com/a/./b", "gitlab.com/a/b/../c"} {
+		if _, err := NormalizeRepository(input); err == nil {
+			t.Errorf("accepted %q", input)
+		}
+	}
+	for _, names := range [][]string{{"owner/repo", "https://github.com/OWNER/REPO"}, {"tangled.sh/user.tngl.sh/repo", "https://tangled.org/user.tngl.sh/repo"}} {
+		c := Defaults()
+		for _, name := range names {
+			c.Repositories = append(c.Repositories, Repository{Name: name})
+		}
+		if err := c.Validate(); err == nil {
+			t.Fatal("accepted forge aliases as separate repositories")
+		}
+	}
+}

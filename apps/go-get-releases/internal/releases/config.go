@@ -1,4 +1,4 @@
-// Package releases stores stable GitHub release assets and manages retention.
+// Package releases stores stable forge release assets and manages retention.
 package releases
 
 import (
@@ -73,29 +73,65 @@ func Load(path string) (Config, error) {
 	return c, nil
 }
 
+var tangledDID = regexp.MustCompile(`^did:plc:[a-z2-7]{24}$`)
+
 var repoPart = regexp.MustCompile(`^[A-Za-z0-9_.-]+$`)
 
-// NormalizeRepository accepts owner/repo or an HTTPS GitHub repository URL.
+// NormalizeRepository accepts owner/repo, host/path, or an HTTPS repository URL.
+// Unqualified repositories use GitHub. Tangled host aliases use tangled.sh.
 func NormalizeRepository(name string) (string, error) {
+	host, path, err := repositoryParts(name)
+	if err != nil {
+		return "", err
+	}
+	if host == "github.com" {
+		return strings.ToLower(path), nil
+	}
+	return host + "/" + path, nil
+}
+
+func repositoryParts(name string) (string, string, error) {
 	name = strings.TrimSpace(name)
+	host, path := "github.com", name
 	if strings.Contains(name, "://") {
 		u, err := url.Parse(name)
-		if err != nil || u.Scheme != "https" || u.Host != "github.com" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
-			return "", fmt.Errorf("invalid GitHub repository: %q", name)
+		if err != nil || u.Scheme != "https" || u.User != nil || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || u.RawPath != "" {
+			return "", "", fmt.Errorf("invalid repository URL: %q", name)
 		}
-		name = strings.Trim(u.Path, "/")
-	}
-	name = strings.TrimSuffix(name, ".git")
-	parts := strings.Split(name, "/")
-	if len(parts) != 2 {
-		return "", fmt.Errorf("use owner/repo for repository %q", name)
-	}
-	for _, p := range parts {
-		if !repoPart.MatchString(p) || p == "." || p == ".." {
-			return "", fmt.Errorf("invalid repository component: %q", p)
+		host, path = strings.ToLower(u.Host), strings.Trim(u.Path, "/")
+	} else if first, rest, ok := strings.Cut(name, "/"); ok && strings.Contains(first, ".") {
+		// A two-component GitHub name can have a dot in its owner.
+		if strings.Contains(rest, "/") || supportedHost(strings.ToLower(first)) {
+			host, path = strings.ToLower(first), rest
 		}
 	}
-	return strings.ToLower(name), nil
+	if !supportedHost(host) {
+		return "", "", fmt.Errorf("unsupported forge hostname: %s", host)
+	}
+	if host == "tangled.org" {
+		host = "tangled.sh"
+	}
+	path = strings.TrimSuffix(path, ".git")
+	if host == "tangled.sh" {
+		path = strings.TrimPrefix(path, "@")
+	}
+	parts := strings.Split(path, "/")
+	if len(parts) < 2 || (host != "gitlab.com" && len(parts) != 2) {
+		return "", "", fmt.Errorf("use [host/]owner/repo for repository %q", name)
+	}
+	for i, part := range parts {
+		if host == "tangled.sh" && i == 0 && tangledDID.MatchString(part) {
+			continue
+		}
+		if !repoPart.MatchString(part) || part == "." || part == ".." {
+			return "", "", fmt.Errorf("invalid repository component: %q", part)
+		}
+	}
+	return host, path, nil
+}
+
+func supportedHost(host string) bool {
+	return host == "github.com" || host == "gitlab.com" || host == "codeberg.org" || host == "tangled.sh" || host == "tangled.org"
 }
 
 // Validate checks all options before the tool writes files or sends requests.

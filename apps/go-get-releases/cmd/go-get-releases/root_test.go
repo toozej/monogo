@@ -113,3 +113,24 @@ func TestReleaseSelectionFlags(t *testing.T) {
 		}
 	}
 }
+
+func TestForgeCommandRepositories(t *testing.T) {
+	called := false
+	command := newCommand(func(_ context.Context, c releases.Config, _, _ io.Writer) error {
+		called = true
+		names := []string{"owner/repo", "gitlab.com/Group/Subgroup/Repo", "codeberg.org/Owner/Repo", "tangled.sh/user.tngl.sh/Repo"}
+		if len(c.Repositories) != len(names) {
+			t.Fatal(c.Repositories)
+		}
+		for i, name := range names {
+			if c.Repositories[i].Name != name {
+				t.Fatal(c.Repositories)
+			}
+		}
+		return nil
+	})
+	command.SetArgs([]string{"--all-assets", "--repo", "https://github.com/Owner/Repo", "gitlab.com/Group/Subgroup/Repo", "https://codeberg.org/Owner/Repo", "https://tangled.org/@user.tngl.sh/Repo"})
+	if err := command.Execute(); err != nil || !called {
+		t.Fatal(err, called)
+	}
+}

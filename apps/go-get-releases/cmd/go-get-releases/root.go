@@ -30,7 +30,7 @@ func newCommand(run func(context.Context, releases.Config, io.Writer, io.Writer)
 	var timeout time.Duration
 	cmd := &cobra.Command{
 		Use:           "go-get-releases [owner/repo ...]",
-		Short:         "Store the latest stable GitHub release packages",
+		Short:         "Store the latest stable forge release packages",
 		Args:          cobra.ArbitraryArgs,
 		SilenceErrors: true, SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -85,7 +85,7 @@ func newCommand(run func(context.Context, releases.Config, io.Writer, io.Writer)
 		},
 	}
 	cmd.Flags().StringVar(&configPath, "config", "", "Read a YAML configuration file")
-	cmd.Flags().StringSliceVar(&repositories, "repo", nil, "Add GitHub repositories (owner/repo or HTTPS URL)")
+	cmd.Flags().StringSliceVar(&repositories, "repo", nil, "Add repositories (owner/repo, host/path, or HTTPS URL)")
 	cmd.Flags().StringVar(&directory, "directory", defaults.Directory, "Store releases in this directory")
 	cmd.Flags().StringVar(&releaseMatch, "release-match", "", "Select release tags that match this regular expression")
 	cmd.Flags().BoolVar(&allAssets, "all-assets", false, "Download every uploaded asset, including packages without platform names")
@@ -99,11 +99,13 @@ func newCommand(run func(context.Context, releases.Config, io.Writer, io.Writer)
 }
 
 func downloadReleases(ctx context.Context, c releases.Config, out, stderr io.Writer) error {
-	token := releases.DiscoverToken(ctx)
-	if token == "" {
-		_, _ = fmt.Fprintln(stderr, "No GitHub token is available. Use the unauthenticated API rate limit.")
-	}
-	source, err := releases.NewGitHub(token, c.Retries)
+	source, err := releases.NewSources(ctx, c, os.Getenv, func(ctx context.Context) string {
+		token := releases.DiscoverToken(ctx)
+		if token == "" {
+			_, _ = fmt.Fprintln(stderr, "No GitHub token is available. Use the unauthenticated API rate limit.")
+		}
+		return token
+	})
 	if err != nil {
 		return err
 	}
