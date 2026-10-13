@@ -1,0 +1,46 @@
+---
+directory: /srv/github-releases
+keep: 3
+retries: 2
+# Set true if every release must contain every requested platform.
+require_all: false
+targets:
+  - os: windows
+    arch: amd64
+    formats: [exe, msi, msix, zip, 7z, tar.gz]
+  - os: darwin
+    arch: amd64
+    formats: [dmg, pkg, zip, tar.gz, tar.xz]
+  - os: darwin
+    arch: arm64
+    formats: [dmg, pkg, zip, tar.gz, tar.xz]
+  - os: linux
+    arch: amd64
+    formats: [appimage]
+  - os: linux
+    arch: arm64
+    formats: [appimage]
+repositories:
+  - name: keepassxreboot/keepassxc
+  - name: laurent22/joplin
+    # These rules assign architectures to filenames that omit that information.
+    # Inspect the upstream assets before you add a rule for another repository.
+    targets:
+      - os: windows
+        arch: amd64
+        formats: [exe]
+        match: '^Joplin-Setup-[0-9.]+\.exe$'
+      - os: darwin
+        arch: amd64
+        formats: [dmg]
+        match: '^Joplin-[0-9.]+\.dmg$'
+      - os: darwin
+        arch: arm64
+        formats: [dmg]
+      - os: linux
+        arch: amd64
+        formats: [appimage]
+        match: '^Joplin-[0-9.]+\.AppImage$'
+      - os: linux
+        arch: arm64
+        formats: [appimage]
