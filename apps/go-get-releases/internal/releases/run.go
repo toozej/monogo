@@ -296,7 +296,8 @@ func (r *Runner) release(ctx context.Context, root *os.Root, c Config, repo, rep
 		var sum string
 		err = r.retry(ctx, c.Retries, func() error {
 			_ = root.Remove(path)
-			if old.Repository == repo && old.ReleaseID == release.GetID() {
+			// Without a size or upstream checksum, metadata cannot confirm that a remote asset is unchanged.
+			if old.Repository == repo && old.ReleaseID == release.GetID() && (a.Size != nil || len(digests) > 0) {
 				for _, record := range old.Assets {
 					if sameDescriptor(record, descriptor(a)) {
 						cachedSum, err := copyCached(root, filepath.Join(dest, a.GetName()), path, a, digests, record.SHA256)

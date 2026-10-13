@@ -163,6 +163,8 @@ Use `--retries` to specify between one and ten retries.
 The tool waits between retries and obeys API rate limits.
 It verifies cached package bytes before reuse.
 It downloads corrupt or changed packages again.
+If an asset has neither a published size nor an upstream checksum, the tool downloads it on each run.
+This prevents cache reuse when metadata cannot identify an upstream change.
 It refreshes checksum files on each run.
 
 The tool publishes a release directory only after all selected assets pass their checks.

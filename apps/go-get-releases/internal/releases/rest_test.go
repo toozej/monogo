@@ -336,3 +336,25 @@ func TestMixedForgeNamespacesAndFailures(t *testing.T) {
 		}
 	}
 }
+
+func TestUnknownSizeWithoutChecksumRefreshes(t *testing.T) {
+	runner, source, c := setupRunner(t)
+	for _, assets := range source.assets {
+		for _, asset := range assets {
+			asset.Size = nil
+			asset.Digest = nil
+		}
+	}
+	if err := runner.Run(context.Background(), c); err != nil {
+		t.Fatal(err)
+	}
+	before := source.calls[3]
+	source.data[3] = "changed upstream package bytes"
+	if err := runner.Run(context.Background(), c); err != nil || source.calls[3] != before+1 {
+		t.Fatal(source.calls, err)
+	}
+	data, err := os.ReadFile(filepath.Join(storedPath(c, "v3"), "App-amd64.AppImage"))
+	if err != nil || string(data) != source.data[3] {
+		t.Fatal(string(data), err)
+	}
+}
