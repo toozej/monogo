@@ -16,6 +16,8 @@ import (
 // Config specifies the download directory, selection rules, and retention count.
 type Config struct {
 	Directory    string       `yaml:"directory"`
+	ReleaseMatch string       `yaml:"release_match,omitempty"`
+	AllAssets    bool         `yaml:"all_assets"`
 	Keep         int          `yaml:"keep"`
 	Retries      int          `yaml:"retries"`
 	RequireAll   bool         `yaml:"require_all"`
@@ -25,8 +27,9 @@ type Config struct {
 
 // Repository can override the global targets for one repository.
 type Repository struct {
-	Name    string   `yaml:"name"`
-	Targets []Target `yaml:"targets,omitempty"`
+	Name         string   `yaml:"name"`
+	ReleaseMatch string   `yaml:"release_match,omitempty"`
+	Targets      []Target `yaml:"targets,omitempty"`
 }
 
 // Target selects assets by platform and format, or by an explicit filename rule.
@@ -109,12 +112,21 @@ func (c *Config) Validate() error {
 	if len(c.Repositories) == 0 {
 		return errors.New("specify at least one repository")
 	}
-	if len(c.Targets) == 0 {
+	if c.AllAssets && c.RequireAll {
+		return errors.New("all-assets and require-all cannot be used together")
+	}
+	if _, err := regexp.Compile(c.ReleaseMatch); err != nil {
+		return fmt.Errorf("invalid release filter: %w", err)
+	}
+	if len(c.Targets) == 0 && !c.AllAssets {
 		return errors.New("specify at least one global target")
 	}
 	seen := map[string]bool{}
 	for i := range c.Repositories {
 		r := &c.Repositories[i]
+		if _, err := regexp.Compile(r.ReleaseMatch); err != nil {
+			return fmt.Errorf("invalid release filter for %s: %w", r.Name, err)
+		}
 		name, err := NormalizeRepository(r.Name)
 		if err != nil {
 			return err

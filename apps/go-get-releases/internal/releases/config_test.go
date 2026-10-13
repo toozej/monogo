@@ -101,3 +101,25 @@ func TestParseTarget(t *testing.T) {
 		}
 	}
 }
+
+func TestSelectionOptions(t *testing.T) {
+	for _, change := range []func(*Config){
+		func(c *Config) { c.ReleaseMatch = "[" },
+		func(c *Config) { c.Repositories[0].ReleaseMatch = "[" },
+		func(c *Config) { c.AllAssets = true; c.RequireAll = true },
+	} {
+		c := Defaults()
+		c.Repositories = []Repository{{Name: "owner/repo"}}
+		change(&c)
+		if err := c.Validate(); err == nil {
+			t.Fatal("accepted invalid selection options")
+		}
+	}
+	c := Defaults()
+	c.Repositories = []Repository{{Name: "owner/repo"}}
+	c.AllAssets = true
+	c.Targets = nil
+	if err := c.Validate(); err != nil {
+		t.Fatal(err)
+	}
+}

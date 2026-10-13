@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -101,7 +102,18 @@ func (r *Runner) repository(ctx context.Context, root *os.Root, c Config, repo R
 	if err != nil {
 		return fmt.Errorf("list releases: %w", err)
 	}
-	releases = latest(releases, c.Keep)
+	pattern := c.ReleaseMatch
+	if repo.ReleaseMatch != "" {
+		pattern = repo.ReleaseMatch
+	}
+	filter := regexp.MustCompile(pattern)
+	matching := make([]*github.RepositoryRelease, 0, len(releases))
+	for _, release := range releases {
+		if release != nil && filter.MatchString(release.GetTagName()) {
+			matching = append(matching, release)
+		}
+	}
+	releases = latest(matching, c.Keep)
 	if len(releases) == 0 {
 		return errors.New("repository has no stable published releases")
 	}
@@ -109,7 +121,12 @@ func (r *Runner) repository(ctx context.Context, root *os.Root, c Config, repo R
 	if len(targets) == 0 {
 		targets = c.Targets
 	}
-	repoDir := component(repo.Name)
+	owner, name := splitRepository(repo.Name)
+	ownerDir := component(owner)
+	if err := directory(root, ownerDir); err != nil {
+		return err
+	}
+	repoDir := filepath.Join(ownerDir, component(name))
 	if err := directory(root, repoDir); err != nil {
 		return err
 	}
@@ -127,6 +144,15 @@ func (r *Runner) repository(ctx context.Context, root *os.Root, c Config, repo R
 			continue
 		}
 		selected, missing := selectAssets(assets, targets)
+		if c.AllAssets {
+			selected = nil
+			missing = nil
+			for _, asset := range assets {
+				if asset.GetState() == "uploaded" && !checksumAsset(asset.GetName()) {
+					selected = append(selected, asset)
+				}
+			}
+		}
 		for _, t := range missing {
 			r.log("%s %s: no asset for %s/%s", repo.Name, tag, t.OS, t.Arch)
 		}
@@ -144,7 +170,7 @@ func (r *Runner) repository(ctx context.Context, root *os.Root, c Config, repo R
 	if len(releases) < c.Keep {
 		r.log("%s: only %d stable releases exist", repo.Name, len(releases))
 	}
-	return prune(root, repoDir, repo.Name, keep)
+	return prune(root, repoDir, repo.Name, keep, filter)
 }
 
 func (r *Runner) retry(ctx context.Context, retries int, fn func() error) error {
@@ -296,7 +322,7 @@ func (r *Runner) release(ctx context.Context, root *os.Root, c Config, repo, rep
 	if err := publish(root, stage, dest, repo, release.GetTagName()); err != nil {
 		return err
 	}
-	r.log("%s %s: stored %d package assets", repo, release.GetTagName(), len(selected))
+	r.log("%s %s: stored %d assets", repo, release.GetTagName(), len(selected))
 	return nil
 }
 

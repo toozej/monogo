@@ -88,3 +88,28 @@ func TestCommandOptions(t *testing.T) {
 		}
 	}
 }
+
+func TestReleaseSelectionFlags(t *testing.T) {
+	called := false
+	c := newCommand(func(_ context.Context, got releases.Config, _, _ io.Writer) error {
+		called = true
+		if got.ReleaseMatch != `^apps/tool/` || !got.AllAssets {
+			t.Fatal(got)
+		}
+		return nil
+	})
+	c.SetArgs([]string{"--release-match", `^apps/tool/`, "--all-assets", "owner/repo"})
+	if err := c.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	if !called {
+		t.Fatal("download function did not run")
+	}
+	for _, args := range [][]string{{"--release-match", "[", "owner/repo"}, {"--all-assets", "--require-all", "owner/repo"}} {
+		c := newRootCommand()
+		c.SetArgs(args)
+		if err := c.Execute(); err == nil {
+			t.Fatal("accepted invalid selection flags")
+		}
+	}
+}
