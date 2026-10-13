@@ -1,0 +1,34 @@
+---
+name: go-get-releases
+binary: go-get-releases
+path: apps/go-get-releases
+mainPath: apps/go-get-releases
+description: "Store and verify the latest stable GitHub release packages"
+shortDescription: "Store stable GitHub release packages"
+goImage: golang:1.27.2-trixie
+distrolessImage: gcr.io/distroless/static-debian13:nonroot
+# cgoEnabled defaults to false. When true, builds use CGO_ENABLED=1, the runtime
+# image becomes glibc-capable (debian:trixie-slim / distroless base-debian), and
+# GoReleaser is trimmed to the native linux/amd64 platform.
+cgoEnabled: false
+# runtimeImage (optional) overrides the runtime base for the non-distroless
+# Dockerfile. Defaults to "scratch", or "debian:trixie-slim" when cgoEnabled is true.
+# runtimeImage: debian:trixie-slim
+# port (optional) is EXPOSEd in the generated Dockerfiles when set.
+# port: 8081
+
+# The GitHub API requires CA certificates.
+distrolessOnly: true
+writableDirs:
+  - /releases
+workDir: /releases
+compose:
+  restart: "no"
+  environment:
+    GH_TOKEN: "${GH_TOKEN:-}"
+  command: [--config, /config.yaml, --directory, /releases]
+  volumes:
+    - ./config.example.yaml:/config.yaml:ro
+    - github-releases:/releases
+  namedVolumes:
+    - github-releases

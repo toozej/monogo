@@ -1,0 +1,39 @@
+---
+services:
+  go-get-releases:
+    container_name: go-get-releases
+    image: toozej/go-get-releases:latest
+    restart: "no"
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    healthcheck:
+      test: ["CMD", "/go/bin/go-get-releases", "version"]
+      interval: 30s
+      timeout: 5s
+      start_period: 5s
+      retries: 3
+    environment:
+      GH_TOKEN: "${GH_TOKEN:-}"
+    command:
+      - "--config"
+      - "/config.yaml"
+      - "--directory"
+      - "/releases"
+    volumes:
+      - "./config.example.yaml:/config.yaml:ro"
+      - "github-releases:/releases"
+    labels:
+      - "traefik.enable=false"
+      # labels below for publishing as web service
+      # - "traefik.docker.network=traefik"
+      # - "traefik.http.routers.go-get-releases.rule=Host(`go-get-releases.test`)"
+      # - "traefik.http.routers.go-get-releases.middlewares=http-redirect-https@file,headers@file"
+      # - "traefik.http.routers.go-get-releases-secure.entrypoints=https"
+      # - "traefik.http.routers.go-get-releases-secure.rule=Host(`go-get-releases.test`)"
+      # - "traefik.http.routers.go-get-releases-secure.middlewares=headers@file"
+      # - "traefik.http.routers.go-get-releases-secure.tls=true"
+    # networks:
+      # - traefik
+volumes:
+  github-releases:
