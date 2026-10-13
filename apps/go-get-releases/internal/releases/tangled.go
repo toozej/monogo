@@ -95,11 +95,15 @@ func (s *tangledSource) VerifyRepository(ctx context.Context, repo string) error
 			return err
 		}
 		for _, item := range data.Items {
-			if item.Value.Name != name {
-				continue
-			}
 			prefix := "at://" + did + "/sh.tangled.repo/"
 			key := strings.TrimPrefix(item.URI, prefix)
+			displayName := item.Value.Name
+			if displayName == "" && strings.HasPrefix(item.URI, prefix) {
+				displayName = key
+			}
+			if displayName != name {
+				continue
+			}
 			if !strings.HasPrefix(item.URI, prefix) || !repoPart.MatchString(key) || key == "." || key == ".." {
 				return errors.New("invalid Tangled repository URI")
 			}

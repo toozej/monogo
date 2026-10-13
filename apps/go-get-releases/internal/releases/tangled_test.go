@@ -266,3 +266,20 @@ func TestTangledReleaseErrors(t *testing.T) {
 		t.Fatal("accepted failed artifact download")
 	}
 }
+
+func TestTangledRepositoryWithoutCosmeticName(t *testing.T) {
+	source := tangledFixture(t, func(w http.ResponseWriter, r *http.Request) bool {
+		if r.URL.Path != "/xrpc/sh.tangled.repo.listRepos" {
+			return false
+		}
+		_, _ = fmt.Fprintf(w, `{"items":[{"uri":%q,"value":{"knot":%q,"repoDid":%q}}]}`, "at://"+testTangledDID+"/sh.tangled.repo/Repo", r.Host, testRepoDID)
+		return true
+	})
+	if err := source.VerifyRepository(context.Background(), "user.tngl.sh/Repo"); err != nil {
+		t.Fatal(err)
+	}
+	record, ok := source.repos["user.tngl.sh/Repo"]
+	if !ok || record.Value.Name != "" || !strings.HasSuffix(record.URI, "/Repo") {
+		t.Fatal(record, ok)
+	}
+}
