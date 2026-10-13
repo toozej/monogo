@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/google/go-github/v89/github"
 )
 
 var supportedFormats = map[string]bool{}
@@ -66,7 +65,7 @@ var unstable = regexp.MustCompile(`(?i)(?:^|[^a-z])(?:alpha|beta|rc|pre|prerelea
 
 var versionSuffix = regexp.MustCompile(`(?:^|[/_\s-])v?([0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?)$`)
 
-func stable(r *github.RepositoryRelease) bool {
+func stable(r *Release) bool {
 	for _, text := range []string{r.GetTagName(), r.GetName()} {
 		if m := versionSuffix.FindStringSubmatch(text); m != nil {
 			if version, err := semver.StrictNewVersion(m[1]); err == nil && version.Prerelease() != "" {
@@ -133,8 +132,8 @@ func (t Target) matches(name string) bool {
 	return osName == t.OS && slices.Contains(archs, t.Arch)
 }
 
-func selectAssets(assets []*github.ReleaseAsset, targets []Target) ([]*github.ReleaseAsset, []Target) {
-	selected := []*github.ReleaseAsset{}
+func selectAssets(assets []*Asset, targets []Target) ([]*Asset, []Target) {
+	selected := []*Asset{}
 	found := make([]bool, len(targets))
 	for _, a := range assets {
 		if a.GetState() != "uploaded" || checksumAsset(a.GetName()) {

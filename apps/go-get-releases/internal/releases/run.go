@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"math"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -14,8 +15,6 @@ import (
 	"sort"
 	"strings"
 	"time"
-
-	"github.com/google/go-github/v89/github"
 )
 
 // Runner downloads releases. A failure prevents retention cleanup for that repository.
@@ -68,8 +67,8 @@ func (r *Runner) Run(ctx context.Context, c Config) error {
 	return errors.Join(failures...)
 }
 
-func latest(releases []*github.RepositoryRelease, n int) []*github.RepositoryRelease {
-	result := []*github.RepositoryRelease{}
+func latest(releases []*Release, n int) []*Release {
+	result := []*Release{}
 	for _, release := range releases {
 		if release != nil && stable(release) {
 			result = append(result, release)
@@ -77,7 +76,7 @@ func latest(releases []*github.RepositoryRelease, n int) []*github.RepositoryRel
 	}
 	sort.Slice(result, func(i, j int) bool {
 		a, b := result[i], result[j]
-		if a.PublishedAt.Time.Equal(b.PublishedAt.Time) {
+		if a.PublishedAt.Equal(b.PublishedAt.Time) {
 			return a.GetID() > b.GetID()
 		}
 		return a.PublishedAt.After(b.PublishedAt.Time)
@@ -107,7 +106,7 @@ func (r *Runner) repository(ctx context.Context, root *os.Root, c Config, repo R
 		pattern = repo.ReleaseMatch
 	}
 	filter := regexp.MustCompile(pattern)
-	matching := make([]*github.RepositoryRelease, 0, len(releases))
+	matching := make([]*Release, 0, len(releases))
 	for _, release := range releases {
 		if release != nil && filter.MatchString(release.GetTagName()) {
 			matching = append(matching, release)
@@ -121,14 +120,17 @@ func (r *Runner) repository(ctx context.Context, root *os.Root, c Config, repo R
 	if len(targets) == 0 {
 		targets = c.Targets
 	}
-	owner, name := splitRepository(repo.Name)
-	ownerDir := component(owner)
-	if err := directory(root, ownerDir); err != nil {
-		return err
+	host, path, _ := repositoryParts(repo.Name)
+	parts := strings.Split(path, "/")
+	if host != "github.com" {
+		parts = append([]string{host}, parts...)
 	}
-	repoDir := filepath.Join(ownerDir, component(name))
-	if err := directory(root, repoDir); err != nil {
-		return err
+	repoDir := ""
+	for _, part := range parts {
+		repoDir = filepath.Join(repoDir, component(part))
+		if err := directory(root, repoDir); err != nil {
+			return err
+		}
 	}
 	keep := map[string]bool{}
 	failures := []error{}
@@ -192,7 +194,7 @@ func (r *Runner) retry(ctx context.Context, retries int, fn func() error) error 
 	}
 }
 
-func (r *Runner) download(ctx context.Context, root *os.Root, path, repo string, a *github.ReleaseAsset, expected []checksum, limit int64) (string, error) {
+func (r *Runner) download(ctx context.Context, root *os.Root, path, repo string, a *Asset, expected []checksum, limit int64) (string, error) {
 	var sum string
 	body, err := r.Source.Download(ctx, repo, a.GetID())
 	if err != nil {
@@ -208,7 +210,10 @@ func (r *Runner) download(ctx context.Context, root *os.Root, path, repo string,
 	if copyErr != nil || closeErr != nil {
 		return "", errors.Join(copyErr, closeErr)
 	}
-	if size > limit || size != int64(a.GetSize()) {
+	if size > limit {
+		return "", fmt.Errorf("asset exceeds download limit for %s: received %d, limit %d", a.GetName(), size, limit)
+	}
+	if a.Size != nil && size != int64(a.GetSize()) {
 		return "", fmt.Errorf("asset size does not match for %s: received %d, expected %d", a.GetName(), size, a.GetSize())
 	}
 	input, err := root.Open(path)
@@ -220,7 +225,7 @@ func (r *Runner) download(ctx context.Context, root *os.Root, path, repo string,
 	return sum, err
 }
 
-func (r *Runner) release(ctx context.Context, root *os.Root, c Config, repo, repoDir string, release *github.RepositoryRelease, assets, selected []*github.ReleaseAsset) error {
+func (r *Runner) release(ctx context.Context, root *os.Root, c Config, repo, repoDir string, release *Release, assets, selected []*Asset) error {
 	// Reject duplicate or unsafe filenames before the tool creates any asset files.
 	names := map[string]bool{}
 	for _, a := range assets {
@@ -285,13 +290,14 @@ func (r *Runner) release(ctx context.Context, root *os.Root, c Config, repo, rep
 		}
 		digests = append(digests, expected[a.GetName()]...)
 		if len(digests) == 0 {
-			r.log("%s %s: no upstream checksum for %s; check size and store a local SHA-256", repo, release.GetTagName(), a.GetName())
+			r.log("%s %s: no upstream checksum for %s; store a local SHA-256", repo, release.GetTagName(), a.GetName())
 		}
 		path := filepath.Join(stage, a.GetName())
 		var sum string
 		err = r.retry(ctx, c.Retries, func() error {
 			_ = root.Remove(path)
-			if old.Repository == repo && old.ReleaseID == release.GetID() {
+			// Without a size or upstream checksum, metadata cannot confirm that a remote asset is unchanged.
+			if old.Repository == repo && old.ReleaseID == release.GetID() && (a.Size != nil || len(digests) > 0) {
 				for _, record := range old.Assets {
 					if sameDescriptor(record, descriptor(a)) {
 						cachedSum, err := copyCached(root, filepath.Join(dest, a.GetName()), path, a, digests, record.SHA256)
@@ -304,7 +310,7 @@ func (r *Runner) release(ctx context.Context, root *os.Root, c Config, repo, rep
 				}
 			}
 			var err error
-			sum, err = r.download(ctx, root, path, repo, a, digests, int64(a.GetSize()))
+			sum, err = r.download(ctx, root, path, repo, a, digests, assetLimit(a))
 			return err
 		})
 		if err != nil {
@@ -326,7 +332,7 @@ func (r *Runner) release(ctx context.Context, root *os.Root, c Config, repo, rep
 	return nil
 }
 
-func assetDigests(a *github.ReleaseAsset) ([]checksum, error) {
+func assetDigests(a *Asset) ([]checksum, error) {
 	if a.GetDigest() == "" {
 		return nil, nil
 	}
@@ -337,12 +343,12 @@ func assetDigests(a *github.ReleaseAsset) ([]checksum, error) {
 	return []checksum{c}, nil
 }
 
-func copyCached(root *os.Root, source, dest string, a *github.ReleaseAsset, expected []checksum, sum string) (string, error) {
+func copyCached(root *os.Root, source, dest string, a *Asset, expected []checksum, sum string) (string, error) {
 	info, err := root.Lstat(source)
 	if err != nil {
 		return "", err
 	}
-	if !info.Mode().IsRegular() || info.Size() != int64(a.GetSize()) || len(sum) != 64 {
+	if !info.Mode().IsRegular() || (a.Size != nil && info.Size() != int64(a.GetSize())) || len(sum) != 64 {
 		return "", fs.ErrInvalid
 	}
 	f, err := root.Open(source)
@@ -366,4 +372,12 @@ func copyCached(root *os.Root, source, dest string, a *github.ReleaseAsset, expe
 	_, copyErr := io.Copy(out, f)
 	closeErr := out.Close()
 	return actual, errors.Join(copyErr, closeErr)
+}
+
+// assetLimit bounds downloads when the forge omits an asset size.
+func assetLimit(a *Asset) int64 {
+	if a.Size == nil {
+		return math.MaxInt64 - 1
+	}
+	return min(int64(a.GetSize()), math.MaxInt64-1)
 }

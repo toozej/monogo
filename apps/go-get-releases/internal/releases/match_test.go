@@ -59,8 +59,8 @@ func TestTargetMatching(t *testing.T) {
 	}
 }
 
-func releaseFixture(id int64, tag string, published int64) *github.RepositoryRelease {
-	return &github.RepositoryRelease{ID: id, TagName: tag, PublishedAt: &github.Timestamp{Time: time.Unix(published, 0)}}
+func releaseFixture(id int64, tag string, published int64) *Release {
+	return &Release{ID: id, TagName: tag, PublishedAt: &Timestamp{Time: time.Unix(published, 0)}}
 }
 
 func TestStableAndLatest(t *testing.T) {
@@ -101,7 +101,7 @@ func TestStableAndLatest(t *testing.T) {
 			t.Errorf("accepted %s", flag)
 		}
 	}
-	input := []*github.RepositoryRelease{nil, releaseFixture(1, "v1", 10), releaseFixture(3, "v3", 30), releaseFixture(5, "v5-beta", 50), releaseFixture(2, "v2", 20), releaseFixture(4, "v3", 30)}
+	input := []*Release{nil, releaseFixture(1, "v1", 10), releaseFixture(3, "v3", 30), releaseFixture(5, "v5-beta", 50), releaseFixture(2, "v2", 20), releaseFixture(4, "v3", 30)}
 	got := latest(input, 2)
 	if len(got) != 2 || got[0].GetID() != 4 || got[1].GetTagName() != "v2" {
 		t.Fatal(got)
@@ -117,7 +117,7 @@ func TestSelectAssets(t *testing.T) {
 	pending := assetFixture(2, "App-Windows-amd64.exe", "body")
 	pending.State = github.Ptr("new")
 	checks := assetFixture(3, "App-Windows-amd64.exe.sha256", "body")
-	selected, missing := selectAssets([]*github.ReleaseAsset{a, pending, checks}, c.Targets)
+	selected, missing := selectAssets([]*Asset{a, pending, checks}, c.Targets)
 	if len(selected) != 1 || len(missing) != 3 {
 		t.Fatal(fmt.Sprint(selected, missing))
 	}

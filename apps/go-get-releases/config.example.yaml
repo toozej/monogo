@@ -44,3 +44,8 @@ repositories:
       - os: linux
         arch: arm64
         formats: [appimage]
+
+# Additional forge examples. Inspect each repository's assets before enabling it.
+#  - name: gitlab.com/group/subgroup/repo
+#  - name: codeberg.org/owner/repo
+#  - name: tangled.sh/user.tngl.sh/repo

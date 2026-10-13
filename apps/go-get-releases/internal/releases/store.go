@@ -10,8 +10,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-
-	"github.com/google/go-github/v89/github"
 )
 
 const manifestName = ".go-get-releases.json"
@@ -57,12 +55,16 @@ func validAssetName(name string) bool {
 	return name != "" && name != "." && name != ".." && name != manifestName && !strings.ContainsAny(name, "/\\\x00") && filepath.Base(name) == name
 }
 
-func descriptor(a *github.ReleaseAsset) storedAsset {
+func descriptor(a *Asset) storedAsset {
 	updated := ""
 	if a.UpdatedAt != nil {
 		updated = a.UpdatedAt.String()
 	}
-	return storedAsset{ID: a.GetID(), Name: a.GetName(), Size: a.GetSize(), Digest: a.GetDigest(), Updated: updated}
+	size := a.GetSize()
+	if a.Size == nil {
+		size = -1
+	}
+	return storedAsset{ID: a.GetID(), Name: a.GetName(), Size: size, Digest: a.GetDigest(), Updated: updated}
 }
 
 func sameDescriptor(a, b storedAsset) bool {

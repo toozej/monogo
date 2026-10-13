@@ -259,3 +259,23 @@ func TestWaitContext(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestGitHubNormalizedMetadata(t *testing.T) {
+	if githubRelease(nil) != nil || githubAsset(nil) != nil {
+		t.Fatal("nil metadata was not preserved")
+	}
+	timestamp := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	input := &github.RepositoryRelease{ID: 7, TagName: "v1", Name: github.Ptr("App"), Draft: true, Prerelease: true, PublishedAt: &github.Timestamp{Time: timestamp}}
+	output := githubRelease(input)
+	if output.GetID() != 7 || output.GetTagName() != "v1" || output.GetName() != "App" || !output.GetDraft() || !output.GetPrerelease() || !output.PublishedAt.Equal(timestamp) {
+		t.Fatal(output)
+	}
+	asset := githubAsset(&github.ReleaseAsset{ID: github.Ptr(int64(3)), Name: github.Ptr("file"), Size: github.Ptr(4), State: github.Ptr("uploaded"), Digest: github.Ptr("sha256:digest"), UpdatedAt: &github.Timestamp{Time: timestamp}})
+	if asset.GetID() != 3 || asset.GetName() != "file" || asset.GetSize() != 4 || asset.GetState() != "uploaded" || asset.GetDigest() != "sha256:digest" || !asset.UpdatedAt.Equal(timestamp) {
+		t.Fatal(asset)
+	}
+	var empty *Asset
+	if empty.GetID() != 0 || empty.GetName() != "" || empty.GetSize() != 0 || empty.GetState() != "" || empty.GetDigest() != "" {
+		t.Fatal("nil asset getters returned nonzero values")
+	}
+}

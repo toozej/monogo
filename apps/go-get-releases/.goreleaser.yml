@@ -125,7 +125,7 @@ dockers_v2:
       "io.artifacthub.package.maintainers": "[{\"name\":\"toozej\"}]"
       "io.artifacthub.package.license": "GPLv3"
       "org.opencontainers.image.description": >-
-        Store and verify the latest stable GitHub release packages
+        Store and verify the latest stable forge release packages
       "org.opencontainers.image.created": "{{.Date}}"
       "org.opencontainers.image.name": "{{.ProjectName}}"
       "org.opencontainers.image.revision": "{{.FullCommit}}"
@@ -140,7 +140,7 @@ dockers_v2:
       "index,manifest:org.opencontainers.image.authors": "James Tooze https://github.com/toozej/"
       "index,manifest:org.opencontainers.image.created": "{{.Date}}"
       "index,manifest:org.opencontainers.image.description": >-
-        Store and verify the latest stable GitHub release packages
+        Store and verify the latest stable forge release packages
       "index,manifest:org.opencontainers.image.documentation": "https://github.com/toozej/monogo/raw/main/README.md"
       "index,manifest:org.opencontainers.image.licenses": "GPL-3.0-only"
       "index,manifest:org.opencontainers.image.revision": "{{.FullCommit}}"
@@ -176,7 +176,7 @@ nfpms:
     id: packages
     homepage: https://github.com/toozej/monogo
     description: |-
-      Store and verify the latest stable GitHub release packages
+      Store and verify the latest stable forge release packages
     maintainer: toozej
     license: GPLv3
     vendor: monogo
@@ -232,7 +232,7 @@ homebrew_casks:
     skip_upload: "true"
     homepage: https://github.com/toozej/monogo
     description: >-
-      Store and verify the latest stable GitHub release packages
+      Store and verify the latest stable forge release packages
     license: GPLv3
     repository:
       owner: toozej
