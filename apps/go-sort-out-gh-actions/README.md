@@ -106,6 +106,10 @@ go-sort-out-gh-actions outdated --update --pin
 # Check for outdated actions with SemVer version strings
 go-sort-out-gh-actions outdated --update --semver
 
+# Apply a seven-day release age filter and exclude updates covered by Dependabot PRs
+go-sort-out-gh-actions outdated --min-release-age-days 7 \
+  --ignore-dependabot-prs --repository toozej/monogo --base-branch main
+
 # Check for EOL/stale/deprecated actions
 go-sort-out-gh-actions eol
 
@@ -121,6 +125,27 @@ go-sort-out-gh-actions scan --min-severity high
 # Emit security findings for tooling
 go-sort-out-gh-actions scan --output-format json
 ```
+
+The `outdated` command has two optional filters for repositories that use Dependabot.
+`--min-release-age-days` selects the highest stable SemVer release whose publication date meets the minimum age.
+The default is `0`, which disables the age filter.
+The filter excludes draft releases and prereleases.
+It does not use tags without a published release date.
+A pin to a newer published stable release does not cause a downgrade report.
+
+`--ignore-dependabot-prs` excludes an update only when an open PR from `dependabot[bot]` covers that update.
+The filter checks the target branch, changed workflow path, action path, and proposed version or SHA.
+The PR must remove all uses of the reported old reference from that workflow.
+An older proposed version or a PR for another workflow does not suppress the report.
+Use `--repository owner/repo` to select the scanned repository.
+Use `--base-branch` to select the target branch, or omit it to use the repository default branch.
+This filter supports a local scan of one repository and requires permission to read pull requests.
+API errors stop the filtered check with a non-zero exit status.
+
+The `check-outdated` action provides the same filters through its `min-release-age-days`,
+`ignore-dependabot-prs`, `repository`, and `base-branch` inputs.
+The published container must contain a release of the app that supports these inputs.
+This repository's weekly workflow runs the checked-out source with both filters enabled.
 
 ### Workflow security scanning
 

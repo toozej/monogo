@@ -5,6 +5,9 @@ multi-ecosystem-groups:
   combined:
     schedule:
       interval: "weekly"
+      day: "monday"
+      time: "06:37"
+      timezone: "Etc/UTC"
     labels:
       - "dependencies"
     commit-message:

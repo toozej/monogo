@@ -1,0 +1,48 @@
+---
+name: Weekly Outdated Actions Check
+
+on:
+  schedule:
+    # Run one day after the combined schedule in .github/dependabot.yml.
+    - cron: "37 6 * * 2" # Tuesday at 06:37 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-outdated:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      # Use the checked-out app so these filters do not require a new image release.
+      - name: Check for outdated GitHub Actions
+        env:
+          CGO_ENABLED: "0"
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CHECK_REPOSITORY: ${{ github.repository }}
+          CHECK_BASE_BRANCH: ${{ github.ref_name }}
+        run: |
+          go run ./apps/go-sort-out-gh-actions outdated \
+            --workflows-dir .github/workflows \
+            --min-release-age-days 7 \
+            --ignore-dependabot-prs \
+            --repository "$CHECK_REPOSITORY" \
+            --base-branch "$CHECK_BASE_BRANCH" \
+            --no-cache \
+            --verbose

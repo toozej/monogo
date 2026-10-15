@@ -16,6 +16,7 @@ func newOutdatedCmd() *cobra.Command {
 	var update bool
 	var pin bool
 	var semver bool
+	var options checkrunner.OutdatedOptions
 
 	cmd := &cobra.Command{
 		Use:   "outdated",
@@ -24,29 +25,50 @@ func newOutdatedCmd() *cobra.Command {
 By default, updates are pinned to SHAs with semver comments. Use --semver for version strings instead of SHAs.
 Use --pin to swap from semver version strings to SHAs.`,
 		Args: cobra.NoArgs,
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			if options.MinReleaseAgeDays < 0 || options.MinReleaseAgeDays > 36500 {
+				return fmt.Errorf("--min-release-age-days must be between 0 and 36500")
+			}
+			if options.IgnoreDependabotPRs {
+				if options.Repository == "" {
+					return fmt.Errorf("--repository is required with --ignore-dependabot-prs")
+				}
+				if remoteRepo != "" || orgName != "" || userName != "" || reposDir != "" {
+					return fmt.Errorf("--ignore-dependabot-prs requires a local scan of one repository")
+				}
+			}
+			return nil
+		},
 		Run: func(cmd *cobra.Command, args []string) {
 			useSemver := semver
 			if pin {
 				useSemver = false
 			}
-			runOutdated(update, useSemver)
+			runOutdated(update, useSemver, options)
 		},
 	}
 
 	cmd.Flags().BoolVar(&update, "update", false, "Write updated versions to affected workflow files")
 	cmd.Flags().BoolVar(&pin, "pin", false, "Pin actions to SHAs instead of semver version strings (default format when --update is used)")
 	cmd.Flags().BoolVar(&semver, "semver", false, "Use semver version strings instead of SHAs when updating")
+	cmd.Flags().IntVar(&options.MinReleaseAgeDays, "min-release-age-days", 0, "Minimum release age in days (0 disables the filter)")
+	cmd.Flags().BoolVar(&options.IgnoreDependabotPRs, "ignore-dependabot-prs", false, "Exclude updates covered by open Dependabot PRs")
+	cmd.Flags().StringVar(&options.Repository, "repository", "", "GitHub repository for the Dependabot PR filter (owner/repo)")
+	cmd.Flags().StringVar(&options.BaseBranch, "base-branch", "", "Target branch for the Dependabot PR filter (default: repository default branch)")
 
 	return cmd
 }
 
-func runOutdated(update bool, useSemver bool) {
+func runOutdated(update bool, useSemver bool, options ...checkrunner.OutdatedOptions) {
 	token := resolveToken()
 	of := resolveOutputFormat()
 	rc := newRunContextFromFlags(token, of)
 	defer func() { _ = rc.Close() }()
 	rc.Verbose = verbose
 	rc.Debug = debug
+	if len(options) > 0 {
+		rc.OutdatedOptions = options[0]
+	}
 
 	if debug {
 		rc.GHClient.LogRateLimits(rc.Ctx)
@@ -115,7 +137,11 @@ func processOutdated(rc *checkrunner.RunContext, workflowFiles []*workflow.Workf
 		log.Errorf("Archived-action precheck did not complete: %v", err)
 		return true
 	}
-	outdatedActions, releases := checkrunner.DetectOutdated(rc, workflowFiles, result.Archived, result.NonArchivedRepos)
+	outdatedActions, releases, err := checkrunner.DetectOutdatedFiltered(rc, workflowFiles, result.Archived, result.NonArchivedRepos)
+	if err != nil {
+		log.Errorf("Outdated-action check did not complete: %v", err)
+		return true
+	}
 
 	hasIssues := len(outdatedActions) > 0
 

@@ -28,6 +28,7 @@ type Client struct {
 }
 
 type RepoInfo struct {
+	DefaultBranch  string `json:"default_branch"`
 	Name           string `json:"name"`
 	FullName       string `json:"full_name"`
 	Archived       bool   `json:"archived"`
@@ -48,6 +49,25 @@ type ReleaseInfo struct {
 	Prerelease  bool   `json:"prerelease"`
 	HTMLURL     string `json:"html_url"`
 	PublishedAt string `json:"published_at"`
+}
+
+type PullRequestRef struct {
+	Ref  string    `json:"ref"`
+	SHA  string    `json:"sha"`
+	Repo RepoEntry `json:"repo"`
+}
+
+type PullRequest struct {
+	Number int            `json:"number"`
+	State  string         `json:"state"`
+	User   Owner          `json:"user"`
+	Base   PullRequestRef `json:"base"`
+	Head   PullRequestRef `json:"head"`
+}
+
+type PullRequestFile struct {
+	Filename string `json:"filename"`
+	Status   string `json:"status"`
 }
 
 type Owner struct {
