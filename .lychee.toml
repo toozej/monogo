@@ -21,11 +21,16 @@ include_verbatim = false
 # The Datadog article returns 200 locally, but connections failed in two CI runs:
 # https://github.com/toozej/monogo/actions/runs/38441048214
 # https://github.com/toozej/monogo/actions/runs/38444721520
+# Shields.io badge requests returned HTTP 408 in repeated CI runs. Exclude only
+# badge image URLs because the README links to upstream project pages separately.
+# The Oregon Liquor Search site failed to connect from GitHub Actions on 2026-10-15.
 exclude = [
     '^https://stackoverflow\.com/a/60675491$',
     '^https://golang\.cafe/blog/how-to-upgrade-golang-dependencies$',
     '^https://2amsecurity\.substack\.com/p/threat-modeling-github-how-vulnerable$',
     '^https://securitylabs\.datadoghq\.com/articles/case-for-github-actions-security/$',
+    '^https://img\.shields\.io/',
+    '^https://www\.oregonliquorsearch\.com/$',
 ]
 
 # These paths contain downloaded styles, tools, dependencies, build output,
