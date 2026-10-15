@@ -1,0 +1,141 @@
+basePath: /
+definitions:
+  castor.Device:
+    properties:
+      address:
+        type: string
+      name:
+        type: string
+      type:
+        type: string
+    type: object
+  server.apiResponse:
+    properties:
+      bitrate:
+        type: integer
+      message:
+        type: string
+      status:
+        type: string
+      streamURL:
+        type: string
+    type: object
+  server.devicesResponse:
+    properties:
+      devices:
+        items:
+          $ref: '#/definitions/castor.Device'
+        type: array
+    type: object
+  server.request:
+    properties:
+      device:
+        $ref: '#/definitions/castor.Device'
+      url:
+        type: string
+    type: object
+info:
+  contact: {}
+  description: Local API for discovering playback devices, casting a video, and resolving
+    a browser-playable stream. The server binds to loopback by default.
+  title: go-castctl API
+  version: "1.0"
+paths:
+  /devices:
+    get:
+      description: Returns the devices available to the local Castor service.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/server.devicesResponse'
+        "405":
+          description: Method Not Allowed
+          schema:
+            $ref: '#/definitions/server.apiResponse'
+        "502":
+          description: Bad Gateway
+          schema:
+            $ref: '#/definitions/server.apiResponse'
+      summary: Discover playback devices
+      tags:
+      - devices
+  /receive:
+    post:
+      consumes:
+      - application/json
+      description: Resolves the best browser-playable stream from a video page URL.
+        The /view and /watch routes are aliases.
+      parameters:
+      - description: Video page URL
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/server.request'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/server.apiResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.apiResponse'
+        "405":
+          description: Method Not Allowed
+          schema:
+            $ref: '#/definitions/server.apiResponse'
+        "502":
+          description: Bad Gateway
+          schema:
+            $ref: '#/definitions/server.apiResponse'
+        "504":
+          description: Gateway Timeout
+          schema:
+            $ref: '#/definitions/server.apiResponse'
+      summary: Resolve a browser-playable stream
+      tags:
+      - playback
+  /send:
+    post:
+      consumes:
+      - application/json
+      description: Starts a Castor session for the selected device. The /cast route
+        is an alias.
+      parameters:
+      - description: Video URL and playback device
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/server.request'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/server.apiResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.apiResponse'
+        "405":
+          description: Method Not Allowed
+          schema:
+            $ref: '#/definitions/server.apiResponse'
+        "502":
+          description: Bad Gateway
+          schema:
+            $ref: '#/definitions/server.apiResponse'
+      summary: Cast a video to a device
+      tags:
+      - playback
+schemes:
+- http
+swagger: "2.0"

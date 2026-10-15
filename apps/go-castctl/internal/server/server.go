@@ -14,11 +14,19 @@ import (
 	"strings"
 
 	"github.com/maxence-charriere/go-app/v10/pkg/app"
+	httpSwagger "github.com/swaggo/http-swagger/v2"
+	_ "github.com/toozej/monogo/apps/go-castctl/docs"
 	"github.com/toozej/monogo/apps/go-castctl/internal/castor"
 	"github.com/toozej/monogo/apps/go-castctl/internal/config"
 	"github.com/toozej/monogo/apps/go-castctl/internal/ui"
 	"github.com/toozej/monogo/pkg/version"
 )
+
+// @title go-castctl API
+// @version 1.0
+// @description Local API for discovering playback devices, casting a video, and resolving a browser-playable stream. The server binds to loopback by default.
+// @BasePath /
+// @schemes http
 
 const maxRequestBody = 1 << 20
 
@@ -53,6 +61,9 @@ func New(cfg config.Server, service castor.Service) *Server {
 		mux.HandleFunc(path, s.handleReceive)
 	}
 	mux.HandleFunc("/devices", s.handleDevices)
+	mux.Handle("/swagger/", httpSwagger.Handler(
+		httpSwagger.URL("/swagger/doc.json"),
+	))
 	mux.Handle("/", &app.Handler{
 		Name:            "go-castctl",
 		ShortName:       "go-castctl",
@@ -110,6 +121,10 @@ type request struct {
 	Device castor.Device `json:"device"`
 }
 
+type devicesResponse struct {
+	Devices []castor.Device `json:"devices"`
+}
+
 type apiResponse struct {
 	Status    string `json:"status,omitempty"`
 	Message   string `json:"message,omitempty"`
@@ -117,6 +132,15 @@ type apiResponse struct {
 	BitRate   int64  `json:"bitrate,omitempty"`
 }
 
+// handleDevices returns the playback devices that Castor can discover.
+// @Summary Discover playback devices
+// @Description Returns the devices available to the local Castor service.
+// @Tags devices
+// @Produce json
+// @Success 200 {object} devicesResponse
+// @Failure 405 {object} apiResponse
+// @Failure 502 {object} apiResponse
+// @Router /devices [get]
 func (s *Server) handleDevices(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		methodNotAllowed(w, http.MethodGet)
@@ -128,11 +152,21 @@ func (s *Server) handleDevices(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadGateway, "Castor could not discover devices")
 		return
 	}
-	writeJSON(w, http.StatusOK, struct {
-		Devices []castor.Device `json:"devices"`
-	}{Devices: devices})
+	writeJSON(w, http.StatusOK, devicesResponse{Devices: devices})
 }
 
+// handleSend starts playback on the selected device. /cast is an alias.
+// @Summary Cast a video to a device
+// @Description Starts a Castor session for the selected device. The /cast route is an alias.
+// @Tags playback
+// @Accept json
+// @Produce json
+// @Param request body request true "Video URL and playback device"
+// @Success 202 {object} apiResponse
+// @Failure 400 {object} apiResponse
+// @Failure 405 {object} apiResponse
+// @Failure 502 {object} apiResponse
+// @Router /send [post]
 func (s *Server) handleSend(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		methodNotAllowed(w, http.MethodPost)
@@ -155,6 +189,19 @@ func (s *Server) handleSend(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusAccepted, apiResponse{Status: "accepted", Message: "Castor session started"})
 }
 
+// handleReceive resolves a URL to a browser-playable stream. /view and /watch are aliases.
+// @Summary Resolve a browser-playable stream
+// @Description Resolves the best browser-playable stream from a video page URL. The /view and /watch routes are aliases.
+// @Tags playback
+// @Accept json
+// @Produce json
+// @Param request body request true "Video page URL"
+// @Success 200 {object} apiResponse
+// @Failure 400 {object} apiResponse
+// @Failure 405 {object} apiResponse
+// @Failure 502 {object} apiResponse
+// @Failure 504 {object} apiResponse
+// @Router /receive [post]
 func (s *Server) handleReceive(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		methodNotAllowed(w, http.MethodPost)

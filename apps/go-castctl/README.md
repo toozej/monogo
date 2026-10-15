@@ -7,6 +7,10 @@ the browser's HTML video player.
 
 ## Routes
 
+Interactive Swagger API documentation is available at
+`http://127.0.0.1:8080/swagger/index.html` while the server runs. The generated
+Swagger 2.0 document is available at `/swagger/doc.json`.
+
 - `POST /send` starts a Castor session for the selected TV; `POST /cast` is an alias.
 - `POST /receive` resolves the best stream for local playback; `POST /view` and
   `POST /watch` are aliases.
