@@ -101,7 +101,19 @@ which Git and documentation checks ignore.
 prose check. Contractions produce errors. The dictionary rule is disabled.
 Package download failures and configuration errors also fail the check.
 
-`.lychee.toml` sets a 20-second timeout, two retries, and bounded concurrency.
+`.lychee.toml` sets a 20-second timeout, two retries per request, and bounded concurrency.
+
+The shared script also retries the complete check twice after link failures,
+including HTTP errors and timeouts. It waits 5 seconds before the first retry
+and 10 seconds before the second retry. Configuration and installation errors
+fail immediately. These retries apply to Make, pre-commit, and CI.
+
+Set `LYCHEE_CHECK_RETRIES` to change the retry count. Set
+`LYCHEE_CHECK_RETRY_WAIT` to change the initial delay in seconds.
+Both values must be nonnegative integers. The delay doubles after each retry.
+For example, `make lychee LYCHEE_CHECK_RETRIES=0` disables retries of the complete
+check. Lychee still uses the per-request retries from `.lychee.toml`.
+
 Lychee runs with `-v -v` to show checked URLs and the redirects it follows.
 The pinned version requires two verbosity flags to display successful redirects.
 The pre-commit hook also displays this output when the check passes.

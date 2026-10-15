@@ -12,6 +12,9 @@ APP ?= golang-starter
 PACKAGE ?=
 # Optional Markdown file for docs-check. Empty or missing paths check all docs.
 export FILE ?=
+# Retry failed link checks in Make and the shared pre-commit script.
+export LYCHEE_CHECK_RETRIES ?= 2
+export LYCHEE_CHECK_RETRY_WAIT ?= 5
 # Release bump type for `make release` (major | minor | patch)
 TYPE ?= patch
 APP_DIR = apps/$(APP)
@@ -518,7 +521,7 @@ vale-sync: vale-install ## Synchronize pinned Vale styles
 vale: ## Check Markdown prose with Vale (only errors fail)
 	+TOOLS_BIN="$(TOOLS_BIN)" scripts/check-docs.sh vale
 
-lychee: ## Check Markdown links with lychee
+lychee: ## Check Markdown links with lychee and retry failed checks
 	+TOOLS_BIN="$(TOOLS_BIN)" scripts/check-docs.sh lychee
 
 docs-check: vale-install lychee-install ## Install tools, sync styles, and check Markdown (optional FILE=path)

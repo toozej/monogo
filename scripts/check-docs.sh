@@ -65,8 +65,33 @@ case "${checker}" in
 		exec "${TOOLS_BIN}/vale" --config="${ROOT}/.vale.ini" --no-global "${files[@]}"
 		;;
 	lychee)
+		retries="${LYCHEE_CHECK_RETRIES:-2}"
+		retry_wait="${LYCHEE_CHECK_RETRY_WAIT:-5}"
+		for setting in "${retries}" "${retry_wait}"; do
+			if [[ ! "${setting}" =~ ^(0|[1-9][0-9]*)$ ]]; then
+				echo 'LYCHEE_CHECK_RETRIES and LYCHEE_CHECK_RETRY_WAIT must be nonnegative integers.' >&2
+				exit 1
+			fi
+		done
 		make --no-print-directory lychee-install TOOLS_BIN="${TOOLS_BIN}"
-		# Two verbosity flags show successful links and their redirect chains.
-		exec "${TOOLS_BIN}/lychee" -v -v --config "${ROOT}/.lychee.toml" "${files[@]}"
+		attempt=0
+		while true; do
+			# Two verbosity flags show successful links and their redirect chains.
+			if "${TOOLS_BIN}/lychee" -v -v --config "${ROOT}/.lychee.toml" "${files[@]}"; then
+				exit 0
+			else
+				status=$?
+			fi
+			# Exit code 2 reports link failures, including HTTP errors and timeouts.
+			# Return other errors immediately, including configuration errors and interrupts.
+			if (( status != 2 || attempt >= retries )); then
+				exit "${status}"
+			fi
+			attempt=$((attempt + 1))
+			printf 'Link check failed. Retry %s of %s starts in %s seconds.\n' \
+				"${attempt}" "${retries}" "${retry_wait}" >&2
+			sleep "${retry_wait}"
+			retry_wait=$((retry_wait * 2))
+		done
 		;;
 esac
