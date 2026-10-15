@@ -264,7 +264,7 @@ func CheckOutdatedActions(ctx context.Context, ghClient *github.Client, workflow
 					CurrentRef: ref.Version,
 					LatestTag:  latestTag,
 					LatestURL:  latestURL,
-					Workflow:   filepath.Base(wf.Path),
+					Workflow:   wf.Path,
 					FullRef:    ref.FullRef,
 				})
 				seenOutdated[cacheKey] = true

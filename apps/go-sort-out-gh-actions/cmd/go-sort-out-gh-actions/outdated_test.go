@@ -26,6 +26,33 @@ func TestOutdatedCommandFlags(t *testing.T) {
 	}
 }
 
+func TestOutdatedFilterValidation(t *testing.T) {
+	tests := []struct {
+		name    string
+		flags   map[string]string
+		wantErr bool
+	}{
+		{name: "defaults"},
+		{name: "negative age", flags: map[string]string{"min-release-age-days": "-1"}, wantErr: true},
+		{name: "excessive age", flags: map[string]string{"min-release-age-days": "36501"}, wantErr: true},
+		{name: "missing repository", flags: map[string]string{"ignore-dependabot-prs": "true"}, wantErr: true},
+		{name: "enabled filters", flags: map[string]string{"min-release-age-days": "7", "ignore-dependabot-prs": "true", "repository": "owner/repo"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := newOutdatedCmd()
+			for flag, value := range tt.flags {
+				if err := cmd.Flags().Set(flag, value); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := cmd.PreRunE(cmd, nil); (err != nil) != tt.wantErr {
+				t.Fatalf("error = %v, want error %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
 func TestOutdatedCommandDescriptions(t *testing.T) {
 	cmd := newOutdatedCmd()
 

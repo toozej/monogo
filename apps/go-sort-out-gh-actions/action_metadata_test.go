@@ -51,7 +51,7 @@ func TestContainerActionMetadata(t *testing.T) {
 		},
 		"check-outdated/action.yml": {
 			command:       "outdated",
-			flags:         []string{"verbose", "debug", "workflow", "workflows-dir", "repos-dir", "update", "pin", "semver"},
+			flags:         []string{"verbose", "debug", "workflow", "workflows-dir", "repos-dir", "update", "pin", "semver", "min-release-age-days", "ignore-dependabot-prs", "repository", "base-branch"},
 			requiresToken: true,
 		},
 		"eol/action.yml": {

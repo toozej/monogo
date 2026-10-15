@@ -23,15 +23,23 @@ type CheckResult struct {
 }
 
 type RunContext struct {
-	Ctx          context.Context
-	WorkDir      string
-	Parser       *workflow.WorkflowParser
-	GHClient     *github.Client
-	Notifier     *notification.NotificationManager
-	IssueCreator issue.IssueCreatorIface
-	OutputWriter *output.Writer
-	Verbose      bool
-	Debug        bool
+	OutdatedOptions OutdatedOptions
+	Ctx             context.Context
+	WorkDir         string
+	Parser          *workflow.WorkflowParser
+	GHClient        *github.Client
+	Notifier        *notification.NotificationManager
+	IssueCreator    issue.IssueCreatorIface
+	OutputWriter    *output.Writer
+	Verbose         bool
+	Debug           bool
+}
+
+type OutdatedOptions struct {
+	MinReleaseAgeDays   int
+	IgnoreDependabotPRs bool
+	Repository          string
+	BaseBranch          string
 }
 
 type ProcessFunc func(rc *RunContext, workflowFiles []*workflow.WorkflowFile, allActionRefs []workflow.ActionRef, workDir string) bool

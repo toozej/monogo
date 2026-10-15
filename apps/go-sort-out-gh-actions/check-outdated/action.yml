@@ -39,6 +39,22 @@ inputs:
       is also set to true.'
     required: false
     default: 'false'
+  min-release-age-days:
+    description: 'Minimum release age in days. Zero disables the filter.'
+    required: false
+    default: '0'
+  ignore-dependabot-prs:
+    description: 'Exclude updates covered by open Dependabot PRs.'
+    required: false
+    default: 'false'
+  repository:
+    description: 'Repository for the Dependabot PR filter (owner/repo). Required when the
+      filter is enabled.'
+    required: false
+  base-branch:
+    description: 'Target branch for the Dependabot PR filter. Defaults to the repository default
+      branch.'
+    required: false
 outputs:
   outdated-count:
     description: 'Number of outdated actions found'
@@ -59,6 +75,10 @@ runs:
     - --update=${{ inputs.update }}
     - --pin=${{ inputs.pin }}
     - --semver=${{ inputs.semver }}
+    - --min-release-age-days=${{ inputs.min-release-age-days }}
+    - --ignore-dependabot-prs=${{ inputs.ignore-dependabot-prs }}
+    - --repository=${{ inputs.repository }}
+    - --base-branch=${{ inputs.base-branch }}
 
 # Example usage in a workflow:
 #
