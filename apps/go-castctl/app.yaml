@@ -15,6 +15,8 @@ dockerPlatforms:
   - linux/arm64
 cgoEnabled: false
 port: 8080
+swaggerEnabled: true
+swaggerGeneralInfo: internal/server/server.go
 writableDirs:
   - /tmp
 workDir: /tmp
