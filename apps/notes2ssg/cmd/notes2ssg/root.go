@@ -34,8 +34,8 @@ var (
 // rootCmd defines the base command for the notes2ssg CLI application.
 var rootCmd = &cobra.Command{
 	Use:              "notes2ssg",
-	Short:            "Convert notes to Hugo-formatted Markdown",
-	Long:             `Notes2ssg fetches notes from Simplenote or Usememos and writes them as Hugo Markdown files.`,
+	Short:            "Export notes as Hugo, go-vite, or Obsidian Markdown",
+	Long:             `Notes2ssg fetches notes from Simplenote or Usememos. It writes Markdown for Hugo or go-vite. It also migrates Simplenote notes into an Obsidian vault.`,
 	Args:             cobra.ExactArgs(0),
 	PersistentPreRun: rootCmdPreRun,
 	RunE:             rootCmdRun,

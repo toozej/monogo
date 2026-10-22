@@ -42,8 +42,11 @@ type Config struct {
 	// ViteSubtitle is used to populate the subtitle field in go-vite templates.
 	ViteSubtitle string `env:"VITE_SUBTITLE"`
 
-	// SSGType is the static site generator type. Defaults to "hugo".
+	// SSGType selects hugo, vite, or obsidian output. The default is hugo.
 	SSGType string `env:"SSG_TYPE" envDefault:"hugo"`
+	// ObsidianDeleteMissing removes unchanged imports absent from the source.
+	// The default retains these files during migration validation.
+	ObsidianDeleteMissing bool `env:"OBSIDIAN_DELETE_MISSING" envDefault:"false"`
 	// InputDir is the directory for temporary/raw input files.
 	InputDir string `env:"INPUT_DIR"`
 	// OutputDir is the directory where generated Markdown files are written.

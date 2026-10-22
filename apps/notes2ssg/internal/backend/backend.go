@@ -9,12 +9,17 @@ import (
 
 // Note represents a single note fetched from any backend.
 type Note struct {
-	Title    string
-	Slug     string
-	Date     time.Time
-	Tags     []string
-	Content  string
-	Unlisted bool
+	// ID and Source identify the source note across repeated exports.
+	ID         string
+	Source     string
+	Title      string
+	Slug       string
+	Date       time.Time
+	Modified   time.Time
+	Tags       []string
+	SystemTags []string
+	Content    string
+	Unlisted   bool
 }
 
 // Backend is the interface implemented by note sources.

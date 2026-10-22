@@ -36,8 +36,25 @@ func TestLoadDefaults(t *testing.T) {
 	if conf.PollingCycle != 3600 {
 		t.Errorf("expected default PollingCycle 3600, got %d", conf.PollingCycle)
 	}
+	if conf.ObsidianDeleteMissing {
+		t.Error("Obsidian exports must retain missing source notes by default")
+	}
 	if conf.Debug != false {
 		t.Errorf("expected default Debug false, got %v", conf.Debug)
+	}
+}
+
+func TestLoadObsidianSettings(t *testing.T) {
+	t.Chdir(t.TempDir())
+	t.Setenv("SSG_TYPE", "obsidian")
+	t.Setenv("OBSIDIAN_DELETE_MISSING", "true")
+	t.Setenv("POLLING_CYCLE", "300")
+	conf, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if conf.SSGType != "obsidian" || !conf.ObsidianDeleteMissing || conf.PollingCycle != 300 {
+		t.Fatalf("unexpected migration settings: %+v", conf)
 	}
 }
 

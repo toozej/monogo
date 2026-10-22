@@ -2,8 +2,11 @@ package converter
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -11,6 +14,7 @@ import (
 	"github.com/toozej/monogo/apps/notes2ssg/internal/backend"
 	"github.com/toozej/monogo/apps/notes2ssg/internal/config"
 	"github.com/toozej/monogo/apps/notes2ssg/internal/hugo"
+	"github.com/toozej/monogo/apps/notes2ssg/internal/obsidian"
 	"github.com/toozej/monogo/apps/notes2ssg/internal/ssg"
 	"github.com/toozej/monogo/apps/notes2ssg/internal/vite"
 )
@@ -312,6 +316,14 @@ func TestFormatterSelection(t *testing.T) {
 			},
 		},
 		{
+			name: "obsidian",
+			cfg:  config.Config{SSGType: "obsidian"},
+			matcher: func(f ssg.Formatter) bool {
+				_, ok := f.(*obsidian.Formatter)
+				return ok
+			},
+		},
+		{
 			name: "unknown fallback",
 			cfg:  config.Config{SSGType: "unknown"},
 			matcher: func(f ssg.Formatter) bool {
@@ -331,6 +343,98 @@ func TestFormatterSelection(t *testing.T) {
 				t.Fatalf("formatter type mismatch for %s", tc.name)
 			}
 		})
+	}
+}
+
+func TestSimplenoteObsidianMigration(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the sncli helper requires a POSIX shell")
+	}
+	dir := t.TempDir()
+	fixture := filepath.Join(dir, "snapshot.json")
+	t.Setenv("NOTES2SSG_TEST_EXPORT", fixture)
+	sncli := filepath.Join(dir, "sncli")
+	script := "#!/bin/sh\n[ \"$#\" -eq 2 ] && [ \"$1\" = '--config=/dev/null' ] && [ \"$2\" = export ] || exit 2\ncat \"$NOTES2SSG_TEST_EXPORT\"\n"
+	if err := os.WriteFile(sncli, []byte(script), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	output := filepath.Join(dir, "vault", "Simplenote")
+	app, err := NewApp(config.Config{
+		Backend: "simplenote", SSGType: "obsidian", SNCliPath: sncli, OutputDir: output,
+		ContinuousNoteTag: "blog:go", UnlistedTags: "blog:go",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, body := range []string{"# Original\n\n| a | b |\n|---|---|\n", "# Renamed\n\nUpdated"} {
+		// JSON string escapes keep the shell helper independent of note contents.
+		encoded, err := json.Marshal(body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		content := `[{"key":"abc123","content":` + string(encoded) + `,"tags":["blog:go"],"creationDate":1693535615,"modificationDate":1693535616}]`
+		if err := os.WriteFile(fixture, []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := app.Run(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+		files := markdownFiles(t, output)
+		if len(files) != 1 || files[0] != "simplenote-abc123.md" {
+			t.Fatalf("source update changed identity or split the note: %v", files)
+		}
+		data, err := os.ReadFile(filepath.Join(output, files[0]))
+		if err != nil || !strings.HasSuffix(string(data), body) || !strings.Contains(string(data), `  - "blog/go"`) {
+			t.Fatalf("migration changed Markdown or tags: %q, %v", data, err)
+		}
+	}
+	statePath := filepath.Join(output, ".notes2ssg-obsidian.json")
+	before, err := os.ReadFile(statePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(fixture, []byte("malformed JSON"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.Run(context.Background()); err == nil {
+		t.Fatal("accepted a malformed source export")
+	}
+	after, err := os.ReadFile(statePath)
+	if err != nil || string(after) != string(before) || len(markdownFiles(t, output)) != 1 {
+		t.Fatal("a malformed source export changed files or state")
+	}
+}
+
+func TestObsidianRequiresSimplenoteSource(t *testing.T) {
+	if _, err := NewApp(config.Config{Backend: "usememos", SSGType: "obsidian"}); err == nil {
+		t.Fatal("expected unsupported migration source error")
+	}
+}
+
+func TestObsidianPollingRecoversAfterFailure(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
+	defer cancel()
+	calls := 0
+	source := &mockBackend{fetchFunc: func(context.Context, string) ([]backend.Note, error) {
+		calls++
+		if calls == 1 {
+			return nil, errors.New("temporary source failure")
+		}
+		return []backend.Note{{ID: "abc", Source: "simplenote", Title: "Recovered", Content: "body"}}, nil
+	}}
+	dir := t.TempDir()
+	app := newAppWithDeps(config.Config{SSGType: "obsidian", OutputDir: dir, PollingCycle: 1}, source)
+	if err := app.RunPolling(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 2 || len(markdownFiles(t, dir)) != 1 {
+		t.Fatalf("polling did not recover: %d calls", calls)
+	}
+	app.config.PollingCycle = 0
+	source.err = errors.New("source failure")
+	source.fetchFunc = nil
+	if err := app.RunPolling(context.Background()); err == nil {
+		t.Fatal("one-shot mode did not return the source failure")
 	}
 }
 

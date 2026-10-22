@@ -20,6 +20,7 @@ import (
 	"github.com/toozej/monogo/apps/notes2ssg/internal/gotify"
 	"github.com/toozej/monogo/apps/notes2ssg/internal/hugo"
 	"github.com/toozej/monogo/apps/notes2ssg/internal/note"
+	"github.com/toozej/monogo/apps/notes2ssg/internal/obsidian"
 	"github.com/toozej/monogo/apps/notes2ssg/internal/simplenote"
 	"github.com/toozej/monogo/apps/notes2ssg/internal/ssg"
 	"github.com/toozej/monogo/apps/notes2ssg/internal/usememos"
@@ -43,12 +44,19 @@ type App struct {
 // NewApp builds an App from configuration, wiring up the appropriate backend
 // and support services.
 func NewApp(cfg config.Config) (*App, error) {
+	if strings.EqualFold(cfg.SSGType, "obsidian") && !strings.EqualFold(cfg.Backend, "simplenote") {
+		return nil, fmt.Errorf("migration to Obsidian requires BACKEND=simplenote")
+	}
 	var b backend.Backend
 	switch strings.ToLower(cfg.Backend) {
 	case "simplenote":
+		opts := []simplenote.Option{simplenote.WithCredentials(cfg.SNUsername, cfg.SNPassword)}
+		if strings.EqualFold(cfg.SSGType, "obsidian") {
+			opts = append(opts, simplenote.WithJSONExport())
+		}
 		b = simplenote.NewClient(
 			cfg.SNCliPath,
-			simplenote.WithCredentials(cfg.SNUsername, cfg.SNPassword),
+			opts...,
 		)
 	case "usememos":
 		b = usememos.NewClient(cfg.MemosURL, cfg.MemosToken, nil)
@@ -62,6 +70,8 @@ func NewApp(cfg config.Config) (*App, error) {
 // newAppWithDeps creates an App with explicit dependencies. Used by tests.
 func newFormatter(cfg config.Config) ssg.Formatter {
 	switch strings.ToLower(cfg.SSGType) {
+	case "obsidian":
+		return obsidian.NewFormatter()
 	case "vite":
 		return vite.NewFormatter(cfg.ViteSubtitle)
 	case "hugo", "":
@@ -87,6 +97,18 @@ func (a *App) Run(ctx context.Context) error {
 	}
 	if err := a.ensureDirs(); err != nil {
 		return err
+	}
+	if formatter, ok := a.formatter.(*obsidian.Formatter); ok {
+		notes, err := a.backend.FetchNotes(ctx, a.config.TagToDownload)
+		if err == nil {
+			err = formatter.Export(ctx, a.config.OutputDir, notes, a.config.ObsidianDeleteMissing)
+		}
+		if err != nil {
+			a.notify("notes2ssg export error", err.Error())
+			return err
+		}
+		a.notify("notes2ssg success", fmt.Sprintf("exported %d notes to Obsidian", len(notes)))
+		return nil
 	}
 
 	previousFiles, err := readOutputManifest(a.config.OutputDir)
@@ -127,8 +149,17 @@ func (a *App) Run(ctx context.Context) error {
 // cycle runs one export pass and returns.
 func (a *App) RunPolling(ctx context.Context) error {
 	for {
+		if ctx.Err() != nil {
+			return nil
+		}
 		if err := a.Run(ctx); err != nil {
-			return err
+			if ctx.Err() != nil {
+				return nil
+			}
+			if a.config.PollingCycle <= 0 || !strings.EqualFold(a.config.SSGType, "obsidian") {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "Obsidian export failed: %v. The exporter will retry after %d seconds.\n", err, a.config.PollingCycle)
 		}
 		if a.config.PollingCycle <= 0 {
 			return nil

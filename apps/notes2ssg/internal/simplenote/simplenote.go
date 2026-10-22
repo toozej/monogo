@@ -34,10 +34,19 @@ type Client struct {
 	maxDelay   float64
 	sleepFunc  func(time.Duration)
 	dumpFunc   dumpRunner
+	jsonExport bool
 }
 
 // Option customizes the Simplenote client.
 type Option func(*Client)
+
+// WithJSONExport preserves source IDs, timestamps, and complete note content.
+func WithJSONExport() Option {
+	return func(c *Client) {
+		c.jsonExport = true
+		c.dumpFunc = defaultExportRunner
+	}
+}
 
 // WithMaxRetries sets the maximum number of retry attempts.
 func WithMaxRetries(n int) Option {
@@ -63,7 +72,6 @@ func NewClient(cliPath string, opts ...Option) *Client {
 		maxRetries: defaultMaxRetries,
 		baseDelay:  defaultBaseDelay,
 		maxDelay:   defaultMaxDelay,
-		sleepFunc:  func(d time.Duration) { time.Sleep(d) },
 		dumpFunc:   defaultDumpRunner,
 	}
 	for _, opt := range opts {
@@ -74,11 +82,20 @@ func NewClient(cliPath string, opts ...Option) *Client {
 
 // defaultDumpRunner executes sncli dump and returns its stdout bytes.
 func defaultDumpRunner(ctx context.Context, cliPath, username, password, tag string) ([]byte, error) {
-	// #nosec G204: cliPath is the configured sncli binary path, not user input.
 	args := []string{"--config=/dev/null", "-r", "dump"}
 	if tag != "" {
 		args = append(args, tag)
 	}
+	return runSNCLI(ctx, cliPath, username, password, args)
+}
+
+// defaultExportRunner fetches all active notes. The parser applies exact tag filtering.
+func defaultExportRunner(ctx context.Context, cliPath, username, password, _ string) ([]byte, error) {
+	return runSNCLI(ctx, cliPath, username, password, []string{"--config=/dev/null", "export"})
+}
+
+func runSNCLI(ctx context.Context, cliPath, username, password string, args []string) ([]byte, error) {
+	// #nosec G204: The configuration supplies the sncli binary path.
 	cmd := exec.CommandContext(ctx, cliPath, args...)
 	cmd.Env = os.Environ()
 	if username != "" {
@@ -89,7 +106,7 @@ func defaultDumpRunner(ctx context.Context, cliPath, username, password, tag str
 	}
 	out, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("sncli dump failed: %w", err)
+		return nil, fmt.Errorf("sncli command failed: %w", err)
 	}
 	return out, nil
 }
@@ -104,13 +121,19 @@ func (c *Client) FetchNotes(ctx context.Context, tag string) ([]backend.Note, er
 		}
 		if attempt > 0 {
 			delay := c.exponentialBackoffDelay(attempt - 1)
-			c.sleepFunc(delay)
+			if err := c.waitForRetry(ctx, delay); err != nil {
+				return nil, err
+			}
 		}
 
 		data, err := c.dumpFunc(ctx, c.cliPath, c.username, c.password, tag)
 		if err != nil {
 			lastErr = err
 			continue
+		}
+
+		if c.jsonExport {
+			return parseJSONExport(data, tag)
 		}
 
 		parser := note.NewParser()
@@ -123,6 +146,21 @@ func (c *Client) FetchNotes(ctx context.Context, tag string) ([]backend.Note, er
 	}
 
 	return nil, fmt.Errorf("failed to fetch notes from Simplenote after %d attempts: %w", c.maxRetries, lastErr)
+}
+
+func (c *Client) waitForRetry(ctx context.Context, delay time.Duration) error {
+	if c.sleepFunc != nil {
+		c.sleepFunc(delay)
+		return ctx.Err()
+	}
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }
 
 // discardSNCLILogLines removes status lines sncli can include in dump output.

@@ -14,8 +14,8 @@ func TestRootCmdStructure(t *testing.T) {
 	if rootCmd.Use != "notes2ssg" {
 		t.Errorf("expected Use='notes2ssg', got '%s'", rootCmd.Use)
 	}
-	if rootCmd.Short != "Convert notes to Hugo-formatted Markdown" {
-		t.Errorf("expected Short='Convert notes to Hugo-formatted Markdown', got '%s'", rootCmd.Short)
+	if rootCmd.Short != "Export notes as Hugo, go-vite, or Obsidian Markdown" {
+		t.Errorf("unexpected command description: %q", rootCmd.Short)
 	}
 	if rootCmd.PersistentPreRun == nil {
 		t.Error("expected PersistentPreRun to be set, got nil")

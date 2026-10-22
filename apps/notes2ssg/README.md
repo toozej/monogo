@@ -5,18 +5,21 @@
 ![Docker Pulls](https://img.shields.io/docker/pulls/toozej/notes2ssg)
 ![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/toozej/monogo/total)
 
-notes2ssg fetches notes from **Simplenote** or **Usememos** and converts them into **Hugo-formatted Markdown** files.
+notes2ssg fetches notes from **Simplenote** or **Usememos** and exports Markdown for Hugo or go-vite.
+It also migrates Simplenote notes into an **Obsidian vault**.
+See the [Obsidian migration guide](docs/obsidian-migration.md) for setup, metadata mapping, scheduled exports, and OneDrive configuration.
 
 ## Features
 
 - **Multi-backend support**: Fetch notes from Simplenote (via `sncli`) or Usememos (via REST API).
-- **Tag-based filtering**: Download only notes matching a specific tag.
+- **Tag-based filtering**: Download only notes that match a specific tag.
 - **Multi-SSG output**: Generates Markdown for Hugo (YAML front matter: `title`, `author`, `date`, `url`, `summary`, `categories`, `unlisted`) and go-vite (template front matter: `slug`, `title`, `subtitle`, `date`).
+- **Obsidian migration**: Preserves Simplenote IDs, dates, tags, and Markdown. Exports detect vault edits and retain absent source notes by default.
 - **Continuous note splitting**: Automatically split a single note into multiple notes, one per line.
 - **Unlisted tags**: Mark notes as `unlisted` based on configured tags.
 - **Title substitutions**: Map titles keywords to custom summary text.
 - **Safe repeat exports**: Only writes changed files. It removes stale files that its output manifest lists.
-- **Push notifications**: Optional Gotify integration for success and failure alerts.
+- **Notifications**: Optional Gotify integration for success and failure alerts.
 - **Retry logic**: Simplenote backend retries with exponential backoff and jitter.
 
 ## Layout
@@ -34,6 +37,7 @@ apps/notes2ssg/
     note/                  # note parser and continuous-note splitter
     simplenote/            # Simplenote backend (sncli wrapper)
     usememos/              # Usememos backend (HTTP API client)
+    obsidian/              # Obsidian properties, state, and conflict checks
     gotify/                # Gotify notification client
   demo.sh                  # smoke-test script run via `make APP=notes2ssg demo`
 ```
@@ -59,7 +63,7 @@ notes2ssg man
 
 ## Configuration
 
-All configuration is passed via environment variables:
+The app reads all configuration from environment variables:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -70,16 +74,17 @@ All configuration is passed via environment variables:
 | `MEMOS_URL` | — | Base URL of the Usememos instance |
 | `MEMOS_TOKEN` | — | API token for Usememos |
 | `TAG_TO_DOWNLOAD` | — | Tag used to filter notes for export |
-| `CONTINUOUS_NOTE_TAG` | — | Comma-separated continuous-note tags. Each matching note is split into one note per line. A tag such as `blog:thoughts` becomes the `thoughts` category. |
+| `CONTINUOUS_NOTE_TAG` | — | Comma-separated continuous-note tags. If a note has one of these tags, the app splits it into one note per line. A tag such as `blog:thoughts` becomes the `thoughts` category. |
 | `UNLISTED_TAGS` | — | Comma-separated tags that mark notes as `unlisted` |
 | `TITLE_SUBSTITUTIONS` | — | Comma-separated, ordered `find:replace` pairs for summary generation. The first matching pair wins. |
-| `SSG_TYPE` | `hugo` | Static site generator type (`hugo` or `vite`) |
+| `SSG_TYPE` | `hugo` | Output format: `hugo`, `vite`, or `obsidian`. Obsidian migration requires `BACKEND=simplenote`. |
+| `OBSIDIAN_DELETE_MISSING` | `false` | Remove the unchanged imports absent from the current source export. Applies only to Obsidian output. |
 | `VITE_SUBTITLE` | — | Default subtitle used in go-vite front matter |
-| `INPUT_DIR` | — | Directory for temporary/raw input files |
-| `OUTPUT_DIR` | — | Required directory where generated Markdown files are written. The app records generated filenames in `.notes2ssg-manifest.json`. |
+| `INPUT_DIR` | — | Directory for temporary or raw input files |
+| `OUTPUT_DIR` | — | Required directory for generated Markdown. Site exports use `.notes2ssg-manifest.json`. Obsidian exports use `.notes2ssg-obsidian.json`. |
 | `AUTHOR` | `root` | Author name used in front matter |
 | `POLLING_CYCLE` | `3600` | Sleep duration between exports in seconds. Set `0` to export once and exit. |
-| `GOTIFY_URL` | — | Gotify server base URL for notifications |
+| `GOTIFY_URL` | — | Base URL of the Gotify server for notifications |
 | `GOTIFY_TOKEN` | — | Gotify application token |
 | `DEBUG` | `false` | Enable debug-level logging |
 
