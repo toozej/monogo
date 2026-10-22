@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 if [[ $# -ne 1 || ! $1 =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    echo "usage: $0 <Go version, for example 1.27.2>" >&2
+    echo "usage: $0 <Go version, for example 1.27.3>" >&2
     exit 2
 fi
 

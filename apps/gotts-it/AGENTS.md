@@ -5,7 +5,7 @@
 CLI tool that extracts readable article text from a URL or local HTML file and synthesizes speech via a self-hosted Speaches TTS server (OpenAI-compatible API). Uses Cobra for CLI handling, Logrus for logging, GoDotEnv and caarlos0/env for configuration, go-readability for article extraction, openai-go for TTS, and Goreleaser for cross-platform builds and Docker images.
 
 - **Module:** `github.com/toozej/monogo/apps/gotts-it`
-- **Go version:** 1.27.2
+- **Go version:** 1.27.3
 - **License:** GPLv3
 
 ## Setup commands

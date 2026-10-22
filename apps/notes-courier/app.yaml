@@ -5,7 +5,7 @@ path: apps/notes-courier
 mainPath: apps/notes-courier
 description: "Move notes from Simplenote, Memos, or Obsidian to Memos, Obsidian, Hugo, or go-vite"
 shortDescription: "Move notes between note platforms"
-goImage: golang:1.27.2-trixie
+goImage: golang:1.27.3-trixie
 distrolessImage: gcr.io/distroless/static-debian13:nonroot
 # cgoEnabled defaults to false. When true, builds use CGO_ENABLED=1, the runtime
 # image becomes glibc-capable (debian:trixie-slim / distroless base-debian), and

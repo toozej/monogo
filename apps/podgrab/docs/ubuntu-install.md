@@ -11,7 +11,7 @@ should be easy to figure out the steps for your specific distro.
 
 ## Install Go
 
-This repository requires Go 1.27.2 or later to build Podgrab from source.
+This repository requires Go 1.27.3 or later to build Podgrab from source.
 
 If you already have Go installed on your machine, you can skip to the next step.
 
