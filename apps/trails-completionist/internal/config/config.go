@@ -30,6 +30,8 @@ import (
 	sharedconfig "github.com/toozej/monogo/pkg/config"
 )
 
+const DefaultServeAddress = "127.0.0.1:3000"
+
 // Config represents the application configuration structure.
 //
 // This struct defines all configurable parameters for the trails-completionist
@@ -43,6 +45,7 @@ import (
 //   - ChecklistFile: Path to output checklist file
 //   - HTMLFile: Path to output HTML file
 //   - Serve: Whether to serve the generated HTML file
+//   - ServeAddress: HTTP listen address, including the port
 type Config struct {
 	// OSMRegionFile specifies the path to the OSM region file.
 	// It is loaded from the OSM_REGION_FILE environment variable.
@@ -54,7 +57,12 @@ type Config struct {
 
 	// InputFile specifies the path to the input file containing trail information.
 	// It is loaded from the INPUT_FILE environment variable.
-	InputFile string `env:"INPUT_FILE"`
+	InputFile       string   `env:"INPUT_FILE"`
+	InventoryFiles  []string `env:"INVENTORY_FILES"`
+	BoundaryFile    string   `env:"BOUNDARY_FILE"`
+	ReportFile      string   `env:"REPORT_FILE"`
+	MatchDistance   float64  `env:"MATCH_DISTANCE" envDefault:"25"`
+	MinimumCoverage float64  `env:"MINIMUM_COVERAGE" envDefault:"0.9"`
 
 	// ChecklistFile specifies the path to the output checklist file.
 	// It is loaded from the CHECKLIST_FILE environment variable.
@@ -67,6 +75,9 @@ type Config struct {
 	// Serve specifies whether to serve the generated HTML file.
 	// It is loaded from the SERVE environment variable.
 	Serve bool `env:"SERVE"`
+
+	// ServeAddress selects the HTTP listener's host and port.
+	ServeAddress string `env:"SERVE_ADDRESS" envDefault:"127.0.0.1:3000"`
 }
 
 // GetEnvVars loads and returns the application configuration, terminating the

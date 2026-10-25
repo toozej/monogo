@@ -15,7 +15,7 @@ var OsmExportCmd = &cobra.Command{
 		if osmFile == "" {
 			return fmt.Errorf("osmRegionFile must be specified via flag or env var")
 		}
-		_, err := osm.LoadOSMData(osmFile, false)
+		_, err := osm.LoadTrailData(osmFile, false)
 		if err != nil {
 			return err
 		}

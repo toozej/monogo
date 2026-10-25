@@ -2,15 +2,20 @@ package trailscompletionist
 
 import (
 	"fmt"
+	"math"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"time"
 
+	"github.com/toozej/monogo/apps/trails-completionist/internal/catalog"
+
 	log "github.com/sirupsen/logrus"
 
 	"github.com/toozej/monogo/apps/trails-completionist/internal/config"
 	"github.com/toozej/monogo/apps/trails-completionist/internal/generator"
+	"github.com/toozej/monogo/apps/trails-completionist/internal/geo"
 	"github.com/toozej/monogo/apps/trails-completionist/internal/matcher"
 	"github.com/toozej/monogo/apps/trails-completionist/internal/parser"
 	"github.com/toozej/monogo/apps/trails-completionist/internal/types"
@@ -20,110 +25,117 @@ import (
 
 // RunTrailsCompletionist contains the main application logic extracted from rootCmdRun
 func RunTrailsCompletionist(config config.Config, debug bool) error {
-	if debug {
-		fmt.Printf("RunTrailsCompletionist: config struct contains: %v\n", config)
-	}
-
-	var osmData *osm.OSMData
-	var err error
-
-	if config.OSMRegionFile != "" {
-		if debug {
-			fmt.Printf("Parsing OSM region file: %s\n", config.OSMRegionFile)
-		}
-		// Parse OSM region file
-		osmData, err = osm.LoadOSMData(config.OSMRegionFile, false)
-		if err != nil {
-			return fmt.Errorf("error loading OSM region file: %w", err)
-		}
-		if debug {
-			fmt.Printf("Loaded %d nodes and %d ways\n", len(osmData.Nodes), len(osmData.Ways))
-		}
-
-	}
-
-	// Process track files if provided
-	var foundGPXTrails []types.Trail
-	if config.TrackFiles != "" {
-		if osmData == nil {
-			return fmt.Errorf("OSM region data is required when track files are configured")
-		}
-		if debug {
-			fmt.Printf("Parsing track files: %s\n", config.TrackFiles)
-		}
-
-		// Convert TCX-formatted tracks to GPX
-		if err := tcx2gpx.ConvertAllTCXToGPX(config.TrackFiles); err != nil {
-			return fmt.Errorf("error converting TCX tracks to GPX: %w", err)
-		}
-		if debug {
-			fmt.Printf("Converted TCX tracks to GPX: %s\n", config.TrackFiles)
-		}
-
-		// Parse trails out of found GPX files
-		foundGPXTrails, err = parser.ParseTrailsFromTrackFiles(config.TrackFiles, true, osmData)
-		if err != nil {
-			return fmt.Errorf("error parsing trails from track files: %w", err)
-		}
-		if debug {
-			fmt.Printf("Parsed trails from track files:\n %v\n", foundGPXTrails)
-		}
-	}
-
-	// Process input file if provided
-	var rawTrails []types.Trail
-	if config.InputFile != "" {
-		if debug {
-			fmt.Printf("Parsing filename: %s\n", config.InputFile)
-		}
-
-		rawTrails, err = parser.ParseTrailsFromRawInputFile(config.InputFile)
-		if err != nil {
-			return fmt.Errorf("error parsing trails from raw input file: %w", err)
-		}
-		if debug {
-			fmt.Printf("Parsed trails from raw input:\n %v\n", rawTrails)
-		}
-
-		// Generate checklist from combined trails
-		if debug {
-			fmt.Printf("Generating checklist: %s\n", config.ChecklistFile)
-		}
-	}
-
-	// Merge together rawTrails and foundGPXTrails
-	// checking for duplicates, and preferring foundGPXTrails over rawTrails
-	// (a.k.a. completed trails over not completed)
-	combinedTrails, err := matcher.MatchTrails(foundGPXTrails, rawTrails)
+	combinedTrails, err := CollectTrails(config)
 	if err != nil {
-		return fmt.Errorf("error matching trails: %w", err)
+		return err
 	}
-	if debug {
-		fmt.Printf("Combined and de-duplicated list of trails:\n %v\n", combinedTrails)
-	}
-
 	if err = generator.GenerateChecklist(config.ChecklistFile, combinedTrails); err != nil {
 		return fmt.Errorf("error generating checklist: %w", err)
 	}
 
-	// Parse trails from checklist
-	trails, err := parser.ParseTrailsFromChecklist(config.ChecklistFile)
-	if err != nil {
-		return fmt.Errorf("error parsing trails from checklist: %w", err)
-	}
-
+	trails := combinedTrails
 	if debug {
-		log.Println(trails)
+		log.Printf("Generated %d trails", len(trails))
 	}
 
 	// Generate HTML table from checklist
 	if err = generator.GenerateHTMLOutput(config.HTMLFile, trails); err != nil {
 		return fmt.Errorf("error generating HTML output file: %w", err)
 	} else if config.Serve {
-		return ServeHTMLFile(config.HTMLFile)
+		return ServeHTMLFile(config.HTMLFile, config.ServeAddress)
 	}
 
 	return nil
+}
+
+// CollectTrails combines the text list, line inventories, and OSM discoveries.
+func CollectTrails(cfg config.Config) ([]types.Trail, error) {
+	distance, minimum := cfg.MatchDistance, cfg.MinimumCoverage
+	if distance == 0 {
+		distance = parser.DefaultDistanceMetres
+	}
+	if minimum == 0 {
+		minimum = parser.DefaultMinimumCoverage
+	}
+	if math.IsNaN(distance) || math.IsInf(distance, 0) || distance <= 0 || distance > 1000 || math.IsNaN(minimum) || minimum <= 0 || minimum > 1 {
+		return nil, fmt.Errorf("matchDistance must be greater than zero and at most 1000. minimumCoverage must be greater than zero and at most one")
+	}
+	boundary, err := parser.ParseBoundary(cfg.BoundaryFile)
+	if err != nil {
+		return nil, fmt.Errorf("read boundary: %w", err)
+	}
+	var input []types.Trail
+	if cfg.InputFile != "" {
+		raw, err := parser.ParseTrailsFromRawInputFile(cfg.InputFile)
+		if err != nil {
+			return nil, err
+		}
+		input = append(input, raw...)
+	}
+	ids := map[string]bool{}
+	for _, path := range cfg.InventoryFiles {
+		inventory, err := parser.ParseInventory(path, boundary)
+		if err != nil {
+			return nil, fmt.Errorf("read inventory: %w", err)
+		}
+		for _, trail := range inventory {
+			if ids[trail.ID] {
+				return nil, fmt.Errorf("duplicate inventory ID across files: %s", trail.ID)
+			}
+			ids[trail.ID] = true
+			input = append(input, trail)
+		}
+	}
+	var candidates []types.Trail
+	if cfg.OSMRegionFile != "" {
+		data, err := osm.LoadTrailData(cfg.OSMRegionFile, false)
+		if err != nil {
+			return nil, fmt.Errorf("load OSM export: %w", err)
+		}
+		var diagnostics catalog.Diagnostics
+		candidates, diagnostics = catalog.Build(data, boundary)
+		var report catalog.Report
+		input, report = catalog.Audit(input, candidates, diagnostics, distance, minimum)
+		report.OSMFile, report.BoundaryFile = cfg.OSMRegionFile, cfg.BoundaryFile
+		report.InputFiles = append([]string(nil), cfg.InventoryFiles...)
+		if cfg.InputFile != "" {
+			report.InputFiles = append(report.InputFiles, cfg.InputFile)
+		}
+		fmt.Printf("OSM audit: %v\n", report.Summary)
+		if cfg.ReportFile != "" {
+			if err := catalog.WriteReport(cfg.ReportFile, report); err != nil {
+				return nil, err
+			}
+		}
+	} else if cfg.ReportFile != "" {
+		return nil, fmt.Errorf("OSM region data is required for an audit report")
+	}
+	if cfg.TrackFiles == "" {
+		if cfg.InputFile == "" && len(cfg.InventoryFiles) == 0 {
+			return candidates, nil
+		}
+		return input, nil
+	}
+	if cfg.OSMRegionFile == "" {
+		hasGeometry := false
+		for _, trail := range input {
+			hasGeometry = hasGeometry || (!trail.Incomplete && geo.Length(trail.Geometry) > 0)
+		}
+		if !hasGeometry {
+			return nil, fmt.Errorf("OSM region data is required when track files have no inventory geometry")
+		}
+	}
+	if err := tcx2gpx.ConvertAllTCXToGPX(cfg.TrackFiles); err != nil {
+		return nil, err
+	}
+	targets := append([]types.Trail(nil), input...)
+	// Preserve additional OSM discoveries. The source list retains its own identities.
+	targets = append(targets, candidates...)
+	completed, err := parser.ParseTracksWithTargets(cfg.TrackFiles, true, targets, distance, minimum)
+	if err != nil {
+		return nil, err
+	}
+	return matcher.MatchTrailsWithDistance(completed, input, distance)
 }
 
 // HTMLHandler serves only the generated page and its two known assets.
@@ -155,17 +167,37 @@ func HTMLHandler(htmlFile string) http.Handler {
 	})
 }
 
-// ServeHTMLFile serves the generated HTML file on loopback port 3000.
-func ServeHTMLFile(htmlFile string) error {
-	server := &http.Server{
-		Addr:         "127.0.0.1:3000",
+func newHTMLServer(htmlFile, listenAddress string) *http.Server {
+	if listenAddress == "" {
+		listenAddress = config.DefaultServeAddress
+	}
+	return &http.Server{
+		Addr:         listenAddress,
 		Handler:      HTMLHandler(htmlFile),
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 	}
+}
 
-	log.Printf("Serving HTML file at http://localhost:3000/")
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+// ServeHTMLFile serves the page at the configured address. An empty address uses loopback.
+func ServeHTMLFile(htmlFile, listenAddress string) error {
+	server := newHTMLServer(htmlFile, listenAddress)
+	network := "tcp"
+	if host, _, err := net.SplitHostPort(server.Addr); err == nil && net.ParseIP(host).To4() != nil {
+		network = "tcp4"
+	}
+	listener, err := net.Listen(network, server.Addr)
+	if err != nil {
+		return fmt.Errorf("listen on %s: %w", server.Addr, err)
+	}
+	log.Printf("Serving HTML file on %s", listener.Addr())
+	if host, port, err := net.SplitHostPort(listener.Addr().String()); err == nil && net.ParseIP(host).IsUnspecified() {
+		log.Printf("Local page: http://localhost:%s/", port)
+		log.Printf("LAN page: use this computer's LAN IP address and port %s", port)
+	} else {
+		log.Printf("Page: http://%s/", listener.Addr())
+	}
+	if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {
 		return fmt.Errorf("error serving generated HTML file: %w", err)
 	}
 

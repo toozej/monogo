@@ -4,8 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/toozej/monogo/apps/trails-completionist/internal/parser"
-	"github.com/toozej/monogo/pkg/osm"
+	trailscompletionist "github.com/toozej/monogo/apps/trails-completionist/internal/trails-completionist"
 )
 
 var ParseGPXCmd = &cobra.Command{
@@ -16,26 +15,18 @@ var ParseGPXCmd = &cobra.Command{
 		if trackFiles == "" {
 			return fmt.Errorf("trackFiles must be specified via flag or env var")
 		}
-		osmData, err := loadConfiguredOSM()
+		trails, err := trailscompletionist.CollectTrails(conf)
 		if err != nil {
 			return err
 		}
-		trails, err := parser.ParseTrailsFromTrackFiles(trackFiles, true, osmData)
-		if err != nil {
-			return err
+		for _, trail := range trails {
+			if !trail.Completed {
+				continue
+			}
+			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "%s\t%s\t%s miles\t%s\n", trail.ID, trail.Name, trail.Length, trail.CompletionDate); err != nil {
+				return err
+			}
 		}
-		fmt.Printf("Parsed trails: %v\n", trails)
 		return nil
 	},
-}
-
-func loadConfiguredOSM() (*osm.OSMData, error) {
-	if conf.OSMRegionFile == "" {
-		return nil, fmt.Errorf("osmRegionFile must be specified when parsing GPX tracks")
-	}
-	data, err := osm.LoadOSMData(conf.OSMRegionFile, false)
-	if err != nil {
-		return nil, fmt.Errorf("loading OSM region file: %w", err)
-	}
-	return data, nil
 }

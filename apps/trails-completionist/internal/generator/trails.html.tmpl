@@ -1,50 +1,81 @@
 <!DOCTYPE html>
-<html>
-	<link rel="stylesheet" href="/styles.css">
-	<script src="/app.js"></script>
-	<head>
-		<title>Trails Completionist</title>
-		<style>
-		/* Add your CSS styling here */
-		</style>
-	</head>
-	<body>
-		<h2>PDX</h2>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="Explore your trail collection and track your progress, one trail at a time.">
+  <title>Your trail collection · Trails Completionist</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23214d36'/%3E%3Cpath d='m4 25 9-17 6 11 3-6 6 12Z' fill='none' stroke='%23f6f7f2' stroke-width='1.5'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="./styles.css">
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#collection">Skip to trails</a>
+  <svg class="icon-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <symbol id="i-mountain" viewBox="0 0 24 24"><path d="m2 20 7-13 4 7 3-5 6 11H2Z"/><path d="m7 11 2 2 2-2m3 2 2 2 2-2"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/></symbol>
+    <symbol id="i-filter" viewBox="0 0 24 24"><path d="M4 7h16M7 12h10m-7 5h4"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h12M9 12h12M9 18h12M3 6h1M3 12h1M3 18h1"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-5-5 5 5-5 5"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 0 1 14 0Z"/><circle cx="12" cy="10" r="2"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M14 3h7v7m0-7L10 14m0-10H4v16h16v-6"/></symbol>
+  </svg>
 
-		<div class="search-container">
-        	<input type="text" id="fuzzySearch" placeholder="Search trails...">
-		</div>
-		<div class="search-hint">
-			Tip: Try searches like "completed: yes", "park name: Forest Park", or mix free text with specific filters
-		</div>
+  <header class="site-header shell">
+    <a class="brand" href="#" aria-label="Trails Completionist home"><span class="brand-mark"><svg class="icon" aria-hidden="true"><use href="#i-mountain"/></svg></span><span>trails<span class="brand-secondary">completionist</span></span></a>
+    <span class="header-note">A little more ground covered.</span>
+    <div class="header-actions">
+      <button class="button button-quiet" id="export-button" type="button" aria-label="Export matching trails as CSV"><svg class="icon" aria-hidden="true"><use href="#i-download"/></svg><span>Export CSV</span></button>
+      <button class="icon-button" id="theme-button" type="button" aria-label="Color theme: system. Select light theme." title="Change color theme"><svg class="icon" aria-hidden="true"><use href="#i-sun"/></svg><span id="theme-label" class="sr-only">System theme</span></button>
+    </div>
+  </header>
 
-		<table id="trailTable" border="1">
-			<thead>
-				<tr>
-					<th data-column="trailName">Trail Name</th>
-					<th data-column="parkName">Park Name</th>
-					<th data-column="trailType">Trail Type</th>
-					<th data-column="trailLength">Trail Length</th>
-					<th data-column="trailURL">URL</th>
-					<th data-column="completed">Completed</th>
-					<th data-column="dateCompleted">Date Completed</th>
-				</tr>
-			</thead>
-			<tbody id="tableBody">
-				{{- range $park, $trails := .}}
-					{{range $trails}}
-					<tr>
-						<td>{{.Name}}</td>
-						<td>{{.Park}}</td>
-						<td>{{.Type}}</td>
-						<td>{{.Length}}</td>
-						<td><a href="{{.URL}}" target="_blank">Link</a></td>
-						<td><input type="checkbox" {{if .Completed}}checked{{end}}></td>
-						<td>{{if .Completed}} {{.CompletionDate}} {{else}} - {{end}}</td>
-					</tr>
-					{{end}}
-				{{end}}
-			</tbody>
-		</table>
-	</body>
+  <main class="shell">
+    <section class="hero" aria-labelledby="page-title">
+      <div class="hero-copy"><p class="eyebrow"><span class="little-line"></span> YOUR TRAIL JOURNAL</p><h1 id="page-title">One trail<br><em>at a time.</em></h1><p class="hero-description">There is always more to explore. Find your next trail and keep track of the places you have walked.</p><a class="text-link" href="#collection">Explore your collection <svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></a></div>
+      <div class="progress-panel">
+        <svg class="contours" viewBox="0 0 560 340" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1"><path d="M-60 180C20 8 175 34 233 130s-61 168 66 187 216-111 320-40"/><path d="M-40 200C44 35 161 53 214 138s-49 132 75 157 211-103 320-43"/><path d="M-20 218C67 63 146 72 195 146s-38 97 83 126 208-94 320-44"/><path d="M0 236C90 90 132 91 176 154s-27 61 91 96 204-86 320-43"/><path d="M22 255C113 118 118 110 157 162s-16 26 79 64 201-77 320-42"/><path d="M-110 130C-24-43 188-26 274 94s-50 219 90 253"/><path d="M-90 151C-3-17 181 6 253 112s-56 195 102 226"/><path d="M343-20c-6 109 150 120 96 215s22 143 125 136"/><path d="M365-20c-6 91 134 106 93 206s24 127 106 126"/><path d="M388-20c-5 73 115 96 89 198s27 109 87 114"/></g></svg>
+        <span class="compass" aria-hidden="true">N <span>↑</span></span>
+        <div class="progress-content"><p class="eyebrow">YOUR PROGRESS</p><div class="progress-number"><span id="progress-percent">{{.Percent}}</span><span>%</span></div><p><strong id="progress-completed">{{.Completed}}</strong> of <strong id="progress-total">{{.Count}}</strong> records completed</p><div class="progress-track" role="progressbar" aria-label="Collection completion" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{.Percent}}" id="completion-progress"><span id="progress-fill" style="width: {{.Percent}}%"></span></div><span class="progress-caption">Every path counts.</span></div>
+      </div>
+    </section>
+
+    <section class="stats" aria-label="Collection totals"><div><span class="stat-label">In your collection</span><strong id="stat-total">{{.Count}}</strong><span class="stat-unit">trail records</span></div><div><span class="stat-label">Ground covered</span><strong id="stat-completed">{{.Completed}}</strong><span class="stat-unit">completed</span></div><div><span class="stat-label">Still to explore</span><strong id="stat-remaining">{{.Remaining}}</strong><span class="stat-unit">remaining</span></div><div><span class="stat-label">Places to discover</span><strong id="stat-parks">{{.Parks}}</strong><span class="stat-unit">parks &amp; areas</span></div></section>
+
+    <section class="collection" id="collection" aria-labelledby="collection-title">
+      <div class="section-heading"><div><p class="eyebrow">THE COLLECTION</p><h2 id="collection-title" tabindex="-1">Find your next trail.</h2></div><span class="collection-note">Big walks. Small discoveries.</span></div>
+      <div class="search-toolbar">
+        <div class="search-field"><svg class="icon" aria-hidden="true"><use href="#i-search"/></svg><label class="sr-only" for="fuzzySearch">Search trails, parks, or source records</label><input id="fuzzySearch" type="search" placeholder="Search trails, parks, or places…" autocomplete="off" spellcheck="false"><kbd aria-hidden="true">/</kbd></div>
+        <div class="sort-field"><label class="sr-only" for="sort-order">Sort trails</label><select id="sort-order"><option value="name">Trail name</option><option value="park">Park name</option><option value="shortest">Shortest first</option><option value="longest">Longest first</option><option value="recent">Recently completed</option></select></div>
+        <div class="view-switch" role="group" aria-label="Trail view"><button type="button" id="view-list" class="icon-button" data-view="list" aria-label="List view" aria-pressed="true" title="List view"><svg class="icon" aria-hidden="true"><use href="#i-list"/></svg></button><button type="button" id="view-cards" class="icon-button" data-view="cards" aria-label="Card view" aria-pressed="false" title="Card view"><svg class="icon" aria-hidden="true"><use href="#i-grid"/></svg></button></div>
+      </div>
+      <div class="filter-toolbar"><div class="completion-tabs" role="group" aria-label="Completion filter"><button type="button" data-completion="all" aria-pressed="true">All trails <span id="tab-all">{{.Count}}</span></button><button type="button" data-completion="remaining" aria-pressed="false">To explore <span id="tab-remaining">{{.Remaining}}</span></button><button type="button" data-completion="completed" aria-pressed="false">Completed <span id="tab-completed">{{.Completed}}</span></button></div><button class="button button-quiet filter-toggle" id="filters-toggle" type="button" aria-expanded="false" aria-controls="filter-panel"><svg class="icon" aria-hidden="true"><use href="#i-filter"/></svg>Filters <span class="filter-count" id="filter-count" hidden>0</span></button></div>
+      <div class="filter-panel" id="filter-panel" hidden>
+        <div class="filter-fields"><label>Park or area<select id="filter-park"><option value="">All parks &amp; areas</option></select></label><label>Trail type<select id="filter-type"><option value="">All types</option></select></label><label>Source<select id="filter-source"><option value="">All sources</option></select></label><label>Source status<select id="filter-status"><option value="">All statuses</option></select></label><label>OSM match<select id="filter-match"><option value="">All matches</option></select></label><fieldset class="distance-filter"><legend>Distance, miles</legend><div><label class="sr-only" for="length-min">Minimum distance in miles</label><input id="length-min" type="number" min="0" step="any" aria-describedby="distance-hint" inputmode="decimal" placeholder="Min"><span aria-hidden="true">–</span><label class="sr-only" for="length-max">Maximum distance in miles</label><input id="length-max" type="number" min="0" step="any" aria-describedby="distance-hint" inputmode="decimal" placeholder="Max"></div></fieldset></div>
+        <div class="filter-panel-footer"><span id="distance-hint">Filters apply to the full collection.</span><button type="button" class="text-button" id="reset-filters">Reset all filters</button></div>
+      </div>
+      <div class="results-toolbar"><p id="results-count" role="status" aria-live="polite">{{.Count}} trail records in your collection</p><details class="search-tips"><summary>Search tips</summary><p>Use <code>park name: Forest Park</code>, <code>completed: yes</code>, or <code>osm match: missing</code>. Combine filters or enter a trail name.</p></details></div>
+      <div id="results" aria-label="Trail results">
+        <div class="table-scroll" id="list-view" tabindex="0" role="region" aria-label="Trail list"><table id="trailTable"><thead><tr><th scope="col">Trail</th><th scope="col">Park or area</th><th scope="col">Distance</th><th scope="col">Type</th><th scope="col">Completion</th><th scope="col"><span class="sr-only">Trail details</span></th></tr></thead><tbody id="tableBody">{{range .Initial}}
+          <tr data-record-key="{{.Key}}"><td><span class="trail-title">{{if .Label}}{{.Label}}{{else}}{{.Name}}{{end}}</span>{{if .Reference}}<span class="record-reference">{{.Reference}}</span>{{end}}{{if .Incomplete}}<span class="record-note">Incomplete geometry</span>{{end}}</td><td>{{if .Park}}{{.Park}}{{else}}<span class="muted">Unspecified area</span>{{end}}</td><td>{{if .Length}}{{.Length}} mi{{else}}<span class="muted">Not recorded</span>{{end}}</td><td><span class="type-tag">{{if .Type}}{{.Type}}{{else}}Unspecified{{end}}</span></td><td><label class="completion-control"><input type="checkbox" {{if .Completed}}checked{{end}} data-action="complete" data-record-key="{{.Key}}" aria-label="Mark {{.Name}} {{if .Completed}}incomplete{{else}}complete{{end}}"><span>{{if .Completed}}Completed<small>{{.CompletionDate}}</small>{{else}}To explore{{end}}</span></label></td><td><button type="button" class="icon-button detail-button" data-action="details" data-record-key="{{.Key}}" aria-label="Details for {{.Name}}"><svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></button></td></tr>{{end}}
+        </tbody></table></div>
+        <div class="trail-cards" id="cards-view" hidden></div>
+        <div class="empty-state" id="empty-state" hidden><span class="empty-icon"><svg class="icon" aria-hidden="true"><use href="#i-mountain"/></svg></span><h3>No trails match these filters.</h3><p>Try another name or make your filters less specific.</p><button type="button" class="button button-primary" id="empty-reset">Show all trails</button></div>
+      </div>
+      <nav class="pagination" id="pagination" aria-label="Trail result pages"><label class="page-size-label">Show<select id="page-size"><option value="24">24</option><option value="48">48</option><option value="96">96</option></select><span>per page</span></label><div class="page-navigation"><button type="button" class="icon-button" id="previous-page" aria-label="Previous page" disabled><svg class="icon flip"><use href="#i-arrow"/></svg></button><label class="page-number-label">Page <input id="page-number" type="number" min="1" value="1" aria-label="Page number"> <span id="page-total">of 1</span></label><button type="button" class="icon-button" id="next-page" aria-label="Next page"><svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></button></div></nav>
+      <noscript><p class="notice">This preview shows the first 24 records. Enable JavaScript to search the full collection, change pages, and save progress.</p></noscript>
+    </section>
+  </main>
+  <footer class="site-footer shell"><span class="footer-brand"><svg class="icon" aria-hidden="true"><use href="#i-mountain"/></svg> One trail at a time.</span><p>Manual changes stay in this browser. CSV export includes all matching records.</p></footer>
+
+  <dialog id="trail-dialog" aria-labelledby="detail-title"><div class="dialog-content"><div class="dialog-heading"><span class="eyebrow">TRAIL NOTES</span><button type="button" class="icon-button" id="close-dialog" aria-label="Close trail details"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button></div><h2 id="detail-title"></h2><p class="detail-park" id="detail-park"></p><div id="detail-completion"></div><label class="date-field" for="completion-date">Completion date<input id="completion-date" type="date"></label><dl class="detail-facts" id="detail-facts"></dl><div class="detail-links" id="detail-links"></div><div class="record-identity"><span class="stat-label">Record ID</span><code id="detail-id"></code></div></div></dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+  <script id="trail-data" type="application/json">{{.Data}}</script>
+</body>
 </html>

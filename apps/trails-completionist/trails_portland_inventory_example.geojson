@@ -1,0 +1,1415 @@
+{
+  "type": "FeatureCollection",
+  "name": "portland-trails",
+  "source": {
+    "url": "https://www.portlandmaps.com/arcgis/rest/services/Public/Parks_Pathways_and_Trails/MapServer/1",
+    "where": "1=1",
+    "downloaded_at": "2026-10-25T17:54:05.863369+00:00",
+    "feature_count": 8,
+    "coordinate_reference_system": "EPSG:4326",
+    "attribution": "City of Portland, Oregon",
+    "selection": "Eight source segments for input examples. This sample is not a complete inventory. Download the complete inventory with scripts/download-portland-trails.py."
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "id": 4891,
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.71329728979073,
+            45.512640541893944
+          ],
+          [
+            -122.71320206093388,
+            45.51260689088802
+          ],
+          [
+            -122.7131052770809,
+            45.51257801509919
+          ],
+          [
+            -122.71300717751966,
+            45.51255398591979
+          ],
+          [
+            -122.71291616658402,
+            45.51253599020285
+          ],
+          [
+            -122.71282447547931,
+            45.51252186301103
+          ],
+          [
+            -122.71278603981474,
+            45.51251709705092
+          ],
+          [
+            -122.71267504290093,
+            45.512506943354964
+          ],
+          [
+            -122.71256367914756,
+            45.51250230365078
+          ],
+          [
+            -122.71245222230404,
+            45.51250318934346
+          ],
+          [
+            -122.71234094634859,
+            45.51250959825585
+          ],
+          [
+            -122.7122301248148,
+            45.51252151463384
+          ],
+          [
+            -122.71212003011917,
+            45.51253890918512
+          ],
+          [
+            -122.71201093289159,
+            45.51256173915119
+          ],
+          [
+            -122.71190310130994,
+            45.51258994841243
+          ],
+          [
+            -122.71176122421998,
+            45.51263227822607
+          ],
+          [
+            -122.71144849497409,
+            45.5127300056372
+          ],
+          [
+            -122.71113758027782,
+            45.51283336075205
+          ],
+          [
+            -122.71081690008738,
+            45.51294665948851
+          ],
+          [
+            -122.71052804814248,
+            45.513051844613294
+          ]
+        ]
+      },
+      "properties": {
+        "OBJECTID": 4891,
+        "TrailName": "Wildwood Trail",
+        "ParksProperty": "Hoyt Arboretum",
+        "TrailStatus": "existing",
+        "TrailType": "Trail/Pathway",
+        "TrailSurfaceMaterial": "soil",
+        "TrailSurfaceType": "Soft Surface",
+        "Miles": 0.14410931,
+        "ManagedbyParks": null,
+        "ManagedOwnedDataSource": null,
+        "DateOpened": null,
+        "DateImproved": null,
+        "DateClosed": null,
+        "ManagementOrg": "PP&R - CN",
+        "AvgWidth": null,
+        "DataSource": "Parks_PDX_Trails",
+        "DataSourceComment": "Ortho / heads-up",
+        "UserPedestrian": "yes",
+        "UserHorseRiding": null,
+        "USERADA": null,
+        "UserRollerblade": null,
+        "UserMountainBike": "no",
+        "UserRoadBike": "no",
+        "DogsPermitted": null,
+        "RegionalTrail": "regional trail",
+        "ColumbiaSloughTrail": " ",
+        "FortyMileLoop": "40 mile loop (ped)",
+        "I205Trail": " ",
+        "MarineDriveTrail": " ",
+        "MarquamTrail": " ",
+        "SpringwaterCorridor": " ",
+        "WillametteGreenway": " ",
+        "ProposedTrailsDetails": " ",
+        "SouthwestTrails": " ",
+        "SouthwestTrails1": " ",
+        "RedElectricTrail": " ",
+        "SouthwestTrails3": " ",
+        "SouthwestTrails4": " ",
+        "SouthwestTrails5": " ",
+        "SouthwestTrails6": " ",
+        "SouthwestTrails7": " ",
+        "HillsdaleToLakeOswegoTrail": " ",
+        "FannoCreekTrail": " ",
+        "FireAccess": null,
+        "DrainIssue": null,
+        "SafetyIssue": null,
+        "TreeEffect": null,
+        "OverallCondition": null,
+        "RequiresAssessment": "yes",
+        "AssessmentComplete": "no",
+        "GeneralComment": null,
+        "created_user": null,
+        "created_date": null,
+        "last_edited_user": "PSHUTLER",
+        "last_edited_date": 1781572057000,
+        "GlobalID": "{A98B42F9-AB55-4DFD-9E53-6B39FC688A64}",
+        "AssessmentDate": null,
+        "PROPERTYID": 189,
+        "Shape.STLength()": 760.8691612135248
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 7173,
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.75982393490153,
+            45.554247475342976
+          ],
+          [
+            -122.75987823252906,
+            45.55419157310535
+          ],
+          [
+            -122.75993667069378,
+            45.55414001465859
+          ],
+          [
+            -122.75999890287713,
+            45.554093105726814
+          ],
+          [
+            -122.76006456006338,
+            45.55405112446409
+          ],
+          [
+            -122.76013325292766,
+            45.55401431980508
+          ],
+          [
+            -122.76020457414454,
+            45.553982909988946
+          ],
+          [
+            -122.76022131525913,
+            45.553979765231105
+          ],
+          [
+            -122.76023737732345,
+            45.553974093854805
+          ],
+          [
+            -122.76025238142417,
+            45.55396602965109
+          ],
+          [
+            -122.76026597360587,
+            45.55395576285918
+          ],
+          [
+            -122.76027783322115,
+            45.55394353567861
+          ],
+          [
+            -122.76028285801542,
+            45.553935672538636
+          ],
+          [
+            -122.76028662394863,
+            45.55392713466568
+          ],
+          [
+            -122.760289042795,
+            45.55391812207948
+          ],
+          [
+            -122.76030160224839,
+            45.55387654781663
+          ],
+          [
+            -122.76032039215993,
+            45.55383739301582
+          ],
+          [
+            -122.76034496750323,
+            45.55380158503204
+          ],
+          [
+            -122.76037474622795,
+            45.553769971953166
+          ],
+          [
+            -122.76040150252648,
+            45.55374673216408
+          ],
+          [
+            -122.760430213688,
+            45.55372595581908
+          ],
+          [
+            -122.76050787423458,
+            45.55367881546799
+          ],
+          [
+            -122.76056455800436,
+            45.55364440616384
+          ],
+          [
+            -122.76059977299292,
+            45.55362187735203
+          ],
+          [
+            -122.76063808683499,
+            45.55360515334871
+          ],
+          [
+            -122.7606785502866,
+            45.55359464849918
+          ],
+          [
+            -122.76072016084619,
+            45.55359062306614
+          ],
+          [
+            -122.76076188759203,
+            45.55359317678166
+          ],
+          [
+            -122.76079603419964,
+            45.5535977671348
+          ],
+          [
+            -122.76083048793144,
+            45.553597716950804
+          ],
+          [
+            -122.76086462102194,
+            45.55359302714407
+          ],
+          [
+            -122.76089781154786,
+            45.553583783165365
+          ],
+          [
+            -122.76092945476002,
+            45.55357015344497
+          ],
+          [
+            -122.7610218614506,
+            45.553563761667895
+          ],
+          [
+            -122.76111448127266,
+            45.55356257009747
+          ],
+          [
+            -122.76112121560921,
+            45.55356341245716
+          ],
+          [
+            -122.76112799679001,
+            45.55356313596891
+          ],
+          [
+            -122.76113234512391,
+            45.55356264297732
+          ],
+          [
+            -122.76113655125253,
+            45.553561434867056
+          ],
+          [
+            -122.76114049841728,
+            45.55355954517426
+          ],
+          [
+            -122.76114407704816,
+            45.55355702635521
+          ],
+          [
+            -122.76114718780538,
+            45.553553948330205
+          ],
+          [
+            -122.76114974433693,
+            45.553550396542654
+          ],
+          [
+            -122.76115167567565,
+            45.5535464695872
+          ],
+          [
+            -122.76115106869531,
+            45.553541967416244
+          ],
+          [
+            -122.76114969987132,
+            45.55353763563956
+          ],
+          [
+            -122.7611476096251,
+            45.55353360217465
+          ],
+          [
+            -122.7611448596817,
+            45.553529986129895
+          ],
+          [
+            -122.76114153124705,
+            45.553526894287224
+          ],
+          [
+            -122.76113772260993,
+            45.55352441794885
+          ],
+          [
+            -122.76113354623955,
+            45.55352263024115
+          ],
+          [
+            -122.76112912546428,
+            45.55352158395519
+          ],
+          [
+            -122.76112459082975,
+            45.55352130998783
+          ],
+          [
+            -122.7611200762439,
+            45.55352181642934
+          ],
+          [
+            -122.76111571502261,
+            45.55352308832448
+          ],
+          [
+            -122.76106483330558,
+            45.55351140863969
+          ],
+          [
+            -122.76101286161118,
+            45.553506478411876
+          ],
+          [
+            -122.76096069131546,
+            45.55350838220025
+          ],
+          [
+            -122.7609178338647,
+            45.55351281371339
+          ],
+          [
+            -122.76087476432528,
+            45.55351162452507
+          ],
+          [
+            -122.7608322167001,
+            45.55350483490175
+          ],
+          [
+            -122.76079091609739,
+            45.55349256055405
+          ],
+          [
+            -122.76075156637337,
+            45.55347501066476
+          ],
+          [
+            -122.76070793490693,
+            45.55346200058436
+          ],
+          [
+            -122.76066356989351,
+            45.553451767665
+          ],
+          [
+            -122.76060356631456,
+            45.55344235138239
+          ],
+          [
+            -122.76054301630192,
+            45.55343757730294
+          ],
+          [
+            -122.76048227846256,
+            45.55343747370111
+          ],
+          [
+            -122.76042171251581,
+            45.55344204119047
+          ],
+          [
+            -122.76039821816967,
+            45.55343913152713
+          ],
+          [
+            -122.76037455968266,
+            45.55343998383781
+          ],
+          [
+            -122.76035133561426,
+            45.553444576559066
+          ],
+          [
+            -122.76032913353319,
+            45.55345279349508
+          ],
+          [
+            -122.76030851515189,
+            45.553464426757465
+          ],
+          [
+            -122.7602900021152,
+            45.55347918202478
+          ],
+          [
+            -122.76027406280276,
+            45.55349668598892
+          ],
+          [
+            -122.76026110047904,
+            45.55351649579974
+          ],
+          [
+            -122.7602514430907,
+            45.55353811026924
+          ],
+          [
+            -122.76024967457663,
+            45.55354097455308
+          ],
+          [
+            -122.76024748822582,
+            45.553543534169066
+          ],
+          [
+            -122.76024174424083,
+            45.55354773628226
+          ],
+          [
+            -122.76023535859717,
+            45.55355087868165
+          ],
+          [
+            -122.76022852477863,
+            45.55355286615314
+          ],
+          [
+            -122.76022144984859,
+            45.55355363847672
+          ],
+          [
+            -122.76021434817608,
+            45.55355317225115
+          ],
+          [
+            -122.7602074349404,
+            45.55355148160296
+          ],
+          [
+            -122.76020091961128,
+            45.55354861775847
+          ],
+          [
+            -122.76019499960192,
+            45.55354466749163
+          ],
+          [
+            -122.7601898542875,
+            45.55353975049475
+          ],
+          [
+            -122.76018848689158,
+            45.55353702939479
+          ],
+          [
+            -122.76018758065591,
+            45.553534122008756
+          ],
+          [
+            -122.76018715975269,
+            45.5535311058859
+          ],
+          [
+            -122.76018723540872,
+            45.55352806147582
+          ],
+          [
+            -122.76018780560604,
+            45.553525069982605
+          ],
+          [
+            -122.76018885513565,
+            45.55352221119891
+          ],
+          [
+            -122.76019035600328,
+            45.553519561377605
+          ],
+          [
+            -122.76019226817598,
+            45.55351719119784
+          ],
+          [
+            -122.76019454065006,
+            45.55351516387986
+          ],
+          [
+            -122.76019711281138,
+            45.55351353349869
+          ],
+          [
+            -122.76023029078348,
+            45.553470196192045
+          ],
+          [
+            -122.76026812791274,
+            45.5534308610725
+          ],
+          [
+            -122.76031014502392,
+            45.55339602628605
+          ],
+          [
+            -122.7603558100059,
+            45.55336613298579
+          ],
+          [
+            -122.76040577260645,
+            45.553339259159856
+          ],
+          [
+            -122.76045777189904,
+            45.55331657573985
+          ],
+          [
+            -122.76051145716337,
+            45.55329823571894
+          ],
+          [
+            -122.76051949784646,
+            45.55329707987097
+          ],
+          [
+            -122.76052726591853,
+            45.553294703818494
+          ],
+          [
+            -122.76053457736023,
+            45.55329116384825
+          ],
+          [
+            -122.76054125896943,
+            45.55328654381929
+          ],
+          [
+            -122.76054715246418,
+            45.55328095317635
+          ],
+          [
+            -122.76055211823241,
+            45.55327452435724
+          ],
+          [
+            -122.76055603863904,
+            45.553267409655504
+          ],
+          [
+            -122.76055709104126,
+            45.55326272683909
+          ],
+          [
+            -122.76055740756806,
+            45.55325793767102
+          ],
+          [
+            -122.76055698062342,
+            45.55325315708127
+          ],
+          [
+            -122.76055582045315,
+            45.55324849979398
+          ],
+          [
+            -122.76055395489888,
+            45.553244077574256
+          ],
+          [
+            -122.76055142873001,
+            45.55323999654609
+          ],
+          [
+            -122.76054830256929,
+            45.553236354645605
+          ],
+          [
+            -122.76049366937094,
+            45.553218380259636
+          ],
+          [
+            -122.7604374194219,
+            45.553206388256335
+          ],
+          [
+            -122.76038020575808,
+            45.55320051785731
+          ],
+          [
+            -122.76032269260374,
+            45.55320083721521
+          ],
+          [
+            -122.76026554766005,
+            45.55320734262241
+          ],
+          [
+            -122.76020943435346,
+            45.553219958554145
+          ],
+          [
+            -122.76015500413352,
+            45.55323853854528
+          ],
+          [
+            -122.76010288891001,
+            45.55326286689068
+          ],
+          [
+            -122.76007251324845,
+            45.55328178300419
+          ],
+          [
+            -122.76003971104763,
+            45.553296083905835
+          ],
+          [
+            -122.76000844472607,
+            45.55330537540578
+          ],
+          [
+            -122.75997636671887,
+            45.553311284406526
+          ],
+          [
+            -122.7599480324683,
+            45.55331377079834
+          ],
+          [
+            -122.75991958936908,
+            45.55331381559173
+          ],
+          [
+            -122.75987691660535,
+            45.55331403928876
+          ],
+          [
+            -122.75983449288415,
+            45.553318648267485
+          ],
+          [
+            -122.75979276766306,
+            45.553327593698135
+          ],
+          [
+            -122.75975218299938,
+            45.553340780808476
+          ],
+          [
+            -122.75935940787696,
+            45.55349054134365
+          ],
+          [
+            -122.75931892316777,
+            45.55350995215501
+          ],
+          [
+            -122.7592765140543,
+            45.55352469184199
+          ],
+          [
+            -122.75923271749524,
+            45.55353457377954
+          ],
+          [
+            -122.7591880880162,
+            45.55353947284851
+          ],
+          [
+            -122.75914319068877,
+            45.55353932701986
+          ],
+          [
+            -122.75909859397588,
+            45.55353413813997
+          ],
+          [
+            -122.7590699614993,
+            45.55353395747123
+          ],
+          [
+            -122.75904167281077,
+            45.55353838482436
+          ],
+          [
+            -122.75902412244818,
+            45.55354373731949
+          ],
+          [
+            -122.7590241060954,
+            45.55354374347122
+          ]
+        ]
+      },
+      "properties": {
+        "OBJECTID": 7173,
+        "TrailName": "Maple Trail",
+        "ParksProperty": "Forest Park",
+        "TrailStatus": "existing",
+        "TrailType": "Trail/Pathway",
+        "TrailSurfaceMaterial": "soil",
+        "TrailSurfaceType": "Soft Surface",
+        "Miles": 0.2500004,
+        "ManagedbyParks": null,
+        "ManagedOwnedDataSource": null,
+        "DateOpened": null,
+        "DateImproved": null,
+        "DateClosed": null,
+        "ManagementOrg": "PP&R - CN",
+        "AvgWidth": null,
+        "DataSource": "Parks_PDX_Trails",
+        "DataSourceComment": "GPS",
+        "UserPedestrian": null,
+        "UserHorseRiding": null,
+        "USERADA": null,
+        "UserRollerblade": null,
+        "UserMountainBike": null,
+        "UserRoadBike": null,
+        "DogsPermitted": null,
+        "RegionalTrail": "no",
+        "ColumbiaSloughTrail": " ",
+        "FortyMileLoop": " ",
+        "I205Trail": " ",
+        "MarineDriveTrail": " ",
+        "MarquamTrail": " ",
+        "SpringwaterCorridor": " ",
+        "WillametteGreenway": " ",
+        "ProposedTrailsDetails": "",
+        "SouthwestTrails": " ",
+        "SouthwestTrails1": " ",
+        "RedElectricTrail": " ",
+        "SouthwestTrails3": " ",
+        "SouthwestTrails4": " ",
+        "SouthwestTrails5": " ",
+        "SouthwestTrails6": " ",
+        "SouthwestTrails7": " ",
+        "HillsdaleToLakeOswegoTrail": " ",
+        "FannoCreekTrail": " ",
+        "FireAccess": null,
+        "DrainIssue": null,
+        "SafetyIssue": null,
+        "TreeEffect": null,
+        "OverallCondition": null,
+        "RequiresAssessment": "yes",
+        "AssessmentComplete": "no",
+        "GeneralComment": null,
+        "created_user": null,
+        "created_date": null,
+        "last_edited_user": "PSHUTLER",
+        "last_edited_date": 1781572057000,
+        "GlobalID": "{F3B88595-EA71-4662-A72D-0DBA634656B2}",
+        "AssessmentDate": null,
+        "PROPERTYID": 127,
+        "Shape.STLength()": 1319.5442415761427
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 3786,
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.6871646735861,
+            45.491069667519014
+          ],
+          [
+            -122.68708622508008,
+            45.491112735214955
+          ],
+          [
+            -122.6869583458898,
+            45.491209318033015
+          ]
+        ]
+      },
+      "properties": {
+        "OBJECTID": 3786,
+        "TrailName": "Marquam Trail",
+        "ParksProperty": "Marquam Nature Park",
+        "TrailStatus": "existing",
+        "TrailType": "Road",
+        "TrailSurfaceMaterial": "asphalt",
+        "TrailSurfaceType": "Hard Surface",
+        "Miles": 0.01394691,
+        "ManagedbyParks": "cannot determine",
+        "ManagedOwnedDataSource": "ROW",
+        "DateOpened": null,
+        "DateImproved": null,
+        "DateClosed": null,
+        "ManagementOrg": "PP&R - CN",
+        "AvgWidth": null,
+        "DataSource": "Parks_PDX_Trails",
+        "DataSourceComment": "GPS",
+        "UserPedestrian": null,
+        "UserHorseRiding": null,
+        "USERADA": null,
+        "UserRollerblade": null,
+        "UserMountainBike": null,
+        "UserRoadBike": null,
+        "DogsPermitted": null,
+        "RegionalTrail": "regional trail",
+        "ColumbiaSloughTrail": " ",
+        "FortyMileLoop": "40 mile loop (ped)",
+        "I205Trail": " ",
+        "MarineDriveTrail": " ",
+        "MarquamTrail": "Marquam Trail",
+        "SpringwaterCorridor": " ",
+        "WillametteGreenway": " ",
+        "ProposedTrailsDetails": " ",
+        "SouthwestTrails": " ",
+        "SouthwestTrails1": " ",
+        "RedElectricTrail": " ",
+        "SouthwestTrails3": " ",
+        "SouthwestTrails4": " ",
+        "SouthwestTrails5": " ",
+        "SouthwestTrails6": " ",
+        "SouthwestTrails7": " ",
+        "HillsdaleToLakeOswegoTrail": " ",
+        "FannoCreekTrail": " ",
+        "FireAccess": null,
+        "DrainIssue": "no",
+        "SafetyIssue": "no",
+        "TreeEffect": "no",
+        "OverallCondition": 2,
+        "RequiresAssessment": null,
+        "AssessmentComplete": "yes",
+        "GeneralComment": "Road crossing",
+        "created_user": null,
+        "created_date": null,
+        "last_edited_user": "mhubbard",
+        "last_edited_date": 1785197789000,
+        "GlobalID": "{D4359A51-51CF-4055-A196-74086D6B958A}",
+        "AssessmentDate": 1785197755000,
+        "PROPERTYID": 251,
+        "Shape.STLength()": 73.63969044065854
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 1368,
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.59358714901701,
+            45.50824162998332
+          ],
+          [
+            -122.593404571054,
+            45.50810755981425
+          ]
+        ]
+      },
+      "properties": {
+        "OBJECTID": 1368,
+        "TrailName": "",
+        "ParksProperty": "Mt Tabor Park",
+        "TrailStatus": "existing",
+        "TrailType": "Trail/Pathway",
+        "TrailSurfaceMaterial": "gravel",
+        "TrailSurfaceType": "Soft Surface",
+        "Miles": 0.01281787,
+        "ManagedbyParks": "yes",
+        "ManagedOwnedDataSource": "Within or adjacent to parks property",
+        "DateOpened": null,
+        "DateImproved": null,
+        "DateClosed": null,
+        "ManagementOrg": "PP&R",
+        "AvgWidth": 11,
+        "DataSource": "Parks_PDX_Trails",
+        "DataSourceComment": "GPS",
+        "UserPedestrian": "",
+        "UserHorseRiding": "",
+        "USERADA": "",
+        "UserRollerblade": "",
+        "UserMountainBike": "",
+        "UserRoadBike": "",
+        "DogsPermitted": null,
+        "RegionalTrail": "no",
+        "ColumbiaSloughTrail": "",
+        "FortyMileLoop": "",
+        "I205Trail": "",
+        "MarineDriveTrail": "",
+        "MarquamTrail": "",
+        "SpringwaterCorridor": "",
+        "WillametteGreenway": "",
+        "ProposedTrailsDetails": "",
+        "SouthwestTrails": "",
+        "SouthwestTrails1": "",
+        "RedElectricTrail": "",
+        "SouthwestTrails3": "",
+        "SouthwestTrails4": "",
+        "SouthwestTrails5": "",
+        "SouthwestTrails6": "",
+        "SouthwestTrails7": "",
+        "HillsdaleToLakeOswegoTrail": "",
+        "FannoCreekTrail": "",
+        "FireAccess": null,
+        "DrainIssue": "yes",
+        "SafetyIssue": "no",
+        "TreeEffect": "no",
+        "OverallCondition": 4,
+        "RequiresAssessment": "yes",
+        "AssessmentComplete": "yes",
+        "GeneralComment": null,
+        "created_user": null,
+        "created_date": null,
+        "last_edited_user": "mhubbard",
+        "last_edited_date": 1769044341000,
+        "GlobalID": "{D9F7B405-DA1F-4FE3-A14A-0E2432879836}",
+        "AssessmentDate": 1769044179000,
+        "PROPERTYID": 275,
+        "Shape.STLength()": 67.67847589025719
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 5367,
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.70558503707865,
+            45.518276307379345
+          ],
+          [
+            -122.70538001079089,
+            45.5182730394158
+          ],
+          [
+            -122.70526181484112,
+            45.51829468891587
+          ],
+          [
+            -122.70517194916783,
+            45.51834236900471
+          ]
+        ]
+      },
+      "properties": {
+        "OBJECTID": 5367,
+        "TrailName": " ",
+        "ParksProperty": "Washington Park - International Rose Test Garden",
+        "TrailStatus": "existing",
+        "TrailType": "Firelane",
+        "TrailSurfaceMaterial": "asphalt",
+        "TrailSurfaceType": "Hard Surface",
+        "Miles": 0.02135059,
+        "ManagedbyParks": "yes",
+        "ManagedOwnedDataSource": "Within or adjacent to parks property",
+        "DateOpened": null,
+        "DateImproved": null,
+        "DateClosed": null,
+        "ManagementOrg": "PP&R",
+        "AvgWidth": 10,
+        "DataSource": "Parks_PDX_Trails",
+        "DataSourceComment": "CAD data",
+        "UserPedestrian": null,
+        "UserHorseRiding": null,
+        "USERADA": null,
+        "UserRollerblade": null,
+        "UserMountainBike": null,
+        "UserRoadBike": null,
+        "DogsPermitted": null,
+        "RegionalTrail": "no",
+        "ColumbiaSloughTrail": " ",
+        "FortyMileLoop": " ",
+        "I205Trail": " ",
+        "MarineDriveTrail": " ",
+        "MarquamTrail": " ",
+        "SpringwaterCorridor": " ",
+        "WillametteGreenway": " ",
+        "ProposedTrailsDetails": " ",
+        "SouthwestTrails": " ",
+        "SouthwestTrails1": " ",
+        "RedElectricTrail": " ",
+        "SouthwestTrails3": " ",
+        "SouthwestTrails4": " ",
+        "SouthwestTrails5": " ",
+        "SouthwestTrails6": " ",
+        "SouthwestTrails7": " ",
+        "HillsdaleToLakeOswegoTrail": " ",
+        "FannoCreekTrail": " ",
+        "FireAccess": null,
+        "DrainIssue": "no",
+        "SafetyIssue": "yes",
+        "TreeEffect": "yes",
+        "OverallCondition": 4,
+        "RequiresAssessment": "yes",
+        "AssessmentComplete": "yes",
+        "GeneralComment": null,
+        "created_user": null,
+        "created_date": null,
+        "last_edited_user": "mhubbard",
+        "last_edited_date": 1790208766000,
+        "GlobalID": "{B21EFD6D-3617-44E3-8367-EF5F67519ABD}",
+        "AssessmentDate": 1790208731000,
+        "PROPERTYID": 1113,
+        "Shape.STLength()": 112.73113149852239
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 1197,
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.77952745248164,
+            45.56315114731063
+          ],
+          [
+            -122.77942576284623,
+            45.56312826544567
+          ],
+          [
+            -122.77932326846992,
+            45.563109311171246
+          ],
+          [
+            -122.77923096442706,
+            45.563095632585224
+          ],
+          [
+            -122.77914313025161,
+            45.56308550968772
+          ],
+          [
+            -122.7790550232936,
+            45.56307812867284
+          ],
+          [
+            -122.77900935016041,
+            45.56307538201656
+          ],
+          [
+            -122.7787363377453,
+            45.56304977181912
+          ],
+          [
+            -122.77840681521248,
+            45.56301586869621
+          ],
+          [
+            -122.77836769784288,
+            45.56300791061827
+          ],
+          [
+            -122.77832782087083,
+            45.563006086691736
+          ],
+          [
+            -122.77828814036314,
+            45.56301044064602
+          ],
+          [
+            -122.77827252958109,
+            45.56301393302822
+          ],
+          [
+            -122.77824594517939,
+            45.563021699302745
+          ],
+          [
+            -122.77822101462372,
+            45.563033762172566
+          ],
+          [
+            -122.77819842682572,
+            45.563049788301704
+          ],
+          [
+            -122.77817880595904,
+            45.56306933483654
+          ],
+          [
+            -122.77816269421146,
+            45.56309186164332
+          ]
+        ]
+      },
+      "properties": {
+        "OBJECTID": 1197,
+        "TrailName": " ",
+        "ParksProperty": "Forest Park",
+        "TrailStatus": "closed",
+        "TrailType": "Trail/Pathway",
+        "TrailSurfaceMaterial": "gravel",
+        "TrailSurfaceType": null,
+        "Miles": 0.0697263,
+        "ManagedbyParks": "no",
+        "ManagedOwnedDataSource": null,
+        "DateOpened": null,
+        "DateImproved": null,
+        "DateClosed": 1773990000000,
+        "ManagementOrg": "PP&R - CN",
+        "AvgWidth": null,
+        "DataSource": "Parks_PDX_Trails",
+        "DataSourceComment": "GPS",
+        "UserPedestrian": "no",
+        "UserHorseRiding": "no",
+        "USERADA": "no",
+        "UserRollerblade": "no",
+        "UserMountainBike": "no",
+        "UserRoadBike": "no",
+        "DogsPermitted": "no",
+        "RegionalTrail": "no",
+        "ColumbiaSloughTrail": " ",
+        "FortyMileLoop": " ",
+        "I205Trail": " ",
+        "MarineDriveTrail": " ",
+        "MarquamTrail": " ",
+        "SpringwaterCorridor": " ",
+        "WillametteGreenway": " ",
+        "ProposedTrailsDetails": " ",
+        "SouthwestTrails": " ",
+        "SouthwestTrails1": " ",
+        "RedElectricTrail": " ",
+        "SouthwestTrails3": " ",
+        "SouthwestTrails4": " ",
+        "SouthwestTrails5": " ",
+        "SouthwestTrails6": " ",
+        "SouthwestTrails7": " ",
+        "HillsdaleToLakeOswegoTrail": " ",
+        "FannoCreekTrail": " ",
+        "FireAccess": null,
+        "DrainIssue": null,
+        "SafetyIssue": null,
+        "TreeEffect": null,
+        "OverallCondition": null,
+        "RequiresAssessment": "yes",
+        "AssessmentComplete": "NA",
+        "GeneralComment": null,
+        "created_user": null,
+        "created_date": null,
+        "last_edited_user": "PARKS_ADMIN",
+        "last_edited_date": 1774048141000,
+        "GlobalID": "{E8C959FE-B8A6-4C9B-8791-518CE0EBDBA2}",
+        "AssessmentDate": null,
+        "PROPERTYID": 127,
+        "Shape.STLength()": 368.22249497581305
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 44,
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.76458212757942,
+            45.39348067430987
+          ],
+          [
+            -122.7645768544582,
+            45.3924183957399
+          ]
+        ]
+      },
+      "properties": {
+        "OBJECTID": 44,
+        "TrailName": "Fanno Creek Greenway Trail",
+        "ParksProperty": null,
+        "TrailStatus": "proposed",
+        "TrailType": null,
+        "TrailSurfaceMaterial": null,
+        "TrailSurfaceType": null,
+        "Miles": 0.07335287,
+        "ManagedbyParks": null,
+        "ManagedOwnedDataSource": null,
+        "DateOpened": null,
+        "DateImproved": null,
+        "DateClosed": null,
+        "ManagementOrg": " ",
+        "AvgWidth": 0,
+        "DataSource": "ProposedMerge",
+        "DataSourceComment": "CAD data",
+        "UserPedestrian": " ",
+        "UserHorseRiding": " ",
+        "USERADA": " ",
+        "UserRollerblade": " ",
+        "UserMountainBike": "",
+        "UserRoadBike": "yes",
+        "DogsPermitted": null,
+        "RegionalTrail": "regional trail",
+        "ColumbiaSloughTrail": " ",
+        "FortyMileLoop": " ",
+        "I205Trail": " ",
+        "MarineDriveTrail": " ",
+        "MarquamTrail": " ",
+        "SpringwaterCorridor": " ",
+        "WillametteGreenway": " ",
+        "ProposedTrailsDetails": "1st choice proposed",
+        "SouthwestTrails": " ",
+        "SouthwestTrails1": " ",
+        "RedElectricTrail": " ",
+        "SouthwestTrails3": " ",
+        "SouthwestTrails4": " ",
+        "SouthwestTrails5": " ",
+        "SouthwestTrails6": " ",
+        "SouthwestTrails7": " ",
+        "HillsdaleToLakeOswegoTrail": " ",
+        "FannoCreekTrail": "Fanno Creek Greenway Trail",
+        "FireAccess": null,
+        "DrainIssue": null,
+        "SafetyIssue": null,
+        "TreeEffect": null,
+        "OverallCondition": null,
+        "RequiresAssessment": "no",
+        "AssessmentComplete": "NA",
+        "GeneralComment": null,
+        "created_user": null,
+        "created_date": null,
+        "last_edited_user": "PARKS_ADMIN",
+        "last_edited_date": 1759283241000,
+        "GlobalID": "{38253681-5FD1-42E1-B2A2-9ACFD76DD4E2}",
+        "AssessmentDate": null,
+        "PROPERTYID": null,
+        "Shape.STLength()": 387.3039184345819
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 1163,
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.7341917588897,
+            45.44795887096179
+          ],
+          [
+            -122.73415120691902,
+            45.4478974322701
+          ],
+          [
+            -122.73414684697116,
+            45.447786483250944
+          ],
+          [
+            -122.7341598046801,
+            45.4477191208557
+          ],
+          [
+            -122.7342393383047,
+            45.447713912110196
+          ],
+          [
+            -122.73434927590945,
+            45.44773251447859
+          ],
+          [
+            -122.73447990563093,
+            45.44774827184856
+          ],
+          [
+            -122.73471287310903,
+            45.44776569974694
+          ],
+          [
+            -122.73474635347915,
+            45.4478236157691
+          ],
+          [
+            -122.73483954220279,
+            45.44790111327986
+          ],
+          [
+            -122.73487282807545,
+            45.44795415049809
+          ],
+          [
+            -122.7349106429512,
+            45.447990017408095
+          ]
+        ]
+      },
+      "properties": {
+        "OBJECTID": 1163,
+        "TrailName": "Dickinson Park Trails",
+        "ParksProperty": "Dickinson Park",
+        "TrailStatus": "removed",
+        "TrailType": "Trail/Pathway",
+        "TrailSurfaceMaterial": "soil",
+        "TrailSurfaceType": null,
+        "Miles": 0.0626604,
+        "ManagedbyParks": null,
+        "ManagedOwnedDataSource": null,
+        "DateOpened": null,
+        "DateImproved": null,
+        "DateClosed": null,
+        "ManagementOrg": "PP&R - CN",
+        "AvgWidth": null,
+        "DataSource": "Parks_PDX_Trails",
+        "DataSourceComment": "GPS",
+        "UserPedestrian": " ",
+        "UserHorseRiding": " ",
+        "USERADA": " ",
+        "UserRollerblade": " ",
+        "UserMountainBike": " ",
+        "UserRoadBike": " ",
+        "DogsPermitted": null,
+        "RegionalTrail": "no",
+        "ColumbiaSloughTrail": " ",
+        "FortyMileLoop": " ",
+        "I205Trail": " ",
+        "MarineDriveTrail": " ",
+        "MarquamTrail": " ",
+        "SpringwaterCorridor": " ",
+        "WillametteGreenway": " ",
+        "ProposedTrailsDetails": " ",
+        "SouthwestTrails": " ",
+        "SouthwestTrails1": " ",
+        "RedElectricTrail": " ",
+        "SouthwestTrails3": " ",
+        "SouthwestTrails4": " ",
+        "SouthwestTrails5": " ",
+        "SouthwestTrails6": " ",
+        "SouthwestTrails7": " ",
+        "HillsdaleToLakeOswegoTrail": " ",
+        "FannoCreekTrail": " ",
+        "FireAccess": null,
+        "DrainIssue": null,
+        "SafetyIssue": null,
+        "TreeEffect": null,
+        "OverallCondition": null,
+        "RequiresAssessment": null,
+        "AssessmentComplete": "NA",
+        "GeneralComment": null,
+        "created_user": null,
+        "created_date": null,
+        "last_edited_user": "PARKS_ADMIN",
+        "last_edited_date": 1759283241000,
+        "GlobalID": "{FF771C9B-93F9-494D-AAAE-9C6E9821A558}",
+        "AssessmentDate": null,
+        "PROPERTYID": 39,
+        "Shape.STLength()": 330.8475518818111
+      }
+    }
+  ]
+}

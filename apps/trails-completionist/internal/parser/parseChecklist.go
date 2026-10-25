@@ -39,16 +39,27 @@ func extractTrailInfoFromChecklist(file *os.File) ([]types.Trail, error) {
 				Park: currentPark,
 			}
 		case strings.HasPrefix(line, "    - "):
+			value := strings.TrimPrefix(line, "    - ")
 			switch {
-			case strings.Contains(line, "Connector") || strings.Contains(line, "Trail"):
-				currentTrail.Type = parseTrailTypeFromChecklist(line)
-			case strings.Contains(line, "miles"):
+			case strings.HasPrefix(value, "ID: "):
+				currentTrail.ID = strings.TrimPrefix(value, "ID: ")
+			case strings.HasPrefix(value, "Source: "):
+				currentTrail.Source = strings.TrimPrefix(value, "Source: ")
+			case strings.HasPrefix(value, "Status: "):
+				currentTrail.Status = strings.TrimPrefix(value, "Status: ")
+			case strings.HasPrefix(value, "OSM match: "):
+				currentTrail.MatchStatus = strings.TrimPrefix(value, "OSM match: ")
+			case strings.HasPrefix(value, "URL: "):
+				currentTrail.URL = strings.TrimPrefix(value, "URL: ")
+			case strings.HasSuffix(value, " miles"):
 				currentTrail.Length = parseTrailLengthFromChecklist(line)
-			case strings.Contains(line, "Completed"):
+			case strings.HasPrefix(value, "Completed "):
 				currentTrail.Completed = parseTrailCompletedFromChecklist(line)
 				currentTrail.CompletionDate = parseTrailCompletionDateFromChecklist(line)
-			case strings.Contains(line, "http"):
+			case strings.HasPrefix(value, "http"):
 				currentTrail.URL = parseTrailURLFromChecklist(line)
+			default:
+				currentTrail.Type = value
 			}
 		}
 	}
@@ -77,23 +88,6 @@ func parseTrailNameFromChecklist(input string) string {
 	}
 
 	return trailName
-}
-
-func parseTrailTypeFromChecklist(input string) string {
-	// Regular expression to parse trail type and length
-	re := regexp.MustCompile(`^\s{4}-\s(Connector|Trail)$`)
-
-	// FindStringSubmatch returns a slice of strings containing the text of the leftmost match
-	match := re.FindStringSubmatch(input)
-
-	var trailType string
-	if len(match) == 2 {
-		trailType = match[1]
-	} else {
-		trailType = ""
-	}
-
-	return trailType
 }
 
 func parseTrailLengthFromChecklist(input string) string {

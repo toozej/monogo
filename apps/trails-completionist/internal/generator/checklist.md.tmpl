@@ -6,6 +6,11 @@
 - {{.Name}}
     - {{.Type}}
     - {{.Length}} miles{{if .Completed}}
-    - Completed {{.CompletionDate}}{{end}}
+    - Completed {{.CompletionDate}}{{end}}{{if .ID}}
+    - ID: {{.ID}}{{end}}{{if .Source}}
+    - Source: {{.Source}}{{end}}{{if .Status}}
+    - Status: {{.Status}}{{end}}{{if .MatchStatus}}
+    - OSM match: {{.MatchStatus}}{{end}}{{if .URL}}
+    - URL: {{.URL}}{{end}}
 {{- end}}
 {{- end}}

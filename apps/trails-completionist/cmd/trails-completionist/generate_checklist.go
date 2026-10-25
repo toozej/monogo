@@ -5,41 +5,20 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/toozej/monogo/apps/trails-completionist/internal/generator"
-	"github.com/toozej/monogo/apps/trails-completionist/internal/matcher"
-	"github.com/toozej/monogo/apps/trails-completionist/internal/parser"
-	"github.com/toozej/monogo/apps/trails-completionist/internal/types"
+	trailscompletionist "github.com/toozej/monogo/apps/trails-completionist/internal/trails-completionist"
 )
 
 var GenerateChecklistCmd = &cobra.Command{
 	Use:   "generate-checklist",
-	Short: "Generate trails checklist from raw input and GPX files",
+	Short: "Generate a checklist from trail inventories, OSM, and GPX tracks",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		trackFiles := conf.TrackFiles
-		inputFile := conf.InputFile
-		checklistFile := conf.ChecklistFile
-		if inputFile == "" || checklistFile == "" {
-			return fmt.Errorf("inputFile and checklistFile must be specified via flag or env var")
+		if conf.ChecklistFile == "" {
+			return fmt.Errorf("checklistFile must be specified via flag or env var")
 		}
-		var foundGPXTrails []types.Trail
-		var err error
-		if trackFiles != "" {
-			osmData, loadErr := loadConfiguredOSM()
-			if loadErr != nil {
-				return loadErr
-			}
-			foundGPXTrails, err = parser.ParseTrailsFromTrackFiles(trackFiles, true, osmData)
-			if err != nil {
-				return err
-			}
-		}
-		rawTrails, err := parser.ParseTrailsFromRawInputFile(inputFile)
+		trails, err := trailscompletionist.CollectTrails(conf)
 		if err != nil {
 			return err
 		}
-		combined, err := matcher.MatchTrails(foundGPXTrails, rawTrails)
-		if err != nil {
-			return err
-		}
-		return generator.GenerateChecklist(checklistFile, combined)
+		return generator.GenerateChecklist(conf.ChecklistFile, trails)
 	},
 }

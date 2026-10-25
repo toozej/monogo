@@ -15,6 +15,6 @@ var ServeCmd = &cobra.Command{
 		if htmlFile == "" {
 			return fmt.Errorf("htmlFile must be specified via flag or env var")
 		}
-		return trailscompletionist.ServeHTMLFile(htmlFile)
+		return trailscompletionist.ServeHTMLFile(htmlFile, conf.ServeAddress)
 	},
 }

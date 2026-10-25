@@ -20,6 +20,9 @@
 package cmd
 
 import (
+	"fmt"
+	"math"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
@@ -45,10 +48,10 @@ var (
 // The command accepts no positional arguments and provides tools for tracking
 // completion of trails through various subcommands.
 var rootCmd = &cobra.Command{
-	Use:              "trails-completionist",
-	Short:            "tools for tracking completion of trails",
-	Long:             `A Golang application to parse a list of trails from a directory of track files, then display the found trails in a searchable HTML table for ease of tracking completion.`,
-	PersistentPreRun: rootCmdPreRun,
+	Use:               "trails-completionist",
+	Short:             "tools for tracking completion of trails",
+	Long:              `A Golang application to parse a list of trails from a directory of track files, then display the found trails in a searchable HTML table for ease of tracking completion.`,
+	PersistentPreRunE: rootCmdPreRun,
 }
 
 // rootCmdPreRun performs setup operations before executing any command.
@@ -60,10 +63,14 @@ var rootCmd = &cobra.Command{
 // Parameters:
 //   - cmd: The cobra command being executed
 //   - args: Command-line arguments
-func rootCmdPreRun(cmd *cobra.Command, args []string) {
+func rootCmdPreRun(cmd *cobra.Command, args []string) error {
 	if debug {
 		log.SetLevel(log.DebugLevel)
 	}
+	if math.IsNaN(conf.MatchDistance) || math.IsInf(conf.MatchDistance, 0) || conf.MatchDistance <= 0 || conf.MatchDistance > 1000 || math.IsNaN(conf.MinimumCoverage) || conf.MinimumCoverage <= 0 || conf.MinimumCoverage > 1 {
+		return fmt.Errorf("matchDistance must be greater than zero and at most 1000. minimumCoverage must be greater than zero and at most one")
+	}
+	return nil
 }
 
 func Execute() {
@@ -94,9 +101,15 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&conf.TrackFiles, "trackFiles", "t", conf.TrackFiles, "Track files directory")
 	rootCmd.PersistentFlags().StringVarP(&conf.OSMRegionFile, "osmRegionFile", "r", conf.OSMRegionFile, "OSM region file")
 	rootCmd.PersistentFlags().StringVarP(&conf.InputFile, "inputFile", "i", conf.InputFile, "Input file")
+	rootCmd.PersistentFlags().StringSliceVar(&conf.InventoryFiles, "inventoryFile", conf.InventoryFiles, "GeoJSON inventory files. Repeat this flag for additional files")
+	rootCmd.PersistentFlags().StringVar(&conf.BoundaryFile, "boundaryFile", conf.BoundaryFile, "GeoJSON polygon that selects and clips inventory and OSM geometry")
+	rootCmd.PersistentFlags().StringVar(&conf.ReportFile, "reportFile", conf.ReportFile, "JSON audit output file")
+	rootCmd.PersistentFlags().Float64Var(&conf.MatchDistance, "matchDistance", conf.MatchDistance, "Maximum distance in metres for geometry coverage")
+	rootCmd.PersistentFlags().Float64Var(&conf.MinimumCoverage, "minimumCoverage", conf.MinimumCoverage, "Required length fraction from zero to one")
 	rootCmd.PersistentFlags().StringVarP(&conf.ChecklistFile, "checklistFile", "c", conf.ChecklistFile, "Checklist file")
 	rootCmd.PersistentFlags().StringVarP(&conf.HTMLFile, "htmlFile", "o", conf.HTMLFile, "HTML file")
 	rootCmd.PersistentFlags().BoolVarP(&conf.Serve, "serve", "s", conf.Serve, "Serve the generated HTML file")
+	rootCmd.PersistentFlags().StringVar(&conf.ServeAddress, "serveAddress", conf.ServeAddress, "HTTP listen address (host:port). Use 0.0.0.0:3000 for LAN access")
 
 	// add sub-commands from separate files
 	rootCmd.AddCommand(
@@ -105,6 +118,7 @@ func init() {
 		version.Command(),
 		ConvertCmd,
 		OsmExportCmd,
+		AuditOSMCmd,
 		ParseGPXCmd,
 		GenerateChecklistCmd,
 		GenerateHTMLCmd,

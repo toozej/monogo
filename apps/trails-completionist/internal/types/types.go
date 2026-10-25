@@ -4,6 +4,7 @@ import "time"
 
 // Trail represents information about a hiking trail
 type Trail struct {
+	ID             string
 	Name           string
 	Park           string
 	Type           string
@@ -11,6 +12,13 @@ type Trail struct {
 	URL            string
 	Completed      bool
 	CompletionDate string
+	Aliases        []string
+	Geometry       [][]Point
+	OSMIDs         []string
+	Source         string
+	Status         string
+	MatchStatus    string
+	Incomplete     bool
 }
 
 // Point represents a geographical point
@@ -21,11 +29,14 @@ type Point struct {
 
 // TrailMatch represents a potential match between GPX track and OSM trail
 type TrailMatch struct {
+	ID         string
 	Name       string
 	Type       string
 	Length     float64
 	Similarity float64
 	OSMId      int64
+	OSMIDs     []string
+	Park       string
 }
 
 // TrailResult stores the complete processing result for a GPX file

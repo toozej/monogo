@@ -32,6 +32,7 @@ func fetchFile(filename string) (*os.File, error) {
 func extractTrailInfo(file *os.File) ([]types.Trail, error) {
 	var trails []types.Trail
 	var currentTrail types.Trail
+	seen := map[string]bool{}
 
 	// Read file in batches of 3 lines and parse trail information
 	scanner := bufio.NewScanner(file)
@@ -55,16 +56,14 @@ func extractTrailInfo(file *os.File) ([]types.Trail, error) {
 					Completed:      false,
 					CompletionDate: "",
 				}
-				// Check if the current trail is already in the list
-				exists := false
-				for _, trail := range trails {
-					if trail.Name == currentTrail.Name && trail.Park == currentTrail.Park {
-						exists = true
-						break
-					}
+				if currentTrail.Type == "" {
+					return nil, fmt.Errorf("invalid type and length for trail %q: %s", currentTrail.Name, lines[1])
 				}
-				if !exists {
+				currentTrail.ID = fmt.Sprintf("text/%q/%q/%s/%s", currentTrail.Park, currentTrail.Name, currentTrail.Type, currentTrail.Length)
+				currentTrail.Source = "Text input"
+				if !seen[currentTrail.ID] {
 					trails = append(trails, currentTrail)
+					seen[currentTrail.ID] = true
 				}
 
 				// Reset the lines slice for the next batch
@@ -86,9 +85,12 @@ func parseTrailName(input string) string {
 	return strings.TrimSpace(input)
 }
 
+var typeAndLength = regexp.MustCompile(`^(\S+)\s+(\d+(\.\d+)?)\s+miles$`)
+var parkPattern = regexp.MustCompile(`>\s*([^>]+)$`)
+
 func parseTrailType(input string) string {
 	// Regular expression to parse trail type and length
-	re := regexp.MustCompile(`^(\S+)\s+(\d+(\.\d+)?)\s+miles$`)
+	re := typeAndLength
 
 	// FindStringSubmatch returns a slice of strings containing the text of the leftmost match
 	match := re.FindStringSubmatch(input)
@@ -105,7 +107,7 @@ func parseTrailType(input string) string {
 
 func parseTrailLength(input string) string {
 	// Regular expression to parse trail type and length
-	re := regexp.MustCompile(`^(\S+)\s+(\d+(\.\d+)?)\s+miles$`)
+	re := typeAndLength
 
 	// FindStringSubmatch returns a slice of strings containing the text of the leftmost match
 	match := re.FindStringSubmatch(input)
@@ -122,7 +124,7 @@ func parseTrailLength(input string) string {
 
 func parseTrailPark(input string) string {
 	// Regular expression to parse trail park
-	re := regexp.MustCompile(`>\s*([^>]+)$`)
+	re := parkPattern
 
 	// FindStringSubmatch returns a slice of strings containing the text of the leftmost match
 	match := re.FindStringSubmatch(input)

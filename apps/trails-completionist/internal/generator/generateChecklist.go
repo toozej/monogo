@@ -3,9 +3,12 @@ package generator
 import (
 	"embed"
 	"fmt"
-	"html/template"
 	"io/fs"
 	"os"
+
+	// The checklist is Markdown text. The HTML output uses html/template.
+	// noopengrep: go.lang.security.audit.xss.import-text-template.import-text-template
+	"text/template"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/toozej/monogo/apps/trails-completionist/internal/types"
