@@ -36,7 +36,7 @@ The downloader saves complete source records in EPSG:4326 and saves the layer me
 [Portland.gov's trails page](https://www.portland.gov/parks/nature/trails) provides hiking locations and park maps.
 It does not provide an inventory of every physical trail within the city.
 
-The AllTrails Portland directory (`https://www.alltrails.com/us/oregon/portland`) lists curated walking and hiking routes.
+[AllTrails Portland](https://www.alltrails.com/us/oregon/portland) lists curated walking and hiking routes.
 The directory returns HTTP 403 to automated link checks. Open the directory in a browser.
 Several routes reuse the same physical trails. Some listed routes lie outside Portland city limits.
 AllTrails supports [individual file exports](https://support.alltrails.com/hc/en-us/articles/37230403315476-Downloading-files-from-AllTrails).

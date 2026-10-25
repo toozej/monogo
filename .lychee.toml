@@ -24,6 +24,11 @@ include_verbatim = false
 # Shields.io badge requests returned HTTP 408 in repeated CI runs. Exclude only
 # badge image URLs because the README links to upstream project pages separately.
 # The Oregon Liquor Search site failed to connect from GitHub Actions on 2026-10-15.
+# The Portland trail review cites these primary sources. AllTrails and
+# OregonHikers return HTTP 403 from GitHub Actions. PortlandMaps resets GIS
+# metadata connections across retries. Keep the citations and exclude only
+# these source URLs. Verified in the 2026-10-25 CI run:
+# https://github.com/toozej/monogo/actions/runs/40233032724
 exclude = [
     '^https://stackoverflow\.com/a/60675491$',
     '^https://golang\.cafe/blog/how-to-upgrade-golang-dependencies$',
@@ -31,6 +36,12 @@ exclude = [
     '^https://securitylabs\.datadoghq\.com/articles/case-for-github-actions-security/$',
     '^https://img\.shields\.io/',
     '^https://www\.oregonliquorsearch\.com/$',
+    '^https://www[.]alltrails[.]com/us/oregon/portland$',
+    '^https://support[.]alltrails[.]com/hc/en-us/articles/37230403315476-Downloading-files-from-AllTrails$',
+    '^https://www[.]oregonhikers[.]org/field_guide/Category%3APortland$',
+    '^https://www[.]portlandmaps[.]com/arcgis/rest/services/Public/Parks_Pathways_and_Trails/MapServer(/1)?[?]f=pjson$',
+    '^https://www[.]portlandmaps[.]com/arcgis/rest/services/Public/Basemap_Color/MapServer/0[?]f=pjson$',
+    '^https://www[.]portlandmaps[.]com/arcgis/rest/services/Public/Boundaries/MapServer/13[?]f=pjson$',
 ]
 
 # These paths contain downloaded styles, tools, dependencies, build output,
