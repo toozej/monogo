@@ -2,6 +2,9 @@
 0c8c083d48cef0c59801508b01b734d94c6f31ff:internal/issue/issue_test.go:generic-api-key:176
 871f4ed396f840184aedda2279560201aaee804a:docs/development/setup.md:curl-auth-user:437
 
+# This test checks that debug logs omit fake credentials and photo metadata.
+e604fe809b1c1fd7860475e702b091118cb8506d:apps/gphotos-lister/internal/photos/client_test.go:generic-api-key:106
+
 # The detect-secrets baseline records hashes, not credentials.
 41c4657f4517152aad93ba3b482392f85f08256c:.secrets.baseline:generic-api-key:134
 41c4657f4517152aad93ba3b482392f85f08256c:.secrets.baseline:generic-api-key:141
