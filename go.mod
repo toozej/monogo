@@ -10,7 +10,7 @@ require (
 	github.com/antchfx/xmlquery v1.5.2
 	github.com/blacktop/go-termimg v0.1.26
 	github.com/blushft/go-diagrams v0.0.0-20250322201119-d91ac4ca5de4
-	github.com/bmatcuk/doublestar/v4 v4.10.2
+	github.com/bmatcuk/doublestar/v4 v4.10.3
 	github.com/bwmarrin/discordgo v0.29.0
 	github.com/caarlos0/env/v11 v11.4.1
 	github.com/chromedp/chromedp v0.21.0
@@ -41,7 +41,7 @@ require (
 	github.com/muesli/roff v0.1.0
 	github.com/nikoksr/notify v1.6.0
 	github.com/njayp/ophis v1.1.4
-	github.com/openai/openai-go/v3 v3.76.0
+	github.com/openai/openai-go/v3 v3.82.0
 	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd
 	github.com/sahilm/fuzzy v0.1.3
 	github.com/sirupsen/logrus v1.10.2
