@@ -1,0 +1,28 @@
+---
+name: gphotos-lister
+binary: gphotos-lister
+path: apps/gphotos-lister
+mainPath: apps/gphotos-lister
+description: "List original filenames of liked Google Photos album photos"
+shortDescription: "List liked Google Photos filenames"
+goImage: golang:1.27.3-trixie
+distrolessImage: gcr.io/distroless/static-debian13:nonroot
+distrolessOnly: true
+# cgoEnabled defaults to false. When true, builds use CGO_ENABLED=1, the runtime
+# image becomes glibc-capable (debian:trixie-slim / distroless base-debian), and
+# GoReleaser is trimmed to the native linux/amd64 platform.
+cgoEnabled: false
+# runtimeImage (optional) overrides the runtime base for the non-distroless
+# Dockerfile. Defaults to "scratch", or "debian:trixie-slim" when cgoEnabled is true.
+# runtimeImage: debian:trixie-slim
+# port (optional) is EXPOSEd in the generated Dockerfiles when set.
+port: 8080
+compose:
+  envFile:
+    - .env
+  command:
+    - serve
+    - --host
+    - 0.0.0.0
+  ports:
+    - 127.0.0.1:8080:8080

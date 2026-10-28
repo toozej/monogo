@@ -1,0 +1,15 @@
+# runtime image including CA certs and tzdata
+FROM gcr.io/distroless/static-debian13:nonroot
+# Copy our static executable.
+ARG TARGETPLATFORM
+COPY $TARGETPLATFORM/gphotos-lister /go/bin/gphotos-lister
+# Include the project license in the runtime image.
+COPY LICENSE /usr/share/doc/gphotos-lister/copyright
+# Expose port for publishing as web service
+EXPOSE 8080
+# Verify that the application binary can start without requiring a shell or
+# additional utilities in the minimal runtime image.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+    CMD ["/go/bin/gphotos-lister", "version"]
+# Run the binary.
+ENTRYPOINT ["/go/bin/gphotos-lister"]

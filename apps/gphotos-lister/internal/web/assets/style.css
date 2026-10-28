@@ -1,0 +1,31 @@
+:root { color-scheme: light dark; font: 16px/1.6 system-ui, sans-serif; color: #203243; background: #f2f5f8; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+main { max-width: 850px; margin: 2.5rem auto; padding: 0 1.25rem; }
+header { display: flex; align-items: center; gap: 1.2rem; margin-bottom: 2rem; }
+h1 { margin: 0; font-size: 2rem; letter-spacing: -.04em; }
+h2 { margin: 0 0 1rem; font-size: 1.25rem; }
+p { margin: .5rem 0 1rem; }
+.mark { color: #d13a61; background: #fce5eb; border-radius: 1rem; padding: .6rem 1.2rem; font-size: 2rem; }
+form, section { background: #fff; border: 1px solid #dce4ec; border-radius: 1rem; padding: 2rem; margin: 1rem 0; box-shadow: 0 4px 24px #20324308; }
+label { display: block; margin: 1rem 0 .4rem; font-weight: 600; }
+input { width: 100%; padding: .8rem; border: 1px solid #b8c7d5; border-radius: .4rem; background: #fff; color: inherit; font: inherit; }
+input:focus-visible, button:focus-visible { outline: 3px solid #87b9f8; outline-offset: 2px; }
+input[type=checkbox] { width: 1.1rem; height: 1.1rem; margin-right: .6rem; }
+.check { display: flex; align-items: center; }
+.columns { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+fieldset { border: 1px solid #dce4ec; border-radius: .5rem; margin: 1rem 0; padding: 1rem; }
+button { font: inherit; font-weight: 600; color: #fff; background: #2862ac; border: 0; border-radius: .5rem; padding: .8rem 1.25rem; margin-top: 1rem; cursor: pointer; }
+button:disabled { opacity: .6; cursor: wait; }
+pre { overflow: auto; max-height: 24rem; padding: 1rem; background: #f2f5f8; border-radius: .5rem; }
+footer { color: #556879; font-size: .875rem; }
+#status { overflow-wrap: anywhere; }
+[hidden] { display: none !important; }
+@media (max-width: 600px) { .columns { grid-template-columns: 1fr; gap: 0; } form, section { padding: 1.2rem; } }
+@media (prefers-color-scheme: dark) {
+  :root { color: #e1e9f2; background: #111b26; }
+  form, section, input { background: #1b2a39; border-color: #42586c; }
+  fieldset { border-color: #42586c; }
+  pre { background: #111b26; }
+  footer { color: #a3b6c8; }
+}

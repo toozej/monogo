@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{.Token}}">
+  <title>gphotos-lister</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/script.js" defer></script>
+</head>
+<body>
+  <main>
+    <header><span class="mark" aria-hidden="true">♥</span><div><h1>gphotos-lister</h1><p>Original filenames from photos with album hearts.</p></div></header>
+    <form id="album-form">
+      <h2>Read an album</h2>
+      <p>Use an unlisted album with link sharing enabled. No Google account or login is required.</p>
+      <label for="album">Album URL</label>
+      <input id="album" name="album" type="url" placeholder="https://photos.google.com/share/…" value="{{.Defaults.Album}}" required>
+      <div class="columns">
+        <div><label for="prefix">Prefix (optional)</label><input id="prefix" name="prefix" value="{{.Defaults.Prefix}}" placeholder="Before each filename"></div>
+        <div><label for="suffix">Suffix (optional)</label><input id="suffix" name="suffix" value="{{.Defaults.Suffix}}" placeholder="After each filename, including its extension"></div>
+      </div>
+      <label class="check"><input id="copy" name="copy" type="checkbox" {{if .Defaults.Copy}}checked{{end}}>Copy matching local files</label>
+      <fieldset id="copy-fields" hidden>
+        <legend>Local copy settings</legend>
+        <p>Paths refer to this server. The app searches subdirectories and keeps original filenames. Copies overwrite existing destination files by default.</p>
+        <label for="source">Source directory</label><input id="source" name="source" value="{{.Defaults.Source}}" placeholder="/photos/originals">
+        <label for="destination">Destination directory</label><input id="destination" name="destination" value="{{.Defaults.Destination}}" placeholder="/photos/selected">
+        <label class="check"><input id="no-overwrite" type="checkbox" {{if .Defaults.NoOverwrite}}checked{{end}}>Skip existing destination files</label>
+      </fieldset>
+      <button id="submit" type="submit">Create filename list</button>
+    </form>
+    <section id="result" hidden aria-labelledby="result-title">
+      <h2 id="result-title">Filename list</h2>
+      <p id="summary"></p>
+      <button id="download" type="button">Download liked-photos.txt</button>
+      <pre id="preview"></pre>
+      <div id="copy-results"></div>
+    </section>
+    <p id="status" role="status" aria-live="polite"></p>
+    <footer>Hearts from any album participant qualify. The app copies files and reports missing or ambiguous matches.</footer>
+  </main>
+</body>
+</html>

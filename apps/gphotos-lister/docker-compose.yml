@@ -1,0 +1,35 @@
+---
+services:
+  gphotos-lister:
+    container_name: gphotos-lister
+    image: toozej/gphotos-lister:latest
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    healthcheck:
+      test: ["CMD", "/go/bin/gphotos-lister", "version"]
+      interval: 30s
+      timeout: 5s
+      start_period: 5s
+      retries: 3
+    env_file:
+      - .env
+    command:
+      - "serve"
+      - "--host"
+      - "0.0.0.0"
+    ports:
+      - "127.0.0.1:8080:8080"
+    labels:
+      - "traefik.enable=false"
+      # labels below for publishing as web service
+      # - "traefik.docker.network=traefik"
+      # - "traefik.http.routers.gphotos-lister.rule=Host(`gphotos-lister.test`)"
+      # - "traefik.http.routers.gphotos-lister.middlewares=http-redirect-https@file,headers@file"
+      # - "traefik.http.routers.gphotos-lister-secure.entrypoints=https"
+      # - "traefik.http.routers.gphotos-lister-secure.rule=Host(`gphotos-lister.test`)"
+      # - "traefik.http.routers.gphotos-lister-secure.middlewares=headers@file"
+      # - "traefik.http.routers.gphotos-lister-secure.tls=true"
+    # networks:
+      # - traefik
