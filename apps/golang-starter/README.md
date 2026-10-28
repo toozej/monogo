@@ -11,60 +11,94 @@
 
 Golang starter template
 
-## features of this starter template
-- follows common Golang best practices in terms of repo/project layout, and includes explanations of what goes where in README files
-- Cobra library for CLI handling, Logrus for logging, and GoDotEnv and Env libraries for reading config files already plugged in and ready to expand upon
-- Goreleaser to build Docker images and most standard package types across Linux, MacOS and Windows
-    - also includes auto-generated manpages and shell autocompletions
-    - Docker images are signed with Cosign v3 via GoReleaser `docker_signs` using GitHub Actions OIDC certificates (keyless), and should be verified with `cosign verify` using `--certificate-identity-regexp` and `--certificate-oidc-issuer https://token.actions.githubusercontent.com` (not `--key`)
-- Makefile for easy building, deploying, testing, updating, etc. both Dockerized and using locally installed Golang toolchain
-- docker-compose project for easily hosting built Dockerized Golang project, with optional support for Golang web services
-- scripts to make using the starter template easy, and to update the Golang version when a new one comes out
-- Dev Container with built in Go-related VSCode extensions, and [llm](https://llm.datasette.io/) tool + plugins pre-configured to use GitHub Copilot
-- built-in security scans, vulnerability warnings and auto-updates via Dependabot and GitHub Actions
-- auto-generated documentation
-- pre-commit hooks for ensuring formatting, linting, security checks, etc.
+## Features of this starter template
 
-## changes required to use this as a starter template
-- generate a GitHub fine-grained access token from https://github.com/settings/tokens?type=beta (used in repo as "GITHUB_TOKEN" and in GitHub Actions Secrets as "GH_TOKEN") with the following read/write permissions:
-    - actions
-    - attestations
-    - code scanning alerts
-    - commit statuses
-    - contents
-    - dependabot alerts
-    - dependabot secrets
-    - deployments
-    - environments
-    - issues
-    - pages
-    - pull requests
-    - repository security advisories
-    - secret scanning alerts
-    - secrets
-    - webhooks
-    - workflows
-- run `use_starter.sh` script to rename project files, generate Cosign artifacts, gather and upload secrets to GitHub Actions, etc.
-    - run `./scripts/use_starter.sh $NEW_PROJECT_NAME_GOES_HERE`
-    - to rename with a different GitHub username `./scripts/use_starter.sh $NEW_PROJECT_NAME_GOES_HERE $GITHUB_USERNAME_GOES_HERE`
-- set up new repository in quay.io
-    - (DockerHub and GitHub Container Registry do this automatically on first push/publish)
-    - `use_starter.sh` automates Quay.io repo creation and robot permissions via `scripts/create_quay_repo.sh`
-    - this requires a Quay.io **OAuth 2.0 Access Token** (stored as `QUAY_OAUTH_TOKEN` in `.env` / GitHub Actions Secrets):
-        1. Log in to [quay.io](https://quay.io) and navigate to your **Account Settings** (or **Organization Settings** for org-owned repos)
-        2. Click **Applications** in the left sidebar
-        3. Click **Create New Application** and give it a name (e.g. `repo-automation`)
-        4. Click the newly created application, then click **Generate Token** in the left sidebar
-        5. Select the following permission scopes:
-            - `Create Repositories` (`repo:create`)
-            - `Administer Repositories` (`repo:admin`)
-        6. Click **Generate Access Token**, copy the token, and save it as `QUAY_OAUTH_TOKEN` in your `.env` file
-        - **Note:** `QUAY_OAUTH_TOKEN` is distinct from `QUAY_TOKEN` (the robot account password used by Docker login). The OAuth token is a user/org-level token needed for API operations; the robot token is used for image push/pull auth.
-        - **Note:** Robot account usernames follow the format `namespace+robotname` (e.g. `toozej+github_builder`). If your `QUAY_USERNAME` is in this format, `create_quay_repo.sh` will automatically extract the namespace and robot name.
-- set built packages visibility in GitHub packages to public
-    - navigate to https://github.com/users/$USERNAME/packages/container/$REPO/settings
-    - scroll down to "Danger Zone"
-    - change visibility to public
+- Common Go layout conventions, with README files that explain where code belongs
+- Cobra for CLI commands and Logrus for logs
+- GoDotEnv and Env libraries to read config files, already integrated and ready for extension
+- GoReleaser to build Docker images and most standard package types across Linux, macOS, and Windows
+- Automatically generated manpages and shell completions
+- A Makefile to build, deploy, test, and update with Docker or a local Go toolchain
+- A Compose project to host the Dockerized Go project, with optional support for Go web services
+- Scripts to simplify template use and update Go when a new version becomes available
+- A Dev Container with extensions for Go in VS Code and the [llm](https://llm.datasette.io/) tool and plugins, preconfigured for GitHub Copilot
+- Built-in security scans, vulnerability warnings, and automatic updates through Dependabot and GitHub Actions
+- Automatically generated documentation
+- Pre-commit hooks for format, lint, and security checks
 
-## changes required to update golang version
-- `make update-golang-version`
+The `docker_signs` feature in GoReleaser signs Docker images with Cosign v3 and keyless OIDC certificates from GitHub Actions.
+The recommended verification method uses `cosign verify` with `--certificate-identity-regexp` and `--certificate-oidc-issuer https://token.actions.githubusercontent.com`.
+Do not use `--key` for this keyless verification.
+
+## Changes required to use this starter template
+
+Generate a [GitHub token with fine-grained permissions](https://github.com/settings/tokens?type=beta).
+The repository uses it as `GITHUB_TOKEN`. GitHub Actions secrets use it as `GH_TOKEN`.
+Grant read and write permissions for these resources:
+
+- Actions
+- Attestations
+- Code scanning alerts
+- Commit statuses
+- Contents
+- Dependabot alerts
+- Dependabot secrets
+- Deployments
+- Environments
+- Issues
+- Pages
+- `Pull requests`
+- Repository security advisories
+- Secret scanning alerts
+- Secrets
+- Webhooks
+- Workflows
+
+Run `use_starter.sh` to rename project files, generate Cosign artifacts, and gather and upload secrets to GitHub Actions:
+
+```bash
+./scripts/use_starter.sh $NEW_PROJECT_NAME_GOES_HERE
+```
+
+To use a different GitHub username:
+
+```bash
+./scripts/use_starter.sh $NEW_PROJECT_NAME_GOES_HERE $GITHUB_USERNAME_GOES_HERE
+```
+
+### Configure Quay.io
+
+Create the new repository in Quay.io.
+Repositories on Docker Hub and GitHub Container Registry appear automatically on the first image publication.
+The `use_starter.sh` script automates Quay.io repository creation and robot permissions through `scripts/create_quay_repo.sh`.
+This requires a Quay.io `OAuth 2.0 Access Token`.
+Store it as `QUAY_OAUTH_TOKEN` in `.env` and GitHub Actions secrets.
+
+1. Log in to [quay.io](https://quay.io).
+2. Open `Account Settings`, or `Organization Settings` for repositories that an organization owns.
+3. Select `Applications` in the left sidebar.
+4. Select `Create New Application`.
+5. Give the application a name, for example `repo-automation`.
+6. Select the new application.
+7. Select `Generate Token` in the left sidebar.
+8. Select `Create Repositories` (`repo:create`) and `Administer Repositories` (`repo:admin`).
+9. Select `Generate Access Token`.
+10. Copy the token.
+11. Save it as `QUAY_OAUTH_TOKEN` in `.env`.
+
+`QUAY_OAUTH_TOKEN` differs from `QUAY_TOKEN`, the robot account password for Docker login.
+The OAuth token belongs to a user or organization and permits API operations.
+The robot token authenticates image pushes and pulls.
+
+Robot account usernames use the format `namespace+robotname`, for example `toozej+github_builder`.
+If `QUAY_USERNAME` uses this format, `create_quay_repo.sh` automatically extracts the namespace and robot name.
+
+### Publish GitHub packages
+
+1. Navigate to `https://github.com/users/$USERNAME/packages/container/$REPO/settings`.
+2. Find `Danger Zone`.
+3. Change the visibility of built packages to public.
+
+## Changes required to update the Go version
+
+Run `make update-golang-version`.

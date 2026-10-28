@@ -11,15 +11,13 @@ http://localhost:8080
 
 ## Authentication
 
-HTTP Basic Auth is optional when the server listens on a loopback address and
-required when it is exposed on a non-loopback address. When
-`SECURITY_USERNAME` and `SECURITY_PASSWORD` are configured, they protect the
-web interface, API, generated Swagger document, and Swagger UI alike. For
+HTTP Basic Auth is optional on loopback addresses. Non-loopback addresses require it.
+Set `SECURITY_USERNAME` and `SECURITY_PASSWORD` to protect the web interface, API, generated Swagger document, and Swagger UI alike. For
 example, add `--user "$SECURITY_USERNAME:$SECURITY_PASSWORD"` to curl commands.
 
 ## Interactive API documentation
 
-After starting the server, open
+After you start the server, open
 [`/swagger/index.html`](http://localhost:8080/swagger/index.html) for the
 interactive Swagger UI. The generated Swagger 2.0 document is available at
 `/swagger/doc.json`. Both routes follow the Basic Auth behavior described
@@ -32,9 +30,9 @@ All API endpoints expect and return JSON data with the content type:
 Content-Type: application/json
 ```
 
-## Rate Limiting
+## Rate Limits
 
-The API implements rate limiting to prevent abuse:
+The API implements the rate limits to prevent abuse:
 - **Default Limit**: 10 requests per second per IP address
 - **Burst Capacity**: 20 requests
 - **Response**: HTTP 429 (Too Many Requests) when limit exceeded
@@ -43,9 +41,9 @@ The API implements rate limiting to prevent abuse:
 
 The API includes several security protections:
 - **CSRF Protection**: Required for state-changing operations
-- **Input Validation**: All inputs are validated and sanitized
-- **Security Headers**: Standard security headers are applied
-- **Rate Limiting**: Per-IP rate limiting prevents abuse
+- **Input Validation**: The API validates and sanitizes all inputs
+- **Security Headers**: The API applies standard security headers
+- **Rate Limits**: Per-IP rate limits prevents abuse
 
 ## Error Responses
 
@@ -58,7 +56,7 @@ All endpoints return errors in a consistent format:
 }
 ```
 
-Common HTTP status codes:
+Common status codes for HTTP:
 - `200` - Success
 - `400` - Bad Request (invalid input)
 - `405` - Method Not Allowed
@@ -89,12 +87,12 @@ curl -X GET http://localhost:8080/api/csrf-token
 
 ### 2. Get Playlists
 
-Retrieve playlists from the "Incoming" folder with optional search filtering.
+Retrieve playlists from the `Incoming` folder with optional search filtering.
 
 **Endpoint:** `GET /api/playlists`
 
 **Query Parameters:**
-- `search` (optional): Filter playlists by name containing this term
+- `search` (optional): Filter playlists by name with this term
 
 **Response:**
 ```json
@@ -120,7 +118,7 @@ Get all incoming playlists:
 curl -X GET http://localhost:8080/api/playlists
 ```
 
-Search for playlists containing "rock":
+Search for playlists with "rock":
 ```bash
 curl -X GET "http://localhost:8080/api/playlists?search=rock"
 ```
@@ -152,7 +150,7 @@ X-CSRF-Token: your-csrf-token (required)
 **Request Parameters:**
 - `url` (required): URL of the web page to scrape (must be valid URL)
 - `css_selector` (optional): CSS selector to target specific page sections (max 500 characters)
-- `playlist_id` (required): Spotify playlist ID where tracks should be added
+- `playlist_id` (required): ID of the target Spotify playlist for track additions
 - `force` (optional): Set to `true` to bypass duplicate detection (default: `false`)
 
 **Success Response:**
@@ -278,7 +276,7 @@ X-CSRF-Token: your-csrf-token (required)
 
 **Request Parameters:**
 - `artist_name` (required): Name of the artist to search for (1-100 characters)
-- `playlist_id` (required): Spotify playlist ID where tracks should be added
+- `playlist_id` (required): ID of the target Spotify playlist for track additions
 - `force` (optional): Set to `true` to bypass duplicate detection (default: `false`)
 
 **Success Response:**
@@ -371,7 +369,7 @@ CSS selectors allow you to target specific sections of web pages for artist extr
 
 ### Reddit
 
-**Post content (excluding comments):**
+**Post content (without comments):**
 ```css
 div[data-test-id="post-content"]
 ```
@@ -457,9 +455,9 @@ curl -X POST http://localhost:8080/api/scrape-artists \
 ### General Tips
 
 1. **Inspect the page**: Use browser developer tools (F12) to find the right selector
-2. **Start broad**: If unsure, omit the CSS selector to scrape the entire page
+2. **Start with the entire page**: If unsure, omit the CSS selector to scrape the entire page
 3. **Test selectors**: Use browser console to test: `document.querySelectorAll("your-selector")`
-4. **Avoid comments**: Target main content to avoid extracting artist names from comments
+4. **Avoid comments**: Target main content to exclude artist names from comments
 5. **Multiple elements**: The system combines text from all matching elements
 
 ### Common Patterns
@@ -548,19 +546,19 @@ curl -X POST http://localhost:8080/api/scrape-artists \
 }
 ```
 
-## Error Handling
+## Error Management
 
 ### Validation Errors
 
 **Status Code:** `400 Bad Request`
 
 Common validation errors:
-- Missing required fields (`artist_name`, `playlist_id`)
+- Absent required fields (`artist_name`, `playlist_id`)
 - Invalid field lengths (artist name must be 1-100 characters)
 - Invalid playlist ID format
-- Missing CSRF token for POST requests
+- Absent CSRF token for POST requests
 
-### Rate Limiting
+### Rate Limits
 
 **Status Code:** `429 Too Many Requests`
 
@@ -578,7 +576,7 @@ Common validation errors:
 Common scenarios:
 - Artist not found
 - Playlist not accessible
-- Spotify API rate limits
+- Rate limits for the Spotify API
 - Network connectivity issues
 
 ```json
@@ -590,7 +588,7 @@ Common scenarios:
 
 ## CLI Usage
 
-The go-listen CLI provides a `scrape` command for web scraping operations.
+The go-listen CLI provides a `scrape` command to extract artists from web pages.
 
 ### Scrape Command
 
@@ -704,19 +702,19 @@ console.log(result);
 
 ## Configuration
 
-API behavior can be configured through environment variables:
+Configure API behavior through environment variables:
 
 - `SECURITY_RATE_LIMIT_REQUESTS_PER_SECOND`: Rate limit per IP (default: 10)
 - `SECURITY_RATE_LIMIT_BURST`: Burst capacity (default: 20)
 - `SERVER_HOST`: Server bind address (default: localhost)
 - `SERVER_PORT`: Server port (default: 8080)
 
-## Troubleshooting
+## Resolve Problems
 
 ### Common Issues
 
-1. **CSRF Token Missing/Invalid**
-   - Ensure you get a fresh CSRF token before making POST requests
+1. **CSRF Token Missing or Invalid**
+   - Ensure you get a fresh CSRF token before you make POST requests
    - Include the token in the `X-CSRF-Token` header
 
 2. **Rate Limited**
@@ -724,18 +722,18 @@ API behavior can be configured through environment variables:
    - Implement exponential backoff in your client
 
 3. **Artist Not Found**
-   - Check artist name spelling
+   - Check the artist name for typos
    - Try variations of the artist name
-   - The fuzzy matching handles some typos but may not catch all variations
+   - The fuzzy comparison handles some typos but possibly misses some variations
 
 4. **Playlist Access Issues**
-   - Ensure the playlist exists in your "Incoming" folder
-   - Verify Spotify credentials are configured correctly
+   - Ensure the playlist exists in your `Incoming` folder
+   - Verify that the configuration contains correct Spotify credentials
    - Check that the playlist is not private or restricted
 
 5. **Network Errors**
-   - Verify server is running and accessible
-   - Check firewall settings
-   - Ensure Spotify API credentials are valid
+   - Verify that the server is active and accessible
+   - Check the firewall settings
+   - Validate the credentials for the Spotify API
 
-For more detailed troubleshooting, check the server logs which include structured logging for all operations.
+For more detailed problem diagnosis, check the server logs which include structured logs for all operations.

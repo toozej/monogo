@@ -1,18 +1,16 @@
 # E2E Tests
 
-This directory contains end-to-end (E2E) tests for Podgrab using chromedp for
+This directory contains end-to-end (E2E) tests for Podgrab with chromedp for
 browser automation.
 
 ## Overview
 
-E2E tests verify complete user workflows by running a real Podgrab server and
-automating browser interactions. Tests use an in-memory SQLite database and
+E2E tests verify complete user workflows with a real Podgrab server and automated browser interactions. Tests use an in-memory SQLite database and
 chromedp for browser automation.
 
-## Running E2E Tests
+## Run E2E Tests
 
-E2E tests are tagged with `e2e` build tag to separate them from unit and
-integration tests:
+E2E tests use the `e2e` build tag to separate them from unit and integration tests:
 
 ```bash
 # Run all E2E tests
@@ -32,8 +30,7 @@ E2E tests require:
 - Chrome or Chromium browser installed on the system
 - chromedp will automatically find and use the installed browser
 - No additional setup required for headless mode
-- **Auto-Skip**: Tests automatically skip with a warning message if Chrome is
-  not found
+- **Auto-Skip**: Tests automatically skip with a warning message if the test cannot find Chrome
   - Install Chrome: `brew install --cask google-chrome` (macOS)
   - Install Chromium: `sudo apt-get install chromium-browser` (Ubuntu)
 
@@ -74,7 +71,7 @@ E2E tests use:
 
 - View episode details
 - View downloaded episodes
-- View played/unplayed status
+- View played or unplayed status
 - View bookmarked episodes
 - Episode filtering
 - Episode pagination
@@ -111,21 +108,21 @@ Tests use chromedp with:
 **Interaction**:
 
 - `clickElement(ctx, selector)`: Click element
-- `fillInput(ctx, selector, value)`: Fill input field
+- `fillInput(ctx, selector, value)`: Fill the input field
 - `getElementText(ctx, selector, text)`: Get element text
-- `getElementCount(ctx, selector)`: Count matching elements
+- `getElementCount(ctx, selector)`: Count elements that match
 
 **Utilities**:
 
 - `takeScreenshot(ctx, t)`: Capture screenshot
-- `newBrowserContext(t)`: Create test browser context
+- `newBrowserContext(t)`: Create a browser context for tests
 
 ## Known Limitations
 
-1. **Browser Dependency**: Tests require Chrome/Chromium installed
+1. **Browser Dependency**: Tests require Chrome and Chromium installed
 1. **Headless Only**: Currently configured for headless mode
 1. **Limited Interaction**: Tests focus on page load and basic verification
-1. **No WebSocket Testing**: Real-time features not fully tested
+1. **No WebSocket Tests**: Real-time features not fully tested
 1. **Single Browser**: Tests only Chrome (not Firefox, Safari)
 
 ## Future Enhancements
@@ -133,14 +130,14 @@ Tests use chromedp with:
 Potential improvements:
 
 - Add form submission tests (add podcast, update settings)
-- Test WebSocket real-time updates
+- Test real-time updates through WebSocket
 - Add multi-browser support (Firefox, Safari)
-- Test audio player interaction
-- Add visual regression testing
+- Test interaction with the audio player
+- Add visual regression tests
 - Test touch gestures for mobile
-- Add accessibility testing (axe-core)
+- Add accessibility tests (axe-core)
 
-## Troubleshooting
+## Resolve Problems
 
 **Chrome not found**:
 
@@ -182,11 +179,11 @@ For CI/CD pipelines:
 
 ## Test Maintenance
 
-When updating E2E tests:
+When you update E2E tests:
 
 1. Keep tests focused on user workflows
-1. Avoid testing implementation details
-1. Use meaningful test names describing user actions
-1. Add screenshots on failure for debugging
+1. Avoid assertions about implementation details
+1. Use meaningful test names that describe user actions
+1. Add screenshots on failure to debug
 1. Keep tests independent and isolated
 1. Clean up test data after each test

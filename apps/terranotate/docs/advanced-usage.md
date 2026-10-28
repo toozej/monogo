@@ -1,6 +1,6 @@
 # Advanced Usage & Customization
 
-## Creating Custom Schemas
+## Create Custom Schemas
 
 ### Step 1: Define Resource Types
 
@@ -82,9 +82,9 @@ field_validations:
     max: 100.0
 ```
 
-## Adding More Prefixes
+## Add More Prefixes
 
-In your code (if extending the tool):
+In your code, if you extend the tool:
 
 ```go
 prefixes := []string{
@@ -113,9 +113,9 @@ terranotate generate path/to/terraform schema.yaml
 - **Output to File**: Use the `--output` flag to save the documentation to a file.
 - **Custom Schema**: Provide a specific schema to focus the documentation on certain fields.
 
-### Customizing Documentation
+### Customize Documentation
 
-The generator uses the `required_fields` defined in your schema to determine which columns to show in the output tables. If no fields are defined for a resource type, it defaults to showing the resource name and description.
+The generator uses the `required_fields` defined in your schema to determine which columns to show in the output tables. If the schema defines no fields for a resource type, the generator shows the resource name and description by default.
 
 ```bash
 # Example: Generate a compliance report

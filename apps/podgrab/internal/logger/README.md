@@ -1,6 +1,6 @@
-# Structured Logging with Zap
+# Structured Logs with Zap
 
-This package provides centralized structured logging for Podgrab using
+This package provides centralized structured logs for Podgrab with
 [Uber's Zap](https://github.com/uber-go/zap) logger.
 
 ## Usage
@@ -11,9 +11,9 @@ Import the logger package:
 import "github.com/akhilrex/podgrab/internal/logger"
 ```
 
-### Logging Levels
+### Logs Levels
 
-Use the appropriate method based on the severity:
+Select the method that matches the severity:
 
 ```go
 // Debug - detailed information for diagnosing problems
@@ -37,10 +37,10 @@ logger.Log.Fatal("Cannot initialize database")
 logger.Log.Fatalw("Critical configuration missing", "error", err)
 ```
 
-### Structured Logging (Recommended)
+### Structured Logs (Recommended)
 
 Use the `*w` variants (Debugw, Infow, Warnw, Errorw, Fatalw) for structured
-logging with key-value pairs:
+log output with key-value pairs:
 
 ```go
 logger.Log.Infow("Episode downloaded",
@@ -52,7 +52,7 @@ logger.Log.Infow("Episode downloaded",
 
 This creates structured log entries that are easy to parse and query.
 
-### Simple Logging
+### Simple Logs
 
 For simple messages without structured data:
 
@@ -65,7 +65,7 @@ logger.Log.Error("Connection timeout")
 
 ### Log Level
 
-Set the `LOG_LEVEL` environment variable to control logging verbosity:
+Set the `LOG_LEVEL` environment variable to control log output verbosity:
 
 ```bash
 # Show only errors
@@ -88,19 +88,19 @@ Default: `info`
 The logger automatically adjusts output format based on the `GIN_MODE`
 environment variable:
 
-- **Development** (GIN_MODE != "release"):
+- **Development** (`GIN_MODE != "release"`):
 
   - Human-readable console output
   - Colored log levels
   - ISO8601 timestamps
 
-- **Production** (GIN_MODE = "release"):
+- **Production** (`GIN_MODE = "release"`):
 
   - JSON formatted output
   - Optimized for log aggregation systems
   - Machine-parseable
 
-## Migration from fmt/log
+## Migration from `fmt` or `log`
 
 ### Before (Console Output)
 
@@ -110,7 +110,7 @@ fmt.Println("Processing complete")
 log.Printf("User logged in: %s", username)
 ```
 
-### After (Structured Logging)
+### After (Structured Logs)
 
 ```go
 logger.Log.Errorw("Error downloading file", "error", err)
@@ -118,16 +118,16 @@ logger.Log.Info("Processing complete")
 logger.Log.Infow("User logged in", "username", username)
 ```
 
-## Best Practices
+## Operational Guidelines
 
-1. **Use structured logging** - Always prefer `*w` variants with key-value pairs
+1. **Use structured logs** - Always prefer `*w` variants with key-value pairs
 1. **Choose appropriate levels** - Debug for development, Info for important
    events, Error for failures
 1. **Include context** - Add relevant context as key-value pairs (IDs,
-   filenames, URLs, etc.)
+   filenames, URLs, and similar context)
 1. **Avoid sensitive data** - Never log passwords, API keys, or personal
    information
-1. **Be consistent** - Use consistent key names across your application (e.g.,
+1. **Be consistent** - Use consistent key names across your application (for example
    always use "user_id" not "userID" or "userId")
 
 ## Example

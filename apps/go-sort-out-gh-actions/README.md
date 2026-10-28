@@ -9,26 +9,33 @@
 
 <img src="img/avatar.png" alt="go-sort-out-gh-actions avatar"/>
 
-A tool to detect archived, outdated, and EOL-runtime GitHub Actions in use in GHA Workflows with optional notifications, auto-updates, pinning, security scanning, and GH Issue creation.
+This tool detects archived, outdated, and EOL-runtime GitHub Actions in GHA workflows.
+Optional features include notifications, automatic updates, reference pins, security scans, and GitHub issue creation.
 
 ## What it does
 
-This tool scans your GitHub Actions workflows (`.github/workflows/**/*.yml` and `**/*.yaml`) and checks if any of the `uses:` actions have been archived by their maintainers on GitHub. Archived actions may contain security vulnerabilities, stop receiving updates, or cease working with future GitHub changes. It can also check for outdated GitHub Actions by validating the tag (SemVer / release tag, SHA, or branch name) against the latest version published for the given action, and optionally update to the latest version either using SemVer / release tag, or immutable SHA.
+The tool scans workflows for GitHub Actions in `.github/workflows/**/*.yml` and `**/*.yaml`.
+It checks whether maintainers archived any action in a `uses:` reference on GitHub.
+Archived actions possibly contain security vulnerabilities, lack further updates, or fail with future GitHub changes.
+
+The tool also detects outdated actions by comparison with each action's latest published version.
+It validates references that use SemVer, release tags, SHAs, or branch names.
+It can optionally update to the latest version with a SemVer reference, release tag, or immutable SHA.
 
 ## Features
 
 - 🔍 **Automatic Detection**: Scans all workflow files in your repository
-- 🚨 **Exit Codes**: Returns error code when archived actions are found (CI/CD friendly)
+- 🚨 **Exit Codes**: Returns error code when the tool finds archived actions (CI/CD friendly)
 - ⚠️ **Outdated Detection**: Optionally checks for outdated action versions
 - ⏳ **Stale Detection**: Detects actions not updated in over a year or marked with GitHub deprecation warnings
-- 📢 **Notifications**: Send alerts to configured webhooks when archived actions are detected
+- 📢 **Notifications**: Send alerts to configured webhooks when the tool detects archived actions
 - 🐛 **Issue Creation**: Automatically create GitHub issues to track replacement tasks
 - 🔧 **Flexible Configuration**: Environment variables, config files, and CLI flags
 - 📊 **Verbose Output**: Detailed reporting of findings and API calls
 - 🐳 **Docker Support**: Run via Docker or as native binary
-- 🐳 **Pre-commit Support**: Run as a pre-commit check using either local Go toolchain or Docker
+- 🐳 **Pre-commit Support**: Run as a pre-commit check with either local Go toolchain or Docker
 - ⚡ **Concurrent API Calls**: Parallel repository checks with rate limit protection
-- 💾 **Smart Caching**: Each action is looked up only once, even if used across multiple workflows
+- 💾 **Smart Caching**: The tool looks up each action only once, even across multiple workflows
 - 🔒 **Workflow Security Scan**: Detects risky triggers, poisoned-pipeline patterns, unsafe secret and artifact handling, excessive permissions, runner exposure, and unpinned actions
 
 ## Installation
@@ -37,7 +44,7 @@ This tool scans your GitHub Actions workflows (`.github/workflows/**/*.yml` and 
 
 Download the latest `go-sort-out-gh-actions` release from [the monogo releases page](https://github.com/toozej/monogo/releases).
 
-### Using Go
+### Use Go
 
 ```bash
 go install github.com/toozej/monogo/apps/go-sort-out-gh-actions@main
@@ -135,10 +142,13 @@ A pin to a newer published stable release does not cause a downgrade report.
 
 `--ignore-dependabot-prs` excludes an update only when an open PR from `dependabot[bot]` covers that update.
 The filter checks the target branch, changed workflow path, action path, and proposed version or SHA.
+
 The PR must remove all uses of the reported old reference from that workflow.
 An older proposed version or a PR for another workflow does not suppress the report.
+
 Use `--repository owner/repo` to select the scanned repository.
 Use `--base-branch` to select the target branch, or omit it to use the repository default branch.
+
 This filter supports a local scan of one repository and requires permission to read pull requests.
 API errors stop the filtered check with a non-zero exit status.
 
@@ -149,9 +159,15 @@ This repository's weekly workflow runs the checked-out source with both filters 
 
 ### Workflow security scanning
 
-`scan` is an offline, rule-based check that returns a non-zero exit code when it reports a finding. It supports the same local targeting flags as the other commands: `--workflow`, `--workflows-dir`, and `--repos-dir`. Findings include a stable rule ID, severity, path, source line, and remediation; use `--output-format json` or `csv` for automation.
+`scan` is an offline, rule-based check that returns a non-zero exit code when it reports a finding. It supports the same flags for local targets as the other commands: `--workflow`, `--workflows-dir`, and `--repos-dir`. Findings include a stable rule ID, severity, path, source line, and remediation; use `--output-format json` or `csv` for automation.
 
-The built-in rules are deliberately small and composable so additional checks can be registered through the internal `securityscan.Rule` interface. They cover dangerous event trust boundaries, poisoned-pipeline execution, command and environment-file injection, token and deployment permissions, action and cache supply-chain risks, secret lifetime and scope, checkout credential persistence, artifact poisoning and leakage, and runner or Docker-host exposure. See [Workflow security scan coverage](SECURITY_SCAN.md) for the deduplicated rule/remediation matrix, source references, and controls that cannot be verified from workflow YAML alone.
+The built-in rules are small and composable. Register additional checks through the internal `securityscan.Rule` interface.
+The rules cover dangerous event trust boundaries, poisoned-pipeline execution, and command and environment-file injection.
+They cover token and deployment permissions, action and cache supply-chain risks, secret lifetime and scope, and checkout credential persistence.
+They also cover artifact poisoning and leakage and exposure of runners or Docker hosts.
+
+See [Workflow security scan coverage](SECURITY_SCAN.md) for the deduplicated matrix of rules and remediations and source references.
+It also lists controls that a scan cannot verify from workflow YAML alone.
 
 Use the reusable GitHub Action in another repository after checkout. It is offline and does not require a token:
 
@@ -172,7 +188,7 @@ go-sort-out-gh-actions --repos-dir ~/src/github
 
 ### Authentication
 
-Set your GitHub token using one of these methods (in order of priority):
+Set the GitHub token with one of these methods (in order of priority):
 
 1. `--token` flag
 2. `GH_TOKEN` environment variable
@@ -200,7 +216,7 @@ Configure one or more notification providers and enable them with the `--notify`
 
 ### Issue Creation
 
-Automatically create GitHub issues when archived actions are found:
+Automatically create GitHub issues when the tool finds archived actions:
 
 ```bash
 go-sort-out-gh-actions --create-issue
@@ -217,10 +233,10 @@ SLACK_CHANNEL_ID=C12345678
 CREATE_ISSUES=true
 ```
 
-Use the `.env.` configuration file when running go-sort-out-gh-actions by either:
+Use the `.env.` configuration file when you run go-sort-out-gh-actions by either:
 1. `make local-run` or `make run` Make targets
-2. `source .env` before running `go-sort-out-gh-actions` if running the local binary,
-3. add the `--env-file` flag when using Docker such as `docker run --env-file .env ...`
+2. `source .env` before you run `go-sort-out-gh-actions` if you run the local binary,
+3. add the `--env-file` flag when you use Docker such as `docker run --env-file .env ...`
 
 See [the Configuration Reference](CONFIG.md) for full configuration options
 
@@ -230,10 +246,10 @@ This repository provides multiple container actions. The examples below track `m
 
 | Action | Description | Example Workflow |
 |--------|-------------|------------------|
-| `toozej/monogo/apps/go-sort-out-gh-actions@main` | Check for archived actions (default/root action) | [`example-archived-actions.yaml`](examples/workflows/example-archived-actions.yaml) |
+| `toozej/monogo/apps/go-sort-out-gh-actions@main` | Check for archived actions (default or root action) | [`example-archived-actions.yaml`](examples/workflows/example-archived-actions.yaml) |
 | `toozej/monogo/apps/go-sort-out-gh-actions/check-archived@main` | Check for archived actions with notifications and issue creation | [`example-archived-actions-check.yaml`](examples/workflows/example-archived-actions-check.yaml), [`example-archived-actions-custom-stale.yaml`](examples/workflows/example-archived-actions-custom-stale.yaml) |
 | `toozej/monogo/apps/go-sort-out-gh-actions/check-outdated@main` | Check for outdated action versions with optional auto-update | [`example-outdated-actions-check.yaml`](examples/workflows/example-outdated-actions-check.yaml), [`example-auto-update-actions.yaml`](examples/workflows/example-auto-update-actions.yaml), [`example-outdated-actions-semver.yaml`](examples/workflows/example-outdated-actions-semver.yaml) |
-| `toozej/monogo/apps/go-sort-out-gh-actions/eol@main` | Check for EOL/stale/deprecated actions | [`example-eol-actions-check.yaml`](examples/workflows/example-eol-actions-check.yaml), [`example-eol-actions-update.yaml`](examples/workflows/example-eol-actions-update.yaml), [`example-eol-actions-custom-stale.yaml`](examples/workflows/example-eol-actions-custom-stale.yaml) |
+| `toozej/monogo/apps/go-sort-out-gh-actions/eol@main` | Check for EOL, stale, or deprecated actions | [`example-eol-actions-check.yaml`](examples/workflows/example-eol-actions-check.yaml), [`example-eol-actions-update.yaml`](examples/workflows/example-eol-actions-update.yaml), [`example-eol-actions-custom-stale.yaml`](examples/workflows/example-eol-actions-custom-stale.yaml) |
 | `toozej/monogo/apps/go-sort-out-gh-actions/check@main` | Run all checks (archived + EOL + outdated) | [`example-check-all-actions.yaml`](examples/workflows/example-check-all-actions.yaml), [`example-check-all-with-write.yaml`](examples/workflows/example-check-all-with-write.yaml) |
 
 
@@ -248,7 +264,7 @@ This repository provides multiple container actions. The examples below track `m
 | `go-sort-out-gh-actions-docker` | Check for archived GitHub Actions (Docker) | See Docker archived example below |
 | `go-sort-out-gh-actions-eol-docker` | Check for EOL GitHub Actions (Docker) | See Docker EOL example below |
 | `go-sort-out-gh-actions-outdated-docker` | Check for outdated GitHub Actions (Docker) | See Docker outdated example below |
-| `go-sort-out-gh-actions-check-docker` | Run all checks using Docker image | See Docker check-all example below |
+| `go-sort-out-gh-actions-check-docker` | Run all checks with Docker image | See Docker check-all example below |
 
 Add to your `.pre-commit-config.yaml`:
 
@@ -274,7 +290,7 @@ repos:
     args: [--verbose]
 ```
 
-Or using the Docker-based hooks (no Go toolchain required):
+Or with the Docker-based hooks (no Go toolchain required):
 
 ```yaml
 repos:
@@ -328,7 +344,7 @@ Checking 3 action repositories for archived status...
 ❌ Archived actions detected. Please replace them with actively maintained alternatives.
 ```
 
-### With Outdated Checking
+### With Outdated Check
 
 ```
 $ go-sort-out-gh-actions check --verbose
@@ -360,7 +376,7 @@ Checking 5 non-archived action repositories for latest versions...
 ❌ Archived actions detected. Please replace them with actively maintained alternatives.
 ```
 
-### With Stale Checking
+### With Stale Check
 
 ```
 $ go-sort-out-gh-actions eol --verbose
@@ -378,12 +394,14 @@ Checking 5 non-archived action repositories for stale/deprecated status...
 
 ### Major Version Tag Handling
 
-When using the `outdated` sub-command, the tool intelligently handles major version tags (e.g., `v2`):
+When you use the `outdated` sub-command, the tool intelligently handles major version tags (for example `v2`):
 
-- If you are using `action@v2` and the latest release is `v2.3.3`, the tool compares the commit SHAs
-- If the major version tag (`v2`) points to the same commit as the latest version (`v2.3.3`), it is **not** marked as outdated
-- If the major version tag (`v2`) points to a different commit than `v2.3.3`, it **is** marked as outdated (a new patch exists)
-- This allows you to use major version tags (recommended practice) without false positives
+For `action@v2` and a latest release of `v2.3.3`, the tool compares commit SHAs.
+
+If the major version tag (`v2`) and latest version (`v2.3.3`) point to the same commit, the tool does **not** mark it outdated.
+If these tags point to different commits, the tool **marks** the major version tag outdated because a new patch exists.
+
+This allows you to use major version tags (recommended practice) without false positives.
 
 ```
 # action@v2 points to same commit as v2.3.3 (same SHA) - NOT outdated
@@ -392,7 +410,7 @@ When using the `outdated` sub-command, the tool intelligently handles major vers
 
 ### Debug Mode (Rate Limit Info)
 
-When running with `--debug`, the tool logs GitHub API rate limit information:
+When you run with `--debug`, the tool logs information about rate limits from the GitHub API:
 
 ```
 $ go-sort-out-gh-actions archived --debug
@@ -401,7 +419,7 @@ DEBU[0000] GitHub API rate limit: limit=5000 remaining=4998 used=2 reset=2026-05
 
 ## Quick Demo
 
-To quickly see how this tool works, run the demo which checks an example workflow containing archived and outdated actions:
+To quickly see how this tool works, run the demo which checks an example workflow with archived and outdated actions:
 
 ```bash
 # Build and run against example workflow (includes outdated checking)

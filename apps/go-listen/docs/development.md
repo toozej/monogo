@@ -1,8 +1,8 @@
 # Development
 
-## Using the Makefile (Recommended)
+## Use the Makefile (Recommended)
 
-The Makefile provides the primary method for developing and installing the application locally. It includes all necessary tools and checks:
+The Makefile provides the primary method to develop and install the application locally. It includes all necessary tools and checks:
 
 ```bash
 # Install all development dependencies and run the full workflow
@@ -22,7 +22,7 @@ make local-iterate
 make clean
 ```
 
-## Manual Building (Alternative)
+## Manual Build (Alternative)
 
 ```bash
 # Build binary
@@ -61,9 +61,9 @@ cp configs/development.env .env
 └── internal/server/static/ # Web interface assets
 ```
 
-## Testing
+## Tests
 
-### Running Tests
+### Run Tests
 
 ```bash
 # Run all tests
@@ -82,26 +82,26 @@ go test -race ./...
 make local-cover
 ```
 
-### Testing Web Scraping
+### Test Page Extraction
 
-The scraper service includes comprehensive tests:
+The scraper service includes tests:
 
 **Unit Tests:**
-- HTML parsing with various structures
+- Parse HTML with different structures
 - CSS selector validation and extraction
-- Artist name extraction strategies
+- Strategies to extract artist names
 - Error handling and retry logic
 
 **Property-Based Tests:**
-- HTML parsing robustness across random inputs
-- CSS selector extraction correctness
+- Reliable HTML extraction across random inputs
+- Correct extraction with CSS selectors
 - Artist deduplication
-- Fuzzy matching integration
-- Batch processing fault tolerance
+- Integration of fuzzy comparison
+- Fault tolerance during batch operations
 
 **Integration Tests:**
 - End-to-end scraping workflow
-- Reddit example URL validation
+- Validation of example URLs from Reddit
 - CLI command execution
 
 Run scraper-specific tests:
@@ -110,7 +110,7 @@ go test ./internal/services/scraper/... -v
 go test ./cmd/go-listen/scrape_test.go -v
 ```
 
-### Manual Testing
+### Manual Tests
 
 Test the scraper with a real URL:
 
@@ -124,14 +124,14 @@ make local-build
   --selector "div.content"
 ```
 
-## Contributing
+## Contribute
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
 4. Add tests for new functionality
 5. Ensure all tests pass: `make local-test`
-6. Run code quality checks: `make pre-commit`
+6. Run the code quality checks: `make pre-commit`
 7. Submit a pull request
 
 ## Update Golang Version

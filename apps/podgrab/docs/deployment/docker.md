@@ -1,10 +1,10 @@
 # Docker Deployment Guide
 
-Complete guide for deploying Podgrab using Docker and Docker Compose.
+Complete guide to deploy Podgrab with Docker and Docker Compose.
 
 ## Quick Start
 
-### Using Docker Run
+### Use Docker Run
 
 ```bash
 docker run -d \
@@ -16,7 +16,7 @@ docker run -d \
   akhilrex/podgrab:latest
 ```
 
-### Using Docker Compose
+### Use Docker Compose
 
 Create `docker-compose.yml`:
 
@@ -59,7 +59,7 @@ akhilrex/podgrab:develop       # Development branch
 
 Multi-architecture support:
 
-- `linux/amd64` - x86_64 (Intel/AMD)
+- `linux/amd64` - x86_64 (Intel and AMD)
 - `linux/arm64` - ARM 64-bit (Raspberry Pi 4, Apple Silicon)
 - `linux/arm/v7` - ARM 32-bit (Raspberry Pi 3)
 
@@ -80,7 +80,7 @@ Docker automatically pulls the correct architecture.
 - `podgrab.db` - SQLite database
 - `backups/` - Automatic database backups
 
-**Permissions:** Read/write required
+**Permissions:** Read and write required
 
 **Backup Recommendation:** Regular backups of this directory
 
@@ -96,9 +96,9 @@ Docker automatically pulls the correct architecture.
 - Episode artwork
 - Podcast cover images
 
-**Permissions:** Read/write required
+**Permissions:** Read and write required
 
-**Storage Sizing:** Plan for podcast library growth (episodes average 50-100 MB
+**Storage Capacity:** Plan for podcast library growth (episodes average 50-100 MB
 each)
 
 ### Volume Examples
@@ -111,7 +111,7 @@ volumes:
   - ./podgrab/data:/assets
 ```
 
-#### NAS/Network Share
+#### NAS or Network Share
 
 ```yaml
 volumes:
@@ -137,7 +137,7 @@ volumes:
 
 #### PASSWORD
 
-Optional HTTP Basic Authentication password.
+Optional password for HTTP Basic authentication.
 
 ```yaml
 environment:
@@ -163,7 +163,7 @@ environment:
 
 **Default:** `/config`
 
-**Note:** Rarely needs to be changed.
+**Note:** Rarely needs changes.
 
 #### DATA
 
@@ -176,7 +176,7 @@ environment:
 
 **Default:** `/assets`
 
-**Note:** Rarely needs to be changed.
+**Note:** Rarely needs changes.
 
 ### Background Jobs
 
@@ -194,7 +194,7 @@ environment:
 **Jobs Affected:**
 
 - RSS feed refresh (every N minutes)
-- Missing episode downloads (every N minutes)
+- Downloads of absent episodes (every N minutes)
 - File verification (every N minutes)
 - File size updates (every N×2 minutes)
 - Image downloads (every N minutes)
@@ -208,8 +208,8 @@ environment:
 
 **Trade-offs:**
 
-- Lower values: Faster new episode detection, higher CPU/network usage
-- Higher values: Lower resource usage, delayed episode discovery
+- Smaller values: Faster new episode detection, higher CPU and network usage
+- Higher values: Less resource use, delayed episode discovery
 
 ## Port Configuration
 
@@ -381,7 +381,7 @@ services:
     restart: unless-stopped
 ```
 
-## Building from Source
+## Build from Source
 
 ### Clone Repository
 
@@ -406,7 +406,7 @@ docker buildx build \
   --push .
 ```
 
-## Upgrading
+## Upgrade
 
 ### Stop Container
 
@@ -522,11 +522,11 @@ Add to crontab:
 0 2 * * * /path/to/backup.sh
 ```
 
-## Troubleshooting
+## Resolve Problems
 
 ### Container Will Not Start
 
-**Check logs:**
+**Check the logs:**
 
 ```bash
 docker-compose logs podgrab
@@ -552,7 +552,7 @@ sudo chown -R 1000:1000 ./config ./data
 
 **Symptoms:** "Database locked" errors in logs
 
-**Cause:** Multiple instances accessing same database
+**Cause:** Multiple instances access the same database
 
 **Solution:**
 
@@ -561,7 +561,7 @@ sudo chown -R 1000:1000 ./config ./data
 
 ### Out of Disk Space
 
-**Check usage:**
+**Check the usage:**
 
 ```bash
 docker system df
@@ -609,10 +609,10 @@ dns:
 
 ### WebSocket Connection Failed
 
-**Check reverse proxy configuration:**
+**Check the configuration of the reverse proxy:**
 
-- Ensure WebSocket upgrade headers are forwarded
-- Verify `/ws` path is not blocked
+- Ensure that the proxy forwards WebSocket upgrade headers
+- Verify that the proxy permits the `/ws` path
 
 **Nginx example:**
 
@@ -655,7 +655,7 @@ deploy:
       memory: 2G
 ```
 
-## Security Best Practices
+## Security Operational Guidelines
 
 ### Use HTTPS
 
@@ -691,7 +691,7 @@ networks:
 0 0 * * 0 cd /path/to/podgrab && docker-compose pull && docker-compose up -d
 ```
 
-## Monitoring
+## Monitor
 
 ### Health Checks
 
@@ -726,6 +726,6 @@ docker-compose logs -f --tail=100 podgrab
 
 ## Related Documentation
 
-- [Production Deployment](production.md) - Production best practices
+- [Production Deployment](production.md) - Production guidelines
 - [Configuration Guide](../guides/configuration.md) - Application settings
 - [REST API](../api/rest-api.md) - API reference

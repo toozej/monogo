@@ -39,11 +39,11 @@ repositories:
 ```
 
 This configuration keeps the three latest stable releases for each repository.
-`all_assets: true` downloads every uploaded asset, including packages, signatures, and metadata.
+`all_assets: true` downloads every uploaded asset, such as packages, signatures, and metadata.
 The tool also downloads recognized checksum files and checks available checksums.
 It excludes prereleases and automatically generated source archives.
 
-For platform selection, use the existing [config.example.yaml](config.example.yaml).
+For platform selection, use the current [config.example.yaml](config.example.yaml).
 That file includes platform targets and Joplin filename rules.
 Leave `all_assets` false when you use those targets.
 
@@ -83,7 +83,7 @@ The tool also accepts these environment variables:
 
 The wrapper below exports the assignments from `tokens.env`.
 The tool does not load this file itself.
-Use shell assignment syntax in this file.
+Use the shell assignment syntax in this file.
 See [authentication details](README.md#authentication-and-rate-limits) for token precedence and API headers.
 
 ## 4. Create the cron wrapper
@@ -117,7 +117,7 @@ The script uses absolute paths and supplies the archive directory through `--dir
 The timeout limits the complete run to two hours.
 Change `--timeout` if your repository list needs more time.
 
-Run the wrapper once before adding the cron entry:
+Run the wrapper once before you add the cron entry:
 
 ```sh
 "$HOME/.local/bin/go-get-releases-cron"
@@ -156,7 +156,7 @@ tail -n 100 "$HOME/.local/state/go-get-releases/cron.log"
 
 The entry appends standard output and error messages to the log.
 Configure log rotation if you keep the job enabled.
-The tool locks the archive directory during each run to prevent overlapping runs.
+The tool locks the archive directory during each run to prevent concurrent runs.
 See [retention and lock behavior](README.md#stable-releases-and-retention) for recovery instructions.
 
 ## Alternative: a plain text repository list
@@ -171,7 +171,7 @@ laurent22/joplin
 # tangled.sh/user.tngl.sh/repo
 ```
 
-Start comment lines with `#` in the first column.
+Start the comment lines with `#` in the first column.
 The loop below ignores comments and empty lines.
 
 In the wrapper, replace the final `exec` command with this block:
@@ -196,5 +196,5 @@ exec "$HOME/.local/bin/go-get-releases" \
 ```
 
 This version reads the repository list from `repos.txt`.
-The existing wrapper still loads tokens from `tokens.env`.
+The current wrapper still loads tokens from `tokens.env`.
 The same cron entry runs either version.

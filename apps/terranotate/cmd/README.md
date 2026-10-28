@@ -1,9 +1,11 @@
 # `/cmd`
 
-Main applications for this project.
+This directory contains the main applications for this project.
 
-The directory name for each application should match the name of the executable you want to have (e.g., `/cmd/terranotate`).
+Prefer a directory name that matches the executable name. For example, use `/cmd/terranotate`.
 
-Do not put a lot of code in the application directory. If you think the code can be imported and used in other projects, then it should live in the `/pkg` directory. If the code is not reusable or if you do not want others to reuse it, put that code in the `/internal` directory. You will be surprised what others will do, so be explicit about your intentions!
+Keep the application directory small. Put code that other projects can import and reuse in `/pkg`.
+Put private code or code that you do not want others to reuse in `/internal`.
+Other developers can find unexpected uses for code, so state your intended use explicitly.
 
-It is common to have a small `main` function that imports and invokes the code from the `/internal` and `/pkg` directories and nothing else.
+A common pattern uses a small `main` function. This function only imports and invokes code from `/internal` and `/pkg`.

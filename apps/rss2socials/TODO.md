@@ -1,23 +1,24 @@
 # TODO
 
-## Bluesky: custom PDS host support for tests and self-hosted PDS
+## Bluesky: Support for Custom PDS Hosts in Tests and Self-hosted Deployments
 
-The `botsky` library (`github.com/davhofer/botsky`) does not expose its internal
-`xrpc.Client` field, so we cannot set a custom PDS host at client creation time.
-This means:
+The `botsky` library (`github.com/davhofer/botsky`) does not expose its internal `xrpc.Client` field.
+We therefore cannot set a custom PDS host at client creation time.
 
-- **Testing**: We cannot point `botsky.Client` at a local `httptest` mock server.
-  The client always talks to `https://bsky.social` (the hardcoded `ApiEntryway`).
-  Integration tests that hit the real Bluesky API are skipped by default (use
-  `-run TestPost_Integration` without `-short`). Unit tests currently only cover
-  input validation (missing handle/appkey).
+### Tests
 
-- **Self-hosted PDS**: The `BLUESKY_PDS` config field is read but not yet passed
-  into the botsky client. When the botsky library adds a `WithPDS` option,
-  a `SetHost` method on `Client`, or otherwise exposes the xrpc host, update
-  `internal/bluesky/bluesky.go:NewClient` to set the PDS host from
-  `conf.BlueskyPDS` so that self-hosted PDS instances and test mocks work
-  correctly.
+We cannot point `botsky.Client` at a local `httptest` mock server.
+The client always contacts `https://bsky.social`, the hardcoded `ApiEntryway`.
+The default test run skips integration tests that contact the real Bluesky API.
+Use `-run TestPost_Integration` without `-short` to run them.
+Unit tests currently cover only input validation for an absent handle or app key.
 
-Upstream issue: https://github.com/davhofer/botsky — consider filing a feature
-request or contributing a PR to expose a `SetHost` or `WithPDS` option.
+### Self-hosted PDS
+
+The application reads the `BLUESKY_PDS` config field but does not yet pass it to the botsky client.
+Wait for botsky to expose the xrpc host through a `WithPDS` option, a `SetHost` method on `Client`, or an equivalent interface.
+Update `internal/bluesky/bluesky.go:NewClient` to set the PDS host from `conf.BlueskyPDS` when that interface becomes available.
+This change will enable self-hosted PDS instances and test mocks.
+
+Upstream issue: https://github.com/davhofer/botsky
+Consider a feature request or PR to expose a `SetHost` or `WithPDS` option.

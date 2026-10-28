@@ -130,7 +130,7 @@ GET /podcasts/:id
 }
 ```
 
-### Get Podcast Cover Image
+### Get the Cover Image for a Podcast
 
 ```http
 GET /podcasts/:id/image
@@ -139,7 +139,7 @@ GET /podcasts/:id/image
 Returns the podcast cover image. Redirects to original URL if local copy does not
 exist.
 
-**Response:** Image file (JPEG/PNG)
+**Response:** Image file (JPEG or PNG)
 
 ### Delete Podcast
 
@@ -246,13 +246,13 @@ Queues all episodes in the podcast for download.
 {}
 ```
 
-### Get Podcast RSS Feed
+### Get the RSS Feed for a Podcast
 
 ```http
 GET /podcasts/:id/rss
 ```
 
-Generates a custom RSS feed for this podcast using Podgrab as the media source.
+Generates a custom RSS feed for this podcast with Podgrab as the media source.
 
 **Response:** XML RSS feed
 
@@ -273,10 +273,10 @@ GET /podcastitems
 - `onlyDownloaded` (optional): Show only downloaded episodes
 - `onlyBookmarked` (optional): Show only bookmarked episodes
 - `sortBy` (default: release_desc): Sort order
-  - `release_asc`: Release date ascending
-  - `release_desc`: Release date descending
-  - `duration_asc`: Duration ascending
-  - `duration_desc`: Duration descending
+  - `release_asc`: Date of release, earliest first
+  - `release_desc`: Date of release descending
+  - `duration_asc`: Duration, shortest first
+  - `duration_desc`: Duration, longest first
 
 **Response:**
 
@@ -329,7 +329,7 @@ GET /podcastitems/:id/image
 Returns the episode artwork. Redirects to original URL if local copy does not
 exist.
 
-**Response:** Image file (JPEG/PNG)
+**Response:** Image file (JPEG or PNG)
 
 ### Get Episode File
 
@@ -340,7 +340,7 @@ GET /podcastitems/:id/file
 Downloads or streams the episode audio file. Redirects to original URL if not
 downloaded locally.
 
-**Response:** Audio file (MP3/M4A/etc.)
+**Response:** Audio file, such as MP3 or M4A
 
 **Headers:**
 
@@ -550,13 +550,13 @@ Removes tag association from podcast.
 {}
 ```
 
-### Get Tag RSS Feed
+### Get the RSS Feed for a Tag
 
 ```http
 GET /tags/:id/rss
 ```
 
-Generates RSS feed containing all episodes from podcasts with this tag.
+Generates RSS feed with all episodes from podcasts with this tag.
 
 **Response:** XML RSS feed
 
@@ -594,7 +594,7 @@ GET /search
 curl "http://localhost:8080/search?q=javascript&searchSource=itunes"
 ```
 
-## OPML Import/Export
+## OPML Import and Export
 
 ### Export OPML
 
@@ -604,7 +604,7 @@ GET /opml
 
 **Query Parameters:**
 
-- `usePodgrabLink` (optional): Use Podgrab RSS URLs instead of original feed
+- `usePodgrabLink` (optional): Use RSS URLs from Podgrab instead of original feed
   URLs (`true`/`false`, default: `false`)
 
 **Response:** OPML XML file
@@ -689,7 +689,7 @@ Content-Type: application/json
 GET /rss
 ```
 
-Generates RSS feed containing all downloaded episodes from all podcasts.
+Generates RSS feed with all downloaded episodes from all podcasts.
 
 **Response:** XML RSS feed
 
@@ -697,12 +697,12 @@ Generates RSS feed containing all downloaded episodes from all podcasts.
 
 ### Download Status
 
-Episode download status enumeration:
+Enumeration of download status for episodes:
 
 | Value | Status        | Description                            |
 | ----- | ------------- | -------------------------------------- |
 | 0     | NotDownloaded | Episode not yet downloaded             |
-| 1     | Downloading   | Download in progress                   |
+| 1     | `Downloading` | Download in progress                   |
 | 2     | Downloaded    | Successfully downloaded                |
 | 3     | Deleted       | Previously downloaded but file deleted |
 
@@ -712,12 +712,12 @@ Episode download status enumeration:
 - `trailer`: Podcast trailer
 - `bonus`: Bonus episode
 
-## Rate Limiting
+## Rate Limits
 
-No built-in rate limiting. Consider implementing at reverse proxy level for
+No built-in rate limits. Consider rate limits at the reverse proxy for
 production deployments.
 
-## Error Handling
+## Error Management
 
 ### Standard Error Response
 
@@ -728,7 +728,7 @@ production deployments.
 }
 ```
 
-### Common HTTP Status Codes
+### Common Status Codes for HTTP
 
 - `200 OK`: Successful request
 - `204 No Content`: Successful deletion
@@ -744,7 +744,7 @@ See [WebSocket API](websocket.md) for real-time communication documentation.
 ## Notes
 
 - All timestamps are in ISO 8601 format with UTC timezone
-- UUIDs are used for all resource identifiers
+- All resource identifiers use UUIDs
 - File sizes are in bytes
 - Durations are in seconds
 - Some endpoints use GET for state-changing operations (legacy design)
@@ -754,5 +754,5 @@ See [WebSocket API](websocket.md) for real-time communication documentation.
 ## Related Documentation
 
 - [WebSocket API](websocket.md) - Real-time updates
-- [User Guide](../guides/user-guide.md) - Using the API
+- [User Guide](../guides/user-guide.md) - Use the API
 - [Architecture Overview](../architecture/overview.md) - System design

@@ -1,4 +1,4 @@
-## Home Page / Podcast Listing
+## Home Page and List of Podcasts
 
 ![Product Name Screen Shot][product-screenshot]
 

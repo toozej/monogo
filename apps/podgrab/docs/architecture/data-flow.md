@@ -1,7 +1,7 @@
 # Data Flow
 
-This document details how data flows through Podgrab for various operations,
-including request/response patterns, background job flows, and real-time update
+This document details how data flows through Podgrab for its operations,
+such as patterns for requests and responses, background job flows, and real-time update
 mechanisms.
 
 ## Core Data Flows
@@ -112,7 +112,7 @@ sequenceDiagram
     end
 ```
 
-### 3. RSS Feed Refresh Flow
+### 3. Flow to Refresh RSS Feeds
 
 ```mermaid
 flowchart TD
@@ -238,7 +238,7 @@ flowchart LR
 
 **Transformation Steps**:
 
-1. **XML Parsing**: `encoding/xml` → `model.PodcastData`
+1. **Parse XML**: `encoding/xml` → `model.PodcastData`
 1. **HTML Sanitization**: `bluemonday` removes unsafe HTML
 1. **Text Cleanup**: `html-strip-tags-go` removes all HTML tags
 1. **Date Parsing**: RFC822/RFC3339 → `time.Time`
@@ -278,7 +278,7 @@ flowchart TD
     style Update fill:#90EE90
 ```
 
-## Request/Response Patterns
+## Requests and Responses Patterns
 
 ### REST API Patterns
 
@@ -376,7 +376,7 @@ sequenceDiagram
     Controller-->>Client: 204 No Content
 ```
 
-### HTML Page Rendering
+### Render HTML Pages
 
 ```mermaid
 sequenceDiagram
@@ -538,7 +538,7 @@ flowchart TD
     style End3 fill:#90EE90
 ```
 
-### RSS Parse Error Handling
+### Manage Errors from RSS Parsers
 
 ```mermaid
 flowchart TD

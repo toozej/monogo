@@ -35,7 +35,7 @@ make local
 └── scripts/              # Build and deployment scripts
 ```
 
-## Testing
+## Tests
 
 ```bash
 # Run all tests

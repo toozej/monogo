@@ -1,7 +1,7 @@
 # Migration Guide
 
 Migrate podcast files and database from
-[akhilrex/podgrab](https://github.com/akhilrex/podgrab) to
+[`akhilrex/podgrab`](https://github.com/akhilrex/podgrab) to
 [Podgrab in monogo](https://github.com/toozej/monogo/tree/main/apps/podgrab).
 
 ## Overview
@@ -14,17 +14,17 @@ and safe to re-run.
 
 - Renames episode files to match current filename format settings
 - Updates database paths to reflect new file locations
-- Creates a database backup before making changes
+- Creates a database backup before it makes changes
 - Reports a summary of all actions taken
 
 ## Prerequisites
 
-- Existing Podgrab database (`podgrab.db`) with downloaded episodes
-- Read/write access to the config and assets directories
+- Current Podgrab database (`podgrab.db`) with downloaded episodes
+- Read and write access to the config and assets directories
 - Go 1.27.3+ toolchain (for local execution) **or** Docker (for container
   execution)
 
-## Running Locally (Go Toolchain)
+## Run Locally (Go Toolchain)
 
 Requires Go installed on the host machine.
 
@@ -36,13 +36,13 @@ CONFIG=/path/to/config DATA=/path/to/assets go run scripts/migrate_to_fork.go
 
 ### Dry Run
 
-Preview changes without modifying anything:
+Preview changes without any modifications:
 
 ```bash
 CONFIG=/path/to/config DATA=/path/to/assets go run scripts/migrate_to_fork.go --dry-run
 ```
 
-### Verbose Logging
+### Verbose Logs
 
 Enable debug-level output:
 
@@ -54,8 +54,8 @@ CONFIG=/path/to/config DATA=/path/to/assets go run scripts/migrate_to_fork.go --
 
 | Flag          | Description                       | Default |
 | ------------- | --------------------------------- | ------- |
-| `--dry-run`   | Preview changes without executing | `false` |
-| `--verbose`   | Enable verbose (debug) logging    | `false` |
+| `--dry-run`   | Preview changes without execution | `false` |
+| `--verbose`   | Enable verbose (debug) log output    | `false` |
 
 ### Environment Variables
 
@@ -64,13 +64,13 @@ CONFIG=/path/to/config DATA=/path/to/assets go run scripts/migrate_to_fork.go --
 | `CONFIG` | Path to config directory (DB)    | `.`           |
 | `DATA`   | Path to assets directory (files) | `./assets`    |
 
-## Running with Docker Compose
+## Run with Docker Compose
 
 The `docker-compose.yml` includes a `podgrab-migrate` service that runs the
 migration script inside a container with the same volume mounts as the main
 Podgrab service.
 
-The migration service is defined with `profiles: [migration]`, so it does
+The migration service uses `profiles: [migration]`, so it does
 **not** start with normal `docker compose up` commands.
 
 ### Dry Run
@@ -79,7 +79,7 @@ The migration service is defined with `profiles: [migration]`, so it does
 docker compose --profile migration run --rm podgrab-migrate --dry-run
 ```
 
-### With Verbose Logging
+### With Verbose Logs
 
 ```bash
 docker compose --profile migration run --rm podgrab-migrate --dry-run --verbose
@@ -91,9 +91,9 @@ docker compose --profile migration run --rm podgrab-migrate --dry-run --verbose
 docker compose --profile migration run --rm podgrab-migrate
 ```
 
-### Passing Flags
+### Pass Flags
 
-All flags are appended after the service name:
+Append all flags after the service name:
 
 ```bash
 docker compose --profile migration run --rm podgrab-migrate --dry-run --verbose
@@ -112,7 +112,7 @@ podgrab-migrate:
     - /your/data/path:/assets
 ```
 
-## Running with Docker (Standalone)
+## Run with Docker (Standalone)
 
 Without Docker Compose, build and run a one-off container from the `init`
 build stage:
@@ -177,39 +177,34 @@ Errors:                   0
 | Total episodes processed | All downloaded episodes in the database    |
 | Files moved              | Episodes renamed and database updated      |
 | Files already migrated   | Episodes already at the correct path       |
-| Files not found          | Files missing on disk (database updated)   |
+| Files not found          | Files absent from disk (database updated)   |
 | Errors                   | Episodes that failed to migrate            |
 
 ## Safety
 
-- **Automatic backup**: A `podgrab_migration_backup_<timestamp>.tar.gz` file is
-  created in `CONFIG/backups/` before any changes are made.
-- **Rollback on failure**: If the database update fails after moving a file,
-  the script attempts to move the file back to its original location.
-- **No overwrites**: If a destination file already exists, the episode is
-  skipped and reported as an error.
-- **Idempotent**: Safe to re-run. Episodes already at the correct path are
-  skipped.
+- **Automatic backup**: The migration creates `CONFIG/backups/podgrab_migration_backup_<timestamp>.tar.gz` before any changes.
+- **Rollback on failure**: After a database update failure, the script attempts to restore the moved file's original location.
+- **No overwrites**: If the destination file already exists, the migration skips the episode and reports an error.
+- **Idempotent**: Safe to repeat. The migration skips episodes already at the correct path.
 
-## Troubleshooting
+## Resolve Problems
 
 ### "database not found" error
 
-Ensure `CONFIG` points to the directory containing `podgrab.db`.
+Ensure `CONFIG` points to the directory with `podgrab.db`.
 
 ### "Failed to initialize database" error
 
-The database file may be corrupted or locked. Ensure Podgrab is stopped before
-running the migration.
+The database file possibly has corruption or a lock. Stop Podgrab before you run the migration.
 
 ### Files not found
 
-Episodes that were deleted from disk will have their database paths updated
-without moving files. This is expected and reported in the summary.
+The migration updates database paths for episodes whose files no longer exist on disk without any file moves.
+This behavior follows the design, and the summary reports it.
 
 ### Permission errors in Docker
 
-Ensure the container user has read/write access to both volumes. The migration
+Ensure the container user has read and write access to both volumes. The migration
 service inherits the same volume paths as the main `podgrab` service.
 
 ## Related Documentation

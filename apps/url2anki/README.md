@@ -19,7 +19,7 @@ url2anki \
   --output-file cards.csv
 ```
 
-The URL, selectors, and output file can also be set with
+You can also set the URL, selectors, and output file with
 `URL2ANKI_URL`, `URL2ANKI_QUESTION_SELECTOR`, `URL2ANKI_ANSWER_SELECTOR`,
 and `URL2ANKI_OUTPUT_FILE`. Network requests default to a 30-second timeout
 and a 10 MiB response limit; override them with `--http-timeout` and
@@ -38,8 +38,8 @@ URL2ANKI_GID="$(id -g)" \
 docker compose -f apps/url2anki/docker-compose.yml up --abort-on-container-exit
 ```
 
-The UID/GID settings keep the container nonroot while allowing it to write to
-the host-owned bind mount. The generated deck is written to
+The UID and GID settings keep the container nonroot and permit writes to the host-owned bind mount.
+The app writes the generated deck to
 `./output/anki_cards.csv`.
 
 ## changes required to update golang version

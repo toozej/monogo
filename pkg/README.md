@@ -1,3 +1,10 @@
 # `/pkg`
 
-Library code that is ok to use by external applications (e.g., `/pkg/mypubliclib`). Other projects will import these libraries expecting them to work, so think twice before you put something here :-) Note that the `internal` directory is a better way to ensure your private packages are not importable because it is enforced by Go. The `/pkg` directory is still a good way to explicitly communicate that the code in that directory is safe for use by others. The [`I'll take pkg over internal`](https://travisjeffery.com/ill-take-pkg-over-internal/) blog post by Travis Jeffery provides a good overview of the `pkg` and `internal` directories and when it might make sense to use them.
+This directory contains library code for external applications, for example `/pkg/mypubliclib`.
+Other projects expect these libraries to work, so assess the public interface before you put code here.
+The Go compiler enforces import restrictions for `internal` packages, which makes `internal` a better choice for private code.
+The `/pkg` directory communicates that other projects can safely use its code.
+
+Travis Jeffery discusses both directories in the
+[`I'll take pkg over internal`](https://travisjeffery.com/ill-take-pkg-over-internal/) blog post.
+The article explains situations where `pkg` is a reasonable choice.

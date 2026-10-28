@@ -1,6 +1,6 @@
 # CI/CD Documentation
 
-Enterprise-grade CI/CD pipeline for Podgrab with comprehensive testing, quality
+Enterprise-grade CI/CD pipeline for Podgrab with tests, quality
 gates, and automated deployment.
 
 ## Architecture Overview
@@ -62,7 +62,7 @@ PRs
 **Triggers**:
 
 - Push to main
-- Pull requests to main
+- Requests to merge changes into `main`
 
 **Jobs**:
 
@@ -81,17 +81,17 @@ PRs
 
 ### code-quality.yml - Pre-flight Gate
 
-**Purpose**: Enforce code quality standards before testing
+**Purpose**: Enforce standards for code quality before tests
 
 **Steps**:
 
 1. Checkout code
-1. Setup Go with caching (composite action)
+1. Set up Go with a cache (composite action)
 1. Run gofmt - Verify code formatting
 1. Run go vet - Go static analysis
-1. Install golangci-lint v1.63.4
+1. Install the `golangci-lint` v1.63.4 tool
 1. Run golangci-lint (5m timeout, GitHub Actions format)
-1. Install gosec
+1. Install the `gosec` tool
 1. Run gosec (JSON output, continue on error)
 1. Upload gosec results (artifact, 30 days)
 1. Lint Dockerfile with hadolint (fail on warnings)
@@ -137,20 +137,20 @@ PRs
 
 ### e2e-test.yml - Browser Automation
 
-**Purpose**: End-to-end testing with Chrome and chromedp
+**Purpose**: End-to-end tests with Chrome and chromedp
 
 **Steps**:
 
 1. Checkout code
-1. Setup Go with caching
+1. Set up Go with a cache
 1. Install Chrome dependencies (30+ packages)
 1. Install Google Chrome stable
 1. Verify Chrome installation
 1. Run E2E tests: `go test -tags=e2e -v -timeout 10m ./e2e_test/...`
 1. Upload test artifacts on failure (screenshots)
 
-**Environment**: Ubuntu with Chrome headless **Tests**: 21 E2E tests covering
-critical workflows **Artifacts**: Screenshots saved to /tmp/podgrab-e2e-\*.png
+**Environment**: Ubuntu with Chrome headless **Tests**: 21 E2E tests that cover
+critical workflows **Artifacts**: Screenshots saved to `/tmp/podgrab-e2e-*.png`
 
 ### pr-validation.yml - PR Quality
 
@@ -158,7 +158,7 @@ critical workflows **Artifacts**: Screenshots saved to /tmp/podgrab-e2e-\*.png
 
 **Validations**:
 
-1. **Semantic PR Title** (amannn/action-semantic-pull-request@v5)
+1. **Semantic PR Title** (`amannn/action-semantic-pull-request`@v5)
 
    - Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore,
      revert
@@ -172,14 +172,14 @@ critical workflows **Artifacts**: Screenshots saved to /tmp/podgrab-e2e-\*.png
    - S: ≤100 lines
    - M: ≤500 lines
    - L: ≤1000 lines
-   - XL: >1000 lines (warning message)
+   - XL: >1000 lines (warn-level message)
    - Ignores: go.sum, go.mod, \*.json, \*.md
 
 ### cleanup-cache.yml - Cache Management
 
 **Trigger**: PR closed
 
-**Purpose**: Clean up GitHub Actions cache for merged/closed PRs
+**Purpose**: Clean up GitHub Actions cache for merged or closed PRs
 
 **Process**:
 
@@ -199,10 +199,10 @@ critical workflows **Artifacts**: Screenshots saved to /tmp/podgrab-e2e-\*.png
 
 **Purpose**: Clean up old Docker images from GHCR
 
-**Strategy** (dataaxiom/ghcr-cleanup-action@v1):
+**Strategy** (`dataaxiom/ghcr-cleanup-action`@v1):
 
 - Delete untagged images
-- Delete partial/broken images
+- Delete partial or broken images
 - Keep last 3 tagged versions
 - Delete images older than 30 days
 - Dry-run: false (actually delete)
@@ -213,17 +213,17 @@ critical workflows **Artifacts**: Screenshots saved to /tmp/podgrab-e2e-\*.png
 
 ### setup-go (`.github/actions/setup-go/action.yml`)
 
-**Purpose**: Reusable Go environment setup with intelligent caching
+**Purpose**: Reusable Go environment setup with a cache
 
 **Inputs**:
 
 - `go-version`: Go version (default: '1.24')
 - `cache-dependency-path`: Path to go.sum (default: 'go.sum')
 
-**Caching Strategy**:
+**Cache Strategy**:
 
-- Level 1: go.mod and go.sum cache (actions/setup-go)
-- Level 2: Go modules cache (~go/pkg/mod)
+- Level 1: go.mod and go.sum cache (`actions/setup-go`)
+- Level 2: Go modules cache (`~go/pkg/mod`)
 - Level 3: Build cache (~/.cache/go-build)
 
 **Steps**:
@@ -243,7 +243,7 @@ critical workflows **Artifacts**: Screenshots saved to /tmp/podgrab-e2e-\*.png
 
 ### docker-build-cache (`.github/actions/docker-build-cache/action.yml`)
 
-**Purpose**: Docker BuildKit cache management
+**Purpose**: Management of the Docker BuildKit cache
 
 **Inputs**:
 
@@ -252,7 +252,7 @@ critical workflows **Artifacts**: Screenshots saved to /tmp/podgrab-e2e-\*.png
 
 **Outputs**:
 
-- `cache-hit`: Whether cache was restored
+- `cache-hit`: Whether the action restored the cache
 
 **Steps**:
 
@@ -280,15 +280,15 @@ critical workflows **Artifacts**: Screenshots saved to /tmp/podgrab-e2e-\*.png
 **Platforms**:
 
 - linux/amd64
-- linux/arm64
-- linux/arm/v6
-- linux/arm/v7
+- `linux/arm64`
+- `linux/arm/v6`
+- `linux/arm/v7`
 
 **Build Steps**:
 
 1. Setup QEMU for cross-platform emulation
 1. Setup Docker Buildx
-1. Generate cache key (Dockerfile + go.sum hashes)
+1. Generate cache key (hashes of `Dockerfile` and `go.sum`)
 1. Restore BuildKit cache
 1. Login to DockerHub and GHCR
 1. Extract metadata (tags, labels)
@@ -329,7 +329,7 @@ Configure in repository settings (Settings → Secrets and variables → Actions
 
 ### .golangci.yml
 
-Comprehensive linter configuration with 20+ enabled linters:
+linter configuration with 20+ enabled linters:
 
 **Categories**:
 
@@ -371,7 +371,7 @@ Comprehensive linter configuration with 20+ enabled linters:
 
 1. **Parallelization**: Tests run in 4 parallel jobs
 1. **Smart Caching**: Go modules, build cache, Docker layers
-1. **Early Failure**: Code quality blocks everything
+1. **Early Failure**: Quality checks block all later work
 1. **Selective Build**: Docker only on main
 
 ### Resource Usage
@@ -397,13 +397,13 @@ Recommended settings for `main` branch:
 
 **Required Status Checks**:
 
-- ✅ Code Quality Gate
+- ✅ Gate for code quality
 - ✅ Unit & Integration Tests
 - ✅ E2E Tests
 
 **Pull Request Requirements**:
 
-- Require pull request reviews: 1 approval
+- Require reviews of pull requests: 1 approval
 - Dismiss stale reviews when new commits pushed
 - Require review from code owners: Optional
 - Require conversation resolution: Enabled
@@ -416,7 +416,7 @@ Recommended settings for `main` branch:
 - Lock branch: Disabled
 - Do not allow bypassing: Enabled
 
-## Troubleshooting
+## Resolve Problems
 
 ### Code Quality Failures
 
@@ -454,20 +454,20 @@ gosec ./...
 
 - Check for race conditions (`go test -race`)
 - Verify test isolation
-- Check environment dependencies
+- Check the environment dependencies
 - Review test logs in GitHub Actions
 
 **Integration tests fail**:
 
-- Check database initialization
-- Verify mock HTTP servers
+- Check the database initialization
+- Verify the mock HTTP servers
 - Review global state management
-- Check file system operations
+- Check the operations on the file system
 
 **E2E tests fail**:
 
 - Verify Chrome installation
-- Check timeout values
+- Check the timeout values
 - Review screenshot artifacts
 - Test locally: `go test -tags=e2e -v ./e2e_test/...`
 
@@ -480,34 +480,34 @@ gosec ./...
 docker buildx build --platform linux/amd64 -t test .
 ```
 
-**Push fails**:
+**Failed push**:
 
 - Verify DockerHub credentials
 - Check GHCR permissions
-- Review registry authentication logs
+- Review the authentication logs for the registry
 
 **Cache issues**:
 
 - Clear cache and rebuild
-- Check cache key generation
-- Verify cache path permissions
+- Check the generation of cache keys
+- Verify the permissions of cache paths
 
 ### Cache Issues
 
-**Cache not restoring**:
+**Cache restore fails**:
 
-- Check cache key format
+- Check the format of cache keys
 - Verify restore-keys fallback
-- Review cache size limits (10 GB per repository)
-- Check cache age (7 days for unused caches)
+- Review the size limits for caches (10 GB per repository)
+- Check the cache age (7 days for unused caches)
 
 **Cache too large**:
 
-- Review what is being cached
+- Review the cached content
 - Implement cache rotation
 - Use cache-to with mode=max selectively
 
-## Monitoring and Observability
+## Monitor and Observability
 
 ### GitHub Actions UI
 
@@ -545,13 +545,13 @@ docker buildx build --platform linux/amd64 -t test .
 
 **Old Workflow**: Single workflow with Docker build only
 
-**New Workflows**: Multi-workflow pipeline with testing
+**New Workflows**: Multi-workflow pipeline with tests
 
 **Migration Status**:
 
 - ✅ New workflows created alongside hub.yml
-- ⏳ Testing on feature branches
-- ⏳ Update branch protection rules
+- ⏳ Tests on feature branches
+- ⏳ Update the rules for branch protection
 - ⏳ Archive hub.yml after validation
 - ⏳ Monitor first production runs
 
@@ -561,12 +561,12 @@ docker buildx build --platform linux/amd64 -t test .
 
 Potential improvements:
 
-- Release workflow with semantic versioning and changelogs
-- Performance benchmarking job with historical comparison
-- Mutation testing for test quality validation
-- SBOM generation and provenance
-- Slack/Discord notifications for failures
-- Automated dependency updates (Dependabot/Renovate)
+- A release workflow with semantic versioning and changelogs
+- Performance benchmark job with historical comparison
+- Mutation tests for test quality validation
+- SBOM generation and build provenance
+- Slack or Discord notifications for failures
+- Automated dependency updates (Dependabot or Renovate)
 - Blue-green deployment strategy
 - Automated rollback on deployment failure
 

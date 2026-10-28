@@ -1,7 +1,6 @@
 # Podgrab
 
-Self-hosted podcast manager for automatically downloading and managing podcast
-episodes.
+Self-hosted podcast manager that automatically downloads and manages podcast episodes.
 
 [![Build Status](https://img.shields.io/github/actions/workflow/status/toozej/monogo/ci.yaml)](https://github.com/toozej/monogo/actions/workflows/ci.yaml)
 [![License](https://img.shields.io/github/license/toozej/monogo)](LICENSE)
@@ -10,20 +9,19 @@ episodes.
 
 <img src="img/avatar.png" alt="podgrab avatar" style="background-color: #FFFFFF;" />
 
-Self-hosted podcast manager for automatically downloading and managing podcast
-episodes.
+Self-hosted podcast manager that automatically downloads and manages podcast episodes.
 
 ## Features
 
 - 🎙️ **Automatic Downloads**: Subscribe to podcasts and automatically download
   new episodes
 - 🔍 **iTunes Search**: Search and subscribe to podcasts from iTunes directory
-- 📱 **Web Interface**: Clean, responsive web UI for managing your podcasts
+- 📱 **Web Interface**: Clean, responsive web UI to manage your podcasts
 - 🎧 **Built-in Player**: Stream episodes directly from the web interface
 - 📊 **Episode Management**: Mark episodes as played, bookmark favorites
-- 🏷️ **Tagging System**: Organize podcasts with custom tags
+- 🏷️ **Tags**: Organize podcasts with custom tags
 - ⚙️ **Flexible Settings**: Customize download behavior, file naming, and more
-- 🔄 **OPML Import/Export**: Easy migration from other podcast managers
+- 🔄 **OPML Import and Export**: Easy migration from other podcast managers
 - 🐳 **Docker Support**: Simple deployment with Docker or Docker Compose
 - 🌐 **Multi-platform**: Supports amd64, arm64, arm/v6, and arm/v7
 
@@ -88,7 +86,7 @@ uses the same optional `PASSWORD` authentication as the application.
 
 ### Make Targets
 
-The Makefile provides comprehensive build and development commands:
+The Makefile provides build and development commands:
 
 ```bash
 make help                    # Show all available targets
@@ -112,7 +110,7 @@ For a complete list of targets, run `make help` or see the [Makefile](../../Make
 - `CONFIG`: Directory for database and backups (default: `.`)
 - `CHECK_FREQUENCY`: Minutes between RSS feed checks (default: `30`)
 - `PASSWORD`: Enable basic authentication (username: `podgrab`)
-- `LOG_LEVEL`: Logging verbosity - `debug`, `info`, `warn`, `error` (default:
+- `LOG_LEVEL`: Logs verbosity - `debug`, `info`, `warn`, `error` (default:
   `info`)
 - `PUID`: Sets the UID of the container user (default: `1000`)
 - `PGID`: Sets the GID of the container user (default: `1000`)
@@ -121,12 +119,12 @@ For a complete list of targets, run `make help` or see the [Makefile](../../Make
 
 Configure via the web UI at `http://localhost:8080/settings`:
 
-- **Download on Add**: Automatically download when adding a podcast
+- **Download on Add**: Automatically download after you add a podcast
 - **Initial Download Count**: Number of episodes to download initially
 - **Auto Download**: Automatically download new episodes
 - **Max Concurrency**: Concurrent download limit
 - **Append Date**: Add date prefix to episode filenames
-- **Filename Format**: Customize episode file naming
+- **Filename Format**: Customize episode filenames
 
 ## Development
 
@@ -134,7 +132,7 @@ Configure via the web UI at `http://localhost:8080/settings`:
 
 - Go 1.27.3 or higher
 - Make (build automation)
-- Chrome/Chromium (for E2E tests)
+- Chrome and Chromium (for E2E tests)
 - pre-commit (for code quality hooks)
 
 ### Setup
@@ -175,35 +173,34 @@ podgrab/
 └── docs/                  # Documentation
 ```
 
-### Testing
+### Tests
 
-Podgrab has comprehensive test coverage:
+Podgrab has test coverage:
 
 - **Unit Tests**: 60+ tests for service, database, and controller layers
 - **Integration Tests**: 19 tests for complete workflows
 - **E2E Tests**: 21 browser-based tests
 
-For detailed testing documentation, see [testing.md](docs/testing.md).
+For detailed test documentation, see [`testing.md`](docs/testing.md).
 
 ### Code Quality
 
 All code changes must pass:
 
-- `golangci-lint` (comprehensive linting)
+- `golangci-lint` (lint checks)
 - `gosec` (security scanning)
 - `pre-commit` hooks (25 automated checks)
 - Test coverage thresholds (85%+ overall)
 
-See [Contributing workflow](docs/development/setup.md#contributing-workflow) for contribution guidelines.
+See [Contributing workflow](docs/development/setup.md#contribute-workflow) for contribution guidelines.
 
 ## Documentation
 
 - **[Documentation Index](docs/readme.md)**: Complete documentation navigation
-- **[Testing Guide](docs/testing.md)**: Comprehensive testing documentation
+- **[Test Guide](docs/testing.md)**: test documentation
 - **[CI/CD Guide](docs/ci-cd.md)**: GitHub Actions workflows and automation
-- **[Contributing](docs/development/setup.md#contributing-workflow)**: How to contribute to Podgrab
-- **[Logging Guide](internal/logger/README.md)**: Structured logging
-  documentation
+- **[Contribute](docs/development/setup.md#contribute-workflow)**: How to contribute to Podgrab
+- **[Logs Guide](internal/logger/README.md)**: Documentation for structured logs
 - **Swagger API Documentation**: Interactive REST API reference at
   `/swagger/index.html` on a running Podgrab server
 - **[Architecture](docs/architecture/)**: System design and architecture
@@ -217,8 +214,8 @@ See [Contributing workflow](docs/development/setup.md#contributing-workflow) for
 - **RSS Parsing**: gofeed
 - **Background Jobs**: gocron
 - **Real-time Updates**: WebSockets
-- **Logging**: Uber Zap (structured logging)
-- **Testing**: chromedp (E2E), testify (assertions)
+- **Logs**: Uber Zap (structured logs)
+- **Tests**: chromedp (E2E), testify (assertions)
 
 ## Support
 
@@ -230,18 +227,17 @@ See [Contributing workflow](docs/development/setup.md#contributing-workflow) for
 
 ### Original Author
 
-**Podgrab** was created and is maintained by
-**[Akhil Gupta](https://github.com/akhilrex)** (akhilrex).
+**[Akhil Gupta](https://github.com/akhilrex)** (akhilrex) created **Podgrab** and maintains it.
 
 - **Original Repository**: <https://github.com/akhilrex/podgrab>
 - **Docker Hub**: <https://hub.docker.com/r/akhilrex/podgrab>
 
 ## Acknowledgments
 
-Built with ❤️ using Go and open source libraries. Special thanks to:
+Built with ❤️ in Go and with open source libraries. Special thanks to:
 
-- [Akhil Gupta](https://github.com/akhilrex) for creating the original podgrab
-- [Robert Wlodarczyk](https://github.com/SimplicityGuy) for creating an updated fork with many modernizations
+- [Akhil Gupta](https://github.com/akhilrex) for the original Podgrab application
+- [Robert Wlodarczyk](https://github.com/SimplicityGuy) for an updated fork with many modernizations
 - The Podgrab community for feedback and contributions
 - The Go community for excellent tooling and libraries
 - Contributors to gofeed, gin, gorm, and other dependencies

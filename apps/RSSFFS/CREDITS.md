@@ -1,6 +1,6 @@
 # Credits and Acknowledgements
 
-Below is a list of various projects and code-snippets used in this RSSFFS repo, or were otherwise instrumental in the building of this starter. Thanks to everyone involved in these projects!
+These projects and code snippets contributed to the RSSFFS repository or helped with its initial development. Thanks to everyone involved in these projects!
 
 ## Overall
 - <https://github.com/MartinHeinz/go-project-blueprint>
@@ -9,7 +9,7 @@ Below is a list of various projects and code-snippets used in this RSSFFS repo, 
 ## Golang Project Layout
 - <https://github.com/golang-standards/project-layout>
 
-## Golang Module Usage and Upgrading
+## Golang Module Usage and Upgrade
 - <https://github.com/jaegertracing/jaeger>
 - <https://stackoverflow.com/a/60675491>
 - <https://golang.cafe/blog/how-to-upgrade-golang-dependencies>
@@ -44,7 +44,7 @@ Below is a list of various projects and code-snippets used in this RSSFFS repo, 
 ## GitHub Actions
 - generate and auto-commit docs
     - <https://github.com/goreleaser/nfpm/blob/main/.github/workflows/generate.yml>
-- build using goreleaser
+- build with goreleaser
     - <https://github.com/goreleaser/nfpm/blob/main/.github/workflows/build.yml>
 - security scanning
     - <https://github.com/goreleaser/goreleaser/tree/main/.github/workflows>

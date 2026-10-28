@@ -1,4 +1,4 @@
-# Terraform Directory Structure Examples
+# Examples of Directory Structure for Terraform
 
 ## Example 1: AWS Terraform Module with Sub-modules
 
@@ -39,7 +39,7 @@ terranotate validate ./examples/example1-aws-module/vpc ./examples/example1-aws-
 
 ## Example 2: Terraform Workspace
 
-This example demonstrates recursively validating an entire infrastructure workspace with multiple environments and local modules.
+This example recursively validates an entire infrastructure workspace with multiple environments and local modules.
 
 ```
 example2-aws-workspace/
@@ -92,7 +92,7 @@ terranotate validate ./examples/example2-aws-workspace/infrastructure ./examples
 
 ## Example 3: GCP Monorepo with Multiple Projects
 
-This example demonstrates using the tool in a monorepo setup with GCP resources.
+This example demonstrates the tool in a monorepo setup with GCP resources.
 
 ```
 example3-gcp-monorepo/
@@ -234,7 +234,7 @@ Total errors: 8 across 4 directories
 
 ## Example 4: GCP Module with Fix Command
 
-This example demonstrates how to use the `fix` command to automatically add missing annotations to your Terraform files.
+This example demonstrates how to use the `fix` command to automatically add absent annotations to your Terraform files.
 
 ```
 example4-gcp-module/
@@ -255,7 +255,7 @@ terranotate fix ./examples/example4-gcp-module/storage ./examples/example4-gcp-m
 
 **What it does:**
 - `validate` will find a `google_storage_bucket` without any `@metadata` or `@validation` tags.
-- `fix` will automatically add the missing comment blocks with placeholder values (e.g., `# @metadata owner:CHANGEME`, `# @validation priority:medium`).
+- `fix` will automatically add the missing comment blocks with placeholder values (for example `# @metadata owner:CHANGEME`, `# @validation priority:medium`).
 
 
 ## Skipped Directories
@@ -265,4 +265,4 @@ The validator automatically skips:
 - `terraform.tfstate.d/` - Terraform workspace states
 - `.git/` - Git repository
 - `node_modules/` - Node.js dependencies
-- Any directory starting with `.` (hidden directories)
+- Any directory that starts with `.` (hidden directories)

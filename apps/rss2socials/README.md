@@ -7,15 +7,17 @@
 
 <img src="img/avatar.png" alt="rss2socials avatar" style="background-color: #FFFFFF;" />
 
-rss2socials is a CLI tool that monitors an RSS feed for new posts and automatically posts updates to specified social platforms (Mastodon, Bluesky, Threads). This application is designed for easy configuration and seamless integration.
+rss2socials is a CLI tool that monitors an RSS feed for new posts and automatically posts updates to specified social platforms (Mastodon, Bluesky, Threads). The application simplifies configuration and integration.
 
 ## Features
 - Periodically checks an RSS feed for new or updated posts.
 - Posts updates to configured social platforms (Mastodon, Bluesky, Threads).
 - Stores previously posted items in an SQLite database to avoid duplicates.
-- **PostNewEntriesOnly** mode (default: enabled) prevents posting all existing RSS feed entries on first startup — only entries that appear after the first successful check are posted.
+- **PostNewEntriesOnly** mode (default: enabled): Posts only entries that appear after the first successful check.
+
+This mode prevents a bulk post of all current RSS feed entries on first startup.
 - Configurable check interval and customizable content.
-- Debug mode for detailed logging.
+- Debug mode for detailed log output.
 
 ## Installation
 ### Prerequisites
@@ -74,11 +76,11 @@ DB_PATH=/data/db/sqlite.db
     ```
 
 `--feed-url`: The URL of the RSS feed to monitor.
-`--interval`: The interval in minutes for checking the RSS feed (default is 60 minutes).
-`--post-new-entries-only`: Only post entries that appear after first startup; existing feed entries are stored but not posted (default: true). Set to false to post all entries on first run.
+`--interval`: The interval in minutes between checks of the RSS feed (default is 60 minutes).
+`--post-new-entries-only`: Only post entries that appear after first startup; the app stores current feed entries but does not post them (default: true). Set to false to post all entries on first run.
 
 3. Enable Debug Mode:
-Use the --debug flag to enable debug-level logging for troubleshooting.
+Use the --debug flag to enable debug-level log output for problem diagnosis.
 ```bash
 ./rss2socials --debug
 ```
@@ -89,47 +91,47 @@ Use the --debug flag to enable debug-level logging for troubleshooting.
 - Defines the main rss2socials command and its subcommands (man and version).
 - Sets up CLI flags and applies them over environment-based configuration.
 
-### Configuration (internal/config/config.go)
+### Configuration (`internal/config`/config.go)
 - Loads configuration from environment variables and the .env file if present.
 
-### RSS Handling (internal/rss/rss.go)
+### RSS Handling (`internal/rss`/rss.go)
 - Fetches and parses the RSS feed.
-- Provides hashing functionality to detect changes in post content.
+- Uses hashes to detect changes in post content.
 
 ### Social Integrations
 - **Mastodon**: `internal/mastodon`
 
-#### Creating a Mastodon Application
+#### Create a Mastodon Application
 
 To obtain the required `MASTODON_CLIENT_KEY`, `MASTODON_CLIENT_SECRET`, and `MASTODON_ACCESS_TOKEN` credentials:
 
-1. Log in to your Mastodon instance (e.g., `https://mastodon.social`).
-2. Go to **Preferences** → **Development** → **New Application**.
-3. Fill in the application name (e.g., `rss2socials`).
-4. Under **Scopes**, ensure at least `write:statuses` is checked (required for posting).
+1. Log in to your Mastodon instance (for example `https://mastodon.social`).
+2. Open `Preferences`. Select `Development`. Select `New Application`.
+3. Fill in the application name (for example `rss2socials`).
+4. Under **Scopes**, select at least `write:statuses`, which posts require.
 5. Click **Submit** to create the application.
 6. On the application page, you will find:
    - **Client key** → set as `MASTODON_CLIENT_KEY`
    - **Client secret** → set as `MASTODON_CLIENT_SECRET`
    - **Your access token** → set as `MASTODON_ACCESS_TOKEN`
 
-If your access token is not shown, click **Create new access token** to generate one with the same scopes.
+If the page does not show your access token, click **Create new access token** to generate one with the same scopes.
 
 - **Bluesky**: `internal/bluesky`
 
-#### Creating a Bluesky App Key
+#### Create a Bluesky App Key
 
 To obtain the required `BLUESKY_HANDLE` and `BLUESKY_APPKEY` credentials:
 
 1. Log in to your Bluesky account at [bsky.app](https://bsky.app).
-2. Go to **Settings** → **Privacy and Security** → **App Passwords**.
-3. Click **Create App Password**.
-4. Enter a name for the password (e.g., `rss2socials`).
+2. Open `Settings`. Select `Privacy and Security`. Select `App Passwords`.
+3. Select `Create App Password`.
+4. Enter a name for the password (for example `rss2socials`).
 5. Copy the generated app password — this is your `BLUESKY_APPKEY`.
-6. Your `BLUESKY_HANDLE` is your full Bluesky handle (e.g., `yourname.bsky.social`).
+6. Your `BLUESKY_HANDLE` is your full Bluesky handle (for example `yourname.bsky.social`).
 - **Threads**: `internal/threads`
 
-#### Creating a Threads Application
+#### Create a Threads Application
 
 To obtain the required `THREADS_CLIENT_ID`, `THREADS_CLIENT_SECRET`, and `THREADS_ACCESS_TOKEN` credentials:
 
@@ -137,8 +139,8 @@ To obtain the required `THREADS_CLIENT_ID`, `THREADS_CLIENT_SECRET`, and `THREAD
 2. Add the **Threads API** product to your app.
 3. Under **Settings** → **Basic**, copy the **App ID** → set as `THREADS_CLIENT_ID`.
 4. Copy the **App Secret** → set as `THREADS_CLIENT_SECRET`.
-5. Set a **Redirect URI** (e.g., `https://yourapp.com/callback`) → set as `THREADS_REDIRECT_URI`.
-6. Configure the desired scopes (at minimum `threads_basic` and `threads_content_publish`).
+5. Set a **Redirect URI** (for example `https://yourapp.com/callback`) → set as `THREADS_REDIRECT_URI`.
+6. Configure the scopes you want (at minimum `threads_basic` and `threads_content_publish`).
 7. Use the OAuth flow to obtain an access token:
    - Visit the authorization URL with your client ID and redirect URI.
    - After the user authorizes, exchange the authorization code for a short-lived token.
@@ -150,8 +152,12 @@ See the [Threads API documentation](https://developers.facebook.com/docs/threads
 ### Database Management (internal/db/db.go)
 - Manages an SQLite database to store and check previously posted items.
 - Database path defaults to `./tooted_posts.db`; override with the `DB_PATH` environment variable.
-- When running via Docker, mount the database file as a volume: `./data/db/sqlite.db:/data/db/sqlite.db` and set `DB_PATH=/data/db/sqlite.db`.
-- On first startup with `POST_NEW_ENTRIES_ONLY=true`, the first successful feed snapshot is stored transactionally but not posted. Later entries are identified by DB membership rather than publication time, so backdated posts and posts first seen after downtime are still delivered.
+- For Docker, mount the database volume: `./data/db/sqlite.db:/data/db/sqlite.db`.
+- Set `DB_PATH=/data/db/sqlite.db` for that container.
+
+With `POST_NEW_ENTRIES_ONLY=true`, the app transactionally stores the first successful feed snapshot on first startup and does not post it.
+It identifies later entries by DB membership rather than publication time.
+This method delivers backdated posts and posts first seen after downtime.
 
 ## update golang version
 - `make update-golang-version`

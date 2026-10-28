@@ -1,7 +1,7 @@
 # Architecture Overview
 
 This document provides a high-level overview of Podgrab's system architecture,
-including component interactions, data flow, and key design decisions.
+such as component interactions, data flow, and key design decisions.
 
 ## System Overview
 
@@ -11,7 +11,7 @@ with the following characteristics:
 - **Backend**: Go 1.27.3+ with Gin web framework
 - **Database**: SQLite with GORM ORM
 - **Frontend**: Server-side HTML templates with minimal JavaScript
-- **Background Jobs**: Scheduled tasks using gocron
+- **Background Jobs**: Scheduled tasks with gocron
 - **Real-time Updates**: WebSocket for live progress updates
 
 ## High-Level Architecture
@@ -126,13 +126,13 @@ graph LR
 
 - Request routing and middleware management
 - Basic authentication (optional)
-- Static file serving
-- Template rendering with custom functions
+- Serve static files
+- Render templates with custom functions
 
 **Controllers** (`controllers/`)
 
 - `podcast.go`: REST API endpoints for podcasts, episodes, tags
-- `pages.go`: HTML page rendering
+- `pages.go`: Render HTML pages
 - `websockets.go`: Real-time communication
 
 ### 2. Service Layer
@@ -141,7 +141,7 @@ graph LR
 
 - RSS feed parsing and podcast discovery
 - Episode management and download orchestration
-- OPML import/export
+- OPML import and export
 - iTunes search integration
 
 **File Service** (`service/fileService.go`)
@@ -180,9 +180,9 @@ graph LR
 
 **External Models** (`model/`)
 
-- RSS feed parsing structures
+- Structures to parse RSS feeds
 - iTunes API responses
-- OPML import/export formats
+- OPML import and export formats
 
 ### 4. Background Jobs
 
@@ -274,27 +274,27 @@ sequenceDiagram
 
 ### 1. Read-Heavy Operations
 
-- Browsing podcasts and episodes
-- Streaming audio files
-- Viewing podcast details
+- Browse podcasts and episodes
+- Stream audio files
+- View podcast details
 
 **Pattern**: Direct database queries with minimal processing
 
 ### 2. Write-Heavy Operations
 
-- Adding new podcasts
-- Downloading episodes
-- Updating settings
+- Add new podcasts
+- Download episodes
+- Update settings
 
 **Pattern**: Service layer coordination with database transactions
 
-### 3. Background Processing
+### 3. Background Tasks
 
 - RSS feed refresh
 - Episode downloads
 - File maintenance
 
-**Pattern**: Scheduled jobs with locking mechanism to prevent overlaps
+**Pattern**: Scheduled jobs with locks to prevent overlaps
 
 ## Concurrency Model
 
@@ -339,7 +339,7 @@ graph TB
 - Background scheduler runs in separate goroutine
 - Download workers limited by `MaxDownloadConcurrency` setting (default: 5)
 - WebSocket handler broadcasts to all connected clients
-- Job locking prevents duplicate background tasks
+- Job locks prevent duplicate background tasks
 
 ## Technology Stack
 
@@ -348,11 +348,11 @@ graph TB
 | Web Framework | Gin                          | HTTP routing, middleware, template rendering |
 | ORM           | GORM                         | Database abstraction, migrations             |
 | Database      | SQLite                       | Embedded relational database                 |
-| Scheduler     | gocron                       | Background job scheduling                    |
-| WebSocket     | gorilla/websocket            | Real-time client updates                     |
-| RSS Parsing   | encoding/xml + custom models | Feed parsing                                 |
-| HTML Parsing  | bluemonday + html-strip-tags | Content sanitization                         |
-| Logging       | uber/zap                     | Structured logging                           |
+| Scheduler     | gocron                       | Schedule background jobs                    |
+| WebSocket     | `gorilla/websocket`            | Real-time client updates                     |
+| RSS Parsers   | `encoding/xml` + custom models | Parse feeds                                 |
+| HTML Parsers  | bluemonday + html-strip-tags | Content sanitization                         |
+| Logs       | `uber/zap`                     | Structured log output                           |
 | UUID          | satori/go.uuid               | Unique identifiers                           |
 
 ## Deployment Architecture
@@ -397,9 +397,9 @@ graph TB
 
 ### Authentication
 
-- Optional HTTP Basic Authentication
+- Optional authentication with HTTP Basic Auth
 - Username: `podgrab` (fixed)
-- Password: Set via `PASSWORD` environment variable
+- Password: Configure through `PASSWORD` environment variable
 - Applied to all routes when enabled
 
 ### Data Security
@@ -411,7 +411,7 @@ graph TB
 ### File System Security
 
 - Downloads stored in configurable directory
-- Filename sanitization prevents path traversal
+- Sanitized filenames prevent path traversal
 - File permissions set to 777 for volume compatibility
 
 ## Scalability Considerations
@@ -420,10 +420,10 @@ graph TB
 
 - **Single instance**: SQLite does not support multiple writers
 - **File storage**: Local filesystem only
-- **No caching layer**: Direct database queries
+- **No cache layer**: Direct database queries
 - **Memory-bound**: All operations in-process
 
-### Scaling Strategies
+### Scale Strategies
 
 - **Horizontal**: Not supported (SQLite limitation)
 - **Vertical**: Increase container resources for more concurrent downloads
@@ -434,18 +434,18 @@ graph TB
 
 | Operation        | Performance           | Notes                            |
 | ---------------- | --------------------- | -------------------------------- |
-| Add Podcast      | 1-5 seconds           | Depends on RSS feed fetch time   |
+| Add Podcast      | 1-5 seconds           | Depends on Time to fetch RSS feeds   |
 | Browse Podcasts  | \<100ms               | Direct SQLite query              |
 | Episode Download | Variable              | Depends on file size and network |
 | RSS Refresh      | 1-10 seconds per feed | Runs in background               |
 | WebSocket Update | \<10ms                | Direct goroutine communication   |
 
-## Monitoring and Observability
+## Monitor and Observability
 
-### Logging
+### Logs
 
-- Structured logging via uber/zap
-- Console output (stdout/stderr)
+- Structured log output via `uber/zap`
+- Console output (stdout and stderr)
 - Log levels: Info, Error, Debug
 
 ### Metrics
@@ -463,7 +463,7 @@ graph TB
 ## Related Documentation
 
 - [System Design](system-design.md) - Detailed design patterns
-- [Data Flow](data-flow.md) - Request/response flows
+- [Data Flow](data-flow.md) - Requests and responses flows
 - [Database Schema](database-schema.md) - Data model details
 - [REST API](../api/rest-api.md) - API endpoint reference
 

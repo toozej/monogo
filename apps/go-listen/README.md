@@ -7,32 +7,32 @@
 
 <img src="img/avatar.png" alt="go-listen avatar" style="background-color: #FFFFFF;" />
 
-A web application that allows users to search for artists and automatically add their top 5 songs to designated "incoming" playlists on Spotify. Built with Go, featuring a responsive web interface, REST API, and comprehensive security features.
+A web application that allows users to search for artists and automatically add their top 5 songs to designated `incoming` playlists on Spotify. It uses Go and includes a responsive web interface, REST API, and security features.
 
 ## Features
 
-- **Artist Search**: Fuzzy matching to find artists even with typos or variations
-- **Web Scraping Artist Discovery**: Automatically extract and add artists from web pages (Reddit posts, music blogs, forums)
+- **Artist Search**: Fuzzy comparison to find artists even with typos or variations
+- **Discover Artists on Web Pages**: Automatically extract and add artists from web pages (Reddit posts, music blogs, forums)
 - **Automatic Track Addition**: Adds top 5 tracks from found artists to selected playlists
-- **Duplicate Detection**: Prevents adding the same artist's tracks multiple times with override option
-- **Playlist Management**: Works with playlists in your "Incoming" folder on Spotify
-- **Responsive Web Interface**: Works seamlessly on desktop, tablet, and mobile devices
+- **Duplicate Detection**: Prevents duplicate additions of an artist's tracks and provides an override option
+- **Playlist Management**: Works with playlists in your `Incoming` folder on Spotify
+- **Responsive Web Interface**: Works on desktop, tablet, and mobile devices
 - **Embedded Spotify Player**: Listen to your playlists directly in the web interface
 - **REST API**: Programmatic access for automation and integration
-- **CLI Commands**: Command-line interface for scripting and automation
-- **Security Features**: CSRF protection, rate limiting, input validation, and security headers
-- **Comprehensive Logging**: Structured logging with multiple levels and HTTP request tracking
+- **CLI Commands**: Command-line interface for scripts and automation
+- **Security Features**: CSRF protection, rate limits, input validation, and security headers
+- **Logs**: Structured log output with multiple levels and HTTP request records
 
 ## Quick Start
 
 ### Prerequisites
 
 1. **Spotify Developer Account**: Create an app at [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
-2. **Go 1.27.3+**: For building from source
+2. **Go 1.27.3+**: To build from source
 
 ### Installation
 
-#### Option 1: Install via Make (recommended)
+#### Option 1: Installation via Make (recommended)
 
 ```bash
 make install
@@ -78,29 +78,29 @@ make local-build APP=go-listen
    ./go-listen serve
    ```
 
-4. Open your browser to `http://localhost:8080`
+4. Open the browser to `http://localhost:8080`
 
 ## Usage
 
 ### Web Interface
 
-1. **Select a Playlist**: Choose from your "Incoming" folder playlists using the searchable dropdown
-2. **Search for an Artist**: Enter an artist name (fuzzy matching handles typos)
-3. **Add Tracks**: Click "Add Artist" to add their top 5 tracks to the selected playlist
+1. **Select a Playlist**: Choose from your `Incoming` folder playlists with the searchable dropdown
+2. **Search for an Artist**: Enter an artist name (fuzzy comparison handles typos)
+3. **Add Tracks**: Select `Add Artist` to add their top 5 tracks to the selected playlist
 4. **Handle Duplicates**: If tracks already exist, you will get an option to add anyway
 5. **Listen**: Use the embedded Spotify player to listen to your updated playlist
 
-### Web Scraping
+### Extract Artists from Web Pages
 
 Automatically discover and add artists from web pages:
 
 1. **Enter a URL**: Paste a link to a Reddit post, music blog, or forum discussion
-2. **Optional CSS Selector**: Target specific page sections (e.g., `div.post-content`)
+2. **Optional CSS Selector**: Target specific page sections (for example `div.post-content`)
 3. **Scrape & Add**: The system extracts artist names, fuzzy matches them to Spotify, and adds their top 5 tracks
-4. **Review Results**: See which artists were successfully added, which failed, and which were duplicates
+4. **Review Results**: See which artists the application added, which additions failed, and which artists were duplicates
 
 **Example URLs:**
-- Reddit music recommendation threads
+- Threads with music recommendations on Reddit
 - Music blog "best of" lists
 - Forum discussions about artists
 - Concert lineup pages
@@ -133,8 +133,8 @@ documentation, or see the detailed REST [API Documentation](docs/api.md).
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `SPOTIFY_CLIENT_ID` | - | **Required**: Your Spotify app client ID |
-| `SPOTIFY_CLIENT_SECRET` | - | **Required**: Your Spotify app client secret |
+| `SPOTIFY_CLIENT_ID` | - | **Required**: Client ID for your Spotify app |
+| `SPOTIFY_CLIENT_SECRET` | - | **Required**: Client secret for your Spotify app |
 | `SPOTIFY_REDIRECT_URL` | `http://127.0.0.1:8080/callback` | Spotify OAuth redirect URL |
 | `SPOTIFY_TOKEN_FILE` | user config directory | File used to securely persist browser authentication for CLI reuse |
 | `SERVER_HOST` | `localhost` | Server bind address |
@@ -145,20 +145,20 @@ documentation, or see the detailed REST [API Documentation](docs/api.md).
 | `SCRAPER_USER_AGENT` | `go-listen/1.0` | User agent for web requests |
 | `SCRAPER_MAX_CONTENT_SIZE` | `10485760` | Max content size (10MB) |
 | `SECURITY_RATE_LIMIT_REQUESTS_PER_SECOND` | `10` | Rate limit per IP |
-| `SECURITY_RATE_LIMIT_BURST` | `20` | Rate limit burst capacity |
+| `SECURITY_RATE_LIMIT_BURST` | `20` | Burst capacity for rate limits |
 | `SECURITY_USERNAME` | - | Basic Auth username; required with `SECURITY_PASSWORD` for non-loopback serving |
 | `SECURITY_PASSWORD` | - | Basic Auth password; required when the server binds beyond loopback |
 | `SECURITY_TRUST_PROXY_HEADERS` | `false` | Trust proxy-supplied client IP headers; enable only behind a trusted proxy |
 | `LOGGING_LEVEL` | `info` | Log level (debug, info, warn, error) |
 | `LOGGING_FORMAT` | `json` | Log format (json, text) |
 | `LOGGING_OUTPUT` | `stdout` | Log output (stdout, stderr, file path) |
-| `LOGGING_ENABLE_HTTP` | `true` | Enable HTTP request logging |
+| `LOGGING_ENABLE_HTTP` | `true` | Enable logs of HTTP requests |
 
 ### Configuration Files
 
-Example configurations are provided in the `configs/` directory:
-- `configs/development.env` - Development settings with verbose logging
-- `configs/production.env` - Production settings with optimized logging
+The `configs/` directory contains example configurations:
+- `configs/development.env` - Development settings with verbose log output
+- `configs/production.env` - Production settings with optimized log output
 
 ## Deployment
 
@@ -185,7 +185,7 @@ See [docker-compose.yml](./docker-compose.yml)
 
 ### Systemd Service
 
-See `docs/deployment.md` for detailed deployment instructions including systemd service setup, Kubernetes deployment, and reverse proxy configuration.
+See `docs/deployment.md` for detailed deployment instructions such as systemd service setup, Kubernetes deployment, and reverse proxy configuration.
 
 ## Documentation
 
@@ -198,13 +198,13 @@ See `docs/deployment.md` for detailed deployment instructions including systemd 
 
 The application includes several security features:
 - **CSRF Protection**: Prevents cross-site request forgery attacks
-- **Rate Limiting**: Prevents abuse with configurable limits per IP
+- **Rate Limits**: Prevents abuse with configurable limits per IP
 - **Input Validation**: Sanitizes and validates all user input
-- **Security Headers**: Implements security headers (HSTS, CSP, etc.)
-- **Structured Logging**: Comprehensive logging for security monitoring
+- **Security Headers**: Implements security headers (such as HSTS and CSP)
+- **Structured Logs**: log output for security monitoring
 
 For production deployment, consider:
-- Running behind a reverse proxy with HTTPS
-- Implementing additional authentication if needed
-- Monitoring logs for security events
-- Adjusting rate limits based on usage patterns
+- Run behind a reverse proxy with HTTPS
+- Implement additional authentication if needed
+- Monitor logs for security events
+- Adjust the rate limits based on usage patterns

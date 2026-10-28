@@ -9,7 +9,8 @@
 
 <img src="img/avatar.png" alt="gotts-it avatar"/>
 
-CLI tool that extracts readable article text from a URL or local HTML file and synthesizes speech via a self-hosted Speaches TTS server (OpenAI-compatible API) or Google Translate TTS.
+This CLI tool extracts readable article text from a URL or local HTML file.
+It synthesizes speech through a self-hosted Speaches TTS server with an OpenAI-compatible API, or through Google Translate TTS.
 
 ## Usage
 
@@ -34,12 +35,12 @@ CLI tool that extracts readable article text from a URL or local HTML file and s
    gotts-it --url https://en.wikipedia.org/wiki/Readability --output-dir ./output
    ```
 
-5. Use Google Translate TTS backend:
+5. Use the TTS backend from Google Translate:
    ```
    gotts-it --url https://en.wikipedia.org/wiki/Readability --tts-backend google --lang en
    ```
 
-6. Server mode (read URLs/files from stdin, one per line):
+6. Server mode (read URLs or files from stdin, one per line):
    ```
    echo "https://en.wikipedia.org/wiki/Readability" | gotts-it server --output-dir /out
    ```
@@ -67,15 +68,15 @@ CLI tool that extracts readable article text from a URL or local HTML file and s
 | `FILE` | | Local HTML or text file to convert to speech |
 | `OUTPUT` | | Output audio file path (default: derived from article title) |
 | `OUTPUT_DIR` | | Directory for output files (filename derived from article title) |
-| `OPENAI_BASE_URL` | `http://localhost:8000/v1` | OpenAI-compatible TTS endpoint base URL |
+| `OPENAI_BASE_URL` | `http://localhost:8000/v1` | Base URL for the OpenAI-compatible TTS endpoint |
 | `OPENAI_API_KEY` | | API key (Speaches ignores it but SDK requires non-empty) |
 | `TTS_MODEL` | `speaches-ai/Kokoro-82M-v1.0-ONNX` | TTS model ID |
 | `TTS_VOICE` | `af_heart` | Voice ID |
 | `TTS_FORMAT` | `mp3` | Output format: mp3, wav, flac, pcm |
 | `TTS_SPEED` | `1.0` | Speech speed (0.25–4.0) |
 | `TTS_INSTRUCTIONS` | | Optional model instructions |
-| `TTS_TIMEOUT` | `5m` | Per-chunk TTS request timeout |
-| `FETCH_TIMEOUT` | `30s` | Article URL fetch timeout |
+| `TTS_TIMEOUT` | `5m` | Timeout for each TTS request chunk |
+| `FETCH_TIMEOUT` | `30s` | Timeout to fetch an article URL |
 | `TTS_BACKEND` | `openai` | TTS backend: `openai` or `google` |
 | `GOOGLE_TRANSLATE_LANG` | `en` | Language code for Google Translate TTS |
 
@@ -90,10 +91,10 @@ CLI tool that extracts readable article text from a URL or local HTML file and s
 - Cobra CLI with flags for all TTS and article extraction options
 - Article text extraction via go-readability (from URL or local file)
 - OpenAI-compatible TTS via the official openai-go SDK
-- Google Translate TTS backend (`--tts-backend google --lang en`)
+- TTS backend from Google Translate (`--tts-backend google --lang en`)
 - Sentence-boundary chunking for articles longer than 4096 characters (OpenAI) or 200 characters (Google Translate)
 - Audio concatenation: MP3 (naive), WAV (header rewrite), PCM (raw); FLAC deferred
-- Server mode: read URLs/files from stdin line-by-line (`gotts-it server`)
+- Server mode: read URLs or files from stdin line-by-line (`gotts-it server`)
 - Output directory mode: `--output-dir` for batch output with auto-derived filenames
 - Speaches server included in docker-compose.yml
 - Goreleaser for cross-platform builds and Docker images

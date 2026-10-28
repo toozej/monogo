@@ -1,6 +1,6 @@
 # Development Environment Setup
 
-Complete guide for setting up a Podgrab development environment.
+Complete guide to configure a Podgrab development environment.
 
 ## Prerequisites
 
@@ -10,13 +10,13 @@ Complete guide for setting up a Podgrab development environment.
 - **Git**: For version control
 - **Make**: For build automation (optional)
 - **Docker**: For containerized development (optional)
-- **Chrome/Chromium**: For E2E tests (optional)
+- **Chrome and Chromium**: For E2E tests (optional)
 
 ### Installation
 
 #### Go
 
-**Ubuntu/Debian:**
+**Ubuntu and Debian:**
 
 ```bash
 sudo apt-get update
@@ -56,7 +56,7 @@ go version
 
 #### Git
 
-**Ubuntu/Debian:**
+**Ubuntu and Debian:**
 
 ```bash
 sudo apt-get install git
@@ -152,7 +152,7 @@ mkdir -p /tmp/podgrab/config
 mkdir -p /tmp/podgrab/assets
 ```
 
-## Running in Development
+## Run in Development
 
 ### Method 1: Direct Go Execution
 
@@ -257,7 +257,7 @@ tmp_dir = "tmp"
 air
 ```
 
-### Code Formatting
+### Code Format
 
 ```bash
 # Format all Go files
@@ -271,7 +271,7 @@ go install golang.org/x/tools/cmd/goimports@latest
 goimports -w .
 ```
 
-### Linting
+### Lint
 
 ```bash
 # Install golangci-lint
@@ -294,11 +294,11 @@ go install honnef.co/go/tools/cmd/staticcheck@latest
 staticcheck ./...
 ```
 
-## Testing
+## Tests
 
-Podgrab has comprehensive test coverage with unit, integration, and E2E tests.
+Podgrab has test coverage with unit, integration, and E2E tests.
 
-### Running Tests
+### Run Tests
 
 ```bash
 # Run all unit tests
@@ -318,9 +318,9 @@ go test -tags=e2e -v ./e2e_test/...
 go test -v -run TestFetchURL_ValidRSSFeed ./service/
 ```
 
-See [Testing Guide](../testing.md) for comprehensive testing documentation.
+See [Test Guide](../testing.md) for test documentation.
 
-### Manual Testing Checklist
+### Manual Tests Checklist
 
 - [ ] Add podcast from RSS URL
 - [ ] Import OPML file
@@ -386,7 +386,7 @@ rm /tmp/podgrab/config/podgrab.db
 go run main.go
 ```
 
-## Debugging
+## Debug
 
 ### VS Code Configuration
 
@@ -415,14 +415,14 @@ Create `.vscode/launch.json`:
 }
 ```
 
-### GoLand/IntelliJ Configuration
+### GoLand and IntelliJ Configuration
 
-1. Run → Edit Configurations
+1. Select `Run`. Select `Edit Configurations`
 1. Add new Go Build configuration
-1. Set environment variables
+1. Set the environment variables
 1. Run in debug mode (Shift+F9)
 
-### Delve Debugger (CLI)
+### `Delve` Debugger (CLI)
 
 ```bash
 # Install Delve
@@ -439,9 +439,9 @@ step             # Step into
 next             # Step over
 ```
 
-### Logging
+### Logs
 
-Podgrab uses structured logging with Uber Zap. Use the global logger instance:
+Podgrab uses structured logs with Uber Zap. Use the global logger instance:
 
 ```go
 // Import logger
@@ -453,7 +453,7 @@ logger.Log.Errorw("Failed to download", "error", err, "url", url)
 logger.Log.Debug("Debug message")
 ```
 
-**Set log level via environment:**
+**Set the log level through the environment:**
 
 ```bash
 # Enable debug logging
@@ -466,9 +466,9 @@ export GIN_MODE=release
 go run main.go
 ```
 
-See [Logging Guide](../../internal/logger/README.md) for detailed documentation.
+See [Logs Guide](../../internal/logger/README.md) for detailed documentation.
 
-### HTTP Request Debugging
+### HTTP Request Debug
 
 ```bash
 # Test API endpoints
@@ -534,7 +534,7 @@ Key libraries:
 
 ## Common Development Tasks
 
-### Add New API Endpoint
+### Add a New API Endpoint
 
 1. **Define model** (`model/` or `db/`)
 1. **Create database function** (`db/dbfunctions.go`)
@@ -615,9 +615,9 @@ func Migrate() {
 }
 ```
 
-## Performance Profiling
+## Performance Profile
 
-### CPU Profiling
+### CPU Profile
 
 ```go
 import (
@@ -641,7 +641,7 @@ go tool pprof cpu.prof
 (pprof) web  # Graphical view (requires graphviz)
 ```
 
-### Memory Profiling
+### Memory Profile
 
 ```bash
 # Run with memory profiling
@@ -651,7 +651,7 @@ go run -memprofile mem.prof main.go
 go tool pprof mem.prof
 ```
 
-## Building for Production
+## Build for Production
 
 ### Build Binary
 
@@ -680,7 +680,7 @@ docker buildx create --use
 docker buildx build --platform linux/amd64,linux/arm64,linux/arm/v7 -t podgrab:latest .
 ```
 
-## Troubleshooting
+## Resolve Problems
 
 ### Port Already in Use
 
@@ -721,7 +721,7 @@ go get -u ./...
 go mod tidy
 ```
 
-## Contributing Workflow
+## Contribute Workflow
 
 See the [repository guidelines](../../../../AGENTS.md) for the shared contribution
 process.
@@ -737,6 +737,6 @@ process.
 ## Related Documentation
 
 - [Repository Guidelines](../../../../AGENTS.md) - How to contribute
-- [Testing Guide](../testing.md) - Testing documentation
+- [Test Guide](../testing.md) - Tests documentation
 - [Architecture Overview](../architecture/overview.md) - System architecture
 - [REST API](../api/rest-api.md) - API reference

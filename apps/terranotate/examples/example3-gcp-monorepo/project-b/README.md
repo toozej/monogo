@@ -1,2 +1,2 @@
 # Project B Infrastructure
-Google Cloud Platform infrastructure for Project B.
+Infrastructure on Google Cloud Platform for Project B.

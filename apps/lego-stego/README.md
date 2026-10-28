@@ -14,13 +14,13 @@ Go-based CLI tool for [Steganography](https://en.wikipedia.org/wiki/Steganograph
 ## Features
 
 - QR code steganography
-- Arbitrary file embedding
+- Embed arbitrary files
 - AES-GCM encryption (Argon2id KDF)
 - Reed–Solomon error correction
 - Adaptive noise-aware embedding
 - Randomized embedding (password-derived)
 - PNG support (lossless)
-- Automatic QR decoding
+- Decode QR codes automatically
 
 ## Usage
 
@@ -51,9 +51,10 @@ Resistant to casual inspection, not nation-state steganalysis
 
 ## changes required to use this as a starter template
 - set up new repository in quay.io web console
-    - (DockerHub and GitHub Container Registry do this automatically on first push/publish)
+    - (DockerHub and GitHub Container Registry do this automatically on first push and publish)
     - name must match Git repo name
-    - grant robot user with username stored in QUAY_USERNAME "write" permissions (your quay.io account should already have admin permissions)
+    - Grant `write` permissions to the robot user named in `QUAY_USERNAME`.
+    - Admin permissions for your quay.io account are an expected prerequisite.
 - set built packages visibility in GitHub packages to public
     - navigate to https://github.com/users/$USERNAME/packages/container/$REPO/settings
     - scroll down to "Danger Zone"

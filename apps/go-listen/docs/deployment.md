@@ -10,19 +10,19 @@ This guide covers different deployment options for the go-listen application.
    - Configure redirect URI: `https://your-domain/callback` (Spotify permits plain HTTP only for loopback development)
 
 2. **System Requirements**:
-   - Linux/macOS/Windows
+   - Linux, macOS, and Windows
    - Network access to Spotify API
    - Available port for HTTP server (default: 8080)
 
 ## Deployment Options
 
 Basic Auth protects the application but does not encrypt credentials. Bind to
-loopback for local use, or terminate HTTPS at a reverse proxy/Ingress before
-exposing the service beyond the host.
+loopback for local use, or terminate HTTPS at a reverse proxy or Ingress before
+you expose the service beyond the host.
 
 ### 1. Binary Deployment
 
-#### Build using Make
+#### Build with Make
 
 ```bash
 # Build the binary
@@ -72,7 +72,7 @@ export SPOTIFY_CLIENT_SECRET=your_client_secret
 
 ### 2. Docker Deployment
 
-#### Using Docker Compose (Recommended)
+#### Use Docker Compose (Recommended)
 
 Create `docker-compose.yml`:
 
@@ -159,7 +159,7 @@ docker-compose logs -f go-listen
 docker-compose down
 ```
 
-#### Using Docker Run
+#### Use Docker Run
 
 ```bash
 # Run with environment variables
@@ -519,7 +519,7 @@ your-domain.com {
 }
 ```
 
-## Monitoring and Maintenance
+## Monitor and Maintenance
 
 ### Health Checks
 
@@ -530,7 +530,7 @@ The application provides a simple health check endpoint:
 curl -f http://localhost:8080/ || echo "Service is down"
 ```
 
-### Log Monitoring
+### Log Monitor
 
 Monitor application logs for issues:
 
@@ -549,7 +549,7 @@ docker-compose logs -f go-listen
 
 The application is stateless, so backup considerations:
 
-1. **Configuration**: Backup your environment variables/config files
+1. **Configuration**: Backup your environment variables or config files
 2. **Spotify Integration**: No local data to backup (uses Spotify API)
 3. **Logs**: Consider log rotation and archival if needed
 
@@ -557,7 +557,7 @@ The application is stateless, so backup considerations:
 
 To update the application:
 
-1. **Binary deployment**: Replace binary and restart service
+1. **Binary deployment**: Replace the binary. Restart the service
 2. **Docker deployment**: Update image tag and restart containers
 3. **Kubernetes**: Update deployment with new image
 
@@ -570,18 +570,18 @@ docker-compose up -d
 kubectl set image deployment/go-listen go-listen=go-listen:new-version
 ```
 
-## Troubleshooting
+## Resolve Problems
 
 ### Common Issues
 
 1. **Port already in use**: Change `SERVER_PORT` or stop conflicting service
 2. **Spotify API errors**: Verify credentials and network connectivity
-3. **Permission denied**: Check file permissions and user privileges
+3. **Permission denied**: Check the file permissions and user privileges
 4. **High memory usage**: Monitor and adjust resource limits
 
 ### Debug Mode
 
-Enable debug logging for troubleshooting:
+Enable debug log output for problem diagnosis:
 
 ```bash
 # Environment variable
@@ -591,13 +591,13 @@ LOGGING_LEVEL=debug
 ./go-listen serve --debug
 ```
 
-### Performance Monitoring
+### Performance Monitor
 
 Monitor key metrics:
 - HTTP response times
-- Rate limiting hits
+- Rate limit hits
 - Memory and CPU usage
-- Spotify API response times
+- Response times from the Spotify API
 - Error rates
 
-Consider using monitoring tools like Prometheus, Grafana, or application performance monitoring (APM) solutions.
+Consider tools such as Prometheus, Grafana, or application performance monitors (APM).

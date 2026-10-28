@@ -33,7 +33,7 @@ Tangled repository names remain case sensitive.
   codeberg.org/owner/repo tangled.sh/user.tngl.sh/repo
 ```
 
-Only the listed public instances are supported.
+The tool supports only the listed public instances.
 The tool preserves case in names from the additional forges.
 Use positional arguments or repeat `--repo` to add repositories.
 CLI options override global values in the configuration.
@@ -54,7 +54,7 @@ A repository filter overrides the global filter.
 Use `--all-assets` or YAML `all_assets: true` to download every uploaded asset.
 This includes packages without platform names, signatures, and metadata.
 The tool still checks asset sizes, GitHub digests, and recognized checksum files.
-This option bypasses platform targets and cannot be combined with `--require-all`.
+This option bypasses platform targets. You cannot combine it with `--require-all`.
 
 ## Asset selection
 
@@ -78,8 +78,8 @@ The tool requires an architecture token unless you specify a filename rule.
 
 For example, `App-x86_64.AppImage` matches Linux AMD64.
 `App.dmg` needs a repository rule because its name does not identify the architecture.
-The example configuration supplies rules for Joplin filenames that omit architecture tokens.
-Inspect upstream filenames when you configure another repository.
+The example configuration includes rules for Joplin filenames that omit architecture tokens.
+Inspect the upstream filenames when you configure another repository.
 
 Repeat `--target` to replace the global defaults:
 
@@ -90,18 +90,18 @@ Repeat `--target` to replace the global defaults:
   --target linux/aarch64:appimage+deb+rpm owner/repo
 ```
 
-Additional formats include MSIX bundles, tar.bz2, tar.zst, TGZ, TBZ2, TXZ,
-compressed AppImages, GZ, XZ, ZST, BIN, and `binary` for names without an extension or names that end with an architecture token.
+Additional formats include MSIX bundles, tar.bz2, tar.zst, TGZ, TBZ2, TXZ, compressed AppImages, GZ, XZ, ZST, and BIN.
+The `binary` format covers names without an extension or names that end with an architecture token.
 The tool stores packages without extraction.
 It does not download the source archives that GitHub generates automatically.
 
 Each YAML target can specify `match` and `exclude` regular expressions.
-`match` assigns the configured OS and architecture to matching filenames.
+`match` assigns the configured OS and architecture to filenames that match.
 The configured formats still apply.
-`exclude` rejects matching filenames.
+`exclude` rejects filenames that match.
 Rules use Go regular expressions and are case sensitive unless they contain `(?i)`.
 
-A missing target produces a message by default.
+An absent target produces a message by default.
 A release with no matching package fails.
 Use `--require-all` or `require_all: true` to require every target.
 This option also prevents cleanup if an upstream release lacks a requested platform.
@@ -109,11 +109,14 @@ This option also prevents cleanup if an upstream release lacks a requested platf
 ## Stable releases and retention
 
 The tool verifies each repository through its forge API.
-For Tangled, an annotated tag with attached artifacts acts as a release.
+For Tangled, an annotated tag with attached artifacts represents a release.
+
 The tool uses the tagger timestamp as its publication time.
 It excludes lightweight tags and annotated tags without artifacts.
+
 GitLab releases with a future publication time do not qualify.
 It reads every release page and sorts stable releases by publication time.
+
 It excludes drafts, releases with the prerelease flag, semantic prerelease versions,
 and names with alpha, beta, RC, preview, nightly, dev, or similar markers.
 Tags can use semantic versions, dates, or other stable names.
@@ -132,23 +135,30 @@ Files use this directory structure:
       v1.2.1/
 ```
 
-GitHub keeps the existing `owner/repo/tag` directory layout.
+GitHub keeps the current `owner/repo/tag` directory layout.
 The other forges use `host/owner/repo/tag`.
+
 GitLab adds a directory for each subgroup.
 For example, `gitlab.com/group/subgroup/repo/v1.2.3` uses five directories.
+
 This prevents collisions between forges, namespaces, and owners.
 Ordinary version tags remain unchanged.
-The tool percent-encodes path separators and leading dots in tags.
+
+The tool percent-encodes path separators and dots at the start in tags.
 For example, `apps/tool/v1.2.3` becomes `apps%2Ftool%2Fv1.2.3`.
 
 The tool downloads each release into a temporary directory.
 It checks the published asset size and any asset digest.
+
 GitLab release links do not include sizes.
 For these links, the tool checks available checksums and stores a local SHA-256.
+
 It also limits checksum downloads to 8 MiB when the published size is unknown.
 It also checks published MD5, SHA-1, SHA-256, and SHA-512 checksum files.
+
 Supported checksum layouts include GNU, BSD, and bare per-asset sidecars.
-Conflicting checksums fail verification.
+Checksums that conflict fail verification.
+
 Malformed supported checksum files also fail the run.
 The tool limits each checksum file to 8 MiB.
 
@@ -160,23 +170,29 @@ The tool does not verify detached signatures or signature bundles.
 
 A failed download or checksum check receives two retries by default.
 Use `--retries` to specify between one and ten retries.
-The tool waits between retries and obeys API rate limits.
+
+The tool waits between retries and obeys the rate limits of the API.
 It verifies cached package bytes before reuse.
+
 It downloads corrupt or changed packages again.
 If an asset has neither a published size nor an upstream checksum, the tool downloads it on each run.
+
 This prevents cache reuse when metadata cannot identify an upstream change.
 It refreshes checksum files on each run.
 
 The tool publishes a release directory only after all selected assets pass their checks.
 It preserves the previous directory if a replacement fails.
+
 It can recover a replacement interrupted between directory renames.
 It removes older releases only after every retained release succeeds for that repository.
-It only removes directories with a matching tool manifest.
+
+It only removes directories with a tool manifest that matches.
 It preserves unrelated directories and files.
+
 A failure in one repository does not prevent downloads for another repository.
 
 The tool creates `.go-get-releases.lock` in the destination during each run.
-This lock prevents overlapping runs in the same destination.
+This lock prevents concurrent runs in the same destination.
 If the process stops without cleanup, confirm that it stopped before you remove the stale lock.
 The default total timeout is six hours.
 Use `--timeout` to change it.
@@ -209,13 +225,17 @@ The tool sends no credentials to Tangled's public endpoints.
 
 GitHub uses `github.com/google/go-github/v89` for API requests.
 The tool sends API requests sequentially.
+
 It waits until GitHub's primary limit resets or its secondary retry delay expires.
 All adapters retry rate limits and server failures.
+
 They honor `Retry-After` and stop when the context expires.
-Asset redirects remove credentials, including redirects within the same host for the additional forges.
+Asset redirects remove credentials, even within the same host for the additional forges.
+
 API pagination reads page numbers or cursors and rejects pagination that does not advance.
 It does not follow pagination URLs to other hosts.
-See the [GitHub rate limit guidance](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api).
+
+See the [guidance on rate limits from GitHub](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api).
 
 ## Daily cron at 04:00
 
@@ -232,7 +252,7 @@ The tool does not read `.env` files.
 ```
 
 Cron uses the scheduler's configured timezone.
-If your cron implementation supports `CRON_TZ`, set it to the desired timezone.
+If your cron implementation supports `CRON_TZ`, set it to the timezone you want to use.
 For example, use `CRON_TZ=America/Los_Angeles` for local Pacific time.
 
 ## Container

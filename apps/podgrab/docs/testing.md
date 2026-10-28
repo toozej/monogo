@@ -1,7 +1,6 @@
-# Testing Guide
+# Test Guide
 
-Comprehensive testing guide for Podgrab covering unit tests, integration tests,
-and E2E tests.
+This guide covers unit tests, integration tests, and E2E tests for Podgrab.
 
 ## Overview
 
@@ -45,7 +44,7 @@ go test -tags=e2e -v ./e2e_test/...
 - Podcast CRUD operations
 - Episode download logic
 - iTunes and GPodder API integration
-- File operations and naming
+- File operations and names
 - Concurrency control
 
 **Database Layer** (`db/*_test.go`):
@@ -60,7 +59,7 @@ go test -tags=e2e -v ./e2e_test/...
 
 - Table-driven tests for multiple scenarios
 - In-memory SQLite for isolation
-- httptest.Server for mocking external APIs
+- `httptest.Server` to mock external APIs
 - Test helpers in `db/testing.go`
 
 ### Integration Tests
@@ -71,11 +70,11 @@ go test -tags=e2e -v ./e2e_test/...
 
 1. `podcast_lifecycle_test.go` (7 tests)
 
-   - Complete podcast lifecycle (add → download → delete)
+   - Complete podcast lifecycle (add, download, and delete)
    - Duplicate detection
    - Episode deduplication
    - Auto-download on add
-   - Played/unplayed status
+   - Played or unplayed status
    - Bookmark functionality
 
 1. `background_jobs_test.go` (6 tests)
@@ -98,18 +97,18 @@ go test -tags=e2e -v ./e2e_test/...
 - Real database (in-memory SQLite)
 - Real file system (t.TempDir())
 - Mock HTTP servers for RSS feeds
-- Full service layer integration
+- Full integration of the service layer
 
 ### E2E Tests
 
 **Location**: `e2e_test/` **Build Tag**: `//go:build e2e` **Browser**:
-Chrome/Chromium with chromedp
+Chrome and Chromium with chromedp
 
 **Requirements**:
 
 - Chrome or Chromium browser installed
 - On Ubuntu 24.04+: CHROME_DEVEL_SANDBOX environment variable set (see
-  Troubleshooting)
+  Resolve Problems)
 
 **Test Files**:
 
@@ -126,7 +125,7 @@ Chrome/Chromium with chromedp
 - Headless Chrome for CI/CD
 - Screenshot capture on failure
 
-## Running Tests
+## Run Tests
 
 ### By Layer
 
@@ -221,7 +220,7 @@ var text string
 err := getElementText(ctx, ".title", &text)
 ```
 
-## Writing Tests
+## Write Tests
 
 ### Unit Test Pattern
 
@@ -342,7 +341,7 @@ See `.github/workflows/test.yml` and `.github/workflows/e2e-test.yml`
 - Controllers: ✅ 80%+
 - Integration: ✅ 80%+
 
-## Troubleshooting
+## Resolve Problems
 
 ### Test Isolation Issues
 
@@ -364,7 +363,7 @@ See `.github/workflows/test.yml` and `.github/workflows/e2e-test.yml`
 - Increase timeouts
 - Add explicit waits for elements
 - Check for race conditions
-- Verify Chrome is properly installed
+- Verify the Chrome installation
 
 ### Chrome Sandbox Issues (Ubuntu 24.04+)
 
@@ -389,14 +388,14 @@ export CHROME_DEVEL_SANDBOX=/path/to/chrome-sandbox
 **Why This Works**:
 
 - SUID sandbox provides secure process isolation
-- Maintains security without requiring privileged containers
+- Maintains security without privileged containers
 - Recommended by Chromium security team over `--no-sandbox`
 
 **Alternative Solutions** (not recommended):
 
-- Using `--no-sandbox` (disables all sandboxing, security risk)
-- Running in privileged mode (requires root, security risk)
-- Modifying AppArmor policies (system-wide changes)
+- Use `--no-sandbox` (disables all sandboxing, security risk)
+- Run in privileged mode (requires root, security risk)
+- Modify AppArmor policies (system-wide changes)
 
 ### Import Cycle Errors
 
@@ -406,12 +405,12 @@ export CHROME_DEVEL_SANDBOX=/path/to/chrome-sandbox
 
 - Use `_test` package suffix
 - Move test helpers to appropriate package
-- Check dependency graph
+- Check the dependency graph
 
-## Best Practices
+## Operational Guidelines
 
-1. **Test Independence**: Each test should run independently
-1. **Meaningful Names**: Test names should describe what they test
+1. **Test Independence**: Recommend independent test execution
+1. **Meaningful Names**: Recommend names that describe the test behavior
 1. **Arrange-Act-Assert**: Structure tests clearly
 1. **Table-Driven**: Use table-driven tests for multiple scenarios
 1. **Coverage != Quality**: Focus on meaningful tests, not just coverage
@@ -421,7 +420,7 @@ export CHROME_DEVEL_SANDBOX=/path/to/chrome-sandbox
 
 ## Resources
 
-- [Go Testing Documentation](https://golang.org/pkg/testing/)
+- [Go Tests Documentation](https://golang.org/pkg/testing/)
 - [testify Documentation](https://github.com/stretchr/testify)
 - [chromedp Documentation](https://github.com/chromedp/chromedp)
 - [CI/CD Documentation](./ci-cd.md) - GitHub Actions workflows and automation

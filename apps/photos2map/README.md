@@ -7,7 +7,7 @@
 
 <img src="img/avatar.png" alt="photos2map avatar" style="background-color: #FFFFFF;" />
 
-Generate a GPX file or map on a HTML page from an input directory of image files containing GPS coordinates in their EXIF metadata
+Generate a GPX file or map on a HTML page from an input directory of image files with GPS coordinates in their EXIF metadata
 
 ## Usage
 - `make` ;)

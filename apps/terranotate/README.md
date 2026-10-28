@@ -13,8 +13,8 @@
 
 - 🔍 **Parse** - Extract and analyze structured comments from Terraform files
 - ✅ **Validate** - Enforce comment schemas with required fields and type checking
-- 🔧 **Auto-Fix** - Automatically add missing comment blocks with intelligent defaults
-- 📦 **Module Support** - Validate entire modules including sub-modules
+- 🔧 **Auto-Fix** - Automatically add absent comment blocks with intelligent defaults
+- 📦 **Module Support** - Validate entire modules and their submodules
 - 🏢 **Workspace Support** - Recursive validation of entire Terraform workspaces
 - 📊 **Rich Reporting** - Clear, actionable error messages with line numbers
 - 🎯 **Flexible Schemas** - YAML-based schema definitions for easy customization
@@ -77,7 +77,7 @@ make local-build APP=terranotate
 
 - [API Usage](docs/api-usage.md)
 - [Advanced Usage & Customization](docs/advanced-usage.md)
-- [Troubleshooting](docs/troubleshooting.md)
+- [Resolve Problems](docs/troubleshooting.md)
 
 ## Development
 
@@ -96,7 +96,7 @@ make local-build
 make test
 ```
 
-### Lint/Pre-commit
+### Lint and Pre-commit
 ```bash
 make pre-commit
 ```

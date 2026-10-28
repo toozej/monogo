@@ -2,10 +2,13 @@
 
 `notes-courier` exports Simplenote notes into a local Obsidian vault.
 Use `DESTINATION=obsidian` to select this exporter.
+
 The legacy `SSG_TYPE=obsidian` setting selects the same exporter when `DESTINATION` is empty.
 It repeats the export during the migration validation period.
+
 Simplenote remains the source for imported notes until you stop the exporter.
 The Obsidian OneDrive Sync plugin distributes vault changes between clients.
+
 You do not need the Obsidian CLI.
 
 ## Implementation plan
@@ -32,9 +35,9 @@ The plugin can sync those changes when you open the vault again.
 6. Set the Simplenote credentials and absolute paths in `.env`.
 7. Restrict access with `chmod 600 ~/.config/notes-courier-obsidian/.env`.
 
-Set `OBSIDIAN_VAULT_PATH` to an existing vault, such as `/home/you/Documents/MyVault`.
+Set `OBSIDIAN_VAULT_PATH` to a current vault, such as `/home/you/Documents/MyVault`.
 Set `OBSIDIAN_FOLDER=Simplenote` to use a dedicated import folder inside that vault.
-Existing configurations can continue to use `OUTPUT_DIR=/home/you/Documents/MyVault/Simplenote` when `OBSIDIAN_VAULT_PATH` is empty.
+Current configurations can continue to use `OUTPUT_DIR=/home/you/Documents/MyVault/Simplenote` when `OBSIDIAN_VAULT_PATH` is empty.
 Keep the configuration outside the vault so OneDrive does not sync your credentials.
 Use `SN_CLI_PATH` to select the installed `sncli` executable.
 
@@ -185,7 +188,7 @@ Simplenote/.notes2ssg-tmp-*
 ```
 
 These patterns keep export state and temporary files on the export computer.
-The exporter retains the `notes2ssg` state and lock names for compatibility with existing migrations.
+The exporter retains the `notes2ssg` state and lock names for compatibility with current migrations.
 Back up `.notes2ssg-obsidian.json` with the imported notes.
 The exporter uses this file to identify previous output and detect local edits.
 Do not run a second sync tool against the same local vault folder.

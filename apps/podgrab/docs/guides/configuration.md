@@ -1,19 +1,19 @@
 # Configuration Guide
 
-Complete reference for configuring Podgrab through environment variables and
+Complete reference to configure Podgrab through environment variables and
 application settings.
 
 ## Configuration Levels
 
 Podgrab has two configuration levels:
 
-1. **Environment Variables**: Set at deployment/startup (Docker, system
+1. **Environment Variables**: Set at deployment or startup (Docker, system
    environment)
 1. **Application Settings**: Configured through web UI or API
 
 ## Environment Variables
 
-Set before starting Podgrab. Changes require restart.
+Set these values before you start Podgrab. Changes require a restart.
 
 ### Required Variables
 
@@ -38,14 +38,14 @@ volumes:
 
 **Requirements:**
 
-- Read/write permissions
+- Read and write permissions
 - Sufficient storage space (podcasts can be large)
 - Persistent storage (not tmpfs)
 
 **Recommendations:**
 
 - SSD not required (episodes are large files)
-- HDD acceptable for cost/capacity
+- HDD acceptable for cost and capacity
 - Network storage (NAS) supported
 
 #### CONFIG
@@ -74,7 +74,7 @@ volumes:
 
 **Requirements:**
 
-- Read/write permissions
+- Read and write permissions
 - Persistent storage (critical)
 - Regular backups recommended
 
@@ -88,7 +88,7 @@ volumes:
 
 #### PASSWORD
 
-HTTP Basic Authentication password.
+Password for HTTP Basic authentication.
 
 ```bash
 PASSWORD=mysecurepassword
@@ -161,28 +161,28 @@ environment:
 
 **Recommended Values:**
 
-| Use Case         | Minutes | Reasoning                   |
+| Use Case         | Minutes | Reason                   |
 | ---------------- | ------- | --------------------------- |
 | Active listening | 15      | Fast new episode detection  |
 | Normal use       | 30      | Balanced (default)          |
-| Light use        | 60      | Lower resource usage        |
+| Light use        | 60      | Less resource use        |
 | Archive only     | 120+    | Minimal background activity |
-| Development      | 5       | Quick testing               |
+| Development      | 5       | Quick tests               |
 
 **Considerations:**
 
-- **Lower values**:
+- **Smaller values**:
 
   - ✅ Faster episode discovery
   - ✅ More responsive
-  - ❌ Higher CPU usage
+  - ❌ More CPU use
   - ❌ More network requests
-  - ❌ Potential rate limiting from feeds
+  - ❌ Potential rate limits from feeds
 
 - **Higher values**:
 
-  - ✅ Lower resource usage
-  - ✅ Less network traffic
+  - ✅ Less resource use
+  - ✅ Less traffic on the network
   - ❌ Delayed episode discovery
   - ❌ Delayed downloads
 
@@ -202,7 +202,7 @@ Backups:           Every 2 days (independent)
 
 #### LOG_LEVEL
 
-Logging verbosity level for application output.
+Logs verbosity level for application output.
 
 ```bash
 LOG_LEVEL=info
@@ -221,9 +221,9 @@ environment:
 
 | Level   | Description                                         | Use Case    |
 | ------- | --------------------------------------------------- | ----------- |
-| `debug` | Detailed information for diagnosing problems        | Development |
+| `debug` | Detailed information to diagnose problems        | Development |
 | `info`  | General informational messages                      | Production  |
-| `warn`  | Warning messages for potentially harmful situations | Production  |
+| `warn`  | Warnings for potentially harmful situations | Production  |
 | `error` | Error messages for serious problems                 | Production  |
 
 **Output Format:**
@@ -239,11 +239,11 @@ environment:
 
 **Recommendations:**
 
-- **Development**: Use `debug` for detailed troubleshooting
+- **Development**: Use `debug` for detailed problem diagnosis
 - **Production**: Use `info` or `warn` to reduce log volume
-- **Performance debugging**: Use `debug` temporarily, then revert
+- **Performance debugging**: Use `debug` temporarily. Restore the previous level afterward
 - **Containerized deployments**: JSON format integrates with log aggregators
-  (ELK, Splunk, etc.)
+  (such as ELK or Splunk)
 
 **Example Output:**
 
@@ -256,10 +256,10 @@ environment:
 {"level":"info","ts":"2024-01-15T10:30:46Z","msg":"Download started","episode_id":"xyz789","size":"50MB"}
 ```
 
-**Structured Logging:**
+**Structured Logs:**
 
-Podgrab uses Uber Zap for structured logging with key-value pairs. For detailed
-documentation, see [Logging Guide](../../internal/logger/README.md).
+Podgrab uses Uber Zap for structured logs with key-value pairs. For detailed
+documentation, see [Logs Guide](../../internal/logger/README.md).
 
 ## Application Settings
 
@@ -270,20 +270,20 @@ Access Settings:
 
 1. Navigate to `http://localhost:8080/settings`
 1. Modify settings
-1. Click "Save"
+1. Select `Save`
 1. Changes take effect immediately (no restart required)
 
 ### Download Settings
 
 #### Download on Add
 
-Auto-download episodes when adding new podcast.
+Auto-download episodes after you add a new podcast.
 
-**Setting:** `downloadOnAdd` **Type:** Boolean **Default:** `true`
+**Option:** `downloadOnAdd` **Type:** Boolean **Default:** `true`
 
 **Behavior:**
 
-- `true`: Downloads episodes immediately after adding podcast
+- `true`: Downloads episodes immediately after you add a podcast
 - `false`: Only fetches episode metadata, no downloads
 
 **Works with:** `initialDownloadCount`
@@ -302,13 +302,13 @@ Auto-download episodes when adding new podcast.
 }
 ```
 
-**Result:** Downloads 5 most recent episodes when adding podcast
+**Result:** Downloads 5 most recent episodes after you add a podcast
 
 #### Initial Download Count
 
-Number of episodes to download when adding podcast.
+Number of episodes to download after you add a podcast.
 
-**Setting:** `initialDownloadCount` **Type:** Integer **Default:** `5`
+**Option:** `initialDownloadCount` **Type:** Integer **Default:** `5`
 **Range:** 0-100 (practical range: 0-20)
 
 **Behavior:**
@@ -319,9 +319,9 @@ Number of episodes to download when adding podcast.
 
 **Recommendations:**
 
-| Scenario            | Count | Reasoning                   |
+| Scenario            | Count | Reason                   |
 | ------------------- | ----- | --------------------------- |
-| New podcast         | 1-3   | Test before committing      |
+| New podcast         | 1-3   | Test before you commit      |
 | Known good podcast  | 5-10  | Catch up on recent episodes |
 | Archive entire feed | 0     | Manually select episodes    |
 | Binge listening     | 10-20 | Queue up content            |
@@ -337,9 +337,9 @@ New podcast: 250 MB
 
 #### Auto Download
 
-Automatically download new episodes from existing podcasts.
+Automatically download new episodes from current podcasts.
 
-**Setting:** `autoDownload` **Type:** Boolean **Default:** `true`
+**Option:** `autoDownload` **Type:** Boolean **Default:** `true`
 
 **Behavior:**
 
@@ -355,14 +355,14 @@ Automatically download new episodes from existing podcasts.
 
 **Paused Podcasts:**
 
-- Setting has no effect on paused podcasts
+- The option has no effect on paused podcasts
 - Paused podcasts never auto-download
 
 #### Max Download Concurrency
 
 Maximum simultaneous episode downloads.
 
-**Setting:** `maxDownloadConcurrency` **Type:** Integer **Default:** `5`
+**Option:** `maxDownloadConcurrency` **Type:** Integer **Default:** `5`
 **Range:** 1-20 (practical range: 1-10)
 
 **Behavior:**
@@ -403,7 +403,7 @@ Concurrency 20: Maximum (potential instability)
 
 Add episode publication date to downloaded filename.
 
-**Setting:** `appendDateToFileName` **Type:** Boolean **Default:** `false`
+**Option:** `appendDateToFileName` **Type:** Boolean **Default:** `false`
 
 **Behavior:**
 
@@ -416,7 +416,7 @@ Add episode publication date to downloaded filename.
 
 - Chronological organization
 - Multiple episodes with same name
-- Sorting by date in file browser
+- Sort by date in the file browser
 
 **Example:**
 
@@ -429,7 +429,7 @@ true:  The Daily Show_2024-01-15.mp3
 
 Add episode number to downloaded filename.
 
-**Setting:** `appendEpisodeNumberToFileName` **Type:** Boolean **Default:**
+**Option:** `appendEpisodeNumberToFileName` **Type:** Boolean **Default:**
 `false`
 
 **Behavior:**
@@ -467,7 +467,7 @@ Both enabled: 042_Episode Title_2024-01-15.mp3
 
 Enable dark color scheme.
 
-**Setting:** `darkMode` **Type:** Boolean **Default:** `false`
+**Option:** `darkMode` **Type:** Boolean **Default:** `false`
 
 **Behavior:**
 
@@ -476,7 +476,7 @@ Enable dark color scheme.
 
 **Persistence:**
 
-- Saved per browser/device
+- Saved per browser or device
 - Syncs across tabs
 - Persists across sessions
 
@@ -490,7 +490,7 @@ Enable dark color scheme.
 
 Custom base URL for generated RSS feeds.
 
-**Setting:** `baseUrl` **Type:** String **Default:** Empty (auto-detect from
+**Option:** `baseUrl` **Type:** String **Default:** Empty (auto-detect from
 request)
 
 **Behavior:**
@@ -535,8 +535,8 @@ With baseUrl set to `https://podgrab.example.com`:
 **Important:**
 
 - Required for RSS feeds to work externally
-- Critical for sharing feeds
-- Must include protocol (http/https)
+- Critical to share feeds
+- Must include protocol (`http` or `https`)
 - No trailing slash
 
 ### Advanced Settings
@@ -545,7 +545,7 @@ With baseUrl set to `https://podgrab.example.com`:
 
 Download and store episode artwork locally.
 
-**Setting:** `downloadEpisodeImages` **Type:** Boolean **Default:** `false`
+**Option:** `downloadEpisodeImages` **Type:** Boolean **Default:** `false`
 
 **Behavior:**
 
@@ -562,7 +562,7 @@ Average image: 50-200 KB
 
 **Benefits:**
 
-- Faster image loading
+- Images load faster
 - Works offline
 - Privacy (no external image requests)
 - Consistent experience
@@ -580,9 +580,9 @@ Average image: 50-200 KB
 
 #### Generate NFO Files
 
-Create metadata .nfo files alongside episodes.
+Create the `.nfo` metadata files alongside episodes.
 
-**Setting:** `generateNFOFile` **Type:** Boolean **Default:** `false`
+**Option:** `generateNFOFile` **Type:** Boolean **Default:** `false`
 
 **Behavior:**
 
@@ -622,20 +622,20 @@ Create metadata .nfo files alongside episodes.
 
 **Recommendation:**
 
-- Enable if: Using media center software
+- Enable if: You use software for a media center
 - Disable if: Not needed (saves disk writes)
 
 #### Do Not Re-download Deleted Episodes
 
 Skip re-downloading manually deleted episodes.
 
-**Setting:** `dontDownloadDeletedFromDisk` **Type:** Boolean **Default:**
+**Option:** `dontDownloadDeletedFromDisk` **Type:** Boolean **Default:**
 `false`
 
 **Behavior:**
 
 - `false`: Re-download deleted episodes if marked for download
-- `true`: Never re-download episodes with status "Deleted"
+- `true`: Never re-download episodes with status `Deleted`
 
 **Use Cases:**
 
@@ -658,7 +658,7 @@ Setting: true
 **Manual override:**
 
 - Can always manually download deleted episodes
-- This setting only affects automatic downloads
+- This option only affects automatic downloads
 
 **Recommendation:**
 
@@ -669,7 +669,7 @@ Setting: true
 
 Custom HTTP User-Agent header for downloads.
 
-**Setting:** `userAgent` **Type:** String **Default:** Empty (uses Go's default)
+**Option:** `userAgent` **Type:** String **Default:** Empty (uses Go's default)
 
 **Format:** `"AppName/Version (Additional Info)"`
 
@@ -687,7 +687,7 @@ Podgrab/1.0 (MyServer)
 Some feeds require specific user agents
 ```
 
-**Analytics/Tracking:**
+**Analytics and Activity Records:**
 
 ```
 Identify downloads in feed analytics
@@ -701,21 +701,21 @@ PodgrabServer/1.0 (MyDomain)
 Mozilla/5.0 (compatible; Podgrab/1.0)
 ```
 
-**Best Practices:**
+**Operational Guidelines:**
 
-- Include "Podgrab" for identification
-- Add version if tracking multiple instances
+- Include `Podgrab` for identification
+- Add version if you track multiple instances
 - Be respectful of feed provider requirements
 
 **Note:**
 
 - Empty value uses Go's default User-Agent
-- Some CDNs/feeds may block default agents
+- Some CDNs or feeds possibly block default agents
 - Use custom agent if downloads fail
 
 ## Configuration via API
 
-Settings can be updated via REST API.
+Update settings through the REST API.
 
 ### Get Current Settings
 
@@ -769,7 +769,7 @@ Content-Type: application/json
 
 **Note:** Only include fields you want to change.
 
-## Configuration Best Practices
+## Configuration Operational Guidelines
 
 ### Optimal Configuration by Use Case
 
@@ -787,7 +787,7 @@ maxDownloadConcurrency: 5
 appendDateToFileName: false
 ```
 
-#### Archive/Collection
+#### Archive or Collection
 
 ```yaml
 # Environment
@@ -834,7 +834,7 @@ downloadEpisodeImages: false
 generateNFOFile: false
 ```
 
-### Security Hardening
+### Security Harden
 
 ```yaml
 # Environment
@@ -847,12 +847,12 @@ userAgent: Podgrab/1.0 SecureInstance
 
 **Additional steps:**
 
-- Use HTTPS reverse proxy
+- Use a reverse proxy with HTTPS
 - Firewall rules
 - Regular updates
 - Strong passwords
 
-### Performance Tuning
+### Performance Tune
 
 **High Performance:**
 
@@ -875,9 +875,9 @@ CHECK_FREQUENCY: 120
 maxDownloadConcurrency: 2
 ```
 
-## Troubleshooting Configuration
+## Resolve Problems Configuration
 
-### Downloads Not Working
+### Failed Downloads
 
 **Check:**
 
@@ -901,15 +901,15 @@ maxDownloadConcurrency: 2
 **Check:**
 
 1. `baseUrl` configured correctly?
-1. Includes protocol (http/https)?
+1. Includes protocol (`http` or `https`)?
 1. Accessible from external network?
 1. `PASSWORD` included in feed URL if set?
 
 ## Configuration Migration
 
-### Upgrading from Old Versions
+### Upgrade from Old Versions
 
-Settings are stored in database and persist across upgrades.
+The database stores settings and preserves them across upgrades.
 
 **New settings** get default values automatically.
 
@@ -920,7 +920,7 @@ Before upgrade: Setting doesn't exist
 After upgrade: userAgent = "" (default)
 ```
 
-### Exporting Configuration
+### Export Configuration
 
 **Database includes all settings:**
 
@@ -936,7 +936,7 @@ cp /backup/podgrab.db /config/podgrab.db
 
 ## Related Documentation
 
-- [User Guide](user-guide.md) - Using Podgrab
+- [User Guide](user-guide.md) - Use Podgrab
 - [Docker Deployment](../deployment/docker.md) - Environment setup
 - [Production Guide](../deployment/production.md) - Production configuration
 - [REST API](../api/rest-api.md) - API settings endpoint

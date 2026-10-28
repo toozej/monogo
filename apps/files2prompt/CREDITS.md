@@ -4,5 +4,5 @@
 - https://github.com/simonw/files-to-prompt
 - https://github.com/aerugo/prelude
 
-## Project Scaffolding
+## Project Scaffold
 - https://raw.githubusercontent.com/toozej/golang-starter/main/CREDITS.md

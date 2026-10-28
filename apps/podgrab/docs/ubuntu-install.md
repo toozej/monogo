@@ -1,13 +1,10 @@
-# Building from source / Ubuntu Installation Guide
+# Build from Source on Ubuntu
 
-Although personally I feel that using the docker container is the best way of
-using and enjoying something like Podgrab, a lot of people in the community are
-still not comfortable with using Docker and wanted to host it natively on their
-Linux servers.
+I prefer the Docker container for Podgrab.
+Many community members prefer native installation on their Linux servers because they are not comfortable with Docker.
 
-This guide has been written with Ubuntu in mind. If you are using any other
-flavour of Linux and are decently competent with using command line tools, it
-should be easy to figure out the steps for your specific distro.
+This guide targets Ubuntu.
+For other Linux distributions, familiarity with command-line tools is likely sufficient to adapt these steps.
 
 ## Install Go
 
@@ -18,9 +15,9 @@ If you already have Go installed on your machine, you can skip to the next step.
 Get precise Go installation process at the official link here -
 https://golang.org/doc/install
 
-Following steps will only work if Go is installed and configured properly.
+These steps work only with a correct Go installation and configuration.
 
-## Install dependencies
+## Install the Dependencies
 
 ```bash
  sudo apt-get install -y git ca-certificates ufw gcc
@@ -49,18 +46,18 @@ mv -v dist/* /usr/local/bin/podgrab
 mv -v dist/.* /usr/local/bin/podgrab
 ```
 
-At this point theoretically the installation is complete. You can make the
-relevant changes in the `.env` file present at `/usr/local/bin/podgrab` path and
-run the following command
+At this point, the installation is complete in principle.
+Adjust `.env` in `/usr/local/bin/podgrab` for your configuration.
+Run this command:
 
 ```bash
 cd /usr/local/bin/podgrab && ./podgrab
 ```
 
-Point your browser to http://localhost:8080 (if trying on the same machine) or
+Point your browser to http://localhost:8080 (on the same machine) or
 `http://server-ip:8080` from other machines. Replace `server-ip` with the server address.
 
-If you are using ufw or some other firewall, you might have to make an exception
+If you use ufw or another firewall, you possibly need an exception
 for this port on that.
 
 ## Setup as service (Optional)
@@ -99,11 +96,10 @@ sudo systemctl status podgrab.service
 
 # Update Podgrab
 
-In case you have installed Podgrab and want to update the latest version
-(another area where Docker really shines) you need to repeat the steps from
-cloning to building and copying.
+To update an installed copy of Podgrab to the latest version, repeat the clone, build, and copy steps.
+Docker also simplifies this process.
 
-Stop the running service (if using)
+Stop the active service if you use it
 
 ```bash
 sudo systemctl stop podgrab.service
@@ -131,7 +127,7 @@ sudo mkdir -p /usr/local/bin/podgrab
 mv -v dist/* /usr/local/bin/podgrab
 ```
 
-Restart the service (if using)
+Restart the service if you use it
 
 ```bash
 sudo systemctl start podgrab.service

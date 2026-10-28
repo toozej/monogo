@@ -1,5 +1,5 @@
 # Credits and Acknowledgements
 
-`monogo` is based on the `golang-starter` template repository:
+`monogo` uses the `golang-starter` template repository as its base:
 
 - https://github.com/toozej/golang-starter

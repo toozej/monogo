@@ -7,17 +7,17 @@
 
 <img src="img/avatar.png" alt="go-find-liquor avatar" style="background-color: #FFFFFF;" />
 
-Oregon Liquor Search Notification Service using [the OLCC Liquor Search website](https://www.oregonliquorsearch.com/), Go, and the [nikoksr/notify library](https://github.com/nikoksr/notify).
+A notification service for liquor searches in Oregon. It uses [Oregon Liquor Search from OLCC](https://www.oregonliquorsearch.com/), Go, and the [`nikoksr/notify` library](https://github.com/nikoksr/notify).
 
 ## Features
 
-- Search [Oregon Liquor Search](https://www.oregonliquorsearch.com/) for specific liquor items
+- Search the [Oregon Liquor Search](https://www.oregonliquorsearch.com/) for specific liquor items
 - Search by product name or item code
 - **Multi-user support**: Configure multiple users with individual preferences
 - **Notification condensing**: Combine multiple findings into single notifications
 - Configurable search radius based on zip code
-- Automatic age verification handling
-- Random user agent rotation to avoid detection
+- Automatic age verification
+- Random rotation of user agents to avoid detection
 - Random delays between searches to simulate human behavior
 - Multiple notification methods:
   - Gotify (direct API integration)
@@ -28,11 +28,12 @@ Oregon Liquor Search Notification Service using [the OLCC Liquor Search website]
   - Pushbullet
 - Configurable search interval
 - One-time or continuous search mode
-- Backward compatibility with existing single-user configurations
+- Backward compatibility with current single-user configurations
 
 ## Usage with Docker
 
-Dockerized GFL uses a final image based on [Distroless Debian static](https://github.com/GoogleContainerTools/distroless) since it includes minimal dependencies but most crucially ca-certificates (which are needed to POST notifications to HTTPS endpoints).
+Dockerized GFL uses [Distroless Debian static](https://github.com/GoogleContainerTools/distroless) as its final image.
+This image includes minimal dependencies and, critically, the CA certificates necessary to POST notifications to HTTPS endpoints.
 
 ```bash
 cp config.example.yaml config.yaml
@@ -63,12 +64,12 @@ make local-build APP=go-find-liquor
 
 GFL supports multiple users with individual search preferences. This is useful for:
 
-- **Shared installations**: Multiple people using the same GFL instance
+- **Shared installations**: Multiple people with the same GFL instance
 - **Different search areas**: Users in different zip codes
 - **Varied notification preferences**: Some users want individual notifications, others prefer condensed
 - **Different liquor interests**: Each user can search for their preferred items
 
-### Setting Up Multiple Users
+### Configure Multiple Users
 
 1. **Copy the example configuration**:
    ```bash
@@ -109,26 +110,26 @@ GFL supports multiple users with individual search preferences. This is useful f
 
 ### Migration from Single-User
 
-If you have an existing single-user configuration, GFL will automatically migrate it:
+If you have a current single-user configuration, GFL will automatically migrate it:
 
-- Your existing settings become a user named "default"
-- All functionality is preserved
+- Your current settings become a user named "default"
+- GFL preserves all functionality
 - You can add additional users to the same config file
 - No manual migration required
 
 ## Configuration
 
-GFL supports both single-user and multi-user configurations. You can configure it using a YAML configuration file, environment variables, or command-line flags.
+GFL supports both single-user and multi-user configurations. You can configure it with a YAML configuration file, environment variables, or command-line flags.
 
 ### Multi-User Configuration
 
-GFL now supports multiple users with individual search preferences while sharing global settings like search intervals and logging configuration.
+GFL now supports multiple users with individual search preferences and shares global settings like search intervals and log output configuration.
 
 #### Configuration Structure
 
-- **Global Settings**: Apply to all users (interval, verbose logging, user agent)
+- **Global Settings**: Apply to all users (interval, verbose log output, user agent)
 - **User-Specific Settings**: Each user has their own items, location, and notification preferences
-- **Notification Condensing**: Each notification method can be configured to send individual notifications or condense multiple findings into a single message
+- **Notification Condensing**: Configure each notification method to send individual notifications or condense multiple findings into a single message
 
 #### Configuration File
 
@@ -177,11 +178,11 @@ users:
 
 ### Single-User Configuration (Legacy Support)
 
-GFL maintains backward compatibility with existing single-user configurations. If you have an existing config, it will be automatically migrated to the multi-user format with a user named "default".
+GFL maintains backward compatibility with current single-user configurations. If you have a current config, GFL automatically migrates it to the multi-user format with a user named `default`.
 
 ### Environment Variables
 
-Environment variables are supported for backward compatibility with the `GFL_` prefix:
+GFL supports environment variables with the `GFL_` prefix for backward compatibility:
 
 ```bash
 export GFL_ITEMS="Blanton's,Eagle Rare,Buffalo Trace"
@@ -194,7 +195,7 @@ export GFL_INTERVAL="6h"
 
 ### Command-Line Flags
 
-Basic options can be set using command-line flags:
+Set the basic options with command-line flags:
 
 ```bash
 # Run in debug mode
@@ -207,7 +208,7 @@ Basic options can be set using command-line flags:
 ./out/go-find-liquor -o
 ```
 
-### Notification Condensing
+### Condense Notifications
 
 Each notification method supports a `condense` option:
 
@@ -224,11 +225,11 @@ Example condensed notification:
 
 ### Configuration Migration
 
-When upgrading from a single-user configuration, GFL will automatically:
+When you upgrade from a single-user configuration, GFL automatically performs these steps:
 
 1. Detect the legacy format
-2. Create a new user named "default" with your existing settings
-3. Preserve all functionality while enabling multi-user capabilities
+2. Create a new user named "default" with your current settings
+3. Preserve all functionality and enable multi-user capabilities
 4. Log the migration process for your awareness
 
 You can then manually edit your config to add additional users or rename the default user.
@@ -270,7 +271,7 @@ make local-run APP=go-find-liquor
 
 ## Notification Types
 
-GFL supports multiple notification methods. Each notification method supports the `condense` option to control whether multiple findings are combined into a single message.
+GFL supports multiple notification methods. Each notification method supports `condense`, which controls whether the method combines multiple findings into a single message.
 
 ### Gotify
 
@@ -283,8 +284,7 @@ notifications:
       token: "YOUR_GOTIFY_TOKEN"
 ```
 
-Error-level application log messages are also sent to every configured Gotify
-target. This uses the same endpoint and token as the finding notifications;
+The application also sends error-level log messages to every configured Gotify target. This uses the same endpoint and token as the finding notifications;
 other notification providers receive findings and heartbeats only.
 
 ### FlareSolverr (Cloudflare-protected OLCC searches)
@@ -294,9 +294,8 @@ The generated Compose configuration includes a FlareSolverr sidecar. Set
 `GFL_FLARESOLVERR_URL` in the container environment) to route OLCC requests
 through it. Leave it unset to retain direct HTTP requests.
 
-FlareSolverr runs a browser and can require substantial memory. Its port is not
-published to the host; it is only reachable by `go-find-liquor` on the Compose
-network.
+FlareSolverr runs a browser and can require substantial memory.
+Compose does not publish its port to the host. Only `go-find-liquor` can reach it on the Compose network.
 
 ### Slack
 
@@ -356,11 +355,14 @@ notifications:
 ### Notification Behavior
 
 - **Individual Notifications** (`condense: false`): Each liquor item found generates a separate notification
-- **Condensed Notifications** (`condense: true`): All liquor items found in a single search run are combined into one notification with a list of all items
+- **Condensed Notifications** (`condense: true`): GFL combines all liquor items from one search run into one notification that lists every item
 
 ## Background
 
-go-find-liquor, or GFL for short, was built since it is increasingly difficult to find some liquors at Oregon liquor stores due to short supply, mis-management, antiquated technology, etc. GFL was born to make it easier to find just the right bottle. Also, fun fact, GFL's alternative name is "good-fucking-luck", as in good luck finding those rare bottles ;).
+I built go-find-liquor, or GFL, because some liquors are increasingly difficult to find in Oregon stores.
+Reasons include short supply, mismanagement, and antiquated technology.
+GFL helps you find the right bottle.
+Its alternative name is "good-fucking-luck", as in good luck with those rare bottles ;).
 
 ## changes required to update golang version
 - `make update-golang-version`

@@ -1,6 +1,6 @@
 # System Design
 
-This document details Podgrab's system design, including architectural patterns,
+This document details Podgrab's system design, such as architectural patterns,
 design decisions, and implementation strategies.
 
 ## Design Principles
@@ -9,21 +9,21 @@ design decisions, and implementation strategies.
 
 - Monolithic architecture for easier deployment and maintenance
 - Minimal dependencies
-- Direct database access without caching layer
+- Direct database access without a cache layer
 - Server-side rendering over complex frontend framework
 
 ### 2. Fail-Safe Operations
 
-- Job locking prevents duplicate execution
-- Download verification before marking complete
-- Existing file detection to prevent re-downloads
+- Job locks prevent duplicate execution
+- Verify downloads before completion
+- Current file detection to prevent re-downloads
 - Graceful handling of RSS feed failures
 
 ### 3. User Control
 
 - Extensive configuration options
 - Manual download control
-- Pause/unpause podcasts
+- Pause and unpause podcasts
 - Tag-based organization
 
 ## Architectural Patterns
@@ -346,7 +346,7 @@ graph TD
     style P2 fill:#90EE90
 ```
 
-**Naming Convention**:
+**Name Convention**:
 
 ```
 [optional-date-prefix-][optional-episode-number-]sanitized-episode-title.mp3
@@ -360,7 +360,7 @@ graph TD
 
 ## Background Job Design
 
-### Job Scheduling
+### Job Schedule
 
 ```mermaid
 gantt
@@ -410,7 +410,7 @@ sequenceDiagram
 **Implementation**: `service/podcastService.go`
 
 - `CreateLock(name, duration)`: Acquire lock
-- `ReleaseLock(name)`: Release lock
+- `ReleaseLock(name)`: Release the lock
 - `UnlockMissedJobs()`: Clean up stale locks
 
 ### Download Queue Management
@@ -440,7 +440,7 @@ graph TD
     style Done fill:#90EE90
 ```
 
-## Error Handling Strategy
+## Error Management Strategy
 
 ### Error Classification
 
@@ -478,11 +478,11 @@ graph TD
 | Episode Download Failed  | Mark as `NotDownloaded`, retry on next job run | Episode remains in queue             |
 | Database Connection Lost | Application restart required                   | Service interruption                 |
 | File Write Failed        | Log error, mark episode as failed              | Episode not available                |
-| Parse Error              | Log error, skip malformed item                 | Some episodes may not be added       |
+| Parse Error              | Log error, skip malformed item                 | Some episodes possibly remain absent       |
 
-## Caching Strategy
+## Cache Strategy
 
-**Current State**: No caching layer implemented
+**Current State**: No cache layer implemented
 
 **Rationale**:
 
@@ -548,7 +548,7 @@ graph TD
 
 - Short transactions
 - Optimistic locking via GORM
-- Job locking prevents duplicate writes
+- Job locks prevent duplicate writes
 - Read-heavy workload minimizes contention
 
 ## Security Design
@@ -586,9 +586,9 @@ sequenceDiagram
 **Security Considerations**:
 
 - Basic Auth over HTTP is insecure (use reverse proxy with HTTPS)
-- No rate limiting (vulnerable to brute force)
+- No rate limits (vulnerable to brute force)
 - No session management (credentials sent with every request)
-- Fixed username (`podgrab`) cannot be changed
+- The app always uses `podgrab` as its username
 
 ### Input Sanitization
 
@@ -624,7 +624,7 @@ graph TD
 **Optimizations Applied**:
 
 1. **Indexing**: Primary keys (UUIDs), foreign keys, timestamps
-1. **Eager Loading**: `Preload()` for podcast items and tags
+1. **Eager Load**: `Preload()` for podcast items and tags
 1. **Batch Operations**: Bulk inserts for episodes
 1. **Query Limits**: Pagination support (though not heavily used)
 
@@ -645,9 +645,9 @@ SELECT * FROM podcasts WHERE title LIKE '%search%'
 
 **Optimizations**:
 
-- Streaming downloads (not loaded into memory)
+- Stream downloads (not loaded into memory)
 - Concurrent downloads with semaphore
-- Existing file detection (skip re-download)
+- Current file detection (skip re-download)
 - Chunked file writes
 
 ### Template Rendering
@@ -656,31 +656,31 @@ SELECT * FROM podcasts WHERE title LIKE '%search%'
 
 **Trade-offs**:
 
-- ✅ Lower client CPU usage
+- ✅ Less CPU use on the client
 - ✅ Works without JavaScript
 - ✅ Simpler codebase
 - ❌ Full page reloads for navigation
-- ❌ Higher server CPU usage
+- ❌ More CPU use on the server
 
 ## Design Trade-offs
 
 | Decision                        | Advantages                               | Disadvantages                              |
 | ------------------------------- | ---------------------------------------- | ------------------------------------------ |
 | SQLite vs PostgreSQL            | Simple deployment, no separate DB server | Limited concurrency, no horizontal scaling |
-| Monolith vs Microservices       | Simple deployment, easier development    | All-or-nothing scaling, tight coupling     |
+| Monolith vs Microservices       | Simple deployment, easier development    | All-or-nothing scaling, tightly connected components     |
 | Server-side templates vs SPA    | SEO-friendly, simple                     | Less interactive, more server load         |
-| Basic Auth vs OAuth             | Simple setup                             | Less secure, limited features              |
-| File storage vs S3              | No cloud dependency, lower cost          | Not scalable, no CDN                       |
+| Basic Auth compared with OAuth             | Simple setup                             | Less secure, limited features              |
+| File storage compared with S3              | No cloud dependency, lower cost          | Not scalable, no CDN                       |
 | Scheduled jobs vs Message Queue | Simple implementation                    | Less reliable, no guaranteed execution     |
 
 ## Related Documentation
 
 - [Overview](overview.md) - High-level architecture
-- [Data Flow](data-flow.md) - Request/response flows
+- [Data Flow](data-flow.md) - Requests and responses flows
 - [Database Schema](database-schema.md) - Detailed schema
 - [Development Setup](../development/setup.md) - Development environment
 
 ______________________________________________________________________
 
-**Next Steps**: Review [Data Flow](data-flow.md) for detailed request/response
+**Next Steps**: Review [Data Flow](data-flow.md) for detailed requests and responses
 patterns.

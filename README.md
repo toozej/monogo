@@ -8,7 +8,8 @@
 
 <img src="img/avatar.png" alt="monogo avatar" style="background-color: #FFFFFF;" />
 
-MonoGo is a [Golang](https://go.dev/) [monorepo](https://en.wikipedia.org/wiki/Monorepo), allowing for a common update, build, test, and release pipeline as well an application scaffold for quickly setting up a new application.
+MonoGo is a [Golang](https://go.dev/) [monorepo](https://en.wikipedia.org/wiki/Monorepo) with a common pipeline to update, build, test, and release applications.
+It also provides a scaffold to quickly create a new application.
 
 ## Install an App with Homebrew
 
@@ -22,7 +23,7 @@ brew install --cask toozej/tap/files2prompt
 
 Replace `files2prompt` with the app's binary name (for example, use
 `readme-gen` for the `github-readme-gen` app). Homebrew automatically adds the
-tap when the fully qualified cask name is used.
+tap when you use the fully qualified cask name.
 
 | App | Badges | Description |
 | --- | --- | --- |
@@ -36,11 +37,11 @@ tap when the fully qualified cask name is used.
 | [`go-sort-out-gh-actions`](apps/go-sort-out-gh-actions/README.md) | ![CI](https://img.shields.io/github/actions/workflow/status/toozej/monogo/ci.yaml) ![Docker Pulls](https://img.shields.io/docker/pulls/toozej/go-sort-out-gh-actions) ![Downloads](https://img.shields.io/github/downloads/toozej/monogo/total) | Finds outdated GitHub Actions runtimes and can notify, update, pin, or create issues. |
 | [`gphotos-lister`](apps/gphotos-lister/README.md) | ![CI](https://img.shields.io/github/actions/workflow/status/toozej/monogo/ci.yaml) | List filenames of photos with album hearts and copy local originals. |
 | [`gotts-it`](apps/gotts-it/README.md) | ![CI](https://img.shields.io/github/actions/workflow/status/toozej/monogo/ci.yaml) ![Docker Pulls](https://img.shields.io/docker/pulls/toozej/gotts-it) ![Downloads](https://img.shields.io/github/downloads/toozej/monogo/total) | Go-based text-to-speech tool. |
-| [`kmhd2playlist`](apps/kmhd2playlist/README.md) | ![CI](https://img.shields.io/github/actions/workflow/status/toozej/monogo/ci.yaml) ![Docker Pulls](https://img.shields.io/docker/pulls/toozej/kmhd2playlist) ![Downloads](https://img.shields.io/github/downloads/toozej/monogo/total) | Syncs KMHD jazz radio songs to Spotify playlists. |
+| [`kmhd2playlist`](apps/kmhd2playlist/README.md) | ![CI](https://img.shields.io/github/actions/workflow/status/toozej/monogo/ci.yaml) ![Docker Pulls](https://img.shields.io/docker/pulls/toozej/kmhd2playlist) ![Downloads](https://img.shields.io/github/downloads/toozej/monogo/total) | Syncs songs from KMHD jazz radio to Spotify playlists. |
 | [`lego-stego`](apps/lego-stego/README.md) | ![CI](https://img.shields.io/github/actions/workflow/status/toozej/monogo/ci.yaml) ![Docker Pulls](https://img.shields.io/docker/pulls/toozej/lego-stego) ![Downloads](https://img.shields.io/github/downloads/toozej/monogo/total) | Go-based CLI tool for steganography. |
 | [`notes-courier`](apps/notes-courier/README.md) | ![CI](https://img.shields.io/github/actions/workflow/status/toozej/monogo/ci.yaml) ![Docker Pulls](https://img.shields.io/docker/pulls/toozej/notes-courier) ![Downloads](https://img.shields.io/github/downloads/toozej/monogo/total) | Moves notes between Simplenote, Memos, Obsidian, Hugo, and go-vite. |
 | [`photos2map`](apps/photos2map/README.md) | ![CI](https://img.shields.io/github/actions/workflow/status/toozej/monogo/ci.yaml) ![Docker Pulls](https://img.shields.io/docker/pulls/toozej/photos2map) ![Downloads](https://img.shields.io/github/downloads/toozej/monogo/total) | Generates GPX maps from photo EXIF data. |
-| [`podgrab`](apps/podgrab/README.md) | ![Build Status](https://img.shields.io/github/actions/workflow/status/toozej/monogo/ci.yaml) ![Docker Pulls](https://img.shields.io/docker/pulls/toozej/podgrab) ![Downloads](https://img.shields.io/github/downloads/toozej/monogo/total) | Self-hosted podcast manager, downloader, and archiver with an integrated player. |
+| [`podgrab`](apps/podgrab/README.md) | ![Build Status](https://img.shields.io/github/actions/workflow/status/toozej/monogo/ci.yaml) ![Docker Pulls](https://img.shields.io/docker/pulls/toozej/podgrab) ![Downloads](https://img.shields.io/github/downloads/toozej/monogo/total) | Manages podcasts on your server. Downloads and archives episodes and includes a player. |
 | [`RSSFFS`](apps/RSSFFS/README.md) | ![CI](https://img.shields.io/github/actions/workflow/status/toozej/monogo/ci.yaml) ![Docker Pulls](https://img.shields.io/docker/pulls/toozej/rssffs) ![Downloads](https://img.shields.io/github/downloads/toozej/monogo/total) | RSS Feed Finder and Subscriber. |
 | [`rss2socials`](apps/rss2socials/README.md) | ![CI](https://img.shields.io/github/actions/workflow/status/toozej/monogo/ci.yaml) ![Docker Pulls](https://img.shields.io/docker/pulls/toozej/rss2socials) ![Downloads](https://img.shields.io/github/downloads/toozej/monogo/total) | Watches RSS feeds for new posts and announces them on Mastodon. |
 | [`terranotate`](apps/terranotate/README.md) | ![CI](https://img.shields.io/github/actions/workflow/status/toozej/monogo/ci.yaml) ![Docker Pulls](https://img.shields.io/docker/pulls/toozej/terranotate) ![Downloads](https://img.shields.io/github/downloads/toozej/monogo/total) | Terraform comment parser and validator. |
@@ -49,7 +50,10 @@ tap when the fully qualified cask name is used.
 
 `golang-starter` is the starter app in this Go monorepo. It keeps shared repository concerns at the root while each app lives under `apps/<app>`.
 
-The root `go.mod`, `go.sum`, `.pre-commit-config.yaml`, `.devcontainer/`, workflows, scripts, Makefile, and `pkg/` packages are shared. Development-tool versions are pinned in `tools/go-tools.tsv` and `tools/binary-tools.tsv`. App-local Docker and GoReleaser files are generated from `templates/app`; app-local Air and Compose files plus root shared files such as `.env.sample` are generated from `templates/common`.
+Apps share the root `go.mod`, `go.sum`, `.pre-commit-config.yaml`, `.devcontainer/`, workflows, scripts, Makefile, and `pkg/` packages.
+The manifests in `tools/go-tools.tsv` and `tools/binary-tools.tsv` pin the versions of development tools.
+Templates in `templates/app` generate app-local Docker and GoReleaser files.
+Templates in `templates/common` generate app-local Air and Compose files and root files such as `.env.sample`.
 
 ## Common Commands
 
@@ -67,10 +71,11 @@ make pre-commit-install
 
 ## Documentation Checks
 
-Vale checks Markdown prose. Its Go package version is pinned in
-`tools/go-tools.tsv` and installed with the shared Go tool installer.
-Lychee checks Markdown links. Its release binary is pinned in
-`tools/binary-tools.tsv` and installed with the shared binary installer.
+Vale checks prose in Markdown files. The `tools/go-tools.tsv` manifest pins its Go package version.
+The shared installer for Go tools installs Vale.
+
+Lychee checks links in Markdown files. The `tools/binary-tools.tsv` manifest pins its release binary.
+The shared installer for binaries installs Lychee.
 Both installers place their tools in `.tools/bin`. Make, pre-commit, and the CI
 `checks` job use these repository-managed tools and the same configuration.
 
@@ -78,9 +83,11 @@ Both installers place their tools in `.tools/bin`. Make, pre-commit, and the CI
 make docs-check
 ```
 
-This command installs both pinned tools if necessary, synchronizes Vale styles,
-and runs both documentation checks. It runs the link check even when Vale reports
-errors. The command fails if either check fails. No setup targets are required.
+This command installs both pinned tools when they are absent or differ from the pinned versions.
+It synchronizes Vale styles and runs both documentation checks.
+It runs the link check even when Vale reports errors.
+The command fails if either check fails.
+You do not need separate setup targets.
 Use `make vale` or `make lychee` to run one check with its required setup.
 
 To check one Markdown file, set `FILE` to a relative or absolute file path:
@@ -90,22 +97,22 @@ make docs-check FILE=README.md
 make docs-check FILE="docs/my guide.md"
 ```
 
-If `FILE` is empty, unset, or does not name an existing file, each check prints a
+If `FILE` is empty, unset, or does not name a file that exists, each check prints a
 message and checks all documentation files. The same exclusions still apply.
 
 Vale synchronizes
-[Syntaf/vale-llm-slop v0.1.0](https://github.com/Syntaf/vale-llm-slop/releases/tag/v0.1.0)
+[`Syntaf/vale-llm-slop` v0.1.0](https://github.com/Syntaf/vale-llm-slop/releases/tag/v0.1.0)
 before every check. Its downloaded `Slop` and `STE` styles reside in `.vale/styles`,
 which Git and documentation checks ignore.
 
 `.vale.ini` reports suggestions and warnings as advice. Only errors fail the
-prose check. Contractions produce errors. The dictionary rule is disabled.
+prose check. Contractions produce errors. The configuration disables the dictionary rule.
 Package download failures and configuration errors also fail the check.
 
 `.lychee.toml` sets a 20-second timeout, two retries per request, and bounded concurrency.
 
 The shared script also retries the complete check twice after link failures,
-including HTTP errors and timeouts. It waits 5 seconds before the first retry
+such as HTTP errors and timeouts. It waits 5 seconds before the first retry
 and 10 seconds before the second retry. Configuration and installation errors
 fail immediately. These retries apply to Make, pre-commit, and CI.
 
@@ -119,25 +126,28 @@ Lychee runs with `-v -v` to show checked URLs and the redirects it follows.
 The pinned version requires two verbosity flags to display successful redirects.
 The pre-commit hook also displays this output when the check passes.
 Broken local links, HTTP failures, and timeouts fail the link check.
+
 The configuration excludes loopback URLs because documentation uses local server
 examples. It does not check email addresses or links inside code examples.
+
 It retains lychee's default exclusions for reserved example domains.
-Two exact URLs in `apps/RSSFFS/CREDITS.md` are excluded because they require
-browser challenges: Stack Overflow answer `60675491` and the Golang Cafe
-article about dependency upgrades. Both sources were verified on 2026-10-13.
-The exact Substack and Datadog article URLs in
-`apps/go-sort-out-gh-actions/SECURITY_SCAN.md` are also excluded. Both load
+The configuration excludes two exact URLs in `apps/RSSFFS/CREDITS.md` because they require browser challenges.
+One URL points to answer `60675491` on Stack Overflow. The other points to the Golang Cafe article about dependency upgrades.
+The source check took place on 2026-10-13.
+
+The configuration also excludes the exact Substack and Datadog article URLs in
+`apps/go-sort-out-gh-actions/SECURITY_SCAN.md`. Both load
 locally. Substack returns HTTP 403 to GitHub Actions, and Datadog connections
 failed in two GitHub Actions runs recorded in `.lychee.toml`.
-The exclusions preserve attribution without accepting HTTP failures for other
+The exclusions preserve attribution and do not accept HTTP failures for other
 URLs. Review these exceptions when either site changes its access policy.
 It does not accept HTTP error codes or exclude entire public hosts.
 
 Checks cover tracked Markdown and untracked Markdown that Git does not ignore.
 They exclude downloaded tools and styles, dependencies, build output, and
 archived import metadata under `.monogo`. These exclusions also apply when a
-hook receives an explicit file list. Existing documentation findings must be
-resolved separately from tool installation or configuration failures.
+hook receives an explicit file list.
+Resolve documentation findings separately from tool installation or configuration failures.
 
 For specific files, use the shared check script or the local pre-commit hooks:
 
@@ -150,17 +160,16 @@ pre-commit run lychee --files README.md
 
 The hooks check the Markdown files that pre-commit selects. CI runs both full
 documentation checks as separate Make steps and skips duplicate hook runs.
-The first installation and each Vale style synchronization require network access.
+Network access is necessary for the first installation and each synchronization of Vale styles.
 
 ## Dev Container
 
-Open the repository in a Dev Container to get the pinned Go toolchain, Node and
-Python support for pre-commit, and an isolated Docker daemon for the repository's
-Docker targets. The first creation runs `make pre-commit-install`, which installs
+Open the repository in a Dev Container to get the pinned Go toolchain and Node and Python support for pre-commit.
+The container provides an isolated Docker daemon for the repository's Docker targets. The first creation runs `make pre-commit-install`, which installs
 the repository-managed tools and Git hook.
 
-Use the **MonoGo** VS Code tasks to build, test, develop with Air, or build a
-Docker image for any app; each task prompts for its `apps/<app>` directory name.
+Use the **MonoGo** tasks in VS Code to build, test, develop with Air, or build a Docker image for any app.
+Each task prompts for its `apps/<app>` directory name.
 The same commands are available in the container terminal, for example:
 
 ```bash
@@ -170,7 +179,7 @@ make docker-build APP=golang-starter
 
 ## Generated Configs
 
-Install prerequisites and regenerate configs:
+Install the prerequisites. Regenerate the configs:
 
 ```bash
 make pre-reqs
@@ -186,14 +195,14 @@ To add or customize an app:
 
 For normal per-app differences, change values in `apps/<app>/app.yaml`. Shared Go packages belong in root `pkg/`; app-private code belongs in `apps/<app>/internal`. For shared build or root tooling behavior, update `templates/app/*.tmpl` or `templates/common/*.tmpl` and run `make generate-all`.
 
-See [docs/app-configuration.md](docs/app-configuration.md) for the full `app.yaml` field reference, including CGO builds (`cgoEnabled`), runtime image selection (`runtimeImage`), and exposed ports (`port`).
+See [docs/app-configuration.md](docs/app-configuration.md) for the full `app.yaml` field reference.
+The reference covers CGO builds (`cgoEnabled`), runtime image selection (`runtimeImage`), and exposed ports (`port`).
 
 ## Repository Tooling
 
-Go-based development tools are declared and version-pinned in
-`tools/go-tools.tsv`. Each tool is installed independently as `package@version`
-into `.tools/bin`, preventing tool dependency graphs from affecting the apps or
-one another. `make pre-commit-install` additionally installs the local Git hook.
+The `tools/go-tools.tsv` manifest declares Go-based development tools and pins their versions.
+The installer puts each tool independently into `.tools/bin` as `package@version`.
+This separation prevents tool dependencies from changes to apps or other tools. `make pre-commit-install` additionally installs the local Git hook.
 Normal installation never changes dependency pins.
 
 Run `make pre-commit-update` to upgrade the pinned Go tools and pre-commit hook
@@ -209,9 +218,12 @@ Run the scaffold script to clone the `golang-starter` app into a new app directo
 make new-app APP=mytool
 ```
 
-The script (`scripts/create-new-app.py`) copies `apps/golang-starter` to `apps/mytool`, renames command packages, rewrites imports, updates `app.yaml`, amends the CI app matrix, and appends the Dependabot Docker entry. It finishes by running `go mod tidy` and `make app-generate APP=mytool` so the generated configs are committed.
+The `scripts/create-new-app.py` script copies `apps/golang-starter` to `apps/mytool`, renames command packages, and rewrites imports.
+It updates `app.yaml`, amends the CI app matrix, and appends the Dependabot Docker entry.
+It finishes with `go mod tidy` and `make app-generate APP=mytool`.
+Commit the generated configs with the new app.
 
-After scaffolding:
+After scaffold:
 
 1. Edit `apps/mytool/app.yaml` to describe the service and tweak build settings.
 2. Replace `internal/starter` and extend `cmd/mytool` with real functionality.
@@ -224,11 +236,14 @@ After scaffolding:
 make delete-app APP=mytool
 ```
 
-The deletion helper (`scripts/delete-app.py`) removes `apps/mytool`, prunes generated artefacts, and updates shared automation like the CI matrix and Dependabot Docker entries before running `go mod tidy`. Review `git status` afterward to ensure any extra references (docs, dashboards, secret stores) are cleaned up.
+The `scripts/delete-app.py` helper removes `apps/mytool` and its generated artifacts.
+It updates shared automation, such as the CI matrix and Dependabot Docker entries, before it runs `go mod tidy`.
+Review `git status` afterward.
+Remove the extra references from documentation, dashboards, and secret stores.
 
-## Import Existing Services
+## Import Current Services
 
-Import an existing Go service with its Git history. `APP=owner/repo` defaults to `github.com/owner/repo`; include a hostname to import from another VCS host:
+Import a Go service with its Git history. `APP=owner/repo` defaults to `github.com/owner/repo`; include a hostname to import from another VCS host:
 
 ```bash
 make import APP=toozej/go-listen
@@ -237,16 +252,16 @@ make import APP=github.com/toozej/go-listen
 
 The import target:
 
-1. Imports the source repository with `git subtree add` without squashing history.
+1. Imports the source repository with `git subtree add` without a squash of its history.
 2. Moves the imported app under `apps/<repo>`.
 3. Merges the imported `go.mod` requirements into the root `go.mod`.
 4. Rewrites imports from the old module path to `github.com/toozej/monogo/apps/<repo>`.
-5. Moves imported `pkg/` packages to root `pkg/`, preserving app-private code under `apps/<repo>/internal`.
+5. Moves imported `pkg/` packages to root `pkg/` and keeps app-private code under `apps/<repo>/internal`.
 6. Stores the original app `go.mod`, `go.sum`, and build config under `apps/<repo>/.monogo/`.
 7. Imports source tags under `refs/tags/apps/<repo>/`.
-8. Imports GitHub release metadata under `apps/<repo>/.monogo/releases/`.
+8. Imports metadata for GitHub releases under `apps/<repo>/.monogo/releases/`.
 9. Generates app-local Docker, Compose, Air, and GoReleaser config with gomplate.
-10. Updates GitHub Actions app matrices for CI and Docker refresh, plus Dependabot Docker config.
+10. Updates the app matrices for CI and Docker refresh in GitHub Actions, plus Dependabot Docker config.
 11. Runs tests, local build, and GoReleaser snapshot validation.
 
 Options:
@@ -261,19 +276,45 @@ make import APP=toozej/go-listen IMPORT_SKIP_VERIFY=1
 make import APP=github.example.com/owner/repo
 ```
 
-`make import` requires a clean, committed starter-app baseline before it runs. GitHub release records are not part of Git history, so the target imports release metadata with `gh`; use `IMPORT_RELEASES=assets` to download release assets too.
+`make import` requires a clean, committed baseline of the starter app.
+Git history does not include GitHub release records, so the target uses `gh` to import metadata for releases.
+Use `IMPORT_RELEASES=assets` to download release assets too.
 
-Use `IMPORT_ARGS=--metadata-only` when the app code has already been migrated into `apps/<app>` by a separate step and you only want the importer to collect release metadata, import source tags, write `app.yaml`, update the workflow/dependabot entries, and regenerate app-local config.
+Use `IMPORT_ARGS=--metadata-only` if a separate step already migrated the app code into `apps/<app>`.
+This option tells the importer to collect release metadata, import source tags, and write `app.yaml`.
+It also updates workflow and Dependabot entries and regenerates app-local config.
 
 ## Release Model
 
-This repository uses GoReleaser OSS with independent, per-app release tags of the form `apps/<app>/vX.Y.Z`. Pushing such a tag triggers the [Release workflow](.github/workflows/release.yaml), which builds, signs, and publishes **only** that app: binaries and archives, Docker images on Docker Hub / GHCR / Quay, and a Homebrew cask. The workflow creates a local-only clean `vX.Y.Z` tag for GoReleaser version parsing, disables GoReleaser's SCM release creation, and then creates the real GitHub release at `apps/<app>/vX.Y.Z` with `gh`.
+This repository uses GoReleaser OSS with independent release tags for each app: `apps/<app>/vX.Y.Z`.
+A push of this tag triggers the [release workflow](.github/workflows/release.yaml).
+The workflow builds, signs, and publishes **only** that app's binaries, archives, Docker images, and Homebrew cask.
+It publishes Docker images to Docker Hub, GHCR, and Quay.
+
+The workflow creates a clean `vX.Y.Z` tag locally so GoReleaser can parse the version.
+It disables GoReleaser's SCM release creation.
+It creates the real GitHub release at `apps/<app>/vX.Y.Z` with `gh`.
 
 ### Reproducible builds and the Homebrew cask
 
-Per-app archives are built reproducibly: `-trimpath` and a commit-pinned `mod_timestamp`, plus mtime normalization of every file bundled into an archive (`scripts/normalize-archive-mtimes.sh`, a GoReleaser `before` hook that stamps README/LICENSE/completions/manpages to the commit timestamp) and `gzip -n` manpages, make the per-arch archives byte-for-byte identical across independent builds. The `Darwin_all` universal binary is the one exception — GoReleaser merges the two architectures in nondeterministic order — but that is cosmetic, since each release is produced by a single build.
+Each app's archives are byte-for-byte identical across independent builds for each architecture.
+The build uses `-trimpath` and sets `mod_timestamp` to the commit timestamp.
+The `scripts/normalize-archive-mtimes.sh` script sets the mtimes of all files in an archive to that timestamp.
+This GoReleaser `before` hook covers README files, LICENSE files, completions, and manpages.
+The build uses `gzip -n` for manpages.
 
-The Homebrew cask is rendered by that **same** GoReleaser build (with `skip_upload: "true"`, so it is not pushed from the build job), and its `sha256` values are computed from the exact archives that build produced. The `publish_homebrew_cask` job then commits the rendered cask to [`toozej/homebrew-tap`](https://github.com/toozej/homebrew-tap) via `scripts/publish-homebrew-cask.sh`, only after the GitHub release assets exist. Because the cask and the uploaded archives come from one build, the cask's checksum always matches the file `brew` downloads. Do not add a second GoReleaser run to publish the cask — rebuilding on another runner is what previously caused `brew upgrade` SHA-256 mismatches.
+The `Darwin_all` universal binary is the only exception because GoReleaser merges the two architectures in nondeterministic order.
+This difference is cosmetic because each release comes from a single build.
+
+The **same** GoReleaser build renders the Homebrew cask and produces the archives.
+The `skip_upload: "true"` option stops the build job from a push to the tap.
+The build computes the cask's `sha256` values from the exact archives it produces.
+After the GitHub release assets exist, the `publish_homebrew_cask` job commits the rendered cask to [`toozej/homebrew-tap`](https://github.com/toozej/homebrew-tap).
+This job uses `scripts/publish-homebrew-cask.sh`.
+
+Because the cask and uploaded archives come from one build, the cask's checksum always matches the file `brew` downloads.
+Do not add a second GoReleaser run to publish the cask.
+A new build on another runner previously caused `brew upgrade` SHA-256 mismatches.
 
 ### Trigger a release of a specific app
 
@@ -283,7 +324,10 @@ The recommended path computes the next version and pushes the tag for you:
 make release APP=url2anki TYPE=patch   # TYPE = major | minor | patch (default: patch)
 ```
 
-`make release` runs the app's tests, computes the next `apps/<app>/vX.Y.Z` tag by bumping `TYPE` from the app's latest existing tag (checking both local tags and `origin`), then creates and pushes it. CI builds, signs, and publishes the rest.
+`make release` runs the app's tests and computes the next `apps/<app>/vX.Y.Z` tag.
+It increases the version by `TYPE` from the app's latest tag and checks both local tags and `origin`.
+It creates and pushes the new tag.
+CI builds, signs, and publishes the rest.
 
 Equivalently, tag and push by hand:
 
@@ -292,35 +336,44 @@ git tag -a apps/url2anki/v0.1.0 -m "url2anki v0.1.0"
 git push origin apps/url2anki/v0.1.0
 ```
 
-Before releasing, validate the GoReleaser config and build a snapshot locally with `make release-test APP=url2anki`.
+Before a release, validate the GoReleaser config and build a snapshot locally with `make release-test APP=url2anki`.
 
 ### Automatic releases for Go dependency updates
 
-When root `go.mod` or `go.sum` changes are pushed to `main`, the
+When you push root `go.mod` or `go.sum` changes to `main`, the
 `Release Go dependency updates` workflow runs `make release-all TYPE=patch`.
-The target tests and bumps each previously released app's patch version, then
-pushes its app tag to trigger the existing Release workflow. Apps with no previous
-release are skipped, matching the existing `release-all` behavior.
+The target tests each previously released app and increases its patch version.
+It pushes the app tag to trigger the release workflow.
+The target skips apps with no previous release, consistent with the current `release-all` behavior.
 
 The workflow reuses `AUTOUPDATE_APP_ID` and `AUTOUPDATE_APP_PRIVATE_KEY`. That
 GitHub App needs **Contents: write** on this repository so its tag pushes trigger
-release builds. Runs are serialized without cancelling an active release, and
-tags point to the dependency update commit. Re-running a completed run creates
-another patch release for each app.
+release builds. The workflow serializes runs and does not cancel an active release.
+Tags point to the commit with dependency updates.
+If you repeat a completed run, it creates another patch release for each app.
 
 ### Delete a bad release
 
-To remove a release that was published in error (wrong version, broken assets, an old checksum-mismatched cask, etc.):
+To remove a release published in error, such as a wrong version, broken assets, or an old cask with a checksum mismatch:
 
 ```bash
 make delete-release APP=url2anki VERSION=v1.6.0
 ```
 
-This deletes the GitHub release for `apps/<app>/<version>` and removes that tag both **locally and on `origin`**. Each step is guarded and skips cleanly if the release or tag is already gone, and `VERSION` must be passed explicitly as `vX.Y.Z` (it will not fall back to a computed value). Afterward, cut a fresh release with `make release`, or recreate and push the same tag to rebuild that version.
+This command deletes the GitHub release for `apps/<app>/<version>` and removes its tag **locally and on `origin`**.
+Each step checks for the release or tag and skips it if it is already absent.
+You must pass `VERSION` explicitly as `vX.Y.Z`. The command does not compute a default value.
+Afterward, create a fresh release with `make release`, or recreate and push the same tag to rebuild that version.
 
 ### Weekly Docker refresh
 
-The [Weekly Docker Refresh workflow](.github/workflows/weekly-docker-refresh.yaml) runs on a schedule (and on demand via **Run workflow** / `workflow_dispatch`). For every app that has a published `apps/<app>/vX.Y.Z` tag, it checks out that exact released commit and rebuilds the `latest` and `distroless` images so they pick up upstream base-image (distroless / Debian) security patches without changing the released source or version. It does not create a GitHub release or move the versioned image tags. Apps whose latest tag predates the monorepo cutover (see below) are skipped with an error until they are re-released from the monorepo.
+The [workflow for weekly Docker refresh](.github/workflows/weekly-docker-refresh.yaml) runs on a schedule or on demand through **Run workflow** and `workflow_dispatch`.
+For each app with a published `apps/<app>/vX.Y.Z` tag, it checks out that exact released commit.
+It rebuilds the `latest` and `distroless` images to include security patches from upstream distroless and Debian base images.
+It preserves the released source and version. It does not create a GitHub release or move versioned image tags.
+
+The workflow skips apps whose latest tag predates the monorepo cutover and reports an error.
+Release these apps again from the monorepo before the workflow can refresh them.
 
 ### First-time monorepo cutover
 
@@ -331,4 +384,13 @@ scripts/cutover-release-apps.py            # dry run: print the per-app plan
 scripts/cutover-release-apps.py --execute  # create and push the cutover tags
 ```
 
-For each imported app it computes a **minor version bump above the app's most recent original-repo tag** (e.g. `v1.4.2` → `v1.5.0`; an app with no prior tag starts at `v0.1.0`) and pushes `apps/<app>/v<bumped>` at `HEAD`, which triggers the Release workflow. The in-repo starter (`golang-starter`) is skipped. It is safe to re-run: apps whose target release already exists are skipped, so you can iterate and fix release issues. Use `--retry-failed` to re-trigger apps that were tagged but whose release did not complete, and `--preflight` to run `make release-test APP=<app>` before tagging each app. Run `scripts/cutover-release-apps.py --help` for all options.
+For each imported app, the helper computes a **minor version increase above its most recent tag from the original repo**.
+For example, `v1.4.2` becomes `v1.5.0`. An app with no prior tag starts at `v0.1.0`.
+The helper pushes `apps/<app>/v<bumped>` at `HEAD` to trigger the release workflow.
+It skips the in-repo starter, `golang-starter`.
+
+You can safely repeat the command because it skips apps whose target release already exists.
+This behavior lets you iterate and fix release issues.
+Use `--retry-failed` to trigger apps again when their tags exist but their releases did not complete.
+Use `--preflight` to run `make release-test APP=<app>` before the helper tags each app.
+Run `scripts/cutover-release-apps.py --help` for all options.

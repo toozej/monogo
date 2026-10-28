@@ -15,5 +15,5 @@ pre-commit install
 pre-commit run --all-files
 ```
 
-See full documentation in the file for installation, usage, troubleshooting, and
-best practices.
+See full documentation in the file for installation, usage, problem diagnosis, and
+recommended practices.

@@ -1,2 +1,2 @@
 # Project A Infrastructure
-Google Cloud Platform infrastructure for Project A.
+Infrastructure on Google Cloud Platform for Project A.

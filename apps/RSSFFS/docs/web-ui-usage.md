@@ -1,15 +1,15 @@
-# RSSFFS Web UI Usage Guide
+# Use the RSSFFS Web UI
 
-This guide provides comprehensive examples and usage instructions for the RSSFFS web interface.
+This guide provides examples and usage instructions for the RSSFFS web interface.
 
 ## Quick Start
 
 1. **Configure RSSFFS**: Set up your RSS reader configuration (see [Configuration](#configuration))
 2. **Start the web server**: Run `./RSSFFS serve`
-3. **Open your browser**: Navigate to `http://localhost:8080`
+3. **Open the browser**: Navigate to `http://localhost:8080`
 4. **Submit URLs**: Use the web form to discover and subscribe to RSS feeds
 
-## Starting the Web Server
+## Start the Web Server
 
 ### Basic Usage
 
@@ -49,7 +49,7 @@ INFO[2024-10-14T12:00:00Z] Press Ctrl+C to stop the server
 
 ### Mobile-Friendly Design
 
-The web interface is optimized for mobile devices with:
+The web interface supports mobile devices with:
 - **Responsive layout**: Adapts to different screen sizes
 - **Touch-friendly controls**: Large buttons and input fields
 - **Mobile keyboard support**: Appropriate input types for URLs
@@ -59,9 +59,9 @@ The web interface is optimized for mobile devices with:
 
 The web interface includes a checkbox to enable single URL mode:
 
-**Single URL Mode checkbox:**
-- **Checked**: Only searches for RSS feeds on the provided URL's domain
-- **Unchecked**: Uses traversal mode (default) - searches the provided URL and follows links to other domains
+**Checkbox for Single URL Mode:**
+- **Checked**: Only searches for RSS feeds on the input URL's domain
+- **Unchecked**: Uses traversal mode (default) - searches the input URL and follows links to other domains
 
 **Usage examples:**
 ```
@@ -75,15 +75,15 @@ URL: https://news.example.com
 **When to use Single URL Mode:**
 - You want feeds only from a specific website
 - You are on a slow connection and want faster results
-- You want to avoid feeds from linked/referenced sites
-- You are targeting a specific domain for feed discovery
+- You want to avoid feeds from linked or referenced sites
+- You want to discover feeds on a specific domain
 
 ### Form Validation
 
 The interface provides both client-side and server-side validation:
 
 **Client-side validation:**
-- Real-time URL format checking
+- Real-time checks of URL format
 - Visual feedback for invalid inputs
 - Prevention of empty form submissions
 
@@ -106,16 +106,16 @@ The interface provides both client-side and server-side validation:
 ✗ Error: RSS reader API endpoint not configured.
 ```
 
-**Loading indicators:**
+**Progress indicators:**
 - Form submission shows spinner
-- Submit button is disabled during processing
+- The interface disables the submit button while it processes a request
 - Visual feedback prevents duplicate submissions
 
 ## Configuration
 
 ### RSS Reader Setup
 
-The web interface uses the same configuration as the command-line tool. You can configure RSSFFS using either a configuration file or environment variables.
+The web interface uses the same configuration as the command-line tool. You can configure RSSFFS with either a configuration file or environment variables.
 
 #### Configuration File (config.yaml)
 
@@ -137,11 +137,12 @@ export RSS_READER_API_KEY="your-api-token"
 export RSSFFS_SINGLE_URL_MODE="true"
 ```
 
-**Note**: When `RSSFFS_SINGLE_URL_MODE` is set to "true", the single URL mode checkbox will be checked by default in the web interface, but users can still uncheck it to use traversal mode.
+When you set `RSSFFS_SINGLE_URL_MODE` to `true`, the web interface selects the checkbox for Single URL Mode by default.
+Users can clear this checkbox to use traversal mode.
 
 ### Miniflux Configuration
 
-For Miniflux users, ensure your instance is properly configured:
+For Miniflux, check the configuration of your instance:
 
 1. **API Access**: Enable API access in Miniflux settings
 2. **User Permissions**: Ensure your user has feed management permissions
@@ -164,7 +165,7 @@ For Miniflux users, ensure your instance is properly configured:
 ./RSSFFS serve --host 0.0.0.0 --port 8080
 ```
 
-Access from other devices using your machine's IP address:
+Access from other devices with your machine's IP address:
 `http://192.168.1.100:8080`
 
 ### Docker Deployment
@@ -220,7 +221,7 @@ server {
 </VirtualHost>
 ```
 
-## Troubleshooting
+## Resolve Problems
 
 ### Common Issues
 
@@ -254,7 +255,7 @@ sudo ./RSSFFS serve --port 80
 
 ### Debug Mode
 
-Enable debug mode to see detailed logging:
+Enable debug mode to see detailed log output:
 
 ```bash
 ./RSSFFS serve --debug
@@ -264,7 +265,7 @@ Debug output includes:
 - HTTP request details
 - RSS feed discovery process
 - API communication with RSS reader
-- Configuration loading information
+- Information about the configuration load
 
 ### Log Analysis
 
@@ -302,9 +303,9 @@ For production deployments:
 ### Configuration Security
 
 - Store sensitive configuration in environment variables
-- Use secure file permissions for config files (600)
-- Avoid committing credentials to version control
-- Consider using secrets management systems
+- Use secure permissions (600) for config files
+- Keep credentials out of version control
+- Consider a secrets management system
 
 ## Performance Tips
 
@@ -320,14 +321,14 @@ The web server is lightweight and efficient:
 
 For high-traffic deployments:
 - Use a reverse proxy for static asset caching
-- Implement connection pooling for RSS reader API
+- Implement connection pools for RSS reader API
 - Monitor resource usage with debug mode
 - Consider horizontal scaling with load balancers
 
 ## Browser Compatibility
 
-The web interface is tested and compatible with:
-- **Chrome/Chromium**: Latest versions
+Tests confirm compatibility of the web interface with:
+- **Chrome and Chromium**: Latest versions
 - **Firefox**: Latest versions  
 - **Safari**: Latest versions (iOS and macOS)
 - **Edge**: Latest versions
@@ -338,7 +339,7 @@ The web interface is tested and compatible with:
 The interface requires JavaScript for:
 - Form validation and submission
 - Toast notifications
-- Loading indicators
+- Progress indicators
 - Enhanced user experience
 
-The interface gracefully degrades when JavaScript is disabled, but some features may not be available.
+The interface retains partial functionality without JavaScript. Some features possibly become unavailable.

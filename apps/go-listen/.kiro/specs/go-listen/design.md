@@ -2,7 +2,14 @@
 
 ## Overview
 
-go-listen is a web application built on the existing Go starter project scaffold that allows users to search for artists and automatically add their top 5 songs to designated "incoming" playlists on Spotify. The application provides both a responsive web interface and REST API for artist management, featuring fuzzy artist search, duplicate detection, playlist management, and comprehensive logging while following web security best practices. The application leverages the zmb3/spotify Go library for Spotify Web API integration and maintains the existing Cobra/Viper architecture while adding HTTP server capabilities.
+go-listen builds on the current scaffold for Go starter projects.
+Users can search for artists and automatically add their top 5 songs to designated `incoming` playlists on Spotify.
+The application provides a responsive web interface and a REST API to manage artists.
+It includes fuzzy artist search, duplicate detection, playlist management, and logs of all operations.
+The design follows recommended practices for web security.
+
+The application uses the `zmb3/spotify` Go library to integrate with the Spotify Web API.
+It preserves the current architecture with Cobra and Viper and adds HTTP server capabilities.
 
 ## Architecture
 
@@ -30,7 +37,7 @@ graph TB
 ### Component Layers
 
 1. **Presentation Layer**
-   - Responsive HTML/CSS/JS interface with mobile-first design
+   - Responsive interface with HTML, CSS, and JS with mobile-first design
    - Searchable dropdown for playlist selection
    - Embedded Spotify player integration
    - REST API endpoints for programmatic access
@@ -46,14 +53,14 @@ graph TB
 3. **Business Logic Layer**
    - Spotify service wrapper with top 5 track retrieval
    - Fuzzy artist search and matching
-   - Playlist management for "Incoming" folder playlists
-   - Duplicate detection with timestamp tracking
+   - Management of playlists from the `Incoming` folder
+   - Duplicate detection with timestamps
    - Override functionality for duplicate handling
 
 4. **Integration Layer**
-   - Spotify Web API client (zmb3/spotify) with Client Credentials flow
+   - Client for the Spotify Web API (`zmb3/spotify`) with Client Credentials flow
    - Configuration management (Viper)
-   - Structured logging with multiple severity levels
+   - Structured log output with multiple severity levels
 
 ## Components and Interfaces
 
@@ -179,7 +186,7 @@ type AddResult struct {
 }
 ```
 
-### API Request/Response Models
+### Models for API Requests and Responses
 
 ```go
 type AddArtistRequest struct {
@@ -207,7 +214,7 @@ type WebUIResponse struct {
 }
 ```
 
-## Error Handling
+## Error Management
 
 ### Error Types
 
@@ -230,7 +237,7 @@ const (
 )
 ```
 
-### Error Handling Strategy
+### Error Management Strategy
 
 1. **Input Validation Errors**: Return 400 Bad Request with validation details
 2. **Spotify API Errors**: Map to appropriate HTTP status codes (401, 403, 429, 500)
@@ -238,25 +245,25 @@ const (
 4. **Rate Limit Errors**: Return 429 with retry-after header
 5. **Internal Errors**: Return 500 with generic message, log full details
 
-## Testing Strategy
+## Test Strategy
 
-### Unit Testing
+### Unit Tests
 
 1. **Service Layer Tests**
-   - Mock Spotify API responses
-   - Test fuzzy matching algorithms
-   - Validate duplicate detection logic
-   - Test error handling scenarios
+   - Mock the responses from the Spotify API
+   - Test the algorithms for fuzzy comparison
+   - Validate the logic for duplicate detection
+   - Test scenarios for error management
 
 2. **Handler Tests**
-   - Test HTTP request/response handling
+   - Test the management of HTTP requests and responses
    - Validate input sanitization
-   - Test rate limiting behavior
+   - Test the behavior of rate limits
    - Test CSRF protection
 
 3. **Integration Tests**
    - Test complete request flows
-   - Validate Spotify API integration
+   - Validate the integration with the Spotify API
    - Test database operations (if added later)
 
 ### Test Structure
@@ -277,43 +284,43 @@ func TestSpotifyService_SearchArtist(t *testing.T) {
 }
 ```
 
-### Security Testing
+### Security Tests
 
-1. **Input Validation Testing**
+1. **Input Validation Tests**
    - SQL injection attempts
-   - XSS payload testing
+   - XSS payload tests
    - Path traversal attempts
-   - Oversized input handling
-   - Artist name sanitization testing
+   - Management of oversized input
+   - Tests to sanitize artist names
 
-2. **Rate Limiting Testing**
-   - Burst request testing
-   - Sustained load testing
+2. **Rate Limits Tests**
+   - Burst request tests
+   - Sustained load tests
    - IP-based limiting validation
-   - API endpoint rate limiting
+   - Rate limits for API endpoints
 
-3. **CSRF Protection Testing**
+3. **CSRF Protection Tests**
    - Token validation for state-changing operations
    - Cross-origin request handling
    - Form submission protection
 
-### Responsive Design Testing
+### Responsive Design Tests
 
-1. **Mobile Device Testing**
+1. **Mobile Device Tests**
    - Touch interface functionality
    - Viewport scaling and layout
    - Dropdown usability on small screens
 
-2. **Cross-Device Testing**
+2. **Cross-Device Tests**
    - Tablet layout adaptation
-   - Desktop space utilization
-   - Orientation change handling
+   - Use of desktop space
+   - Responses to orientation changes
 
 ## Implementation Details
 
 ### HTTP Server Setup
 
-The application will extend the existing Cobra command structure with a new `serve` command that starts the HTTP server:
+The application will extend the current Cobra command structure with a new `serve` command that starts the HTTP server:
 
 ```go
 var serveCmd = &cobra.Command{
@@ -332,10 +339,10 @@ func runServeCommand(cmd *cobra.Command, args []string) {
 
 Since this is an internal service without user authentication requirements, we will use Spotify's Client Credentials flow for app-only authentication:
 
-1. Configure Spotify app credentials in environment variables
+1. Configure the credentials for the Spotify app in environment variables
 2. Obtain access token on startup for immediate service availability
-3. Refresh token as needed automatically
-4. Handle authentication errors gracefully without user intervention
+3. Refresh the token automatically when the application needs a new token
+4. Handle authentication errors without user intervention
 5. No user authentication required for web interface or API access
 
 ### Web Interface Design
@@ -344,8 +351,8 @@ The responsive web interface will include:
 
 1. **Main Search Interface**
    - Artist name input field with validation
-   - Searchable dropdown for "Incoming" playlists
-   - Add button with loading states
+   - Searchable dropdown for `Incoming` playlists
+   - Add button with progress states
    - Override button for duplicate handling
 
 2. **Embedded Player Section**
@@ -354,19 +361,19 @@ The responsive web interface will include:
    - Responsive sizing for different screen sizes
 
 3. **Feedback and Status**
-   - Success/error message display
+   - Display of success or error messages
    - Duplicate detection notifications with timestamps
-   - Loading indicators for async operations
+   - Progress indicators for async operations
 
 4. **Responsive Design Elements**
    - Mobile-first CSS with breakpoints
    - Touch-friendly interface elements
    - Adaptive layout for tablets and desktop
-   - Orientation change handling
+   - Responses to orientation changes
 
-### Static File Serving
+### Serve Static Files
 
-Static files (HTML, CSS, JS) will be embedded in the binary using Go's embed package:
+The build will embed static files (HTML, CSS, JS) in the binary with Go's `embed` package:
 
 ```go
 //go:embed static/*
@@ -379,9 +386,9 @@ func (s *Server) setupStaticRoutes() {
 }
 ```
 
-### Rate Limiting Implementation
+### Rate Limits Implementation
 
-Implement token bucket rate limiting per IP address:
+Implement token bucket rate limits per IP address:
 
 ```go
 type RateLimiter struct {
@@ -392,24 +399,24 @@ type RateLimiter struct {
 }
 ```
 
-### Logging Strategy
+### Logs Strategy
 
-Comprehensive structured logging with different levels to meet requirement 6:
+structured logs with different levels to meet requirement 6:
 - INFO: Successful operations, artist additions, playlist selections
 - WARN: Duplicate detections, rate limit hits, override usage
 - ERROR: Spotify API errors, validation failures, search failures
-- DEBUG: Detailed request/response information, fuzzy matching scores
+- DEBUG: Detailed information about requests and responses, fuzzy comparison scores
 
-Specific logging requirements:
+Specific log output requirements:
 - Log all artist search terms and matched results
 - Log all song additions with playlist and track details
-- Log API request details and responses
+- Log the details of API requests and responses
 - Log security events and suspicious activity
 - Include timestamps and request correlation IDs
 
 ### Configuration Management
 
-Extend existing Viper configuration with web server settings:
+Extend current Viper configuration with web server settings:
 
 ```go
 type Config struct {
@@ -431,22 +438,30 @@ type SpotifyConfig struct {
 
 ### Key Design Decisions and Rationales
 
-1. **No User Authentication**: Based on requirement 9, the application is designed for internal network use without authentication complexity, using Spotify's Client Credentials flow for API access only.
+**No user authentication.** Requirement 9 specifies internal network use without complex authentication.
+The application uses Spotify's Client Credentials flow only for API access.
 
-2. **Responsive Design**: Requirement 7 mandates cross-device compatibility, so the design emphasizes mobile-first responsive design with adaptive layouts.
+**Responsive design.** Requirement 7 mandates compatibility across devices.
+The design uses mobile-first adaptive layouts.
 
-3. **Fuzzy Artist Matching**: To handle user input variations and improve search success rates, fuzzy matching is implemented rather than exact string matching.
+**Fuzzy artist search.** Fuzzy comparison accommodates variations in user input and improves search success rates compared with exact `string` comparison.
 
-4. **Duplicate Detection with Override**: Requirement 4 specifies both duplicate prevention and user control, so the design includes timestamp tracking and force override functionality.
+**Duplicate detection with override.** Requirement 4 specifies duplicate prevention and user control.
+The design includes timestamps and a force override.
 
-5. **Top 5 Songs Limitation**: Based on requirement 1, the system specifically retrieves and adds the top 5 songs from each artist to maintain playlist quality and prevent overwhelming users.
+**Top 5 songs.** Requirement 1 limits retrieval and addition to each artist's top 5 songs.
+This limit maintains playlist quality and prevents excessive song additions for users.
 
-6. **"Incoming" Folder Focus**: Requirement 2 specifies working with playlists from the "Incoming" folder, so the design includes folder-specific playlist filtering.
+**Focus on the `Incoming` folder.** Requirement 2 specifies playlists from this folder.
+The design filters playlists by folder.
 
-7. **Embedded Player Integration**: Requirement 3 mandates immediate playback capability, so the design includes Spotify embedded player integration with dynamic playlist updates.
+**Embedded player.** Requirement 3 mandates immediate playback.
+The design integrates Spotify's embedded player with dynamic playlist updates.
 
-8. **Comprehensive Security**: Requirement 8 drives the inclusion of CSRF protection, input validation, rate limiting, and sanitization throughout the application.
+**Security.** Requirement 8 requires CSRF protection, input validation, rate limits, and sanitization throughout the application.
 
-9. **Structured Logging**: Requirement 6 necessitates detailed operation tracking, so the design includes comprehensive logging with multiple severity levels and specific event tracking.
+**Structured logs.** Requirement 6 specifies detailed operation records.
+The design includes logs with multiple severity levels and records of specific events.
 
-This design maintains compatibility with the existing Go starter project structure while adding all necessary components for the Spotify playlist management functionality as specified in the requirements.
+This design preserves compatibility with the current structure of the Go starter project.
+It adds all components that the requirements specify to manage Spotify playlists.

@@ -7,18 +7,18 @@
 
 <img src="img/avatar.png" alt="files2prompt avatar" style="background-color: #FFFFFF;" />
 
-A command-line tool that helps prepare files for AI prompts by crawling directories and outputting file contents with flexible filtering and formatting options. Heavily inspired by [Simon Willison's](https://simonwillison.net/) Python project [files-to-prompt](https://github.com/simonw/files-to-prompt).
+This command-line tool traverses directories and outputs file contents to prepare AI prompts. It offers flexible filters and output formats. Heavily inspired by [Simon Willison's](https://simonwillison.net/) Python project [files-to-prompt](https://github.com/simonw/files-to-prompt).
 
 ## Features
 
 - Recursive directory traversal
-- File filtering by extension
+- Filter files by extension
 - Support for .gitignore rules
-- Hidden file/directory filtering
-- Custom ignore patterns including for directories and/or files
+- Filter hidden files or directories
+- Custom ignore patterns for directories, files, or both
 - Optional line numbers in output
-- Optional Claude-specific XML output format
-- Optional Markdown output format with fenced code blocks
+- Optional XML output for Claude
+- Optional output in Markdown with fenced code blocks
 - Configurable via environment variables or command-line flags
 - Output to file or stdout
 - Sub-commands for version information and manual page generation
@@ -36,20 +36,23 @@ Basic usage:
 files2prompt [command] [flags] [paths...]
 ```
 
-The tool requires at least one path argument for the main command. It will process all files in the specified paths according to the provided options.
+The tool requires at least one path argument for the main command. It processes all files at the input paths with the options you select.
 
 ### Flags
 
-- `-e, --extension`: File extensions to include (can be specified multiple times)
+- `-e, --extension`: File extensions to include (you can repeat this option)
 - `--include-hidden`: Include hidden files and folders
 - `--ignore-gitignore`: Ignore .gitignore files
-- `--ignore`: Patterns to ignore (can be comma-separated or specified multiple times). Use '/' suffix to match directories only. Examples: '*.test.js', 'test/', 'path/to/ignore/', 'dir1/,dir2/'
+- `--ignore`: Patterns to ignore. Separate patterns with commas or repeat the option.
+
+Append `/` to match directories only.
+Examples: `*.test.js`, `test/`, `path/to/ignore/`, `dir1/,dir2/`.
 - `-o, --output`: Output file path (defaults to stdout)
 - `-c, --cxml`: Output in XML format for Claude
 - `-n, --line-numbers`: Output line numbers
 - `-m, --markdown`: Output in Markdown format with fenced code blocks
 - `-0, --null`: Use NUL character as separator when reading from stdin
-- `-d, --debug`: Enable debug-level logging
+- `-d, --debug`: Enable debug-level log output
 
 ### Sub-commands
 
@@ -110,13 +113,14 @@ echo -e "path1\x00path2" | files2prompt --null
 
 ## Configuration
 
-The tool can be configured using either command-line flags or environment variables through a `.env` file. Environment variables take precedence over default values but can be overridden by command-line flags.
+Configure the tool with command-line flags or environment variables through a `.env` file.
+Environment variables override default values. Command-line flags override environment variables.
 
 ### Environment Variables
 
 - `PATHS`: Comma-separated list of paths to process
 - `EXTENSIONS`: Comma-separated list of file extensions to include
-- `INCLUDE_HIDDEN`: Set to true to include hidden files/directories
+- `INCLUDE_HIDDEN`: Set to true to include hidden files and directories
 - `IGNORE_GITIGNORE`: Set to true to ignore .gitignore rules
 - `IGNORE_PATTERNS`: Comma-separated list of patterns to ignore
 - `OUTPUT_FILE`: Path for the output file
@@ -171,7 +175,7 @@ The tool can be configured using either command-line flags or environment variab
 </documents>
 ```
 
-## Building from Source
+## Build from Source
 
 1. Clone the repository:
 ```bash

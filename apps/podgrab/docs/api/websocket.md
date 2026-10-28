@@ -1,13 +1,13 @@
 # WebSocket API
 
-Real-time communication API for Podgrab using WebSocket protocol.
+Real-time communication API for Podgrab with WebSocket protocol.
 
 ## Overview
 
 Podgrab uses WebSockets for real-time bidirectional communication between the
 web interface and server, primarily for:
 
-- Media player synchronization across browser tabs/windows
+- Media player synchronization across browser tabs or windows
 - Download progress notifications
 - Live episode queue management
 - UI state synchronization
@@ -87,7 +87,7 @@ Register client connection and check for active player.
 
 **Server Response:**
 
-- `PlayerExists` if an active player is registered
+- `PlayerExists` if the server has an active player registration
 - `NoPlayer` if no player is active
 
 #### RegisterPlayer
@@ -145,7 +145,7 @@ Send episodes to the active player for playback.
 
 #### PlayerExists
 
-Indicates an active player is registered.
+Indicates that the server has an active player registration.
 
 ```json
 {
@@ -157,12 +157,12 @@ Indicates an active player is registered.
 
 **Client Action:**
 
-- Show "Cast to Player" UI elements
-- Enable episode queueing functionality
+- Show UI elements for `Cast to Player`
+- Enable the queue for episodes
 
 #### NoPlayer
 
-Indicates no active player is registered.
+Indicates that the server has no active player registration.
 
 ```json
 {
@@ -174,8 +174,8 @@ Indicates no active player is registered.
 
 **Client Action:**
 
-- Hide "Cast to Player" UI elements
-- Disable episode queueing functionality
+- Hide UI elements for `Cast to Player`
+- Disable the queue for episodes
 
 #### PlayerRemoved
 
@@ -277,7 +277,7 @@ ws.onopen = () => {
 };
 ```
 
-### Receiving Enqueue Messages
+### Receive Enqueue Messages
 
 ```javascript
 ws.onmessage = (event) => {
@@ -308,7 +308,7 @@ ws.onmessage = (event) => {
 
 ## Client Implementation
 
-### Checking for Player
+### Check for Player
 
 ```javascript
 const clientId = generateUUID();
@@ -334,7 +334,7 @@ ws.onmessage = (event) => {
 };
 ```
 
-### Enqueueing Episodes
+### Enqueue Episodes
 
 ```javascript
 function castToPlayer(episodeIds) {
@@ -355,7 +355,7 @@ function castToPlayer(episodeIds) {
 castToPlayer(['episode-uuid-1', 'episode-uuid-2']);
 ```
 
-### Enqueueing Podcast
+### Enqueue Podcast
 
 ```javascript
 function castPodcast(podcastId) {
@@ -373,7 +373,7 @@ function castPodcast(podcastId) {
 }
 ```
 
-### Enqueueing by Tags
+### Enqueue by Tags
 
 ```javascript
 function castByTags(tagIds) {
@@ -391,7 +391,7 @@ function castByTags(tagIds) {
 }
 ```
 
-## Error Handling
+## Error Management
 
 ### Connection Errors
 
@@ -433,7 +433,7 @@ ws.onopen = () => {
 };
 ```
 
-### Invalid Message Handling
+### Handle Invalid Messages
 
 ```javascript
 ws.onmessage = (event) => {
@@ -452,9 +452,9 @@ ws.onmessage = (event) => {
 
 WebSocket connections inherit HTTP authentication:
 
-- If `PASSWORD` environment variable is set, WebSocket upgrade requires Basic
+- If you set the `PASSWORD` environment variable, WebSocket upgrade requires Basic
   Auth
-- Credentials must be included in initial HTTP request
+- Include credentials in the initial HTTP request
 - No separate WebSocket-level authentication
 
 ### Example with Authentication
@@ -477,8 +477,8 @@ authenticated connections, use authenticated HTTP session or query parameters.
 ### Data Validation
 
 - All message payloads are JSON-parsed on server
-- Invalid JSON payloads are logged but do not crash server
-- Client should validate received data before processing
+- The server logs invalid JSON payloads without a crash
+- Recommended: Validate received data before the client processes it
 
 ## Use Cases
 
@@ -528,15 +528,15 @@ WebSocket infrastructure is in place for future download progress notifications:
 - Consider pagination for very large playlists
 - JSON payload size typically 1-100 KB
 
-### Heartbeat/Ping-Pong
+### Heartbeat and Ping-Pong
 
 - No built-in heartbeat mechanism
 - Browser handles connection health automatically
-- Consider implementing application-level ping for long-lived connections
+- Consider an application-level ping for long-lived connections
 
-## Debugging
+## Debug
 
-### Enable WebSocket Logging
+### Enable WebSocket Logs
 
 Browser console shows WebSocket frames:
 
@@ -552,16 +552,16 @@ ws.send = function(data) {
 };
 ```
 
-### Server-Side Logging
+### Server-Side Logs
 
 WebSocket handler logs to stdout:
 
-- "Player Registered" when player connects
-- "Player Removed" when player disconnects
+- `Player Registered` when player connects
+- `Player Removed` when player disconnects
 - Payload parsing errors
 
 ## Related Documentation
 
 - [REST API](rest-api.md) - HTTP endpoints
-- [User Guide](../guides/user-guide.md) - Using the player
+- [User Guide](../guides/user-guide.md) - Use the player
 - [Architecture Overview](../architecture/overview.md) - System design

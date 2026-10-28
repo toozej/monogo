@@ -3,105 +3,142 @@ name: backfill-template
 description: Back-fills template updates and improvements from the golang-starter template repository into target projects, keeping them consistent, updated, and passing builds.
 ---
 
-# Back-filling Template Updates from golang-starter
+# Apply Template Updates from golang-starter
 
-This skill guides the AI agent on how to back-fill scaffolding, build pipelines, and configuration updates from the `golang-starter` template repository into downstream target repositories. The goal is to keep the downstream projects consistent and updated with the latest optimizations, security practices, and workflow changes, without breaking any downstream-specific functionality.
+This skill transfers scaffold changes, build pipelines, and configuration updates from the `golang-starter` template repository to downstream projects.
+Keep downstream projects consistent with the latest optimizations, security practices, and workflow changes.
+Preserve all downstream-specific functionality.
 
 ## Core Guidelines
 
-1. **Intelligent Merging, Not Overwriting**: Always inspect diffs carefully. Do not copy files wholesale if the target repository has customized behavior. Merge the template improvements (e.g. version bumps, extra linting checks, newer workflow actions) into the existing files.
-2. **Dockerfile Similarity Matching**: Target repos might have renamed, added, or deleted Dockerfiles. Never rename target Dockerfiles. Identify the closest matching template Dockerfile by content structure, review the differences, and apply template improvements (such as updated Go version tags, nonroot user configurations, or shell flags) without wiping out custom packages, ports, or entrypoints.
-3. **Build and Test Verification**: After applying changes, the project MUST build and pass checks. Validate using `make local` (local Go toolchain checks) and `make all` (Docker-based workflow checks).
-4. **Local Staging and Commit**: Stage the changes (`git add`) and write a clear, descriptive commit message summarizing the backfilled changes. Commit locally but **do NOT push** to the remote.
+1. Inspect the diffs carefully.
+2. Merge template improvements into current files.
+3. Preserve customized behavior in the target repository.
+4. Never rename target Dockerfiles.
+5. Match each target Dockerfile to the closest template by content structure.
+6. Review differences before you apply improvements.
+7. Preserve custom packages, ports, and entrypoints.
+8. Verify that the project builds and passes checks after your changes.
+9. Validate with `make local` for local Go checks.
+10. Validate with `make all` for Docker workflow checks.
+11. Stage changes with `git add`.
+12. Write a clear commit message that describes the transferred changes.
+13. Commit locally.
+14. Do **not** push to the remote.
 
----
+Target repositories possibly renamed, added, or deleted Dockerfiles.
+Template improvements can include version updates, extra lint checks, newer workflow actions, nonroot users, and shell flags.
 
-## Step-by-Step Execution Plan
+## Step 1: Compare the Repositories
 
-### Step 1: Run the Comparison Script
-Run the helper Python script to fetch the latest `golang-starter` template and compare it against the current target repository. The script will automatically substitute placeholders (`golang-starter` and `toozej` with the target's project name and owner) and compute Dockerfile structural similarities.
+Run the helper Python script from the target repository's root:
 
-Run the following command from the root of the target repository:
 ```bash
 python3 <path_to_skill_folder>/scripts/compare.py
 ```
-*(Note: If you are testing the template or have a local clone of the template repository, you can pass `--template-dir <path_to_template_dir>` to the script.)*
 
-The script outputs:
-- **[ADD]**: Files that exist in the template but are missing in the target (e.g. new linter configuration or pre-commit hooks).
-- **[MODIFIED]**: Unified diffs showing the difference between the target file and the customized template file.
-- **Dockerfile Matches**: Mappings showing which target Dockerfile is most similar to which template Dockerfile (along with the similarity ratio and diff).
+The script fetches the latest `golang-starter` template and compares it with the current target repository.
+It substitutes the placeholders `golang-starter` and `toozej` with the target project's name and owner.
+It also computes structural similarities between Dockerfiles.
 
----
+For a template test or a local template clone, pass `--template-dir <path_to_template_dir>`.
 
-### Step 2: Apply Scaffolding & Configuration Diffs
-For each modified file, carefully apply the diffs:
+The script produces these results:
 
-- **`.github/workflows/` (GitHub Actions)**:
-  - Back-fill new steps, updated action versions (e.g., `actions/checkout@v4`), and optimizations.
-  - Preserve target-specific environment variables, secrets, and repository-specific steps.
-  - *Note*: Ignore minor cron minute variations (which are randomized to distribute load).
-- **`Makefile`**:
-  - Merge new targets, build arguments, or linter integrations.
-  - Preserve custom target-specific make targets, build tags, or special compiler flags.
-- **`.goreleaser.yml`**:
-  - Merge improved release stages, SBOM generation, or signing logic.
-  - Preserve project-specific binary names, custom archive formats, or tap configurations.
-- **Config & Version Boilerplate (`pkg/version/`, `pkg/config/`)**:
-  - Update version parsing logic or standard config loaders.
-  - Ensure the Go package paths match the target's module path.
+- **[ADD]**: Files in the template that are absent from the target, such as new linter config or pre-commit hooks.
+- **[MODIFIED]**: Unified diffs between target files and customized template files.
+- **Dockerfile Matches**: The most similar template for each target Dockerfile, with a similarity ratio and diff.
 
----
+## Step 2: Apply Scaffold and Configuration Diffs
 
-### Step 3: Back-fill Dockerfile Updates
-For each target Dockerfile matched by the script:
-1. Identify the template file it was paired with (e.g., `Dockerfile.distroless`).
-2. Review the diff. Typical template updates include:
-   - Bumping the builder Go version (e.g., `FROM golang:1.26-bookworm`).
-   - Bumping the runtime base images (e.g., `FROM gcr.io/distroless/static-debian13`).
-   - Security configurations (e.g., `SHELL ["/bin/bash", "-o", "pipefail", "-c"]` or `USER nonroot`).
-   - Better caching/multi-stage builds.
-3. Apply these updates into the target Dockerfile.
-4. **CRITICAL**: Do NOT change the target Dockerfile's filename, and do NOT remove target-specific logic (like custom `apt-get` packages, custom ports, volume mounts, or customized entrypoints/arguments).
+For `.github/workflows/`:
 
----
+- Apply the new steps, updated action versions such as `actions/checkout@v4`, and optimizations.
+- Preserve target-specific environment variables, secrets, and steps.
+- Ignore minor variations in cron minutes. Random minute selection distributes load.
 
-### Step 4: Verification
-Verify that the target repository builds, tests, and passes all checks. Run the following targets from the Makefile:
+For `Makefile`:
 
-1. **Local Toolchain Verification**:
-   ```bash
-   make local
-   ```
-   This will run `go mod tidy`, `go mod vendor`, `go vet`, `pre-commit` hooks, run tests with race detection, generate coverage, build the local binary, and check goreleaser snapshots. Ensure everything compiles and all tests pass.
+- Merge new targets, build arguments, and linter integrations.
+- Preserve custom targets, build tags, and special compiler flags.
 
-2. **Docker Workflow Verification**:
-   ```bash
-   make all
-   ```
-   This runs Docker-based vet, test, build, image signing verification with Cosign, and launches the container.
-   
-   > [!NOTE]
-   > Running `make all` locally builds a fresh, unsigned Docker image, which will cause the `cosign verify` step to fail with `Error: no signatures found`. This is expected. As long as the `vet`, `pre-commit`, `test`, and `build` stages of the Docker build complete successfully, the Docker verification is considered successful. You can test running the container manually if needed with:
-   > `docker run --rm --name <project_name> --env-file .env <owner>/<project_name>:latest`
+For `.goreleaser.yml`:
 
-If any check fails, troubleshoot the build/test issues and refine the backfilled configurations.
+- Merge improved release stages, SBOM generation, and signature logic.
+- Preserve binary names, custom archive formats, and tap configuration.
 
----
+For config and version boilerplate in `pkg/version/` and `pkg/config/`:
 
-### Step 5: Git Commit
-Once everything builds and passes perfectly:
-1. Stage the modified files:
-   ```bash
-   git add .
-   ```
-2. Commit the changes locally:
-   ```bash
-   git commit -m "chore: backfill updates from golang-starter template
+- Update logic to parse versions or standard config loaders.
+- Check that Go package paths match the target module path.
+
+## Step 3: Update Dockerfiles
+
+1. Identify the matched template for each target Dockerfile, for example `Dockerfile.distroless`.
+2. Review the diff.
+3. Apply the template improvements to the target Dockerfile.
+4. Preserve the target Dockerfile's filename.
+5. Preserve the custom `apt-get` packages, ports, volume mounts, entrypoints, and arguments.
+
+Typical improvements include:
+
+- Updates to the builder Go version, for example `FROM golang:1.26-bookworm`.
+- Updates to runtime base images, for example `FROM gcr.io/distroless/static-debian13`.
+- Security configuration, such as `SHELL ["/bin/bash", "-o", "pipefail", "-c"]` or `USER nonroot`.
+- Improved caches and builds with multiple stages.
+
+## Step 4: Verify the Changes
+
+Run the local workflow:
+
+```bash
+make local
+```
+
+This target runs `go mod tidy`, `go mod vendor`, `go vet`, and pre-commit hooks.
+It runs tests with race detection, generates coverage, builds the local binary, and checks GoReleaser snapshots.
+Check that all code compiles and all tests pass.
+
+Run the Docker workflow:
+
+```bash
+make all
+```
+
+This target runs vet, tests, and builds with Docker.
+It verifies image signatures with Cosign and starts the container.
+
+A local `make all` builds a fresh, unsigned Docker image.
+The `cosign verify` step will therefore fail with `Error: no signatures found`.
+This failure follows from the unsigned local build.
+Docker verification succeeds for this workflow if the `vet`, `pre-commit`, `test`, and `build` stages complete successfully.
+To test the container manually, run:
+
+```bash
+docker run --rm --name <project_name> --env-file .env <owner>/<project_name>:latest
+```
+
+If any check fails, diagnose the build or test issue.
+Refine the changes until the checks pass.
+
+## Step 5: Commit Locally
+
+After builds and checks succeed, stage the modified files:
+
+```bash
+git add .
+```
+
+Commit the changes locally:
+
+```bash
+git commit -m "chore: backfill updates from golang-starter template
 
 - Bumped Go and base image versions in Dockerfiles
 - Updated GitHub Action workflows to latest versions
 - Applied Makefile improvements and linter updates
 - Synced pre-commit hooks and goreleaser configuration"
-   ```
-3. **DO NOT PUSH** the changes to the remote repository. Leave it staged for manual review and pushing by the developer.
+```
+
+Do **not** push changes to the remote repository.
+Leave the result staged for manual review and a push by the developer.

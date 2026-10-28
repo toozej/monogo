@@ -1,6 +1,6 @@
-# Production Deployment Best Practices
+# Operational Guidelines for Production Deployment
 
-Comprehensive guide for deploying Podgrab in production environments.
+Guide to deploy Podgrab in production environments.
 
 ## Architecture Overview
 
@@ -151,7 +151,7 @@ server {
 }
 ```
 
-#### Testing Configuration
+#### Tests Configuration
 
 ```bash
 # Test syntax
@@ -275,7 +275,7 @@ podgrab.example.com {
 }
 ```
 
-## SSL/TLS Configuration
+## SSL and TLS Configuration
 
 <!-- vale STE.Contractions = NO -->
 ### Let's Encrypt with Certbot
@@ -303,12 +303,12 @@ sudo certbot renew --dry-run
 
 ### Cloudflare SSL
 
-If using Cloudflare:
+If you use Cloudflare:
 
-1. Set SSL/TLS mode to "Full (strict)"
-1. Enable "Always Use HTTPS"
-1. Enable "Automatic HTTPS Rewrites"
-1. Configure Origin Server Certificate
+1. Set SSL and TLS mode to "Full (strict)"
+1. Enable `Always Use HTTPS`
+1. Enable `Automatic HTTPS Rewrites`
+1. Configure the origin server certificate
 
 ## Storage Configuration
 
@@ -347,7 +347,7 @@ sudo mount -t nfs nas.local:/volume1/podgrab /mnt/nas/podgrab
 nas.local:/volume1/podgrab /mnt/nas/podgrab nfs defaults,_netdev 0 0
 ```
 
-#### SMB/CIFS Mount
+#### SMB and CIFS Mount
 
 ```bash
 # Install CIFS utils
@@ -362,7 +362,7 @@ sudo mount -t cifs //nas.local/podgrab /mnt/nas/podgrab -o username=user,passwor
 
 ### S3-Compatible Storage (Advanced)
 
-For media offloading:
+To offload media:
 
 ```bash
 # Install s3fs
@@ -438,7 +438,7 @@ Media files are large; consider:
 
 - **Selective backup**: Only downloaded episodes
 - **Cloud sync**: Rclone to cloud storage
-- **Snapshot-based**: ZFS/Btrfs snapshots
+- **Snapshot-based**: ZFS and Btrfs snapshots
 
 #### Rclone to Cloud
 
@@ -456,9 +456,9 @@ rclone sync /path/to/assets remote:podgrab-media \
   --progress
 ```
 
-## Monitoring
+## Monitor
 
-### Uptime Monitoring
+### Uptime Monitor
 
 #### UptimeRobot
 
@@ -476,7 +476,7 @@ Interval: 5 minutes
 */5 * * * * curl -fsS --retry 3 https://hc-ping.com/your-uuid > /dev/null
 ```
 
-### Resource Monitoring
+### Resource Monitor
 
 #### Prometheus + Grafana
 
@@ -560,7 +560,7 @@ volumes:
 
 #### SQLite Configuration
 
-Create `/config/podgrab.db-wal` for WAL mode (Write-Ahead Logging):
+Create `/config/podgrab.db-wal` for WAL mode (Write-Ahead Logs):
 
 ```sql
 PRAGMA journal_mode=WAL;
@@ -582,7 +582,7 @@ PRAGMA temp_store=MEMORY;
 
 1. Add site to Cloudflare
 1. Point DNS to your server
-1. Enable caching for `/assets` and `/webassets`
+1. Enable the cache for `/assets` and `/webassets`
 1. Create Page Rule:
    - URL: `podgrab.example.com/assets/*`
    - Cache Level: Cache Everything
@@ -609,7 +609,7 @@ In Podgrab settings:
 - **4 CPU cores**: MaxDownloadConcurrency = 5
 - **8+ CPU cores**: MaxDownloadConcurrency = 10
 
-#### Network Tuning
+#### Network Tune
 
 ```bash
 # Increase TCP buffer sizes
@@ -619,7 +619,7 @@ sudo sysctl -w net.ipv4.tcp_rmem='4096 87380 16777216'
 sudo sysctl -w net.ipv4.tcp_wmem='4096 65536 16777216'
 ```
 
-## Security Hardening
+## Security Harden
 
 ### Container Security
 
@@ -705,7 +705,7 @@ maxretry = 5
 bantime = 3600
 ```
 
-**Filter (/etc/fail2ban/filter.d/nginx-podgrab.conf):**
+**Filter (`/etc/fail2ban/filter.d/nginx-podgrab.conf`):**
 
 ```ini
 [Definition]
@@ -739,7 +739,7 @@ graph TB
 **Limitations:**
 
 - Only primary can write
-- Replicas for serving media/reads only
+- Replicas to serve media and reads only
 - Not true HA (primary is SPOF)
 
 ### Alternative: Active-Passive
@@ -770,25 +770,25 @@ Standby: 192.168.1.101 (VIP: 192.168.1.10)
 
 1. **Verify data:**
 
-   - Check podcast list
+   - Check the podcast list
    - Verify episode downloads
    - Test playback
 
 1. **Re-sync if needed:**
 
    - Refresh all podcasts
-   - Re-download missing episodes
+   - Re-download absent episodes
 
-### RTO/RPO Targets
+### RTO and RPO Targets
 
 - **RTO (Recovery Time Objective):** 1 hour
 - **RPO (Recovery Point Objective):** 24 hours (daily backups)
 
-## Scaling Considerations
+## Scale Considerations
 
-### Vertical Scaling
+### Vertical Scale
 
-Podgrab is single-instance; scale by increasing resources:
+Podgrab is single-instance; scale with more resources:
 
 ```yaml
 deploy:
@@ -798,7 +798,7 @@ deploy:
       memory: 4G
 ```
 
-### Horizontal Scaling (Not Supported)
+### Horizontal Scale (Not Supported)
 
 SQLite limitation prevents horizontal scaling. For very large deployments,
 consider:

@@ -39,9 +39,9 @@ BACKEND=obsidian OBSIDIAN_VAULT_PATH=/notes \
 | `MEMOS_VISIBILITY` | `PRIVATE` | Visibility for new Memos notes: `PRIVATE`, `PROTECTED`, or `PUBLIC` |
 | `OBSIDIAN_VAULT_PATH` | empty | Local Obsidian vault directory |
 | `OBSIDIAN_FOLDER` | vault root | Folder for imported Obsidian notes |
-| `OBSIDIAN_DELETE_MISSING` | `false` | Remove unchanged imports absent from the source export |
+| `OBSIDIAN_DELETE_MISSING` | `false` | Remove the unchanged imports absent from the source export |
 | `TAG_TO_DOWNLOAD` | empty | Only read notes with this tag |
-| `SSG_TYPE` | `hugo` | Legacy target setting when `DESTINATION` is empty |
+| `SSG_TYPE` | `hugo` | Legacy target option when `DESTINATION` is empty |
 | `OUTPUT_DIR` | empty | Required for Hugo and go-vite. Also selects the Obsidian output folder when `OBSIDIAN_VAULT_PATH` is empty. |
 | `AUTHOR` | `root` | Hugo author |
 | `VITE_SUBTITLE` | empty | go-vite subtitle fallback |
@@ -58,18 +58,21 @@ The Hugo and go-vite writers keep a manifest of generated files.
 They remove stale generated files on later passes.
 
 Obsidian exports preserve the Markdown body and put source metadata in YAML properties.
-Source IDs determine filenames, so title changes and duplicate titles do not create duplicate files.
+Filenames derive from source IDs, so title changes and duplicate titles do not create duplicate files.
+
 Simplenote exports use `simplenote-<key>.md`.
 Memos and Obsidian exports use their source name and a SHA-256 hash of their source ID.
+
 The exporter checks for local edits before replacement or deletion.
 It retains absent source notes unless `OBSIDIAN_DELETE_MISSING=true`.
+
 An empty successful export removes unchanged imports only when you enable deletion.
 Site-specific settings do not split or modify Obsidian exports.
 
-`DESTINATION=obsidian` and the legacy `SSG_TYPE=obsidian` setting use the same exporter.
+`DESTINATION=obsidian` and the legacy `SSG_TYPE=obsidian` option select the same exporter.
 `DESTINATION` takes precedence over `SSG_TYPE`.
 `OBSIDIAN_VAULT_PATH` and `OBSIDIAN_FOLDER` take precedence over `OUTPUT_DIR`.
-The exporter retains `.notes2ssg-obsidian.json` and its lock name for compatibility with existing migrations.
+The exporter retains `.notes2ssg-obsidian.json` and its lock name for compatibility with current migrations.
 The Obsidian reader uses local Markdown files and skips hidden files and symbolic links.
 Obsidian does not need to run.
 

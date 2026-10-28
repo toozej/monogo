@@ -1,9 +1,9 @@
 # go-castctl
 
 `go-castctl` is a local web interface for [Castor](https://github.com/stupside/castor),
-built with [go-app v10](https://go-app.dev/). Paste a page URL, select or enter a
-TV endpoint, and either send the discovered video to the TV or resolve it into
-the browser's HTML video player.
+built with [go-app v10](https://go-app.dev/).
+Paste a page URL. Select or enter a TV endpoint.
+Send the discovered video to the TV or resolve it into the browser's HTML video player.
 
 ## Routes
 
@@ -35,8 +35,8 @@ metadata returned by `GET /devices` and displayed in the interface.
 
 ## Run locally
 
-Castor must be installed and available on `PATH`, together with the tools Castor
-requires (Chromium, ffmpeg, and ffprobe).
+Install Castor and make it available on `PATH`.
+Also make the tools that Castor requires available: Chromium, ffmpeg, and ffprobe.
 
 ```sh
 make local APP=go-castctl
@@ -45,12 +45,10 @@ make local APP=go-castctl
 ```
 
 Useful settings are `SERVER_HOST`, `SERVER_PORT`, `CASTOR_BINARY`,
-`CASTOR_CONFIG`, and `CASTOR_TIMEOUT`. The server defaults to loopback so an
-unauthenticated casting control is not exposed to the LAN by accident.
+`CASTOR_CONFIG`, and `CASTOR_TIMEOUT`. The server defaults to loopback to prevent accidental LAN exposure of unauthenticated casting controls.
 
-The generated container is based on Castor's image and uses host networking on
-Linux, which Castor requires for device discovery and for TVs to fetch locally
-served streams. Docker Desktop does not provide equivalent host networking;
+The generated container uses Castor's image as its base and host networking on Linux.
+Castor requires this network mode to discover devices and let TVs fetch streams that it serves locally. Docker Desktop does not provide equivalent host networking;
 use the native binaries on macOS or Windows.
 
 ## Local playback limitations
@@ -58,5 +56,5 @@ use the native binaries on macOS or Windows.
 Castor's public interface is currently command-line only. Its dry-run output
 contains bitrate and URL but not captured cookies or request headers. Browsers
 also differ in native HLS and codec support. As a result, `/receive` works for
-browser-playable streams that do not require those headers; pages needing them
-may still cast successfully while local playback fails.
+browser-playable streams that do not require those headers; pages that require them
+possibly still cast successfully while local playback fails.

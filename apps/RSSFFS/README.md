@@ -7,9 +7,9 @@
 
 <img src="img/avatar.png" alt="RSSFFS avatar" style="background-color: #FFFFFF;" />
 
-RSS Feed Finder [and] Subscriber finds RSS feeds on the user-inputted URL, and subscribes to them in your [Miniflux RSS feed reader](https://miniflux.app) instance.
+RSSFFS finds RSS feeds at the URL you enter and subscribes to them in your [Miniflux](https://miniflux.app) instance.
 
-RSSFFS provides both a command-line interface and a web-based interface for discovering and subscribing to RSS feeds.
+RSSFFS provides both a command-line interface and a web-based interface to discover and subscribe to RSS feeds.
 
 ## Usage
 
@@ -17,8 +17,8 @@ RSSFFS provides both a command-line interface and a web-based interface for disc
 
 RSSFFS operates in two modes:
 
-- **Traversal Mode (default)**: Discovers RSS feeds on the provided URL and follows links to find feeds on other domains mentioned on the page
-- **Single URL Mode**: Only searches for RSS feeds on the specific domain of the provided URL, without following links to other domains
+- **Traversal Mode (default)**: Finds feeds at the input URL and follows page links to discover feeds on other domains
+- **Single URL Mode**: Searches for feeds only on the input domain and does not follow links to other domains
 
 Find and subscribe to RSS feeds from a URL:
 
@@ -61,17 +61,16 @@ Start the web server for browser-based RSS feed discovery:
 ./RSSFFS serve -d
 ```
 
-The web interface will be available at `http://localhost:8080` (or your configured host/port). The web UI provides:
+The web interface will be available at `http://localhost:8080` (or your configured host and port). The web UI provides:
 
 - **Mobile-friendly interface**: Responsive design optimized for mobile devices
 - **Simple form**: Enter URL and optional category through an easy-to-use form
-- **Real-time feedback**: Toast notifications show success/error messages
+- **Real-time feedback**: Toast notifications show success or error messages
 - **Input validation**: Client-side and server-side URL validation
-- **Loading indicators**: Visual feedback during RSS feed processing
+- **Progress indicators**: Visual feedback while the application processes RSS feeds
 
 Interactive Swagger API documentation is available at
-`http://localhost:8080/swagger/index.html`. It follows the same HTTP Basic
-authentication configuration as the web interface.
+`http://localhost:8080/swagger/index.html`. It follows the same configuration for HTTP Basic authentication as the web interface.
 
 #### Web Server Configuration
 
@@ -79,7 +78,7 @@ The serve command supports the following options:
 
 - `--host, -H`: Host address to bind the server to (default: 127.0.0.1)
 - `--port, -p`: Port number to listen on (default: 8080)
-- `--debug, -d`: Enable debug-level logging
+- `--debug, -d`: Enable debug-level log output
 - `--config`: Path to configuration file (inherits from root command)
 
 Examples:
@@ -98,14 +97,14 @@ Examples:
 ./RSSFFS serve --host 0.0.0.0 --port 3000 --debug
 ```
 
-Binding the web UI to a non-loopback address requires `WEB_USERNAME` and
-`WEB_PASSWORD`. All UI, API, category, and log routes are protected with HTTP
-Basic authentication when these values are configured.
-The sample environment file leaves both values empty intentionally; set strong,
-deployment-specific credentials before starting the development Compose service,
-which binds the application to `0.0.0.0` inside its container while publishing
-the port only on the host's loopback interface. For any remote deployment, put
-the service behind TLS; HTTP Basic authentication does not encrypt credentials.
+To bind the web UI to a non-loopback address, set `WEB_USERNAME` and `WEB_PASSWORD`.
+With these values, HTTP Basic authentication protects all UI, API, category, and log routes.
+The sample environment file intentionally leaves both values empty.
+Set the strong, deployment-specific credentials before you start the development Compose service.
+This service binds the application to `0.0.0.0` inside the container and publishes the port only on the host's loopback interface.
+
+For any remote deployment, put the service behind TLS.
+HTTP Basic authentication does not encrypt credentials.
 
 ## Configuration
 
@@ -140,7 +139,7 @@ RSSFFS follows this precedence order for configuration values (highest to lowest
 2. **Environment Variables**: Environment variables override config file values
    - `RSSFFS_SINGLE_URL_MODE` environment variable
 3. **Configuration File**: Values from `config.yaml` (lowest priority)
-   - `rssffs_single_url_mode` setting
+   - `rssffs_single_url_mode` option
 
 Example precedence scenarios:
 ```bash
@@ -154,7 +153,7 @@ export RSSFFS_SINGLE_URL_MODE="true"
 ./RSSFFS https://example.com  # Uses single URL mode
 ```
 
-The web interface uses the same configuration as the command-line interface, so no additional setup is required.
+The web interface uses the same configuration as the command-line interface, so you do not need additional setup.
 
 ## Development
 

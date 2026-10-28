@@ -1,6 +1,6 @@
 # Podgrab Documentation
 
-Welcome to the Podgrab documentation. This comprehensive guide covers
+Welcome to the Podgrab documentation. This guide covers
 architecture, deployment, API usage, and development.
 
 ## 📚 Documentation Structure
@@ -17,31 +17,29 @@ architecture, deployment, API usage, and development.
 
 ### Deployment
 
-- **[Docker Deployment](deployment/docker.md)** - Running Podgrab with Docker
+- **[Docker Deployment](deployment/docker.md)** - Run Podgrab with Docker
   and docker-compose
 - **[Production Deployment](deployment/production.md)** - Production deployment
-  best practices
-- **[Ubuntu Installation](ubuntu-install.md)** - Native Ubuntu installation
-  guide
+  recommended practices
+- **[Ubuntu Installation](ubuntu-install.md)** - Guide for native installation on Ubuntu
 
 ### API Documentation
 
-- **[REST API](api/rest-api.md)** - Complete REST API reference
+- **[REST API](api/rest-api.md)** - Complete reference for the REST API
 - **[WebSocket API](api/websocket.md)** - Real-time WebSocket communication
 
-### Testing & Quality
+### Tests & Quality
 
-- **[Testing Guide](testing.md)** - Comprehensive testing documentation (unit,
+- **[Test Guide](testing.md)** - test documentation (unit,
   integration, E2E)
 - **[CI/CD Guide](ci-cd.md)** - GitHub Actions workflows and automation
 - **[Pre-commit Hooks](development/pre-commit.md)** - Code quality automation
 
 ### Development
 
-- **[Development Setup](development/setup.md)** - Setting up your development
-  environment
-- **[Contributing Guide](development/setup.md#contributing-workflow)** - How to contribute to Podgrab
-- **[Logging Guide](../internal/logger/README.md)** - Structured logging with
+- **[Development Setup](development/setup.md)** - Configure your development environment
+- **[Contribution Guide](development/setup.md#contribute-workflow)** - How to contribute to Podgrab
+- **[Logs Guide](../internal/logger/README.md)** - Structured log output with
   Uber Zap
 
 ### User Guides
@@ -52,47 +50,47 @@ architecture, deployment, API usage, and development.
 
 ## 🚀 Quick Start
 
-New to Podgrab? Start here:
+For a first installation:
 
 1. Read the [Overview](architecture/overview.md) to understand what Podgrab does
-1. Follow the [Docker Deployment](deployment/docker.md) guide to get it running
+1. Follow the [Docker Deployment](deployment/docker.md) guide to start the application
 1. Check the [User Guide](guides/user-guide.md) to learn how to use it
 1. Review the [Configuration Guide](guides/configuration.md) to customize
    settings
 
 ## 🛠️ For Developers
 
-Contributing to Podgrab? Check these docs:
+To contribute to Podgrab, check these docs:
 
 1. [System Design](architecture/system-design.md) - Understand the codebase
    architecture
 1. [Development Setup](development/setup.md) - Set up your dev environment
-1. [Contributing Guide](development/setup.md#contributing-workflow) - Learn our development workflow
-1. [Testing Guide](testing.md) - Testing strategies and coverage requirements
+1. [Contribution Guide](development/setup.md#contribute-workflow) - Learn our development workflow
+1. [Test Guide](testing.md) - Tests strategies and coverage requirements
 1. [CI/CD Guide](ci-cd.md) - GitHub Actions workflows and automation
 1. [REST API](api/rest-api.md) - Understand the API endpoints
 
 ## 📖 Additional Resources
 
 - **[Main README](../README.md)** - Project overview and quick start
-- **[AGENTS.md](../AGENTS.md)** - AI assistant guide for working with this
+- **[AGENTS.md](../AGENTS.md)** - AI assistant guide for tasks in this
   codebase
 
 ## 🔍 Navigation Tips
 
-- All diagrams use [Mermaid](https://mermaid.js.org/) for easy rendering
+- All diagrams use [Mermaid](https://mermaid.js.org/) to simplify diagram display
   on GitHub
-- Code examples are tested against the current codebase
+- Tests check code examples against the current codebase
 - Each document includes links to related documentation
 
 ## 📝 Documentation Standards
 
 This documentation follows these principles:
 
-- **Accuracy**: All information is verified against the current codebase
-- **Clarity**: Complex concepts are explained with diagrams and examples
-- **Completeness**: All features and components are documented
-- **Maintainability**: Documentation is updated with code changes
+- **Accuracy**: Checks compare all information against the current codebase
+- **Clarity**: Diagrams and examples explain complex concepts
+- **Completeness**: Documentation covers all features and components
+- **Maintainability**: Documentation updates accompany code changes
 
 ## ❓ Need Help?
 

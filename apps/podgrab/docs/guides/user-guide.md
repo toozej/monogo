@@ -1,14 +1,14 @@
 # User Guide
 
-Complete guide to using Podgrab for podcast management.
+Complete guide to Podgrab for podcast management.
 
-## Getting Started
+## Start
 
 ### First Time Setup
 
 1. **Access Podgrab**
 
-   - Open browser to `http://localhost:8080`
+   - Open the browser to `http://localhost:8080`
    - If password protected, enter credentials:
      - Username: `podgrab`
      - Password: `<your configured password>`
@@ -24,13 +24,13 @@ Complete guide to using Podgrab for podcast management.
 
 1. **Add Your First Podcast**
 
-   - Click "+ Add Podcast"
+   - Select `+ Add Podcast`
    - Choose method:
-     - **Direct URL**: Paste RSS feed URL
+     - **Direct URL**: Paste the URL for the RSS feed
      - **Search**: Find podcasts via iTunes or Podcast Index
      - **Import OPML**: Bulk import from another app
 
-## Adding Podcasts
+## Add Podcasts
 
 ### Method 1: Direct RSS URL
 
@@ -45,10 +45,10 @@ Complete guide to using Podgrab for podcast management.
 5. Podcast appears in home view
 ```
 
-**Finding RSS URLs:**
+**Find RSS URLs:**
 
-- Podcast website (usually "Subscribe" or "RSS" link)
-- Podcast player apps (share/copy feed URL)
+- Podcast website (usually a `Subscribe` or `RSS` link)
+- Podcast player apps (share or copy feed URL)
 - Podcast directories (copy feed URL)
 
 ### Method 2: Search
@@ -69,7 +69,7 @@ Complete guide to using Podgrab for podcast management.
 
 - Use podcast name or host name
 - Try different search sources for better results
-- "Already Added" indicator shows existing podcasts
+- `Already Added` indicator shows current podcasts
 
 ### Method 3: Import OPML
 
@@ -87,12 +87,12 @@ Complete guide to using Podgrab for podcast management.
 
 **OPML Export from Popular Apps:**
 
-- **Apple Podcasts**: File → Library → Export Library
-- **Pocket Casts**: Settings → Import/Export → Export
+- **Apple Podcasts**: Select `File`, `Library`, and `Export Library` in sequence
+- **Pocket Casts**: Settings → Import and Export → Export
 - **Overcast**: Settings → OPML Export
 - **AntennaPod**: Settings → Storage → Export
 
-## Managing Podcasts
+## Manage Podcasts
 
 ### Podcast List View
 
@@ -106,11 +106,11 @@ Complete guide to using Podgrab for podcast management.
   - Total episodes
 - Storage usage
 
-**Sorting Options:**
+**Sort Options:**
 
-- Date Added (newest/oldest)
+- Date Added (newest or oldest)
 - Alphabetical (A-Z / Z-A)
-- Last Episode (newest/oldest)
+- Last Episode (newest or oldest)
 
 ### Podcast Detail View
 
@@ -144,7 +144,7 @@ Click podcast to see:
 
 #### Pause Podcast
 
-**When to use:** Temporarily stop downloading new episodes
+**When to use:** Temporarily stop downloads of new episodes
 
 ```
 1. Open podcast detail page
@@ -200,7 +200,7 @@ Click podcast to see:
 - Podcast in database
 - Episode metadata
 
-## Managing Episodes
+## Manage Episodes
 
 ### Episode Actions
 
@@ -251,7 +251,7 @@ Click podcast to see:
 4. Open in preferred player
 ```
 
-#### Mark as Played/Unplayed
+#### Mark as Played or Unplayed
 
 ```
 1. Click checkmark icon
@@ -285,7 +285,7 @@ Click podcast to see:
 2. Episode removed from bookmarks
 ```
 
-### Filtering Episodes
+### Filter Episodes
 
 **All Episodes View** (`/episodes`) offers filters:
 
@@ -312,15 +312,15 @@ Click podcast to see:
 
 **Sorting:**
 
-- Release Date (newest/oldest)
-- Duration (shortest/longest)
+- Release Date (newest or oldest)
+- Duration (shortest or longest)
 
 **Pagination:**
 
-- Adjust items per page (10/20/50/100)
+- Adjust the number of items per page (10/20/50/100)
 - Navigate pages
 
-## Using Tags
+## Use Tags
 
 ### Create Tag
 
@@ -351,7 +351,7 @@ Click podcast to see:
 2. Use tag filters to view all together
 ```
 
-### Using Tags
+### Use Tags
 
 **Organization Examples:**
 
@@ -400,10 +400,10 @@ Click podcast to see:
 
 **Player Controls:**
 
-- **Play/Pause**: ▶️ ⏸️
-- **Previous/Next**: ⏮️ ⏭️
+- **Play and Pause**: ▶️ ⏸️
+- **Previous and Next**: ⏮️ ⏭️
 - **Seek**: Drag progress bar
-- **Volume**: Adjust slider
+- **Volume**: Adjust the slider
 - **Speed**: 0.5x - 2.0x (if available)
 
 ### Queue Management
@@ -446,7 +446,7 @@ Method 2: Play all from podcast
 
 ### Multi-Tab Sync
 
-**Scenario:** Player in one tab, browsing in another
+**Scenario:** Player in one tab, navigation in another
 
 **Setup:**
 
@@ -466,7 +466,7 @@ Tab 2: Browse podcasts/episodes
 
 - WebSocket connection active
 - Both tabs from same browser
-- No browser extensions blocking WebSocket
+- No browser extensions that block WebSocket
 
 ### Player Page Options
 
@@ -520,7 +520,7 @@ Shows 20 most recent downloaded episodes
 
 - **Backup**: Save subscription list
 - **Migration**: Move to another app
-- **Sharing**: Share custom feeds with others
+- **Share**: Share custom feeds with others
 - **Multi-Device**: Sync across devices
 
 ### Import OPML
@@ -541,7 +541,7 @@ Shows 20 most recent downloaded episodes
 
 ## RSS Feed Generation
 
-Podgrab generates RSS feeds for sharing and external consumption.
+Podgrab generates RSS feeds to share and external consumption.
 
 ### Podcast Feed
 
@@ -611,7 +611,7 @@ See [Configuration Guide](configuration.md) for detailed settings documentation.
 
 **Download Settings:**
 
-- **Download on Add**: Auto-download when adding podcast
+- **Download on Add**: Auto-download after you add a podcast
 - **Initial Download Count**: How many episodes to download initially
 - **Auto Download**: Download new episodes automatically
 - **Max Concurrency**: Concurrent downloads (default: 5)
@@ -637,10 +637,10 @@ See [Configuration Guide](configuration.md) for detailed settings documentation.
 
 **Player:**
 
-- `Space`: Play/Pause
-- `←/→`: Seek backward/forward
+- `Space`: Play and Pause
+- `←/→`: Seek backward and forward
 - `↑/↓`: Volume up/down
-- `M`: Mute/Unmute
+- `M`: Mute and Unmute
 - `F`: Full screen (if supported)
 
 **Navigation:**
@@ -673,7 +673,7 @@ Android Chrome:
 **Offline Listening:**
 
 - Downloaded episodes remain accessible
-- Queue episodes before going offline
+- Queue episodes before you go offline
 - Player works without internet
 
 **Mobile Player:**
@@ -723,66 +723,66 @@ Android Chrome:
 4. Trigger actions based on new episodes
 ```
 
-## Troubleshooting
+## Resolve Problems
 
 ### Common Issues
 
 **Podcast will not add:**
 
 - Verify RSS URL is correct
-- Check feed is accessible (try in browser)
+- Check that the feed is accessible (try in browser)
 - Look for error messages
-- Check logs for details
+- Check the logs for details
 
-**Episodes not downloading:**
+**Episode downloads fail:**
 
-- Check storage space
+- Check the storage space
 - Verify network connectivity
-- Check MaxDownloadConcurrency setting
+- Check the `MaxDownloadConcurrency` option
 - Look for background job execution
 - Review logs for errors
 
-**Player not working:**
+**Player fails:**
 
-- Check browser compatibility
+- Check the browser compatibility
 - Verify file downloaded successfully
 - Try different browser
-- Check console for errors
+- Check the console for errors
 
 **WebSocket disconnected:**
 
-- Check reverse proxy configuration
+- Check the configuration of the reverse proxy
 - Verify WebSocket upgrade headers
 - Test with different browser
-- Check firewall rules
+- Check the firewall rules
 
-**Dark mode not saving:**
+**Dark mode fails to save:**
 
 - Clear browser cache
-- Check browser cookies enabled
+- Check that the browser permits cookies
 - Verify settings POST successful
 
-### Getting Help
+### Get Help
 
-1. **Check documentation**: Search docs for your issue
-1. **GitHub Issues**: Search existing issues
+1. **Check the documentation**: Search docs for your issue
+1. **GitHub Issues**: Search current issues
 1. **Create Issue**: If not found, create new issue with details
-1. **Community**: Discord/Reddit (if available)
+1. **Community**: Discord or Reddit (if available)
 
-## Best Practices
+## Operational Guidelines
 
 ### Organization
 
 - **Use descriptive tags** for easy filtering
 - **Regular cleanup** of old episodes
 - **Bookmark** episodes to listen later
-- **Pause** podcasts you are not actively listening to
+- **Pause** podcasts that you do not actively play
 
 ### Storage Management
 
 - **Monitor disk usage** in settings
 - **Delete old episodes** you will not re-listen
-- **Adjust download settings** based on listening habits
+- **Adjust the download settings** based on your playback habits
 - **Use selective downloads** instead of "download all"
 
 ### Performance
@@ -794,7 +794,7 @@ Android Chrome:
 
 ### Privacy & Security
 
-- **Use strong passwords** if exposing to internet
+- **Use strong passwords** if you expose the app to the internet
 - **Keep Podgrab updated** for security patches
 - **Use HTTPS** in production
 - **Backup regularly** to prevent data loss
@@ -828,12 +828,14 @@ javascript:(function(){window.location='http://localhost:8080/add?url='+encodeUR
 
 ## Glossary
 
-**OPML**: Outline Processor Markup Language - subscription list format **RSS**:
-Really Simple Syndication - podcast feed format **Episode**: Individual podcast
-audio file **Feed**: XML file containing podcast information **WebSocket**:
-Real-time communication protocol **Tag**: Label for organizing podcasts
-**Bookmark**: Saved episode for later listening **Queue**: Playlist of episodes
-to play
+- - **OPML**: `Outline Processor Markup Language`, a format for subscription lists
+- **RSS**: Really Simple Syndication, a format for podcast feeds
+- **Episode**: An individual audio file from a podcast
+- **Feed**: An XML file with podcast information
+- **WebSocket**: A protocol for real-time communication
+- **Tag**: A label to organize podcasts
+- **Bookmark**: A saved episode for later playback
+- **Queue**: A playlist of episodes to play
 
 ## Related Documentation
 

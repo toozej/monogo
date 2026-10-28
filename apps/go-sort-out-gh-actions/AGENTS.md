@@ -123,7 +123,7 @@ pkg/                              # Public packages (importable)
 |---|---|
 | Language | Go 1.27.3 (`CGO_ENABLED=0`) |
 | CLI | `github.com/spf13/cobra` |
-| Logging | `github.com/sirupsen/logrus` (aliased as `log`) |
+| Logs | `github.com/sirupsen/logrus` (aliased as `log`) |
 | GitHub API | `github.com/google/go-github/v85` + `golang.org/x/oauth2` |
 | Semver | `github.com/Masterminds/semver/v3` |
 | YAML | `gopkg.in/yaml.v3` |
@@ -132,11 +132,11 @@ pkg/                              # Public packages (importable)
 | TTY Detection | `golang.org/x/term` |
 | Man Pages | `github.com/mango-cobra/roff` |
 
-## Testing
+## Tests
 
 - **Framework:** Go standard `testing` package
-- **Style:** Table-driven tests with `t.Parallel()` where appropriate
-- **HTTP Mocking:** `net/http/httptest.NewServer` for mocking GitHub API responses
+- **Style:** Table-driven tests with `t.Parallel()` when tests can safely run concurrently
+- **HTTP Mocking:** `net/http/httptest.NewServer` to mock responses from the GitHub API
 - **Test Colocation:** `*_test.go` files colocated with their source files
 - **Run:** `make test` or `go test -race -count=1 ./...`
 - **Coverage:** `make local-cover`
@@ -201,7 +201,7 @@ package config
 
 ### Types in separate files
 
-Types are defined in dedicated `types.go` files within each package. Logic goes in `<name>.go`.
+Define types in dedicated `types.go` files within each package. Logic goes in `<name>.go`.
 
 ### Error wrapping
 
@@ -215,9 +215,9 @@ return conf, fmt.Errorf("error loading .env file: %w", err)
 return conf, fmt.Errorf("error loading .env file: %v", err)
 ```
 
-### Logging
+### Logs
 
-Use logrus with the `log` alias. Use `log.WithFields()` for structured logging:
+Use logrus with the `log` alias. Use `log.WithFields()` for structured logs:
 
 ```go
 log "github.com/sirupsen/logrus"
@@ -266,7 +266,7 @@ actioninfo.Emoji("✅ ", "[OK] ") + "No archived actions found!"
 
 ### Config via environment variables
 
-Use `caarlos0/env` struct tags for env var mapping:
+Use the struct tags from `caarlos0/env` to map environment variables:
 
 ```go
 type Config struct {
@@ -280,10 +280,10 @@ type Config struct {
 
 ### Data flow
 
-1. CLI command parses flags and env vars via `pkg/config`
+1. The CLI command parses its flags and env vars via `pkg/config`
 2. Workflow files parsed by `internal/workflow` to extract `uses:` action references
 3. Each action reference resolved via `internal/github` client (with caching)
-4. Detection functions in `internal/checkrunner` classify actions (archived/outdated/stale/EOL)
+4. Detection functions in `internal/checkrunner` classify actions (archived, outdated, stale, or EOL)
 5. Results formatted by `internal/output` (text or JSON)
 6. Optionally: notifications via `internal/notification`, issues via `internal/issue`
 
@@ -291,7 +291,7 @@ type Config struct {
 
 - GitHub API client uses `maxConcurrency=10` goroutines with a semaphore
 - Four `sync.RWMutex`-protected caches: `archivedCache`, `releaseCache`, `refSHACache`, `repoInfoCache`
-- Rate limit info logged from GitHub API response headers
+- Rate limit information from the headers of GitHub API responses
 
 ### Output
 
@@ -303,7 +303,7 @@ type Config struct {
 ### Add a new subcommand
 
 1. Create `cmd/go-sort-out-gh-actions/<command>.go`
-2. Define a constructor function returning `*cobra.Command`
+2. Define a constructor function that returns `*cobra.Command`
 3. Register the command in `root.go` via `rootCmd.AddCommand()`
 4. Implement business logic in a new `internal/<package>/` directory
 5. Add `types.go` for types, `<name>.go` for logic, `<name>_test.go` for tests
@@ -323,7 +323,7 @@ type Config struct {
 
 - **Branch:** `main` is the primary development branch
 - **PRs:** Feature branches merged via pull requests
-- **Commits:** Run `make pre-commit-run` before committing to ensure formatting, linting, and tests pass
+- **Commits:** Run `make pre-commit-run` before you commit to ensure formatting, linting, and tests pass
 
 ### CI/CD
 
@@ -338,12 +338,35 @@ type Config struct {
 
 1. Run `make release APP=go-sort-out-gh-actions TYPE=<major|minor|patch>` (bumps and pushes the next `apps/go-sort-out-gh-actions/vX.Y.Z` tag), or tag and push it by hand
 2. `release.yaml` is tag-driven (no app matrix) and builds, signs, and publishes only the tagged app
-3. Builds for linux/darwin/windows, 386/amd64/arm/arm64
+3. Builds for Linux, macOS, and Windows, 386/amd64/arm/arm64
 4. Docker images to DockerHub, GHCR, Quay; GitHub release created with `gh`; Homebrew cask published
 5. Binaries signed with cosign; SBOM via syft
 
 ## Boundaries
 
-- ✅ **Always do:** Run `make vet` and `make test` before committing, follow code style examples, write table-driven tests, wrap errors with `%w`, use `actioninfo.Emoji()` for emoji output, add package doc comments, put types in `types.go`
-- ⚠️ **Ask first:** Adding new dependencies (check if already available in `go.mod`), modifying CI/CD workflows, changing the `Notifier` interface, modifying `pkg/config/config.go` struct fields
-- 🚫 **Never do:** Commit secrets or API tokens, use `CGO_ENABLED=1`, use raw emoji strings instead of `actioninfo.Emoji()`, skip error wrapping with `%w`, put business logic in `pkg/` (that goes in `internal/`), remove failing tests to make the suite pass
+### Always do
+
+- Run `make vet` before you commit.
+- Run `make test` before you commit.
+- Follow the code style examples.
+- Write table-driven tests.
+- Wrap errors with `%w`.
+- Use `actioninfo.Emoji()` for emoji output.
+- Add doc comments for packages.
+- Put types in `types.go`.
+
+### Ask first
+
+- Ask before you add dependencies. Determine whether `go.mod` already includes them.
+- Ask before you modify CI/CD workflows.
+- Ask before you change the `Notifier` interface.
+- Ask before you modify struct fields in `pkg/config/config.go`.
+
+### Never do
+
+- Do not commit secrets or API tokens.
+- Do not use `CGO_ENABLED=1`.
+- Do not use raw emoji strings instead of `actioninfo.Emoji()`.
+- Do not omit `%w` when you wrap errors.
+- Do not put business logic in `pkg/`. Put it in `internal/`.
+- Do not remove tests that fail merely to make the suite pass.

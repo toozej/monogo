@@ -1,23 +1,23 @@
-# Web UI Logs Feature
+# Logs in the Web UI
 
-The RSSFFS web UI now includes a comprehensive logging system that allows users to view real-time logs of RSS feed processing requests directly in the browser.
+The RSSFFS web UI now displays real-time logs in the browser. These logs describe requests to process RSS feeds.
 
 ## Features
 
 ### Log Display Panel
-- **Toggle Visibility**: Click "Show Logs" to expand the logs panel
-- **Real-time Updates**: Logs are automatically refreshed every 2 seconds when visible
+- **Toggle Visibility**: Select `Show Logs` to expand the logs panel
+- **Real-time Updates**: The panel automatically refreshes visible logs every 2 seconds
 - **Auto-show**: Logs panel automatically opens when a form submission starts
-- **Clear Functionality**: Clear the displayed logs with the "Clear" button
+- **Clear Functionality**: Select `Clear` to remove the displayed logs
 
 ### Log Information
 Each log entry displays:
-- **Timestamp**: When the log entry was created
+- **Timestamp**: The creation time of the log entry
 - **Level**: Log level (ERROR, WARN, INFO, DEBUG) with color coding
 - **Message**: The actual log message
 - **Fields**: Additional structured data (if any)
 
-### Color Coding
+### Colors for Log Levels
 - **ERROR**: Red background with red border
 - **WARN**: Yellow background with orange border  
 - **INFO**: Blue background with blue border
@@ -46,7 +46,7 @@ Returns recent log entries as JSON.
 }
 ```
 
-### GET /logs/stream
+### `GET /logs/stream`
 Server-Sent Events (SSE) endpoint for real-time log streaming.
 
 **Headers:**
@@ -54,7 +54,7 @@ Server-Sent Events (SSE) endpoint for real-time log streaming.
 - `Cache-Control: no-cache`
 
 **Events:**
-- `log`: New log entry data
+- `log`: Data for a new log entry
 - `heartbeat`: Keep-alive signal
 
 ## Implementation Details
@@ -62,43 +62,43 @@ Server-Sent Events (SSE) endpoint for real-time log streaming.
 ### Log Capture System
 - Uses a custom logrus hook (`WebUIHook`) to capture log entries
 - Maintains a circular buffer of recent log entries (default: 100 entries)
-- Thread-safe with proper mutex locking
+- Mutex locks protect concurrent access
 - Automatically captures all log levels (DEBUG, INFO, WARN, ERROR, FATAL, PANIC)
 
 ### Web UI Integration
 - JavaScript automatically polls the `/logs` endpoint when logs are visible
 - Responsive design that works on mobile and desktop
-- Proper error handling for network issues
+- Proper error management for network issues
 - Automatic scrolling to show latest logs
 
 ### Security Considerations
 - Logs are only available to users who can access the web UI
-- No sensitive information is logged (API keys, passwords, etc.)
-- Rate limiting applies to log endpoints like other API endpoints
+- The server omits sensitive information, such as API keys and passwords, from logs
+- Rate limits apply to log endpoints like other API endpoints
 - Proper CORS headers for cross-origin requests
 - XSS protection: Uses safe DOM methods instead of innerHTML
-- Error handling: All JSON encoding errors are properly handled
-- Input sanitization: Log messages are safely displayed using textContent
+- Error management: The server handles all errors from JSON serialization
+- Input sanitization: The UI safely displays log messages with `textContent`
 
 ## Usage Examples
 
-### Viewing Logs During RSS Processing
+### View Logs While RSSFFS Processes Feeds
 1. Open the RSSFFS web UI
 2. Enter a URL and submit the form
 3. The logs panel will automatically open showing:
-   - Request processing start
+   - Start of a request
    - Domain extraction and validation
    - RSS feed discovery attempts
    - Subscription results or errors
    - Request completion timing
 
-### Debugging Connection Issues
+### Debug Connection Issues
 When RSS reader connectivity fails, logs will show:
 ```
 ERROR: Error processing RSSFFS request: error getting categoryId from category Test: Get "https://rss.example.com/v1/categories": dial tcp: connect: no route to host
 ```
 
-### Monitoring Server Activity
+### Monitor Server Activity
 Server startup logs show:
 ```
 INFO: Starting RSSFFS web server...
@@ -109,12 +109,12 @@ DEBUG: RSS Reader Endpoint: https://rss.example.com
 
 ## Configuration
 
-The logs feature is automatically enabled when running in serve mode. No additional configuration is required.
+Serve mode automatically enables logs. You do not need additional configuration.
 
 ### Log Buffer Size
-The default buffer size is 100 entries. This can be modified in the server initialization code if needed.
+The default buffer size is 100 entries. You can change this value in the server initialization code if you need a different buffer size.
 
-### Polling Interval
+### Poll Interval
 The web UI polls for new logs every 2 seconds when the logs panel is visible. This provides a good balance between responsiveness and server load.
 
 ## Browser Compatibility
