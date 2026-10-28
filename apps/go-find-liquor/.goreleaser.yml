@@ -246,12 +246,11 @@ homebrew_casks:
       fish: "completions/go-find-liquor.fish"
     url:
       template: "https://github.com/toozej/monogo/releases/download/{{ envOrDefault \"MONOGO_RELEASE_TAG\" .Tag }}/{{ .ArtifactName }}"
-      verified: "github.com/toozej/monogo/releases/download"
     hooks:
       post:
-        install: |
-          if OS.mac?
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/go-find-liquor"]
+        install_steps: |
+          on_macos do
+            run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ .StagedPath }}/go-find-liquor"]
           end
 
 sboms:

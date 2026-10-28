@@ -43,8 +43,13 @@ func endpoint(apiEndpoint string, segments ...string) (string, error) {
 	if err != nil || (base.Scheme != "http" && base.Scheme != "https") || base.Host == "" {
 		return "", fmt.Errorf("invalid miniflux API endpoint")
 	}
-	parts := append([]string{strings.TrimRight(apiEndpoint, "/")}, segments...)
-	return url.JoinPath(parts[0], parts[1:]...)
+	for _, segment := range segments {
+		if segment == "." || segment == ".." {
+			return "", fmt.Errorf("invalid miniflux API path segment")
+		}
+		base = base.JoinPath(url.PathEscape(segment))
+	}
+	return base.String(), nil
 }
 
 // GetCategoryID retrieves the category ID for a given category name from Miniflux.

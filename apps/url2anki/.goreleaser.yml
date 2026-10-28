@@ -246,12 +246,11 @@ homebrew_casks:
       fish: "completions/url2anki.fish"
     url:
       template: "https://github.com/toozej/monogo/releases/download/{{ envOrDefault \"MONOGO_RELEASE_TAG\" .Tag }}/{{ .ArtifactName }}"
-      verified: "github.com/toozej/monogo/releases/download"
     hooks:
       post:
-        install: |
-          if OS.mac?
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/url2anki"]
+        install_steps: |
+          on_macos do
+            run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ .StagedPath }}/url2anki"]
           end
 
 sboms:

@@ -246,12 +246,11 @@ homebrew_casks:
       fish: "completions/kmhd2playlist.fish"
     url:
       template: "https://github.com/toozej/monogo/releases/download/{{ envOrDefault \"MONOGO_RELEASE_TAG\" .Tag }}/{{ .ArtifactName }}"
-      verified: "github.com/toozej/monogo/releases/download"
     hooks:
       post:
-        install: |
-          if OS.mac?
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/kmhd2playlist"]
+        install_steps: |
+          on_macos do
+            run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ .StagedPath }}/kmhd2playlist"]
           end
 
 sboms:

@@ -10,6 +10,70 @@ import (
 	"time"
 )
 
+func TestEndpoint(t *testing.T) {
+	tests := []struct {
+		name        string
+		apiEndpoint string
+		segments    []string
+		want        string
+		wantErr     bool
+	}{
+		{
+			name:        "API path prefix",
+			apiEndpoint: "https://example.com/miniflux/",
+			segments:    []string{"v1", "categories", "7", "feeds"},
+			want:        "https://example.com/miniflux/v1/categories/7/feeds",
+		},
+		{
+			name:        "escaped path prefix and query",
+			apiEndpoint: "https://example.com/mini%2Fflux?key=value",
+			segments:    []string{"v1", "feeds"},
+			want:        "https://example.com/mini%2Fflux/v1/feeds?key=value",
+		},
+		{
+			name:        "reserved characters",
+			apiEndpoint: "https://example.com/miniflux",
+			segments:    []string{"v1", "feed name?#%"},
+			want:        "https://example.com/miniflux/v1/feed%20name%3F%23%25",
+		},
+		{
+			name:        "embedded traversal",
+			apiEndpoint: "https://example.com/miniflux",
+			segments:    []string{"v1", "../../admin"},
+			want:        "https://example.com/miniflux/v1/..%2F..%2Fadmin",
+		},
+		{
+			name:        "encoded traversal",
+			apiEndpoint: "https://example.com/miniflux",
+			segments:    []string{"v1", "%2e%2e%2fadmin"},
+			want:        "https://example.com/miniflux/v1/%252e%252e%252fadmin",
+		},
+		{
+			name:        "current directory",
+			apiEndpoint: "https://example.com/miniflux",
+			segments:    []string{"v1", "."},
+			wantErr:     true,
+		},
+		{
+			name:        "parent directory",
+			apiEndpoint: "https://example.com/miniflux",
+			segments:    []string{"v1", "..", "admin"},
+			wantErr:     true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := endpoint(tt.apiEndpoint, tt.segments...)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("endpoint() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if got != tt.want {
+				t.Errorf("endpoint() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 // Test GetCategoryID for success and failure cases
 func TestGetCategoryID(t *testing.T) {
 	// Mock server to simulate Miniflux API
