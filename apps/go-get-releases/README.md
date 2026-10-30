@@ -220,7 +220,7 @@ GitLab follows the [GitLab CLI token precedence](https://docs.gitlab.com/cli/aut
 `OAUTH_TOKEN` uses GitLab's [OAuth authentication header](https://docs.gitlab.com/api/rest/authentication/).
 For Codeberg, create a [read access token](https://docs.codeberg.org/advanced/access-token/) and provide it as `FORGEJO_TOKEN`.
 `CODEBERG_TOKEN` is an instance-specific alias provided by this app.
-Tangled's [public read API](https://docs.tangled.org/bobbin.html) has no authentication requirement or personal API-token convention.
+Tangled's [public read API](https://tangled.org/docs/api/bobbin/) has no authentication requirement or personal API-token convention.
 The tool sends no credentials to Tangled's public endpoints.
 
 GitHub uses `github.com/google/go-github/v89` for API requests.
