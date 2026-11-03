@@ -63,7 +63,7 @@ The official inventories supply a larger reference set. They do not prove comple
 
 ## Reproducible baseline
 
-The baseline used a fresh [XML extract of Portland from BBBike](https://download.bbbike.org/osm/bbbike/Portland/Portland.osm.gz).
+The baseline used a fresh XML extract, `Portland.osm.gz`, from [BBBike's Portland downloads](https://download.bbbike.org/osm/bbbike/Portland/).
 The server reported `Last-Modified: Sun, 25 Oct 2026 04:08:13 GMT`.
 The gzip file contains 160,375,354 bytes. The uncompressed XML contains 1,926,071,049 bytes.
 The review downloaded the municipal inventories on the same day.
