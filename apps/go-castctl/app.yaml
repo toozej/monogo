@@ -9,6 +9,11 @@ shortDescription: "Cast web video to a TV or watch it locally"
 goImage: golang:1.27.3-trixie
 # Castor's runtime supplies the castor binary, Chromium, ffmpeg, and ffprobe.
 distrolessImage: ghcr.io/stupside/castor:v2.5.0
+# The upstream tag contains older Debian packages. Install available security fixes.
+runtimeAptPackages:
+  - chromium
+  - chromium-common
+  - libbrotli1
 distrolessOnly: true
 dockerPlatforms:
   - linux/amd64
