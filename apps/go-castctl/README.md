@@ -52,6 +52,7 @@ Useful settings are `SERVER_HOST`, `SERVER_PORT`, `CASTOR_BINARY`,
 `CASTOR_CONFIG`, and `CASTOR_TIMEOUT`. The server defaults to loopback to prevent accidental LAN exposure of unauthenticated casting controls.
 
 The generated container uses Castor's image as its base and host networking on Linux.
+The image build updates Chromium and Brotli from Debian security repositories.
 Castor requires this network mode to discover devices and let TVs fetch streams that it serves locally. Docker Desktop does not provide equivalent host networking;
 use the native binaries on macOS or Windows.
 

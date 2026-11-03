@@ -68,6 +68,12 @@ RUN mkdir -p[[ range index $app "writableDirs" ]] /container-root[[.]][[ end ]] 
 
 # runtime image
 FROM [[$runtime]]
+[[ if index $app "runtimeAptPackages" -]]
+# Refresh selected runtime packages from the base distribution's security repositories.
+RUN apt-get update && \
+    apt-get install -y --only-upgrade --no-install-recommends[[ range index $app "runtimeAptPackages" ]] [[.]][[ end ]] && \
+    rm -rf /var/lib/apt/lists/*
+[[ end -]]
 # Copy our executable.
 COPY --from=build /out/[[$app.binary]] /go/bin/[[$app.binary]]
 # Include the project license in the runtime image.
