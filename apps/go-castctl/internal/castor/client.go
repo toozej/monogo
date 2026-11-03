@@ -19,8 +19,9 @@ import (
 )
 
 // Device is a Castor-compatible playback endpoint. Castor selects devices by
-// name and type; Address is discovery metadata shown to the user.
+// ID when available, otherwise by name and type. Address is discovery metadata.
 type Device struct {
+	ID      string `json:"id,omitempty"`
 	Name    string `json:"name"`
 	Type    string `json:"type"`
 	Address string `json:"address"`
@@ -156,14 +157,11 @@ func (c *Client) Send(_ context.Context, sourceURL string, device Device) error 
 	return nil
 }
 
-// Receive asks Castor to extract streams and returns the highest-bitrate result.
+// Receive returns the first stream in Castor's ranked output.
 func (c *Client) Receive(ctx context.Context, sourceURL string) (Stream, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
-	// Castor validates device config before reaching its dry-run path. This
-	// placeholder name satisfies validation but is never discovered or used.
-	env := deviceEnvironment(Device{Name: "go-castctl-dry-run", Type: "chromecast"})
-	result := c.runner.Run(ctx, c.args("cast", "--dry-run", "player", sourceURL), env)
+	result := c.runner.Run(ctx, c.args("cast", "--dry-run", "player", sourceURL), nil)
 	if result.err != nil {
 		return Stream{}, commandError("resolve", ctx, result.stderr, result.err)
 	}
@@ -171,13 +169,7 @@ func (c *Client) Receive(ctx context.Context, sourceURL string) (Stream, error) 
 	if err != nil {
 		return Stream{}, fmt.Errorf("parse castor streams: %w", err)
 	}
-	best := streams[0]
-	for _, stream := range streams[1:] {
-		if stream.BitRate > best.BitRate {
-			best = stream
-		}
-	}
-	return best, nil
+	return streams[0], nil
 }
 
 func (c *Client) args(args ...string) []string {
@@ -192,12 +184,15 @@ func deviceEnvironment(device Device) []string {
 	return []string{
 		"CASTOR_DEVICE__NAME=" + device.Name,
 		"CASTOR_DEVICE__TYPE=" + device.Type,
+		"CASTOR_DEVICE__ID=" + device.ID,
+		// Clear a configured host so it cannot override the selected device.
+		"CASTOR_DEVICE__HOST=",
 	}
 }
 
 func validateDevice(device Device) error {
 	switch device.Type {
-	case "chromecast", "dlna":
+	case "chromecast", "dlna", "roku":
 	default:
 		return fmt.Errorf("unsupported device type %q", device.Type)
 	}
@@ -219,10 +214,13 @@ func parseDevices(data []byte) ([]Device, error) {
 			continue
 		}
 		fields := strings.Split(line, "\t")
-		if len(fields) != 3 {
+		if len(fields) != 3 && len(fields) != 4 {
 			return nil, fmt.Errorf("unexpected line %q", line)
 		}
 		device := Device{Name: strings.TrimSpace(fields[0]), Type: strings.TrimSpace(fields[1]), Address: strings.TrimSpace(fields[2])}
+		if len(fields) == 4 {
+			device.ID = strings.TrimSpace(fields[3])
+		}
 		if err := validateDevice(device); err != nil {
 			return nil, fmt.Errorf("invalid device %q: %w", device.Name, err)
 		}
@@ -242,11 +240,15 @@ func parseStreams(data []byte) ([]Stream, error) {
 		if line == "" {
 			continue
 		}
-		fields := strings.SplitN(line, "\t", 2)
-		if len(fields) != 2 {
+		fields := strings.Split(line, "\t")
+		if len(fields) != 2 && (len(fields) != 3 || fields[2] != "last resort") {
 			return nil, fmt.Errorf("unexpected line %q", line)
 		}
-		bitRate, err := strconv.ParseInt(strings.TrimSpace(fields[0]), 10, 64)
+		var bitRate int64
+		var err error
+		if strings.TrimSpace(fields[0]) != "unknown" {
+			bitRate, err = strconv.ParseInt(strings.TrimSpace(fields[0]), 10, 64)
+		}
 		if err != nil || bitRate < 0 {
 			return nil, fmt.Errorf("invalid bitrate in %q", line)
 		}
