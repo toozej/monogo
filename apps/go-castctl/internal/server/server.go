@@ -249,6 +249,7 @@ func decodeRequest(w http.ResponseWriter, r *http.Request) (request, error) {
 	return request{
 		URL: r.Form.Get("url"),
 		Device: castor.Device{
+			ID:      r.Form.Get("device_id"),
 			Name:    r.Form.Get("device_name"),
 			Type:    r.Form.Get("device_type"),
 			Address: r.Form.Get("device_address"),
@@ -271,10 +272,10 @@ func validateRequest(payload request, requireDevice bool) error {
 		return errors.New("device.name is required")
 	}
 	switch payload.Device.Type {
-	case "chromecast", "dlna":
+	case "chromecast", "dlna", "roku":
 		return nil
 	default:
-		return errors.New("device.type must be chromecast or dlna")
+		return errors.New("device.type must be chromecast, dlna, or roku")
 	}
 }
 

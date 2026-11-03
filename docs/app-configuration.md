@@ -24,6 +24,7 @@ files.
 | `dockerPlatforms` | no | Restricts the container images from GoReleaser to the listed OCI platforms, such as `linux/amd64` and `linux/arm64`. Use this when a custom runtime base lacks published images for some default platforms. |
 | `cgoEnabled` | no (default `false`) | Toggles `CGO_ENABLED`. See [CGO apps](#cgo-apps). |
 | `runtimeImage` | no | Overrides the runtime base in the non-distroless `Dockerfile`. Defaults to `scratch`, or `debian:trixie-slim` when `cgoEnabled` is `true`. |
+| `runtimeAptPackages` | no | Installed Debian packages to update from APT repositories when the runtime image builds. Requires an APT-based runtime with root access. Does not change the upstream application version. |
 | `port` | no | When set, the generator emits `EXPOSE <port>` in Dockerfiles. |
 | `swaggerEnabled` | no (default `false`) | Generates and serves Swagger 2.0 documentation for an app with a user-facing HTTP API. See [Swagger API documentation](#swagger-api-documentation). |
 | `swaggerGeneralInfo` | when `swaggerEnabled` is `true` | Go source file, relative to the app directory, with the general Swag annotations. |

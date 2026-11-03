@@ -4,7 +4,11 @@ FROM --platform=$BUILDPLATFORM golang:1.27.3-trixie AS filesystem
 RUN mkdir -p /container-root/tmp && \
     chown -R 65532:65532 /container-root
 # runtime image including CA certs and tzdata
-FROM ghcr.io/stupside/castor:v1.9.0
+FROM ghcr.io/stupside/castor:v2.5.0
+# Refresh selected runtime packages from the base distribution's security repositories.
+RUN apt-get update && \
+    apt-get install -y --only-upgrade --no-install-recommends chromium chromium-common libbrotli1 && \
+    rm -rf /var/lib/apt/lists/*
 # Copy our static executable.
 ARG TARGETPLATFORM
 COPY $TARGETPLATFORM/go-castctl /go/bin/go-castctl

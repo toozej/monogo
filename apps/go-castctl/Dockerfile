@@ -43,7 +43,11 @@ RUN mkdir -p /container-root/tmp && \
     chown -R 65532:65532 /container-root
 
 # runtime image
-FROM ghcr.io/stupside/castor:v1.9.0
+FROM ghcr.io/stupside/castor:v2.5.0
+# Refresh selected runtime packages from the base distribution's security repositories.
+RUN apt-get update && \
+    apt-get install -y --only-upgrade --no-install-recommends chromium chromium-common libbrotli1 && \
+    rm -rf /var/lib/apt/lists/*
 # Copy our executable.
 COPY --from=build /out/go-castctl /go/bin/go-castctl
 # Include the project license in the runtime image.

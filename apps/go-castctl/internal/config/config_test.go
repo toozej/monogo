@@ -1,6 +1,7 @@
 package config
 
 import (
+	"os"
 	"testing"
 	"time"
 )
@@ -49,5 +50,17 @@ func TestValidate(t *testing.T) {
 				t.Fatal("Validate returned nil error")
 			}
 		})
+	}
+}
+
+func TestDefaultConfigPathIsOptional(t *testing.T) {
+	t.Chdir(t.TempDir())
+	t.Setenv("CASTOR_CONFIG", "")
+	if err := os.Unsetenv("CASTOR_CONFIG"); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load()
+	if err != nil || cfg.Castor.ConfigPath != "" {
+		t.Fatalf("config path = %q, error = %v", cfg.Castor.ConfigPath, err)
 	}
 }

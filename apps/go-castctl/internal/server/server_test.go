@@ -51,7 +51,7 @@ func TestSendAliases(t *testing.T) {
 		t.Run(path, func(t *testing.T) {
 			service := &fakeService{}
 			srv := testServer(service)
-			body := `{"url":"https://example.com/watch","device":{"name":"TV","type":"chromecast","address":"192.0.2.10"}}`
+			body := `{"url":"https://example.com/watch","device":{"id":"uuid:tv","name":"TV","type":"roku","address":"192.0.2.10"}}`
 			req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(body))
 			req.Header.Set("Content-Type", "application/json")
 			res := httptest.NewRecorder()
@@ -59,7 +59,7 @@ func TestSendAliases(t *testing.T) {
 			if res.Code != http.StatusAccepted {
 				t.Fatalf("status = %d, body = %s", res.Code, res.Body.String())
 			}
-			if len(service.sendCalls) != 1 || service.sendCalls[0].Device.Address != "192.0.2.10" {
+			if len(service.sendCalls) != 1 || service.sendCalls[0].Device.ID != "uuid:tv" || service.sendCalls[0].Device.Type != "roku" || service.sendCalls[0].Device.Address != "192.0.2.10" {
 				t.Fatalf("unexpected send calls: %#v", service.sendCalls)
 			}
 		})

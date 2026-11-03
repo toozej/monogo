@@ -165,6 +165,9 @@ const docTemplate = `{
                 "address": {
                     "type": "string"
                 },
+                "id": {
+                    "type": "string"
+                },
                 "name": {
                     "type": "string"
                 },
