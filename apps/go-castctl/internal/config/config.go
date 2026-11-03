@@ -27,7 +27,7 @@ type Server struct {
 // Castor configures the external Castor command.
 type Castor struct {
 	Binary     string        `env:"BINARY" envDefault:"castor"`
-	ConfigPath string        `env:"CONFIG" envDefault:"config.yaml"`
+	ConfigPath string        `env:"CONFIG"`
 	Timeout    time.Duration `env:"TIMEOUT" envDefault:"2m"`
 }
 

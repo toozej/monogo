@@ -22,6 +22,7 @@ func RegisterRoutes() {
 }
 
 type device struct {
+	ID      string `json:"id,omitempty"`
 	Name    string `json:"name"`
 	Type    string `json:"type"`
 	Address string `json:"address"`
@@ -117,6 +118,7 @@ func (p *Page) Render() app.UI {
 						app.Select().ID("device-type").OnChange(p.ValueTo(&p.DeviceType)).Body(
 							app.Option().Value("chromecast").Selected(p.DeviceType == "chromecast").Text("Chromecast"),
 							app.Option().Value("dlna").Selected(p.DeviceType == "dlna").Text("DLNA"),
+							app.Option().Value("roku").Selected(p.DeviceType == "roku").Text("Roku"),
 						),
 					),
 				),
@@ -186,10 +188,17 @@ func (p *Page) submit(ctx app.Context, endpoint string) {
 	p.Busy = true
 	p.Error = ""
 	p.Message = ""
+	var deviceID string
+	for _, found := range p.Devices {
+		if found.Name == p.DeviceName && found.Type == p.DeviceType && found.Address == p.DeviceAddress {
+			deviceID = found.ID
+			break
+		}
+	}
 	payload, _ := json.Marshal(request{
 		URL: p.URL,
 		Device: device{
-			Name: p.DeviceName, Type: p.DeviceType, Address: p.DeviceAddress,
+			ID: deviceID, Name: p.DeviceName, Type: p.DeviceType, Address: p.DeviceAddress,
 		},
 	})
 	ctx.Async(func() {
