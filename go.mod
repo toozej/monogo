@@ -13,7 +13,7 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.10.4
 	github.com/bwmarrin/discordgo v0.29.0
 	github.com/caarlos0/env/v11 v11.4.1
-	github.com/chromedp/chromedp v0.21.0
+	github.com/chromedp/chromedp v0.21.1
 	github.com/davhofer/botsky v0.0.0-20250218025645-d30f6a2851dd
 	github.com/gin-contrib/location v1.0.3
 	github.com/gin-gonic/gin v1.12.0
@@ -41,7 +41,7 @@ require (
 	github.com/muesli/roff v0.1.0
 	github.com/nikoksr/notify v1.6.0
 	github.com/njayp/ophis v1.1.4
-	github.com/openai/openai-go/v3 v3.86.0
+	github.com/openai/openai-go/v3 v3.91.1
 	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd
 	github.com/sahilm/fuzzy v0.1.3
 	github.com/sirupsen/logrus v1.10.2
@@ -53,7 +53,7 @@ require (
 	github.com/swaggo/gin-swagger v1.6.1
 	github.com/swaggo/http-swagger/v2 v2.0.2
 	github.com/swaggo/swag v1.16.6
-	github.com/tirthpatell/threads-go v1.11.0
+	github.com/tirthpatell/threads-go v1.12.0
 	github.com/tkrajina/gpxgo v1.5.1
 	github.com/twpayne/go-gpx v1.5.0
 	github.com/zmb3/spotify/v2 v2.4.3
@@ -86,7 +86,7 @@ require (
 	github.com/charmbracelet/x/cellbuf v0.0.15 // indirect
 	github.com/charmbracelet/x/mosaic v0.0.0-20261008172826-faa4adf95555 // indirect
 	github.com/charmbracelet/x/term v0.2.2 // indirect
-	github.com/chromedp/cdproto v0.157.8 // indirect
+	github.com/chromedp/cdproto v0.159.0 // indirect
 	github.com/clipperhouse/displaywidth v0.11.0 // indirect
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/cloudwego/base64x v0.1.7 // indirect
