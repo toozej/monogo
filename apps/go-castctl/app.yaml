@@ -6,7 +6,7 @@ mainPath: apps/go-castctl
 wasmMainPath: apps/go-castctl/web
 description: "Chromecast streaming website powered by Castor and go-app"
 shortDescription: "Cast web video to a TV or watch it locally"
-goImage: golang:1.27.3-trixie
+goImage: golang:1.27.4-trixie
 # Castor's runtime supplies the castor binary, Chromium, ffmpeg, and ffprobe.
 distrolessImage: ghcr.io/stupside/castor:v2.5.0
 # The upstream tag contains older Debian packages. Install available security fixes.

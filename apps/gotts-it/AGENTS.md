@@ -7,7 +7,7 @@ GoDotEnv and `caarlos0/env` handle configuration, and go-readability extracts ar
 The app uses openai-go for TTS and GoReleaser for cross-platform builds and Docker images.
 
 - **Module:** `github.com/toozej/monogo/apps/gotts-it`
-- **Go version:** 1.27.3
+- **Go version:** 1.27.4
 - **License:** GPLv3
 
 ## Setup commands

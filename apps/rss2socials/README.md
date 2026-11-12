@@ -21,7 +21,7 @@ This mode prevents a bulk post of all current RSS feed entries on first startup.
 
 ## Installation
 ### Prerequisites
-- Go (version 1.27.3 or later)
+- Go (version 1.27.4 or later)
 - SQLite for database management
 - Make
 

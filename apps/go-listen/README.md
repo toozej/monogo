@@ -28,7 +28,7 @@ A web application that allows users to search for artists and automatically add 
 ### Prerequisites
 
 1. **Spotify Developer Account**: Create an app at [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
-2. **Go 1.27.3+**: To build from source
+2. **Go 1.27.4+**: To build from source
 
 ### Installation
 

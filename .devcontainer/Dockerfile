@@ -1,5 +1,5 @@
 # Keep this image in sync with the Go version declared in the root go.mod.
-ARG GO_IMAGE=golang:1.27.3-trixie
+ARG GO_IMAGE=golang:1.27.4-trixie
 FROM ${GO_IMAGE}
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]

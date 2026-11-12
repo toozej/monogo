@@ -8,7 +8,7 @@ For other Linux distributions, familiarity with command-line tools is likely suf
 
 ## Install Go
 
-This repository requires Go 1.27.3 or later to build Podgrab from source.
+This repository requires Go 1.27.4 or later to build Podgrab from source.
 
 If you already have Go installed on your machine, you can skip to the next step.
 

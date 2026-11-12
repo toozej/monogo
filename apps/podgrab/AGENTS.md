@@ -7,7 +7,7 @@ Use this guidance for Claude Code (claude.ai/code) tasks in this repository.
 Podgrab is a self-hosted podcast manager written in Go that automatically
 downloads podcast episodes. It uses a lightweight web application with a Go backend and HTML template frontend.
 
-**Stack**: Go 1.27.3+, Gin web framework, GORM with SQLite, HTML templates,
+**Stack**: Go 1.27.4+, Gin web framework, GORM with SQLite, HTML templates,
 WebSockets for real-time updates, Uber Zap structured logs
 
 ## Development Commands
