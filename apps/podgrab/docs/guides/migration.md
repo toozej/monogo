@@ -21,7 +21,7 @@ and safe to re-run.
 
 - Current Podgrab database (`podgrab.db`) with downloaded episodes
 - Read and write access to the config and assets directories
-- Go 1.27.3+ toolchain (for local execution) **or** Docker (for container
+- Go 1.27.4+ toolchain (for local execution) **or** Docker (for container
   execution)
 
 ## Run Locally (Go Toolchain)
