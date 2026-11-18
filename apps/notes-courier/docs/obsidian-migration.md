@@ -1,7 +1,8 @@
 # Migrate Simplenote notes to Obsidian
 
 `notes-courier` exports Simplenote notes into a local Obsidian vault.
-Use `DESTINATION=obsidian` to select this exporter.
+Use `BACKEND=simplenote` and `DESTINATION=obsidian` to select this migration.
+The Obsidian destination also accepts Memos and Obsidian sources.
 
 The legacy `SSG_TYPE=obsidian` setting selects the same exporter when `DESTINATION` is empty.
 It repeats the export during the migration validation period.
@@ -11,7 +12,7 @@ The Obsidian OneDrive Sync plugin distributes vault changes between clients.
 
 You do not need the Obsidian CLI.
 
-## Implementation plan
+## Export behavior
 
 1. Read `sncli export` JSON to preserve note IDs, dates, tags, and complete content.
 2. Convert metadata into flat Obsidian properties above the original Markdown.
@@ -47,10 +48,74 @@ For example, `pipx install sncli` usually installs it under `~/.local/bin/`.
 Use its cache only for this exporter during migration.
 Do not edit cached notes through `sncli`.
 The export command performs `sncli`'s normal server sync before it reads the notes.
+
 The exporter never submits Obsidian edits to Simplenote.
 
-The repository's minimal Docker images do not include Python or `sncli`.
-Use the native binary for this workflow.
+## Run with Docker
+
+The published notes-courier images include Python 3 and `sncli`.
+The image installs `sncli==0.4.4` with pip into `/opt/venv`.
+The image adds `/opt/venv/bin` to `PATH` and sets `HOME=/home/nonroot`.
+
+Both the normal and `distroless` tags use Debian slim so they can provide these tools.
+The `distroless` tag retains its name for compatibility. It is no longer a distroless runtime for this app.
+The default container user has UID and GID `65532`.
+
+`notes-courier` currently accepts Simplenote as a source only.
+It does not implement `DESTINATION=simplenote`.
+The bundled `sncli` also supports direct imports into Simplenote.
+For direct use, add `--entrypoint /opt/venv/bin/sncli` before the image name.
+Put the `sncli` arguments, such as `--config=/dev/null import -`, after the image name.
+Use a separate cache directory for direct imports.
+
+Create a separate Docker environment file outside the vault:
+
+```sh
+mkdir -p ~/.config/notes-courier-obsidian ~/.local/share/notes-courier-obsidian
+chmod 700 ~/.local/share/notes-courier-obsidian
+cat > ~/.config/notes-courier-obsidian/docker.env <<'EOF'
+BACKEND=simplenote
+DESTINATION=obsidian
+SN_USERNAME=you@example.com
+SN_PASSWORD=replace-with-your-Simplenote-password
+SN_CLI_PATH=/opt/venv/bin/sncli
+OBSIDIAN_VAULT_PATH=/vault
+OBSIDIAN_FOLDER=Simplenote
+POLLING_CYCLE=300
+TAG_TO_DOWNLOAD=
+OBSIDIAN_DELETE_MISSING=false
+EOF
+chmod 600 ~/.config/notes-courier-obsidian/docker.env
+```
+
+Set the credentials in `docker.env` before you run the container.
+Docker's `--env-file` reads values literally. Do not add shell quotes around passwords or paths in this file.
+Use container paths for `SN_CLI_PATH` and `OBSIDIAN_VAULT_PATH`.
+
+Run the first export on Linux with your host UID and GID:
+
+```sh
+docker run --rm --read-only \
+  --user "$(id -u):$(id -g)" \
+  --env-file "$HOME/.config/notes-courier-obsidian/docker.env" \
+  --env POLLING_CYCLE=0 \
+  --mount "type=bind,src=$HOME/Documents/MyVault,dst=/vault" \
+  --mount "type=bind,src=$HOME/.local/share/notes-courier-obsidian,dst=/home/nonroot" \
+  --tmpfs /tmp:rw,nosuid,nodev \
+  toozej/notes-courier:latest
+```
+
+Replace the host vault path with your current vault directory.
+The user that runs the container must have write access to both bind mounts.
+The home mount preserves the `sncli` cache between runs.
+Use this cache only for this exporter during migration.
+
+To repeat exports, remove `--env POLLING_CYCLE=0` from the command.
+The container then uses the interval in `docker.env`.
+Do not run the native exporter and container against the same import folder at the same time.
+
+The generated Compose service includes a writable named volume at `/home/nonroot`.
+Add an environment file and a vault mount before you use that service for this migration.
 
 ## Run the first export
 

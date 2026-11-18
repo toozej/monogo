@@ -34,13 +34,26 @@ ARG BUILDER=unknown
 
 RUN LDFLAGS="-s -w -X github.com/toozej/monogo/pkg/version.Version=${VERSION} -X github.com/toozej/monogo/pkg/version.Commit=${COMMIT} -X github.com/toozej/monogo/pkg/version.Branch=${BRANCH} -X github.com/toozej/monogo/pkg/version.BuiltAt=${BUILT_AT} -X github.com/toozej/monogo/pkg/version.Builder=${BUILDER}" && \
     CGO_ENABLED=0 go build -o /out/notes-courier -ldflags="${LDFLAGS}" ./apps/notes-courier
+RUN mkdir -p /container-root/home/nonroot && \
+    chown -R 65532:65532 /container-root
 
 # runtime image
-FROM scratch
+FROM debian:trixie-slim
+# Install or update runtime packages from the base distribution repositories.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ca-certificates python3 python3-pip python3-venv && \
+    rm -rf /var/lib/apt/lists/*
+# Install Python tools in a virtual environment to preserve system packages.
+ENV PATH="/opt/venv/bin:${PATH}"
+RUN python3 -m venv /opt/venv && \
+    /opt/venv/bin/python -m pip install --no-cache-dir sncli==0.4.4
+ENV HOME="/home/nonroot"
 # Copy our executable.
 COPY --from=build /out/notes-courier /go/bin/notes-courier
 # Include the project license in the runtime image.
 COPY LICENSE /usr/share/doc/notes-courier/copyright
+COPY --from=build --chown=65532:65532 /container-root/home/nonroot /home/nonroot
+WORKDIR /home/nonroot
 # Expose port for publishing as web service
 # EXPOSE 8081
 # Verify that the application binary can start without requiring a shell or

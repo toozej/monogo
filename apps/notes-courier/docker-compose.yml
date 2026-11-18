@@ -13,6 +13,8 @@ services:
       timeout: 5s
       start_period: 5s
       retries: 3
+    volumes:
+      - "notes-courier-home:/home/nonroot"
     labels:
       - "traefik.enable=false"
       # labels below for publishing as web service
@@ -25,3 +27,5 @@ services:
       # - "traefik.http.routers.notes-courier-secure.tls=true"
     # networks:
       # - traefik
+volumes:
+  notes-courier-home:

@@ -69,10 +69,19 @@ RUN mkdir -p[[ range index $app "writableDirs" ]] /container-root[[.]][[ end ]] 
 # runtime image
 FROM [[$runtime]]
 [[ if index $app "runtimeAptPackages" -]]
-# Refresh selected runtime packages from the base distribution's security repositories.
+# Install or update runtime packages from the base distribution repositories.
 RUN apt-get update && \
-    apt-get install -y --only-upgrade --no-install-recommends[[ range index $app "runtimeAptPackages" ]] [[.]][[ end ]] && \
+    apt-get install -y --no-install-recommends[[ range index $app "runtimeAptPackages" ]] [[.]][[ end ]] && \
     rm -rf /var/lib/apt/lists/*
+[[ end -]]
+[[ if index $app "runtimePipPackages" -]]
+# Install Python tools in a virtual environment to preserve system packages.
+ENV PATH="/opt/venv/bin:${PATH}"
+RUN python3 -m venv /opt/venv && \
+    /opt/venv/bin/python -m pip install --no-cache-dir[[ range index $app "runtimePipPackages" ]] [[.]][[ end ]]
+[[ end -]]
+[[ range $name, $value := index $app "runtimeEnv" -]]
+ENV [[$name]]="[[$value]]"
 [[ end -]]
 # Copy our executable.
 COPY --from=build /out/[[$app.binary]] /go/bin/[[$app.binary]]

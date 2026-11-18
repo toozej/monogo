@@ -23,8 +23,10 @@ files.
 | `distrolessOnly` | no (default `false`) | Builds only the distroless release image. That image receives both the normal (`latest`, version) and distroless (`distroless`, version-distroless) tags. The generated default Dockerfile also uses the distroless runtime. Use this for apps that require CA certificates or timezone data. |
 | `dockerPlatforms` | no | Restricts the container images from GoReleaser to the listed OCI platforms, such as `linux/amd64` and `linux/arm64`. Use this when a custom runtime base lacks published images for some default platforms. |
 | `cgoEnabled` | no (default `false`) | Toggles `CGO_ENABLED`. See [CGO apps](#cgo-apps). |
-| `runtimeImage` | no | Overrides the runtime base in the non-distroless `Dockerfile`. Defaults to `scratch`, or `debian:trixie-slim` when `cgoEnabled` is `true`. |
-| `runtimeAptPackages` | no | Installed Debian packages to update from APT repositories when the runtime image builds. Requires an APT-based runtime with root access. Does not change the upstream application version. |
+| `runtimeImage` | no | Overrides the runtime base in the non-distroless Dockerfiles, including GoReleaser. Defaults to `scratch`, or `debian:trixie-slim` when `cgoEnabled` is `true`. |
+| `runtimeAptPackages` | no | Debian packages to install or update when each runtime image builds. Both runtime bases must provide APT and root access during installation. Does not change the upstream application version. |
+| `runtimePipPackages` | no | Python packages to install with pip into `/opt/venv` in each runtime image. Adds `/opt/venv/bin` to `PATH`. Both runtime bases must provide Python 3 and the `venv` module. Package entries can include version pins. |
+| `runtimeEnv` | no | Environment variables set in each runtime image. For example, set `HOME` to a path in `writableDirs` for tools that maintain a local cache. |
 | `port` | no | When set, the generator emits `EXPOSE <port>` in Dockerfiles. |
 | `swaggerEnabled` | no (default `false`) | Generates and serves Swagger 2.0 documentation for an app with a user-facing HTTP API. See [Swagger API documentation](#swagger-api-documentation). |
 | `swaggerGeneralInfo` | when `swaggerEnabled` is `true` | Go source file, relative to the app directory, with the general Swag annotations. |
