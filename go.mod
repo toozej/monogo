@@ -27,7 +27,7 @@ require (
 	github.com/google/go-github/v85 v85.0.0
 	github.com/google/go-github/v89 v89.0.0
 	github.com/google/uuid v1.6.0
-	github.com/gorilla/websocket v1.5.3
+	github.com/gorilla/websocket v1.5.4-0.20240701034025-d67f41855da4
 	github.com/grokify/html-strip-tags-go v0.1.0
 	github.com/hashicorp/hcl/v2 v2.25.0
 	github.com/jasonlvhit/gocron v0.0.1
