@@ -67,7 +67,12 @@ RUN mkdir -p[[ range index $app "writableDirs" ]] /container-root[[.]][[ end ]] 
 [[- end ]]
 
 # runtime image
+[[ if index $app "runtimeDockerfileTemplate" -]]
+[[ template "app-runtime" . ]]
+FROM app-runtime
+[[ else -]]
 FROM [[$runtime]]
+[[ end -]]
 [[ if index $app "runtimeAptPackages" -]]
 # Install or update runtime packages from the base distribution repositories.
 RUN apt-get update && \

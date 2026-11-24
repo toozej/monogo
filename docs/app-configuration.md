@@ -24,6 +24,7 @@ files.
 | `dockerPlatforms` | no | Restricts the container images from GoReleaser to the listed OCI platforms, such as `linux/amd64` and `linux/arm64`. Use this when a custom runtime base lacks published images for some default platforms. |
 | `cgoEnabled` | no (default `false`) | Toggles `CGO_ENABLED`. See [CGO apps](#cgo-apps). |
 | `runtimeImage` | no | Overrides the runtime base in the non-distroless Dockerfiles, including GoReleaser. Defaults to `scratch`, or `debian:trixie-slim` when `cgoEnabled` is `true`. |
+| `runtimeDockerfileTemplate` | no | Path from the repository root to an additional gomplate Dockerfile template. It must define an `app-runtime` stage. All Dockerfile variants use that stage as their runtime base. The template can read the `app` data source. Use this to rebuild an upstream tool that needs a dependency fix. |
 | `runtimeAptPackages` | no | Debian packages to install or update when each runtime image builds. Both runtime bases must provide APT and root access during installation. Does not change the upstream application version. |
 | `runtimePipPackages` | no | Python packages to install with pip into `/opt/venv` in each runtime image. Adds `/opt/venv/bin` to `PATH`. Both runtime bases must provide Python 3 and the `venv` module. Package entries can include version pins. |
 | `runtimeEnv` | no | Environment variables set in each runtime image. For example, set `HOME` to a path in `writableDirs` for tools that maintain a local cache. |

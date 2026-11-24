@@ -23,6 +23,11 @@ if ! command -v gomplate >/dev/null 2>&1; then
 fi
 
 DISTROLESS_ONLY="$(awk -F': *' '/^distrolessOnly:/ {gsub(/"/, "", $2); print $2; exit}' "${APP_CONFIG}")"
+RUNTIME_TEMPLATE="$(awk -F': *' '/^runtimeDockerfileTemplate:/ {gsub(/"/, "", $2); print $2; exit}' "${APP_CONFIG}")"
+runtime_template_args=()
+if [ -n "${RUNTIME_TEMPLATE}" ]; then
+	runtime_template_args=(--template "app-runtime=${ROOT}/${RUNTIME_TEMPLATE}")
+fi
 
 templates=(
 	".goreleaser.yml"
@@ -50,6 +55,7 @@ for template in "${templates[@]}"; do
 		--left-delim '[[' \
 		--right-delim ']]' \
 		-d "app=${APP_CONFIG}" \
+		"${runtime_template_args[@]}" \
 		-f "${ROOT}/templates/app/${template}.tmpl" \
 		-o "${APP_DIR}/${template}"
 done
